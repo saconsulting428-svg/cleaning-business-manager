@@ -40,16 +40,18 @@ export function Modal({ open, onClose, title, description, size = 'md', children
     };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
-    // Focus the first form control for fast data entry.
-    const t = window.setTimeout(() => {
-      const el = panelRef.current?.querySelector<HTMLElement>('input:not([type=hidden]):not([disabled]), select, textarea');
-      (el ?? panelRef.current)?.focus({ preventScroll: true });
-    }, 30);
+    // Focus the first form control for fast data entry. Done synchronously (the panel is
+    // already in the DOM) and only if focus isn't inside the dialog yet, so it never
+    // pulls focus away from a field the user has started typing in.
+    const panel = panelRef.current;
+    if (panel && !panel.contains(document.activeElement)) {
+      const el = panel.querySelector<HTMLElement>('input:not([type=hidden]):not([disabled]), select, textarea');
+      (el ?? panel).focus({ preventScroll: true });
+    }
     return () => {
       document.removeEventListener('keydown', onKey);
       openStack.splice(openStack.indexOf(token), 1);
       if (openStack.length === 0) document.body.style.overflow = '';
-      window.clearTimeout(t);
     };
   }, [open]);
 
