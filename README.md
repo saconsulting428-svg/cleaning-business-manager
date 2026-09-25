@@ -35,6 +35,10 @@ npm run preview   # serves the production build locally (http://localhost:4173)
 
 `npm run typecheck` runs the TypeScript check on its own.
 
+`npm run build:preview` builds a single self-contained HTML file
+(`dist-preview/cleanpro.html`, CSS and JS inlined) for hosts that can only serve
+one page. That build keeps navigation in memory instead of the address bar.
+
 The build in `dist/` is a static single-page app. If you host it on a static web
 server, route all unknown paths to `index.html` so deep links such as `/invoices`
 still load.

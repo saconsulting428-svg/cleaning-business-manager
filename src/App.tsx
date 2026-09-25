@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, MemoryRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppDataProvider } from '@/store/AppDataContext';
 import { ToastProvider } from '@/components/ui';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -13,11 +13,17 @@ import { PaymentsPage } from '@/pages/PaymentsPage';
 import { ReportsPage } from '@/pages/ReportsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 
+/**
+ * Standard builds use clean URLs. The single-file preview build (`npm run build:preview`)
+ * runs inside a frame without an address bar, so it keeps navigation in memory.
+ */
+const Router = import.meta.env.VITE_ROUTER === 'memory' ? MemoryRouter : BrowserRouter;
+
 export default function App() {
   return (
     <AppDataProvider>
       <ToastProvider>
-        <BrowserRouter>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             <Route element={<AppLayout />}>
               <Route index element={<DashboardPage />} />
@@ -33,7 +39,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
-        </BrowserRouter>
+        </Router>
       </ToastProvider>
     </AppDataProvider>
   );
