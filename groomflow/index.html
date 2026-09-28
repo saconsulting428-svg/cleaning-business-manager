@@ -428,6 +428,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
 .print-doc h1{font-size:22px;margin-bottom:4px}
 .print-doc .ph{display:flex;justify-content:space-between;border-bottom:3px solid #0F766E;padding-bottom:12px;margin-bottom:16px;gap:20px}
 .print-doc table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
+.print-doc .inv-sum table{width:auto;min-width:260px}
+.print-doc .inv-sum td{border-bottom:0}
 .print-doc th{background:#F0FDFA;text-align:left;padding:6px 8px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em}
 .print-doc td{padding:6px 8px;border-bottom:1px solid #E2E8F0;vertical-align:top}
 .print-doc h3{font-size:14px;color:#0F766E;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.05em}
@@ -885,12 +887,12 @@ function seedDB() {
     ['Sophia', 'Martinez', '(512) 555-0121', 'sophia.martinez@icloud.com', '3514 Guadalupe St', 'Austin', ''],
     ['Grace', 'Holloway', '(512) 555-0176', 'grace.holloway@gmail.com', '12 Lakeway Dr', 'Lakeway', 'Referred by Emily Carter.']
   ];
-  const FIRST = ['Ashley', 'Matthew', 'Jessica', 'Andrew', 'Lauren', 'Joshua', 'Hannah', 'Ryan', 'Brittany', 'Tyler', 'Samantha', 'Nathan', 'Victoria', 'Eric', 'Olivia', 'Jacob', 'Kayla', 'Steven', 'Melissa', 'Justin', 'Allison', 'Aaron'];
-  const LAST = ['Reed', 'Coleman', 'Barnes', 'Powell', 'Jenkins', 'Perry', 'Russell', 'Griffin', 'Hayes', 'Myers', 'Ford', 'Hamilton', 'Graham', 'Sullivan', 'Wallace', 'Woods', 'Cole', 'West', 'Jordan', 'Owens', 'Reynolds', 'Fisher'];
+  const FIRST = ['Ashley', 'Matthew', 'Jessica', 'Andrew', 'Lauren', 'Joshua', 'Hannah', 'Ryan', 'Brittany', 'Tyler', 'Samantha', 'Nathan', 'Victoria', 'Eric', 'Olivia', 'Jacob', 'Kayla', 'Steven', 'Melissa', 'Justin', 'Allison', 'Aaron', 'Brandon', 'Chelsea', 'Derek', 'Monica', 'Travis', 'Heather', 'Colin', 'Vanessa', 'Marcus'];
+  const LAST = ['Reed', 'Coleman', 'Barnes', 'Powell', 'Jenkins', 'Perry', 'Russell', 'Griffin', 'Hayes', 'Myers', 'Ford', 'Hamilton', 'Graham', 'Sullivan', 'Wallace', 'Woods', 'Cole', 'West', 'Jordan', 'Owens', 'Reynolds', 'Fisher', 'Mendoza', 'Price', 'Bryant', 'Alvarez', 'Harper', 'Lowe', 'Stone', 'Vega', 'Fletcher'];
   const STREETS = ['Oak Knoll Dr', 'Brodie Ln', 'Slaughter Ln', 'Parmer Ln', 'Anderson Mill Rd', 'Manchaca Rd', 'Riverside Dr', 'Wells Branch Pkwy', 'Mesa Dr', 'Shoal Creek Blvd', 'William Cannon Dr', 'Far West Blvd'];
   const CITIES = ['Austin', 'Austin', 'Austin', 'Round Rock', 'Cedar Park', 'Pflugerville', 'Georgetown', 'Buda', 'Leander'];
-  for (let i = 0; i < 22; i++) {
-    const f = FIRST[i], l = LAST[i];
+  for (let i = 0; i < 62; i++) {
+    const f = FIRST[i % FIRST.length], l = LAST[(i + Math.floor(i / LAST.length) * 7) % LAST.length];
     const areas = ['512', '737'];
     custRaw.push([f, l, '(' + pick(areas) + ') 555-0' + (200 + i * 7), (f + '.' + l).toLowerCase() + (i % 3 === 0 ? '@gmail.com' : i % 3 === 1 ? '@outlook.com' : '@yahoo.com'), rint(100, 9800) + ' ' + pick(STREETS), pick(CITIES), '']);
   }
@@ -929,20 +931,21 @@ function seedDB() {
     ['Rosie', 16, 'Dog', 'Bichon Frise', 'Female', 6.0, 14, 'White', 'Friendly', '', '', 'Round bichon head, short body.', '', 'SRV-101', 35, 'STF-11'],
     ['Murphy', 17, 'Dog', 'Cocker Spaniel', 'Male', 1.0, 25, 'Buff', 'Friendly', '', '', 'Sporting cut, feathers tidy.', 'First visit with us.', 'SRV-101', 42, 'STF-12']
   ];
-  const DOG_NAMES = ['Buddy', 'Riley', 'Maggie', 'Sophie', 'Jack', 'Gracie', 'Toby', 'Chloe', 'Bentley', 'Penny', 'Oscar', 'Rufus', 'Lola', 'Finn', 'Maple', 'Scout', 'Ellie', 'Gus', 'Louie', 'Ruby', 'Harley', 'Stella', 'Ziggy', 'Honey', 'Otis', 'Mocha', 'Leo', 'Willow'];
-  const CAT_NAMES = ['Cleo', 'Mochi', 'Jasper', 'Pumpkin', 'Shadow', 'Tiger', 'Misty', 'Smokey'];
+  const DOG_NAMES = ['Buddy', 'Riley', 'Maggie', 'Sophie', 'Jack', 'Gracie', 'Toby', 'Chloe', 'Bentley', 'Penny', 'Oscar', 'Rufus', 'Lola', 'Finn', 'Maple', 'Scout', 'Ellie', 'Gus', 'Louie', 'Ruby', 'Harley', 'Stella', 'Ziggy', 'Honey', 'Otis', 'Mocha', 'Leo', 'Willow', 'Archie', 'Benny', 'Dixie', 'Hank', 'Juniper', 'Kona', 'Luna Belle', 'Marley', 'Nova', 'Ollie', 'Peanut', 'Quincy', 'Rosco', 'Sasha', 'Teddy', 'Waffles', 'Yogi', 'Zeus', 'Apollo', 'Bailey', 'Cash', 'Daisy Mae', 'Ember', 'Fritz', 'Goose', 'Iris', 'Jax', 'Koda', 'Lady', 'Moose', 'Nugget', 'Pippa', 'Rocco', 'Sunny', 'Tank', 'Winnie', 'Blue'];
+  const CAT_NAMES = ['Cleo', 'Mochi', 'Jasper', 'Pumpkin', 'Shadow', 'Tiger', 'Misty', 'Smokey', 'Felix', 'Hazelnut', 'Nala', 'Salem', 'Biscotti', 'Olive'];
+  let dogN = 0, catN = 0;
   const DOG_BREEDS = [['Labradoodle', 55, 'SRV-101', 'Cream'], ['Havanese', 12, 'SRV-101', 'Silver'], ['Beagle', 24, 'SRV-102', 'Tri-color'], ['Siberian Husky', 50, 'SRV-107', 'Gray & white'], ['Border Collie', 40, 'SRV-107', 'Black & white'], ['Cavapoo', 15, 'SRV-101', 'Red'], ['West Highland Terrier', 18, 'SRV-104', 'White'], ['Dachshund (Long-haired)', 12, 'SRV-102', 'Red'], ['Golden Retriever', 68, 'SRV-107', 'Light golden'], ['Lhasa Apso', 15, 'SRV-101', 'Parti'], ['Corgi', 28, 'SRV-107', 'Red & white'], ['Bernedoodle', 60, 'SRV-101', 'Tri-color'], ['Miniature Poodle', 14, 'SRV-101', 'Apricot'], ['Samoyed', 55, 'SRV-107', 'White']];
   const CAT_BREEDS = [['Domestic Longhair', 11, 'Gray'], ['British Shorthair', 12, 'Blue'], ['Norwegian Forest Cat', 14, 'Brown tabby']];
   const GEN_TEMPS = ['Friendly', 'Friendly', 'Calm', 'Energetic', 'Nervous', 'Calm'];
-  for (let i = 18; i < 40; i++) {
+  for (let i = 18; i < custRaw.length; i++) {
     const nPets = rnd() < 0.3 ? 2 : 1;
     for (let k = 0; k < nPets; k++) {
       if (rnd() < 0.14) {
         const cb = pick(CAT_BREEDS);
-        petRaw.push([pick(CAT_NAMES), i, 'Cat', cb[0], rnd() < 0.5 ? 'Male' : 'Female', 1 + rnd() * 10, cb[1] + rint(-2, 2), cb[2], pick(GEN_TEMPS), '', '', 'Comb-out and sanitary trim.', '', 'SRV-106', rint(6, 9) * 7, 'STF-13']);
+        petRaw.push([CAT_NAMES[catN++ % CAT_NAMES.length], i, 'Cat', cb[0], rnd() < 0.5 ? 'Male' : 'Female', 1 + rnd() * 10, cb[1] + rint(-2, 2), cb[2], pick(GEN_TEMPS), '', '', 'Comb-out and sanitary trim.', '', 'SRV-106', rint(6, 9) * 7, 'STF-13']);
       } else {
         const b = pick(DOG_BREEDS);
-        petRaw.push([pick(DOG_NAMES), i, 'Dog', b[0], rnd() < 0.5 ? 'Male' : 'Female', 1 + rnd() * 9, b[1] + rint(-4, 4), b[3], pick(GEN_TEMPS), '', '', '', '', b[2], rint(4, 7) * 7, pick(GROOMERS)]);
+        petRaw.push([DOG_NAMES[dogN++ % DOG_NAMES.length], i, 'Dog', b[0], rnd() < 0.5 ? 'Male' : 'Female', 1 + rnd() * 9, b[1] + rint(-4, 4), b[3], pick(GEN_TEMPS), '', '', '', '', b[2], rint(4, 7) * 7, pick(GROOMERS)]);
       }
     }
   }
