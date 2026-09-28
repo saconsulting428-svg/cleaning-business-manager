@@ -71,26 +71,19 @@ Open `index.html` and you're ready to manage products, stock, sales, customers, 
 
 ## How to Open the Application
 
-1. Unzip the StockFlow folder somewhere on your computer, for example your Documents folder.
-2. Open the folder and double-click **`index.html`**.
+1. Save **`index.html`** somewhere on your computer, for example your Documents folder. (If you received a ZIP file, extract it first.)
+2. Double-click **`index.html`**.
 3. StockFlow opens in your default web browser.
 
-Keep the files together: `index.html` needs the `css` and `js` folders next to it.
+StockFlow is a **single file**. All of the design and features are built into `index.html`, so it needs no other files. You can rename it (for example `StockFlow.html`) or move it anywhere.
 
 **Tip:** bookmark the page, or always open StockFlow from the same `index.html` in the same browser. Your data is saved per browser (see below).
 
-### Folder contents
+### Files
 
 ```
-stockflow/
-├── index.html      ← open this file
-├── README.md       ← this guide
-├── css/
-│   └── style.css   ← visual design
-└── js/
-    ├── data.js     ← data storage and calculations
-    ├── ui.js       ← dialogs, notifications and charts
-    └── app.js      ← screens and features
+index.html   ← the complete application: open this file
+README.md    ← this guide
 ```
 
 ---
@@ -136,7 +129,7 @@ Back up regularly, especially before clearing browser data or changing computers
 2. Click **Restore Backup** and choose your `.json` backup file.
 3. Confirm. The current data is replaced with the backup's contents.
 
-To move StockFlow to another computer, export a backup on the old one, copy the StockFlow folder and the backup file to the new one, open `index.html`, and restore the backup.
+To move StockFlow to another computer, export a backup on the old one, copy `index.html` and the backup file to the new one, open `index.html`, and restore the backup.
 
 You can also export individual lists as CSV files (Products, Sales, Customers, Suppliers, Purchases, Inventory History and Reports) to open in Excel, Google Sheets or Numbers.
 
@@ -155,7 +148,7 @@ This permanently deletes all products, inventory history, sales, customers, supp
 ## Troubleshooting
 
 **The page looks unstyled or nothing appears.**
-Make sure the `css` and `js` folders are in the same folder as `index.html`, and that you unzipped the download rather than opening it from inside the ZIP file.
+Make sure JavaScript is enabled in your browser and that you're using a recent version of Chrome, Edge, Firefox or Safari. If you received a ZIP file, extract it first rather than opening the file from inside the ZIP.
 
 **My data disappeared.**
 - Check that you're using the same browser (and browser profile) as before.
