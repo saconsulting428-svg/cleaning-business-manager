@@ -2876,9 +2876,9 @@ function invoiceForm(id, pre) {
           DB.invoices.push(Object.assign({ id: newId, createdAt: todayISO() }, data));
           logActivity('invoice', 'Invoice ' + newId + ' created for ' + custName(data.customerId));
         }
-      }, inv ? 'Invoice updated.' : 'Invoice ' + newId + ' created.');
+      }, inv ? 'Invoice updated.' : null);
       if (!ok) return false;
-      if (!inv) setTimeout(() => openInvoice(newId), 60);
+      if (!inv) { toast('Invoice ' + newId + ' created.', 'success'); setTimeout(() => openInvoice(newId), 60); }
     }
   });
 }
