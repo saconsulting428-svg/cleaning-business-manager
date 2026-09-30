@@ -34,6 +34,7 @@ a{color:var(--sky-strong)}
 h1,h2,h3,h4{margin:0;line-height:1.2;letter-spacing:-.01em}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 :focus-visible{outline:3px solid var(--sky-strong);outline-offset:2px;border-radius:8px}
+main:focus,main:focus-visible{outline:none}
 .skip-link{position:absolute;left:12px;top:-60px;background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;z-index:200}
 .skip-link:focus{top:10px}
 svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
@@ -198,7 +199,10 @@ hr.sep{border:0;border-top:1px dashed var(--line-strong);margin:14px 0}
 .qa.inc .qi{background:var(--coral-soft);color:var(--coral-strong)}
 .qa.meal .qi{background:var(--yellow);color:var(--amber-strong)}
 .qa.nap .qi{background:var(--sky-soft);color:var(--sky-strong)}
-.today-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.today-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:stretch}
+.today-side{display:flex;flex-direction:column;gap:16px;min-height:0}
+.today-side .feed-card{flex:1;display:flex;flex-direction:column;min-height:260px}
+.today-side .feed-card .feed{flex:1 1 0;min-height:0;overflow-y:auto;padding-right:4px}
 
 /* attendance board */
 .board{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
@@ -221,8 +225,10 @@ hr.sep{border:0;border-top:1px dashed var(--line-strong);margin:14px 0}
 .kid .kn{font-weight:800;font-size:14px;line-height:1.2}
 .kid .ks{font-size:12px;color:var(--ink-soft);display:flex;gap:6px;align-items:center;white-space:nowrap}
 .kid.off{opacity:.62}
-.kid .flags{margin-left:auto;display:flex;gap:4px;align-items:center}
-.flag{font-size:11px;font-weight:900;padding:2px 7px;border-radius:8px}
+.kid .kbody{min-width:0;flex:1;display:flex;flex-direction:column;gap:1px}
+.kid .kn{display:block}
+.kid .flags{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:3px}
+.flag{font-size:11px;font-weight:900;padding:2px 7px;border-radius:8px;white-space:nowrap}
 .flag.red{background:var(--red-soft);color:var(--red)}
 .flag.yellow{background:var(--yellow-soft);color:var(--amber-strong)}
 .flag.nap{background:var(--sky-soft);color:var(--sky-strong)}
@@ -299,8 +305,10 @@ table.t tr:hover td{background:#FFFCF5}
 table.t td.num,table.t th.num{text-align:right;font-variant-numeric:tabular-nums}
 
 /* ---------- DAILY CARE ---------- */
-.care-layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start}
-.care-list{display:flex;flex-direction:column;gap:6px;max-height:70vh;overflow:auto;padding-right:4px}
+.care-layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:stretch}
+.side-card{padding:12px}
+.care-side>.care-list{position:sticky;top:92px;max-height:calc(100vh - 124px)}
+.care-list{display:flex;flex-direction:column;gap:6px;overflow:auto;padding-right:4px}
 .care-kid{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;border:1px solid var(--line);background:#fff;text-align:left;width:100%}
 .care-kid[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
 .care-kid[aria-pressed="true"] small{color:#CBD5E1}
@@ -336,7 +344,9 @@ table.t td.num,table.t th.num{text-align:right;font-variant-numeric:tabular-nums
 .kid-picker input:focus-visible+label{outline:3px solid var(--sky-strong)}
 
 /* ---------- PICKUP ---------- */
-.pickup-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px;align-items:start}
+.pickup-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px;align-items:stretch}
+.pk-side-inner{position:sticky;top:92px}
+.pk-side-inner .ci-list{max-height:calc(100vh - 250px)}
 .pick-person{display:flex;gap:12px;align-items:center;padding:14px;border-radius:18px;border:2px solid var(--line);background:#fff;width:100%;text-align:left;margin-bottom:8px}
 .pick-person:hover{border-color:var(--line-strong)}
 .pick-person[aria-pressed="true"].ok{border-color:var(--mint-strong);background:var(--mint-soft)}
@@ -438,10 +448,11 @@ table.t td.num,table.t th.num{text-align:right;font-variant-numeric:tabular-nums
 .dr-note{background:var(--lav-soft);border-radius:16px;padding:14px;font-style:italic}
 
 /* settings */
-.set-grid{display:grid;grid-template-columns:220px minmax(0,1fr);gap:16px;align-items:start}
-.set-nav{display:flex;flex-direction:column;gap:4px;position:sticky;top:90px}
+.set-grid{display:grid;grid-template-columns:220px minmax(0,1fr);gap:16px;align-items:stretch}
+.set-side{padding:10px}
+.set-nav{display:flex;flex-direction:column;gap:4px;position:sticky;top:92px}
 .set-nav a{display:flex;align-items:center;text-decoration:none;border:1px solid transparent;padding:12px 14px;border-radius:12px;font-weight:800;color:var(--ink-soft);min-height:44px}
-.set-nav a[aria-current="page"]{background:#fff;color:var(--ink);box-shadow:var(--shadow);border-color:var(--line)}
+.set-nav a[aria-current="page"]{background:var(--yellow);color:var(--ink)}
 .safety{display:flex;gap:12px;padding:14px 16px;border-radius:16px;background:var(--sky-soft);border:1px solid #BAE6FD;color:#0C4A6E;font-weight:700;margin-bottom:14px}
 
 #print-area{display:none}
@@ -462,6 +473,10 @@ table.t td.num,table.t th.num{text-align:right;font-variant-numeric:tabular-nums
   .shift-wrap{display:none}
   .ci-layout,.pickup-layout,.care-layout{grid-template-columns:1fr}
   .care-list{flex-direction:row;overflow-x:auto;max-height:none;padding-bottom:6px}
+  .care-side>.care-list{position:static;max-height:none}
+  .pk-side-inner{position:static}
+  .pk-side-inner .ci-list{max-height:none}
+  .today-side .feed-card .feed{flex:none;max-height:360px}
   .care-kid{min-width:190px}
   .g4{grid-template-columns:repeat(2,minmax(0,1fr))}
   .g3{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -1315,7 +1330,7 @@ function viewToday(){
   ];
   const notifs=notifications();
   const alertsPresent=present.map(a=>child(a.childId)).filter(c=>c&&healthAlerts(c.id).some(x=>x.level!=='green'));
-  const feed=todayFeed().slice(0,9);
+  const feed=todayFeed().slice(0,40);
   return `
   <section class="hello" aria-label="Today at a glance">
     <div class="hello-card">
@@ -1350,7 +1365,7 @@ function viewToday(){
       <div class="board">${db.classrooms.map(roomBoard).join('')||'<div class="empty">No classrooms yet. Add one in Settings.</div>'}</div>
       ${unassignedBoard()}
     </section>
-    <aside class="grid" style="gap:16px">
+    <aside class="today-side" aria-label="Alerts and activity">
       <section class="card" aria-labelledby="al-h">
         <div class="card-head"><h2 id="al-h">Health &amp; allergy alerts</h2><span class="chip red">${alertsPresent.length} here</span></div>
         ${alertsPresent.length?alertsPresent.map(c=>`<button type="button" class="alert-row" data-act="child-quick" data-id="${c.id}">${avatar(c,'sm')}<span class="grow"><b class="small">${esc(cname(c))}</b><br><span class="tiny muted">${esc(roomName(lastAtt(c.id).classroomId))}</span></span><span class="row" style="gap:4px">${flagsHTML(c.id)}</span></button>`).join(''):'<div class="empty small">🟢 No alerts for children currently present.</div>'}
@@ -1359,7 +1374,7 @@ function viewToday(){
         <div class="card-head"><h2 id="na-h">Needs attention</h2><span class="chip ${notifs.length?'yellow':'green'}">${notifs.length}</span></div>
         ${notifs.length?notifs.slice(0,6).map(n=>`<button type="button" class="notif" ${n.go?`data-act="go" data-href="${esc(n.go)}"`:`data-act="${n.act}" data-id="${esc(n.id)}"`}><span class="ndot" style="background:${n.tone}" aria-hidden="true">${n.em}</span><span><b>${esc(n.title)}</b><small>${esc(n.text)}</small></span></button>`).join('')+(notifs.length>6?`<button type="button" class="link-btn" data-act="toggle-notifs">See all ${notifs.length}</button>`:''):'<div class="empty small">🌤️ All clear.</div>'}
       </section>
-      <section class="card" aria-labelledby="fd-h">
+      <section class="card feed-card" aria-labelledby="fd-h">
         <div class="card-head"><h2 id="fd-h">Today's activity</h2><a class="link-btn" href="#/care">Daily care</a></div>
         <div class="feed">${feed.length?feed.map(e=>`<div class="feed-item"><span class="feed-ic" style="background:${e.bg}" aria-hidden="true">${e.ic}</span><div><b>${esc(e.who)}</b> · ${esc(e.title)}<div class="tiny muted">${fmtTime(e.t)}</div></div></div>`).join(''):'<div class="empty small">Nothing logged yet today.</div>'}</div>
       </section>
@@ -1375,8 +1390,7 @@ function kidRow(c,a,st){
   const nap=napNow(c.id);
   const meta=st==='present'?`<span class="dot green"></span>Checked in ${fmtTime(a.inTime)}`:st==='out'?`🏠 Picked up ${fmtTime(a.outTime)}`:st==='absent'?'Absent today':'<span class="dot gray"></span>Not arrived yet';
   return `<button type="button" class="kid ${st==='present'?'':'off'}" data-act="child-quick" data-id="${c.id}" aria-label="${esc(cname(c))}, ${STATUS_META[st].label}">
-    ${avatar(c,'sm')}<span><span class="kn">${esc(cname(c))}</span><span class="ks">${meta}</span></span>
-    <span class="flags">${nap?'<span class="flag nap">😴 NAP</span>':''}${flagsHTML(c.id)}</span></button>`;
+    ${avatar(c,'sm')}<span class="kbody"><span class="kn">${esc(cname(c))}</span><span class="ks">${meta}</span>${nap||flagsHTML(c.id)?`<span class="flags">${nap?'<span class="flag nap">😴 NAP</span>':''}${flagsHTML(c.id)}</span>`:''}</span></button>`;
 }
 function roomBoard(r){
   const T=todayStr(), o=roomOcc(r), x=roomRatio(r);
@@ -1702,7 +1716,7 @@ function wizFinish(){
   if(d.waitlistId){ const w=byId('waitlist',d.waitlistId); if(w) w.status='Enrolled'; }
   saveData(); wiz=null; closeModal();
   toast(`${d.first} ${d.last} is enrolled 🎉`);
-  location.hash='#/child/'+id; render();
+  navigate('#/child/'+id);
 }
 
 /* ---------------- WAITLIST ---------------- */
@@ -1948,10 +1962,10 @@ function viewPickup(preId){
   const shown=pres.filter(x=>!q||cname(x.c).toLowerCase().includes(q));
   return viewHead('Safe release','Pickup',`${pres.length} ${pres.length===1?'child':'children'} currently at the center · sorted by usual pickup time`,'')+`
   <div class="pickup-layout">
-    <section class="card" aria-labelledby="pk-list-h"><div class="card-head"><h2 id="pk-list-h">CHECK OUT CHILD</h2></div>
+    <section class="card" aria-labelledby="pk-list-h"><div class="pk-side-inner"><div class="card-head"><h2 id="pk-list-h">CHECK OUT CHILD</h2></div>
       <div class="search-box" style="width:100%;margin-bottom:10px">${ic('search')}<input id="pk-q" type="search" placeholder="Search child name..." value="${esc(ui.pickupQ||'')}" aria-label="Search children present"></div>
-      <div class="ci-list" id="pk-list" style="max-height:none">${shown.map(({a,c})=>{ const due=c.usualPickup&&mins(c.usualPickup)<=mins(nowTime())+30;
-        return `<button type="button" class="ci-kid" data-act="pk-pick" data-id="${c.id}" aria-pressed="${ui.pickupChild===c.id}">${avatar(c,'sm')}<span class="grow"><b>${esc(cname(c))}</b><small>${esc(roomName(a.classroomId))} · in ${fmtTime(a.inTime)}</small></span><span class="chip ${due?'peach':'gray'}">${c.usualPickup?fmtTime(c.usualPickup):'—'}</span></button>`; }).join('')||'<div class="empty small">No children are checked in right now.</div>'}</div>
+      <div class="ci-list" id="pk-list">${shown.map(({a,c})=>{ const due=c.usualPickup&&mins(c.usualPickup)<=mins(nowTime())+30;
+        return `<button type="button" class="ci-kid" data-act="pk-pick" data-id="${c.id}" aria-pressed="${ui.pickupChild===c.id}">${avatar(c,'sm')}<span class="grow"><b>${esc(cname(c))}</b><small>${esc(roomName(a.classroomId))} · in ${fmtTime(a.inTime)}</small></span><span class="chip ${due?'peach':'gray'}">${c.usualPickup?fmtTime(c.usualPickup):'—'}</span></button>`; }).join('')||'<div class="empty small">No children are checked in right now.</div>'}</div></div>
     </section>
     <section class="card" id="pk-panel" aria-live="polite">${pickupPanel()}</section>
   </div>`;
@@ -2037,8 +2051,8 @@ function viewCare(sub){
     <select id="care-room" aria-label="Filter by classroom"><option value="">All classrooms</option>${db.classrooms.map(r=>`<option value="${r.id}" ${ui.careRoom===r.id?'selected':''}>${esc(r.name)}</option>`).join('')}</select>
     <span class="muted small">${kids.length} ${kids.length===1?'child':'children'} attended</span></div>
   <div class="care-layout">
-    <div class="care-list" role="list" aria-label="Children">${kids.map(k=>{ const st=childStatus(k,date), ev=careEvents(k.id,date);
-      return `<button type="button" class="care-kid" role="listitem" data-act="care-child" data-id="${k.id}" aria-pressed="${k.id===ui.careChild}">${avatar(k,'sm')}<span class="grow"><b>${esc(cname(k))}</b><small>${st==='present'?'🟢 Here':'🏠 Gone home'} · ${ev.filter(e=>!['arrival','departure'].includes(e.kind)).length} entries</small></span>${napNow(k.id)&&date===todayStr()?'😴':''}</button>`; }).join('')||'<div class="empty small">No children attended on this date.</div>'}</div>
+    <div class="card side-card care-side"><div class="care-list" role="list" aria-label="Children">${kids.map(k=>{ const st=childStatus(k,date), ev=careEvents(k.id,date);
+      return `<button type="button" class="care-kid" role="listitem" data-act="care-child" data-id="${k.id}" aria-pressed="${k.id===ui.careChild}">${avatar(k,'sm')}<span class="grow"><b>${esc(cname(k))}</b><small>${st==='present'?'🟢 Here':'🏠 Gone home'} · ${ev.filter(e=>!['arrival','departure'].includes(e.kind)).length} entries</small></span>${napNow(k.id)&&date===todayStr()?'😴':''}</button>`; }).join('')||'<div class="empty small">No children attended on this date.</div>'}</div></div>
     <section class="card" aria-live="polite">${c?`
       <div class="row" style="gap:14px;margin-bottom:12px">${avatar(c,'lg')}<div class="grow"><div class="b" style="font-size:20px">${esc(cname(c))}</div><div class="small muted">${esc(roomName((lastAtt(c.id,date)||c).classroomId))} · ${esc(ageText(c.dob))}</div><div class="row" style="gap:6px;margin-top:6px">${flagsHTML(c.id)}</div></div>
         <button type="button" class="btn dark" data-act="daily-report" data-id="${c.id}" data-date="${date}">📄 Daily report</button></div>
@@ -2071,7 +2085,7 @@ function kidPickOptions(date){
 function roomPickHTML(){
   return `<div class="row" style="gap:6px"><span class="small b">Select whole room:</span>${db.classrooms.map(r=>`<button type="button" class="btn xs" data-act="pick-room" data-room="${r.id}">${esc(r.name)}</button>`).join('')}<button type="button" class="btn xs ghost" data-act="pick-room" data-room="">Clear</button></div>`;
 }
-function logDate(){ return (location.hash.startsWith('#/care')&&ui.careDate)?ui.careDate:todayStr(); }
+function logDate(){ return (curHash().startsWith('#/care')&&ui.careDate)?ui.careDate:todayStr(); }
 function careForm({title,preId,fields,onEach,success,multi=true}){
   const date=logDate();
   const opts=kidPickOptions(date);
@@ -2528,7 +2542,7 @@ function viewSettings(sub){
         <div class="card" style="box-shadow:none;border-color:#F9C6C1"><h3>Reset data</h3><p class="small muted">Restore the starting records, or erase everything and start empty.</p><div class="row"><button type="button" class="btn sm" data-act="reset-seed">Restore starting records</button><button type="button" class="btn sm danger" data-act="reset-empty">Erase everything</button></div></div>
       </div><div id="import-status" role="status" aria-live="polite" style="margin-top:14px"></div></section>`;
   }
-  return viewHead('Configuration','Settings','')+`<div class="set-grid"><nav class="set-nav" aria-label="Settings sections">${nav.map(([k,l])=>`<a href="#/settings/${k}" ${k===sub?'aria-current="page"':''}>${l}</a>`).join('')}</nav><div>${body}</div></div>`;
+  return viewHead('Configuration','Settings','')+`<div class="set-grid"><div class="card set-side"><nav class="set-nav" aria-label="Settings sections">${nav.map(([k,l])=>`<a href="#/settings/${k}" ${k===sub?'aria-current="page"':''}>${l}</a>`).join('')}</nav></div><div>${body}</div></div>`;
 }
 
 /* ---------------- export / import ---------------- */
@@ -2571,7 +2585,7 @@ function handleImportFile(file){
    ===================================================================== */
 function pickDefault(el){ return el&&el.dataset?el.dataset.id:''; }
 const ACTIONS={
-  'go':d=>{ closeModal(); closeSearch(); $('#notif-panel').hidden=true; location.hash=d.href; },
+  'go':d=>{ closeModal(); closeSearch(); $('#notif-panel').hidden=true; navigate(d.href); },
   'close-modal':()=>{ wiz=null; closeModal(); },
   'close-modal-nav':()=>{ closeModal(); },
   'toggle-notifs':()=>{ const p=$('#notif-panel'), b=$('#notif-btn'); if(p.hidden){ renderNotifPanel(); p.hidden=false; b.setAttribute('aria-expanded','true'); } else { p.hidden=true; b.setAttribute('aria-expanded','false'); } },
@@ -2582,13 +2596,13 @@ const ACTIONS={
   'checkin':d=>{ closeModal(); openCheckIn(d.id); },
   'ci-pick':d=>{ ci.sel=d.id; $$('#ci-list .ci-kid').forEach(b=>{ b.setAttribute('aria-pressed',b.dataset.id===d.id); b.setAttribute('aria-selected',b.dataset.id===d.id); }); renderCiDetail(); const btn=$('[data-act="ci-confirm"]'); if(btn&&window.innerWidth<980) btn.scrollIntoView({block:'nearest'}); },
   'ci-confirm':()=>doCheckIn(false),
-  'checkout':d=>{ closeModal(); ui.pickupDone=null; if(d.id){ ui.pickupChild=d.id; ui.pickupPerson=''; } location.hash=d.id?'#/pickup/'+d.id:'#/pickup'; render(); },
+  'checkout':d=>{ closeModal(); ui.pickupDone=null; if(d.id){ ui.pickupChild=d.id; ui.pickupPerson=''; } navigate(d.id?'#/pickup/'+d.id:'#/pickup'); render(); },
   'pk-pick':d=>{ ui.pickupChild=d.id; ui.pickupPerson=''; ui.pickupDone=null; render(); },
   'pk-person':d=>{ ui.pickupPerson=d.id; $('#pk-panel').innerHTML=pickupPanel(); const t=$('#pk-panel .danger-panel, #pk-panel .ok-panel'); if(t) t.scrollIntoView({block:'nearest',behavior:'smooth'}); },
   'pk-confirm':()=>doCheckOut(false),
   'pk-override':()=>doCheckOut(true),
   'pk-cancel':()=>{ ui.pickupPerson=''; $('#pk-panel').innerHTML=pickupPanel(); toast('Child not released. Pickup cancelled.','warn'); },
-  'pk-reset':()=>{ ui.pickupDone=null; ui.pickupChild=''; ui.pickupPerson=''; if(location.hash!=='#/pickup') location.hash='#/pickup'; else render(); },
+  'pk-reset':()=>{ ui.pickupDone=null; ui.pickupChild=''; ui.pickupPerson=''; if(curHash()!=='#/pickup') navigate('#/pickup'); else render(); },
   'log-meal':d=>{ closeModal(); logMeal(d.id); },
   'log-nap':d=>{ closeModal(); logNap(d.id); },
   'end-nap':d=>{ closeModal(); endNap(d.id); },
@@ -2598,7 +2612,7 @@ const ACTIONS={
   'note-chip':d=>{ const t=$('[name="note"]'); if(t){ t.value=t.value?t.value+' '+d.t:d.t; t.focus(); } },
   'pick-room':d=>{ const ids=d.room?presentInRoom(d.room).map(a=>a.childId):[]; $$('#mform [name="kids"]').forEach(i=>{ i.checked=d.room?ids.includes(i.value):false; }); },
   'del-care':d=>confirmBox({title:'Delete entry?',message:'Remove this entry from the daily record?',danger:true,okLabel:'Delete',onOk:()=>{ db[d.coll]=db[d.coll].filter(x=>x.id!==d.id); saveData(); render(); toast('Entry deleted'); }}),
-  'care-child':d=>{ closeModal(); ui.careChild=d.id; ui.careDate=''; if(!location.hash.startsWith('#/care')||location.hash.startsWith('#/care/n')||location.hash.startsWith('#/care/i')) location.hash='#/care'; else render(); },
+  'care-child':d=>{ closeModal(); ui.careChild=d.id; ui.careDate=''; if(!curHash().startsWith('#/care')||curHash().startsWith('#/care/n')||curHash().startsWith('#/care/i')) navigate('#/care'); else render(); },
   'daily-report':d=>{ closeModal(); openDailyReport(d.id,d.date); },
   'print-daily':d=>{ const date=($('#dr-date')&&$('#dr-date').value)||d.date||todayStr(); printDoc('Daily Parent Report',dailyReportHTML(d.id,date)); },
   'new-incident':d=>{ closeModal(); incidentForm(null,d.id); },
@@ -2625,7 +2639,7 @@ const ACTIONS={
   'reenroll-child':d=>{ const c=child(d.id); c.status='Enrolled'; saveData(); render(); toast(`${cname(c)} re-enrolled`); },
   'delete-child':d=>{ const c=child(d.id); confirmBox({title:'Delete child record?',message:`Permanently delete <b>${esc(cname(c))}</b> and all of their contacts, attendance, care, incident and billing records? This cannot be undone. Consider “Withdraw” instead.`,danger:true,okLabel:'Delete permanently',onOk:()=>{
     ['parents','guardians','authorizedPickups','attendance','dailyCare','meals','naps','activities','incidents','healthRecords','enrollments','charges','payments'].forEach(k=>db[k]=db[k].filter(x=>x.childId!==c.id));
-    db.children=db.children.filter(x=>x.id!==c.id); saveData(); updateHeader(); location.hash='#/children'; toast('Child record deleted'); }}); },
+    db.children=db.children.filter(x=>x.id!==c.id); saveData(); updateHeader(); navigate('#/children'); toast('Child record deleted'); }}); },
   'print-profile':d=>printProfile(d.id),
   'print-statement':d=>printStatement(d.id),
   'record-payment':d=>{ closeModal(); paymentForm(null,d.id); },
@@ -2655,7 +2669,7 @@ const ACTIONS={
   'print-attendance':()=>printAttendance(),
   'print-report':d=>{ const b=$('#report-body'); if(b) printDoc(d.title,b.innerHTML); },
   'rep-preset':d=>{ const T=todayStr(); if(d.p==='week'){ ui.repFrom=mondayOf(T); ui.repTo=T; } else if(d.p==='last7'){ ui.repFrom=mondayOf(addDays(T,-7)); ui.repTo=T; } else { ui.repFrom=T.slice(0,8)+'01'; ui.repTo=T; } render(); },
-  'rep-child':d=>{ ui.repChild=d.id; },
+  'rep-child':d=>{ ui.repChild=d.id; navigate('#/reports/children'); },
   'export':()=>exportData(),
   'import':()=>{ const i=$('#import-file'); i.value=''; i.click(); },
   'reset-seed':()=>confirmBox({title:'Restore starting records?',message:'This replaces ALL data in this browser with the original Happy Kids Daycare records. Export a backup first if you want to keep your data.',danger:true,okLabel:'Restore',onOk:()=>{ db=seedData(); saveData(); buildHeader(); render(); toast('Starting records restored'); }}),
@@ -2665,7 +2679,12 @@ const ACTIONS={
 /* =====================================================================
    ROUTER & INIT
    ===================================================================== */
-function parseRoute(){ const h=location.hash.replace(/^#\/?/,''); const [view,sub]=h.split('/'); return {view:view||'today',sub:sub||''}; }
+/* Routing works through the URL hash when the browser allows it, and falls back to an
+   in-memory route inside sandboxed previews where changing the URL is blocked. */
+let memRoute=null;
+function curHash(){ if(memRoute!=null) return memRoute; try{ return location.hash||''; }catch(e){ return ''; } }
+function navigate(h){ memRoute=h; try{ if(location.hash!==h) location.hash=h; }catch(e){} onRoute(); }
+function parseRoute(){ const h=curHash().replace(/^#\/?/,''); const [view,sub]=h.split('/'); return {view:view||'today',sub:sub||''}; }
 function render(){
   const r=parseRoute(), main=$('#main');
   const act=document.activeElement, keepId=act&&act.id&&main.contains(act)?act.id:null;
@@ -2693,21 +2712,24 @@ function render(){
   if(keepId){ const el=document.getElementById(keepId); if(el){ el.focus({preventScroll:true}); if(selS&&el.setSelectionRange){ try{ el.setSelectionRange(selS[0],selS[1]); }catch(e){} } } }
 }
 let lastView='';
-window.addEventListener('hashchange',()=>{
+window.addEventListener('hashchange',()=>{ let h=''; try{ h=location.hash; }catch(e){} if(h===memRoute) return; memRoute=h; onRoute(); });
+function onRoute(){
   const r=parseRoute();
   if(r.view!=='pickup'){ ui.pickupDone=null; }
   closeSearch(); $('#notif-panel').hidden=true;
   render();
   if(r.view!==lastView){ window.scrollTo(0,0); lastView=r.view; }
   $('#main').focus({preventScroll:true});
-});
+}
 document.addEventListener('click',e=>{
+  const link=e.target.closest('a[href^="#/"]');
+  if(link && !link.dataset.act && !e.defaultPrevented && !e.ctrlKey && !e.metaKey){ e.preventDefault(); navigate(link.getAttribute('href')); }
   const el=e.target.closest('[data-act]');
   if(!e.target.closest('#notif-panel')&&!e.target.closest('#notif-btn')&&(!el||el.dataset.act!=='toggle-notifs')){ const p=$('#notif-panel'); if(p&&!p.hidden){ p.hidden=true; $('#notif-btn').setAttribute('aria-expanded','false'); } }
   if(!e.target.closest('#search-wrap')) { const sr=$('#search-results'); if(sr&&!sr.hidden) closeSearch(); else $('#search-wrap')&&$('#search-wrap').classList.remove('open'); }
   if(!el) return;
   const fn=ACTIONS[el.dataset.act]; if(!fn) return;
-  if(el.tagName==='A'&&el.dataset.act!=='close-modal-nav') e.preventDefault();
+  if(el.tagName==='A'){ e.preventDefault(); if(el.dataset.act==='close-modal-nav'){ closeModal(); navigate(el.getAttribute('href')); return; } }
   try{ fn(el.dataset,el,e); }catch(err){ console.error(err); toast('Something went wrong: '+err.message,'error'); }
 });
 const INPUT_HANDLERS={
@@ -2768,7 +2790,9 @@ function init(){
   loadData();
   lastDay=todayStr();
   buildHeader();
-  if(!location.hash) history.replaceState(null,'','#/today');
+  let h=''; try{ h=location.hash; }catch(e){}
+  memRoute=h||'#/today';
+  if(!h){ try{ history.replaceState(null,'','#/today'); }catch(e){} }
   lastView=parseRoute().view;
   render();
 }
