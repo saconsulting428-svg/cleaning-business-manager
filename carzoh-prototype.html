@@ -210,6 +210,8 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .carbg{background:linear-gradient(180deg,#F5F0E8 0%,#EFE9DE 100%)}
 .mini-car{width:72px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;overflow:hidden}
 .mini-car svg{width:66px}
+.cimg{width:100%;height:100%;object-fit:cover;display:block}
+.pcredit{position:absolute;left:10px;bottom:10px;max-width:70%;background:rgba(19,48,46,.75);color:#fff;font-size:11px;border-radius:8px;padding:3px 8px;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ============ HOME HERO ============ */
 .hero{background:var(--grad);color:#fff;padding:40px 16px 18px;border-radius:0 0 26px 26px;flex:none}
@@ -306,7 +308,7 @@ body.mobile .slide-ill{margin-top:16px}
 /* gallery */
 .gal{height:230px;position:relative;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
 .gal::-webkit-scrollbar{display:none}
-.gal > div{flex:none;width:100%;scroll-snap-align:start;display:flex;align-items:center;justify-content:center}
+.gal > div{flex:none;width:100%;scroll-snap-align:start;display:flex;align-items:center;justify-content:center;position:relative}
 .gal svg.car{width:86%}
 .gal-top{position:absolute;top:34px;left:8px;right:8px;display:flex;justify-content:space-between;z-index:2}
 body.mobile .gal-top{top:8px}
@@ -531,7 +533,13 @@ function carSVG(color='#E9E9E9', type='sedan', cls='car'){
     ${wheel(b.w[0])}${wheel(b.w[1])}
   </svg>`;
 }
-const carImg = (car, cls='car') => carSVG(car.color, car.body, cls);
+// Real photo when the car has an \`img\` URL; falls back to the SVG illustration if it fails to load.
+const carImg = (car, cls='car', svgStyle='') => {
+  const svg = svgStyle ? carSVG(car.color, car.body, cls).replace('class="'+cls+'"', 'class="'+cls+'" style="'+svgStyle+'"') : carSVG(car.color, car.body, cls);
+  if(!car.img) return svg;
+  return `<img class="cimg" src="${car.img}" alt="${esc(car.make+' '+car.model)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML=carImg({color:'${car.color}',body:'${car.body}'},'${cls}','${svgStyle}')">`;
+};
+function photoCredit(cr){ return cr ? `<a class="pcredit" href="${cr.page}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Photo: ${esc(cr.author)} · ${esc(cr.license)}</a>` : ''; }
 
 /* sample "photos" for KYC / handover */
 function svgURI(s){ return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s); }
@@ -1116,10 +1124,12 @@ route('car', (id)=>{
   const revs = (S.reviews.cars[c.id]||[]);
   const base = startOfDay(now()); const booked = new Set(); S.bookings.filter(b=>b.carId===c.id && ['confirmed','handover','review_condition','active'].includes(b.state)).forEach(b=>{ for(let t=startOfDay(b.start);t<b.end;t+=DAY) booked.add(dayKey(t)); });
   c.blocked.forEach(k=>booked.add(k));
-  const gal = [carImg(c), `<img src="${samplePhoto(c,'front')}" style="width:80%;border-radius:14px">`, `<img src="${samplePhoto(c,'interior')}" style="width:80%;border-radius:14px">`];
+  const photos = c.img ? [{img:c.img, credit:c.credit}, ...(c.gallery||[])].slice(0,3) : [];
+  const gal = photos.length ? photos.map((ph,i)=>`<img class="cimg" src="${ph.img}" alt="${esc(c.make+' '+c.model)}" referrerpolicy="no-referrer" onerror="this.parentNode.querySelector('.pcredit')?.remove();this.outerHTML=${i===0?`carImg({color:'${c.color}',body:'${c.body}'})`:`'<img src=&quot;'+samplePhoto(car('${c.id}'),'${i===1?'front':'interior'}')+'&quot; style=&quot;width:80%;border-radius:14px&quot;>'`}">${photoCredit(ph.credit)}`)
+    : [carImg(c), `<img src="${samplePhoto(c,'front')}" style="width:80%;border-radius:14px">`, `<img src="${samplePhoto(c,'interior')}" style="width:80%;border-radius:14px">`];
   return `<div class="pg"><div class="bd np" id="cbd">
-    <div style="position:relative"><div class="gal carbg" onscroll="const i=Math.round(this.scrollLeft/this.clientWidth);this.parentNode.querySelector('.gal-count').textContent=(i+1)+' / 3'">${gal.map(g=>`<div>${g}</div>`).join('')}</div>
-      <div class="gal-top"><button class="icon-btn" onclick="back('#/home')" aria-label="Back">${ic('back')}</button><button class="icon-btn heart ${fav?'on':''}" style="${fav?'color:var(--error)':''}" onclick="toggleFav('${c.id}')" aria-label="Save">${ic('heart')}</button></div><span class="gal-count">1 / 3</span></div>
+    <div style="position:relative"><div class="gal carbg" onscroll="const i=Math.round(this.scrollLeft/this.clientWidth);this.parentNode.querySelector('.gal-count').textContent=(i+1)+' / ${gal.length}'">${gal.map(g=>`<div>${g}</div>`).join('')}</div>
+      <div class="gal-top"><button class="icon-btn" onclick="back('#/home')" aria-label="Back">${ic('back')}</button><button class="icon-btn heart ${fav?'on':''}" style="${fav?'color:var(--error)':''}" onclick="toggleFav('${c.id}')" aria-label="Save">${ic('heart')}</button></div><span class="gal-count">1 / ${gal.length}</span></div>
     <div style="padding:16px">
       <div class="row sb" style="align-items:flex-start"><div><div class="h2" style="margin:0">${c.make} ${c.model}</div><div class="meta" style="margin-top:4px"><span>${c.year}</span><span>${ic('pin','xs')} ${c.area}</span></div></div>${c.highValue?`<span class="badge warn">${ic('lock','xs')} Trusted</span>`:''}</div>
       <div class="row" style="margin-top:10px;gap:14px">${stars(c.rating)} <span class="muted small">${c.trips} trips · ${revs.length} reviews</span></div>
@@ -1734,7 +1744,7 @@ route('o/car', (id, mo)=>{
   const cells = Array.from({length:first.getDay()},()=>'<span></span>').join('') + Array.from({length:days},(_,i)=>{ const t=+new Date(first.getFullYear(), first.getMonth(), i+1); const k=dayKey(t); const past=t<today; const st = booked.has(k)?'bk':c.blocked.includes(k)?'bl':'av'; return `<button class="${st} ${past?'past':''} ${t===today?'today':''}" ${past||st==='bk'?'disabled':''} onclick="toggleBlock('${id}','${k}')">${i+1}</button>`; }).join('');
   const earned = S.bookings.filter(b=>b.carId===id && b.state==='completed').reduce((s,b)=>s+b.net,0);
   return page({back:true, backTo:'#/o/cars', title:`${c.make} ${c.model}`, body:`
-    <div class="carbg" style="border-radius:18px;height:150px;display:flex;align-items:center;justify-content:center">${carImg(c).replace('class="car"','class="car" style="width:84%"')}</div>
+    <div class="carbg" style="border-radius:18px;height:150px;display:flex;align-items:center;justify-content:center;overflow:hidden">${carImg(c,'car','width:84%')}</div>
     <div class="row sb" style="margin-top:12px"><span class="badge ${cls}">${l}</span><span class="small muted">${c.year} · ${c.area}</span></div>
     ${c.status==='pending'?`<div class="hint warn" style="margin-top:12px">${ic('clock','sm')}<span>Our team is checking your documents and photos. Usually within 24 hours.</span></div>`:''}
     ${c.status==='rejected'?`<div class="hint err" style="margin-top:12px">${ic('alert','sm')}<span>${c.rejectReason||'Registration document was unclear. Upload a clearer photo.'}</span></div>`:''}
