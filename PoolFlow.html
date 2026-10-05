@@ -42,7 +42,7 @@ h1,h2,h3,h4{font-family:var(--round);line-height:1.2}
 /* ===== DECK HEADER ===== */
 .deck{position:sticky;top:0;z-index:40;color:#fff;background-color:var(--navy);
   background-image:radial-gradient(120% 160% at 88% -50%,rgba(6,182,212,.42),transparent 60%),radial-gradient(60% 140% at 8% 140%,rgba(94,234,212,.20),transparent 60%)}
-.deck-in{max-width:1440px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:10px 20px;min-height:62px}
+.deck-in{max-width:1920px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:10px 20px;min-height:62px}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:#fff;flex:none}
 .brand-mark{width:38px;height:38px;display:block}
 .brand b{font-family:var(--round);font-size:20px;letter-spacing:.3px;display:block;line-height:1.1}
@@ -79,7 +79,7 @@ h1,h2,h3,h4{font-family:var(--round);line-height:1.2}
 
 /* ===== LANE NAVIGATION ===== */
 .lanes{background:#fff;position:sticky;top:62px;z-index:39;box-shadow:0 6px 18px -14px rgba(15,23,42,.5)}
-.lanes-in{max-width:1440px;margin:0 auto;display:flex;gap:2px;overflow-x:auto;padding:0 14px;scrollbar-width:none}
+.lanes-in{max-width:1920px;margin:0 auto;display:flex;gap:2px;overflow-x:auto;padding:0 14px;scrollbar-width:none}
 .lanes-in::-webkit-scrollbar{display:none}
 .lane{display:flex;align-items:center;gap:7px;padding:13px 11px 15px;font-weight:750;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#334155;text-decoration:none;white-space:nowrap;position:relative}
 .lane .ic{width:17px;height:17px;color:var(--primary)}
@@ -91,7 +91,7 @@ h1,h2,h3,h4{font-family:var(--round);line-height:1.2}
 
 /* ===== LAYOUT ===== */
 main{display:block;outline:none}
-.wrap{max-width:1440px;margin:0 auto;padding:22px 20px 48px}
+.wrap{max-width:1920px;margin:0 auto;padding:22px 20px 48px}
 .page-h{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:4px 0 18px}
 .page-h h1{margin:0;font-size:28px;letter-spacing:.02em}
 .page-h .eyebrow{margin:0 0 4px}
@@ -101,6 +101,7 @@ main{display:block;outline:none}
 .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .today-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px;margin-top:18px;align-items:start}
+.today-col{display:flex;flex-direction:column;gap:18px;min-width:0}
 .back{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-weight:700;font-size:13px;color:var(--primary);margin-bottom:8px}
 .back .ic{width:16px;height:16px}
 
@@ -366,7 +367,8 @@ fieldset.choice-set legend{font-size:12.5px;font-weight:800;letter-spacing:.1em;
 .tab[aria-selected=true]{color:var(--primary-d);border-color:var(--primary)}
 
 /* ===== TABLES ===== */
-.tblwrap{overflow-x:auto}
+.tblwrap{overflow-x:auto;position:relative}
+.tabs,.btn,.filters,.check{position:relative}
 .tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
 .tbl th{text-align:left;font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:#64748B;font-weight:800;padding:10px 12px;border-bottom:2px solid var(--line);white-space:nowrap}
 .tbl td{padding:11px 12px;border-bottom:1px solid var(--line2);vertical-align:middle}
@@ -499,9 +501,24 @@ fieldset.choice-set legend{font-size:12.5px;font-weight:800;letter-spacing:.1em;
 
 
 /* today layout areas */
-.today-grid{grid-template-areas:"route qa" "route status" "route alerts";grid-template-rows:auto auto 1fr}
-.ta-route{grid-area:route}.ta-qa{grid-area:qa}.ta-status{grid-area:status}.ta-alerts{grid-area:alerts}
-@media (max-width:1024px){.today-grid{grid-template-areas:"qa" "route" "status" "alerts";grid-template-rows:auto}}
+@media (max-width:1024px){.today-grid{display:flex;flex-direction:column}.today-col{display:contents}.ta-qa{order:1}.ta-route{order:2}.ta-status{order:3}.ta-alerts{order:4}}
+/* list search fields */
+.fsearch{position:relative;flex:1 1 260px;max-width:400px;min-width:0}
+.fsearch>.ic{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--muted);pointer-events:none}
+.filters .fsearch .inp{max-width:none;width:100%;padding-left:38px}
+.listcount{margin:-6px 0 10px}
+/* readable date control (wraps the native date input) */
+.datefield{position:relative;display:inline-flex;min-width:0;vertical-align:middle}
+.field .datefield{display:flex}
+.datefield input{position:absolute!important;inset:0;width:100%!important;height:100%;min-height:0!important;opacity:0;pointer-events:none;padding:0!important;border:0!important}
+.datebtn{display:inline-flex;align-items:center;gap:8px;min-height:46px;width:100%;border-radius:12px;border:1.5px solid #C4E2E9;background:#fff;padding:0 12px;font-size:16px;font-weight:600;cursor:pointer;color:var(--text);text-align:left;white-space:nowrap}
+.datebtn .ic{width:18px;height:18px;color:var(--primary)}
+.datebtn:hover{border-color:var(--aqua)}
+.filters .datebtn,.datenav .datebtn{min-height:42px;font-size:14px;font-weight:700}
+.datefield:has(input[aria-invalid=true]) .datebtn{border-color:var(--bad);background:#FFF8F8}
+.datefield.native input{position:static!important;opacity:1;pointer-events:auto;height:auto;min-height:42px!important;padding:6px 10px!important;border:1.5px solid #C4E2E9!important;border-radius:12px}
+.datefield.native .datebtn{display:none}
+.fgrid.auto{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
 .cv{font-weight:700}.cv-low,.cv-high{color:#B45309;font-weight:800}.cv-crit{color:#B91C1C;font-weight:800}.cv-normal{color:inherit}
 .badge .ic{width:14px;height:14px}
 .gate{font-weight:800;letter-spacing:.1em}
@@ -538,6 +555,8 @@ fieldset.choice-set legend{font-size:12.5px;font-weight:800;letter-spacing:.1em;
   .fgrid,.fgrid.three,.grid-2e,.grid-3{grid-template-columns:minmax(0,1fr)}
   .grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
   .checklist{grid-template-columns:minmax(0,1fr)}
+  .fgrid.auto{grid-template-columns:minmax(0,1fr)}
+  .fsearch{flex-basis:100%;max-width:none}
   .hero-in{padding:18px 18px 26px}
   .hero-in h1{font-size:25px}
   .ring{width:104px;height:104px}
@@ -712,9 +731,9 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 const MONTHS_L = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 function fmtDate(s) { if (!isDateStr(s)) return '—'; const d = parseD(s); return MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(); }
-function fmtShort(s) { if (!isDateStr(s)) return '—'; const d = parseD(s); return DAYS[d.getDay()].slice(0, 3) + ', ' + MONTHS[d.getMonth()] + ' ' + d.getDate(); }
-function fmtLong(s) { const d = parseD(s); return DAYS[d.getDay()] + ', ' + MONTHS_L[d.getMonth()] + ' ' + d.getDate(); }
-function fmtFull(s) { if (!isDateStr(s)) return '—'; const d = parseD(s); return MONTHS_L[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(); }
+function fmtShort(s) { return fmtDate(s); }
+function fmtLong(s) { if (!isDateStr(s)) return '—'; return DAYS[parseD(s).getDay()] + ', ' + fmtDate(s); }
+function fmtFull(s) { return fmtDate(s); }
 function fmtTime(t) { if (!t || !/^\d{1,2}:\d{2}/.test(t)) return '—'; let [h, m] = t.split(':').map(Number); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return h + ':' + pad(m) + ' ' + ap; }
 function timeMin(t) { if (!t) return null; const [h, m] = t.split(':').map(Number); return h * 60 + m; }
 function fmtNum(n, d) { if (n === '' || n == null || isNaN(n)) return '—'; return Number(n).toLocaleString('en-US', { maximumFractionDigits: d == null ? 2 : d }); }
@@ -1232,7 +1251,7 @@ function seedData() {
    UI FRAMEWORK
    ===================================================================== */
 const UI = { routeDate:'', routeTech:'', routeStatus:'all', routeTab:'day', poolQ:'', poolWater:'all', poolTech:'all', poolUsage:'all', custQ:'', custFilter:'all',
-  hist:{ cust:'all', tech:'all', status:'all', water:'all', from:'', to:'' }, waterTab:'pools', waterFilter:'all', waterPool:'all',
+  hist:{ q:'', cust:'all', tech:'all', status:'all', water:'all', from:'', to:'' }, waterTab:'pools', waterFilter:'all', waterPool:'all', waterQ:'', eqQ:'', invQ:'', chemQ:'',
   eqTab:'list', eqStatus:'all', eqType:'all', chemTab:'inventory', invTab:'invoices', invStatus:'all', invCust:'all', repTab:'service', repPeriod:'month', setTab:'business' };
 let lastPath = '';
 const ACT = {}, CHG = {}, INP = {}, SUB = {};
@@ -1355,11 +1374,13 @@ function fieldHTML(f, val, vals) {
     ctl = `<select id="${id}" name="${f.name}"${req}${desc}>${f.placeholder ? `<option value="">${esc(f.placeholder)}</option>` : ''}${optsHTML(o, val)}</select>`;
   } else if (f.type === 'textarea') {
     ctl = `<textarea id="${id}" name="${f.name}" rows="${f.rows || 3}"${req}${desc}${f.placeholder ? ` placeholder="${esc(f.placeholder)}"` : ''}>${esc(val)}</textarea>`;
+  } else if (f.type === 'date') {
+    ctl = dateField(id, val, f.label, `name="${f.name}"${req}${desc}`);
   } else {
     const t = f.type || 'text';
     ctl = `<input id="${id}" name="${f.name}" type="${t}" value="${esc(val)}"${req}${desc}${f.min != null ? ` min="${f.min}"` : ''}${f.max != null ? ` max="${f.max}"` : ''}${t === 'number' ? ` step="${f.step || 'any'}" inputmode="decimal"` : ''}${f.placeholder ? ` placeholder="${esc(f.placeholder)}"` : ''}${f.autocomplete ? ` autocomplete="${f.autocomplete}"` : ''}>`;
   }
-  return `<div class="${cls}" data-field="${f.name}"><label for="${id}">${esc(f.label)}${f.required ? ' <span class="req" aria-hidden="true">*</span>' : ''}</label>${ctl}${help}<span class="err" id="${id}_e" aria-live="polite"></span></div>`;
+  return `<div class="${cls}" data-field="${f.name}"><label for="${f.type === 'date' ? id + '_btn' : id}">${esc(f.label)}${f.required ? ' <span class="req" aria-hidden="true">*</span>' : ''}</label>${ctl}${help}<span class="err" id="${id}_e" aria-live="polite"></span></div>`;
 }
 function readForm(form, fields) {
   const o = {};
@@ -1396,7 +1417,7 @@ function validateForm(form, fields, vals) {
     if (el && el.setAttribute) { if (msg) el.setAttribute('aria-invalid', 'true'); else el.removeAttribute('aria-invalid'); }
     if (msg && !first) first = el;
   });
-  if (first && first.focus) first.focus();
+  if (first && first.focus) { const df = first.closest && first.closest('.datefield'); (df && !df.classList.contains('native') ? df.querySelector('.datebtn') : first).focus(); }
   return !first;
 }
 function formModal(cfg) {
@@ -1416,6 +1437,7 @@ function formModal(cfg) {
       if (f.showIf) { const w = form.querySelector(`[data-field="${f.name}"]`); if (w) w.hidden = !f.showIf(vals); }
     });
     if (cfg.onChange) cfg.onChange(form, readForm(form, cfg.fields), ev);
+    refreshDates(form);
   };
   sync(null);
   form.addEventListener('change', sync);
@@ -1431,6 +1453,37 @@ function formModal(cfg) {
   return form;
 }
 function emptyState(ic, title, text, extra) { return `<div class="empty">${icon(ic)}<b>${esc(title)}</b><div>${text || ''}</div>${extra || ''}</div>`; }
+function searchBox(id, val, ph, key, target) { return `<div class="fsearch">${icon('search')}<label class="sr" for="${id}">${esc(ph)}</label><input id="${id}" class="inp" type="search" value="${esc(val)}" placeholder="${esc(ph)}" data-input="listQ" data-key="${key}" data-target="${target}" autocomplete="off" spellcheck="false"></div>`; }
+function viewHTML() {
+  const raw = location.hash.replace(/^#\/?/, ''), qi = raw.indexOf('?');
+  const path = qi >= 0 ? raw.slice(0, qi) : raw, params = new URLSearchParams(qi >= 0 ? raw.slice(qi + 1) : '');
+  let parts; try { parts = path.split('/').map(decodeURIComponent); } catch (e) { parts = path.split('/'); }
+  return VIEWS[VIEWS[parts[0]] ? parts[0] : 'today'](parts[1], params);
+}
+INP.listQ = el => {
+  const k = el.dataset.key;
+  if (k.includes('.')) { const [a, b] = k.split('.'); UI[a][b] = el.value; } else UI[k] = el.value;
+  const box = document.getElementById(el.dataset.target); if (!box) return;
+  const tmp = document.createElement('div'); tmp.innerHTML = viewHTML();
+  const fresh = tmp.querySelector('#' + el.dataset.target);
+  if (fresh) box.innerHTML = fresh.innerHTML;
+};
+function dateField(id, val, label, attrs) {
+  return `<span class="datefield"><input id="${id}" type="date" value="${esc(val || '')}" tabindex="-1" ${attrs || ''}><button type="button" class="datebtn" id="${id}_btn" data-act="pickDate" data-label="${esc(label)}" aria-label="${esc(label)}: ${val ? fmtDate(val) : 'not set'}. Choose date">${icon('calendar')}<span>${val ? fmtDate(val) : 'Select date'}</span></button></span>`;
+}
+function syncDateField(inp) {
+  const b = inp.parentNode && inp.parentNode.querySelector('.datebtn'); if (!b) return;
+  const v = isDateStr(inp.value) ? inp.value : '';
+  b.querySelector('span').textContent = v ? fmtDate(v) : 'Select date';
+  b.setAttribute('aria-label', (b.dataset.label || 'Date') + ': ' + (v ? fmtDate(v) : 'not set') + '. Choose date');
+}
+function refreshDates(root) { $$('.datefield input', root || document).forEach(syncDateField); }
+ACT.pickDate = (d, el) => {
+  const inp = el.parentNode.querySelector('input');
+  if (inp.showPicker) { try { inp.showPicker(); return; } catch (e) { /* fall back to the native field */ } }
+  el.parentNode.classList.add('native'); inp.removeAttribute('tabindex'); inp.focus();
+};
+['input', 'change'].forEach(t => document.addEventListener(t, e => { if (e.target.matches && e.target.matches('.datefield input')) syncDateField(e.target); }, true));
 function notFound(what) { return `<div class="wrap"><div class="panel">${emptyState('search', what + ' not found', 'It may have been deleted.', '<a class="btn btn-primary mt" href="#/today">Back to Today</a>')}</div></div>`; }
 function tabsHTML(tabs, cur, key) { return `<div class="tabs" role="tablist">${tabs.map(t => `<button type="button" class="tab" role="tab" aria-selected="${t[0] === cur}" data-act="tab" data-key="${key}" data-val="${t[0]}">${t[1]}</button>`).join('')}</div>`; }
 ACT.tab = d => { UI[d.key] = d.val; rerender(); };
@@ -1607,11 +1660,12 @@ function viewToday() {
       <div class="hero-pills"><span><b>${stops.length}</b>Stops</span><span><b>${done}</b>Completed</span><span><b>${remaining}</b>Remaining</span></div>
     </div>${ringSVG(done, stops.length)}</div>
   </section>
-  <div class="today-grid">
+  <div class="today-grid"><div class="today-col">
     <section class="panel ta-route" aria-labelledby="rt-h"><div class="ph"><h2 id="rt-h">Today's Service Route</h2><a class="btn btn-ghost btn-sm" href="#/route">${icon('route')}Open route</a></div>
       ${stops.length ? `<ol class="route">${stops.map((v, i) => stopRow(v, i, tech === 'all', next)).join('')}</ol>`
         : emptyState('route', 'No stops on today\'s route', tech === 'all' ? 'Add a stop or set up recurring service for your pools.' : 'Nothing scheduled for ' + esc(staffName(tech)) + ' today. Switch technician at the top or add a stop.', `<button type="button" class="btn btn-primary mt" data-act="addStop" data-date="${T}">${icon('plus')}Add stop</button>`)}
     </section>
+    </div><div class="today-col">
     <section class="panel ta-qa" aria-labelledby="qa-h"><div class="ph"><h2 id="qa-h">Quick Actions</h2>${cur ? `<span class="badge ${active ? 'b-aqua' : ''}">${active ? 'Visit in progress' : 'Next stop ready'}</span>` : ''}</div>
       <div class="qa">
         <button type="button" class="qa-main" data-act="qaStart">${icon('play')}<span>${active ? 'Continue Visit' : 'Start Next Visit'}<small>${cur ? esc(stopName(cur)) + ' · ' + fmtTime(cur.time) : 'All of today\'s stops are complete'}</small></span></button>
@@ -1634,7 +1688,7 @@ function viewToday() {
     <section class="panel ta-alerts" aria-labelledby="al-h"><div class="ph"><h2 id="al-h">Alerts</h2><span class="badge ${alerts.length ? 'b-warn' : 'b-ok'}">${alerts.length}</span></div>
       ${alerts.length ? alerts.slice(0, 7).map(n => notifItem(n).replace('class="dd-item"', 'class="dd-item" style="border-radius:12px;padding:10px 6px"')).join('') + (alerts.length > 7 ? `<button type="button" class="linkbtn mt" data-act="toggleNotif">View all ${alerts.length} alerts</button>` : '') : emptyState('check', 'All clear', 'No water, equipment, stock or billing alerts.')}
     </section>
-  </div></div>`;
+  </div></div></div>`;
 }
 function startVisit(id, noNav) {
   const v = get('serviceVisits', id); if (!v) return;
@@ -1691,7 +1745,7 @@ function routeDay() {
   const durMin = sum(all, v => { const s = get('serviceSchedules', v.scheduleId); return s && s.duration ? s.duration : DB.settings.service.defaultDuration; });
   const pct = all.length ? Math.round(done / all.length * 100) : 0;
   const controls = `<div class="filters">
-    <div class="datenav"><button type="button" class="icon-btn" data-act="routeDay" data-delta="-1" aria-label="Previous day">${icon('chevL')}</button><label class="sr" for="rdate">Route date</label><input id="rdate" type="date" value="${date}" data-change="routeDate"><button type="button" class="icon-btn" data-act="routeDay" data-delta="1" aria-label="Next day">${icon('chevR')}</button>${date !== T ? `<button type="button" class="btn btn-ghost btn-sm" data-act="routeDay" data-delta="0">Today</button>` : ''}</div>
+    <div class="datenav"><button type="button" class="icon-btn" data-act="routeDay" data-delta="-1" aria-label="Previous day">${icon('chevL')}</button>${dateField('rdate', date, 'Route date', 'data-change="routeDate"')}<button type="button" class="icon-btn" data-act="routeDay" data-delta="1" aria-label="Next day">${icon('chevR')}</button>${date !== T ? `<button type="button" class="btn btn-ghost btn-sm" data-act="routeDay" data-delta="0">Today</button>` : ''}</div>
     <label class="sr" for="rtech">Technician</label><select id="rtech" class="fsel" data-change="ui" data-key="routeTech">${techSelectOpts(tech)}</select>
     <label class="sr" for="rst">Service status</label><select id="rst" class="fsel" data-change="ui" data-key="routeStatus">${optsHTML([['all','All statuses'],['scheduled','Scheduled'],['enroute','En Route'],['arrived','Arrived'],['inprogress','In Progress'],['completed','Completed'],['skipped','Skipped'],['missed','Missed']], UI.routeStatus)}</select>
   </div>`;
@@ -1872,7 +1926,7 @@ function viewPools(_, params) {
   consumeParam(params, 'water', v => { UI.poolWater = v; });
   return `<div class="wrap"><div class="page-h"><div><p class="eyebrow">Pool Profiles</p><h1>Pools</h1></div><button type="button" class="btn btn-primary" data-act="addPool">${icon('plus')}Add pool</button></div>
   <div class="filters">
-    <label class="sr" for="pq">Search pools</label><input id="pq" class="inp" type="search" placeholder="Search pool, property, customer…" value="${esc(UI.poolQ)}" data-input="poolQ">
+    ${searchBox('pq', UI.poolQ, 'Search pool, property, customer...', 'poolQ', 'poolList')}
     <label class="sr" for="pw">Water status</label><select id="pw" class="fsel" data-change="ui" data-key="poolWater">${optsHTML([['all','All water status'],['balanced','Balanced'],['attention','Needs Attention'],['critical','Critical'],['none','No test yet']], UI.poolWater)}</select>
     <label class="sr" for="pt">Technician</label><select id="pt" class="fsel" data-change="ui" data-key="poolTech">${techSelectOpts(UI.poolTech)}</select>
     <label class="sr" for="pu">Pool status</label><select id="pu" class="fsel" data-change="ui" data-key="poolUsage">${optsHTML([['all','All pools'],['Residential','Residential'],['Commercial','Commercial'],['eq','Equipment issues'],['inactive','Inactive pools']], UI.poolUsage)}</select>
@@ -1889,7 +1943,7 @@ function poolCards() {
     if (q) { const pr = propById(p.propertyId) || {}, c = custById(p.customerId) || {}; if (![p.name, p.poolType, p.sanitizer, pr.name, pr.address, c.name].some(x => String(x || '').toLowerCase().includes(q))) return false; }
     return true;
   }).sort((a, b) => stopNameForPool(a.id).localeCompare(stopNameForPool(b.id)));
-  if (!list.length) return `<div class="panel">${emptyState('pool', 'No pools match', 'Adjust the filters or add a new pool.')}</div>`;
+  if (!list.length) return `<div class="panel">${emptyState('search', 'No matching records', 'Adjust the search or filters, or add a new pool.')}</div>`;
   return `<p class="muted small" style="margin-top:-6px">${plural(list.length, 'pool')}</p><div class="pcards">${list.map(poolCard).join('')}</div>`;
 }
 INP.poolQ = el => { UI.poolQ = el.value; $('#poolList').innerHTML = poolCards(); };
@@ -2041,20 +2095,20 @@ ACT.deletePool = d => {
    ===================================================================== */
 function viewCustomers() {
   return `<div class="wrap"><div class="page-h"><div><p class="eyebrow">Accounts</p><h1>Customers</h1></div><button type="button" class="btn btn-primary" data-act="addCustomer">${icon('plus')}Add customer</button></div>
-  <div class="filters"><label class="sr" for="cq">Search customers</label><input id="cq" class="inp" type="search" placeholder="Search name, phone, email, address…" value="${esc(UI.custQ)}" data-input="custQ">
+  <div class="filters">${searchBox('cq', UI.custQ, 'Search customer, property, phone...', 'custQ', 'custList')}
   <label class="sr" for="cf">Filter</label><select id="cf" class="fsel" data-change="ui" data-key="custFilter">${optsHTML([['all','All customers'],['balance','With outstanding balance'],['overdue','With overdue invoices'],['Commercial','Commercial pools'],['Residential','Residential pools']], UI.custFilter)}</select></div>
   <div id="custList">${custTable()}</div></div>`;
 }
 function custTable() {
   const q = UI.custQ.toLowerCase().trim();
   const list = DB.customers.filter(c => {
-    if (q && ![c.name, c.phone, c.email, c.address].some(x => String(x || '').toLowerCase().includes(q))) return false;
+    if (q && ![c.name, c.phone, c.email, c.address].concat(DB.properties.filter(p => p.customerId === c.id).map(p => p.name + ' ' + p.address)).some(x => String(x || '').toLowerCase().includes(q))) return false;
     if (UI.custFilter === 'balance' && custBalance(c.id) <= 0) return false;
     if (UI.custFilter === 'overdue' && !DB.invoices.some(i => i.customerId === c.id && invStatus(i) === 'Overdue')) return false;
     if ((UI.custFilter === 'Commercial' || UI.custFilter === 'Residential') && !DB.pools.some(p => p.customerId === c.id && p.usage === UI.custFilter)) return false;
     return true;
   }).sort((a, b) => a.name.localeCompare(b.name));
-  if (!list.length) return `<div class="panel">${emptyState('users', 'No customers match', 'Try a different search or add a customer.')}</div>`;
+  if (!list.length) return `<div class="panel">${emptyState('search', 'No matching records', 'Try a different search or filter, or add a customer.')}</div>`;
   return `<div class="panel"><div class="tblwrap"><table class="tbl"><thead><tr><th>Customer</th><th>Phone</th><th>Properties</th><th>Pools</th><th>Last service</th><th class="num">Balance</th></tr></thead><tbody>
   ${list.map(c => { const pools = DB.pools.filter(p => p.customerId === c.id); const last = pools.map(p => lastService(p.id)).sort().pop(); const bal = custBalance(c.id); const od = DB.invoices.some(i => i.customerId === c.id && invStatus(i) === 'Overdue');
     return `<tr class="click" tabindex="0" data-act="go" data-href="#/customer/${c.id}"><td data-label="Customer"><b>${esc(c.name)}</b><div class="small muted">${esc(c.email || '')}</div></td><td data-label="Phone" class="nowrap">${esc(c.phone)}</td><td data-label="Properties">${DB.properties.filter(p => p.customerId === c.id).length}</td><td data-label="Pools"><span class="row" style="gap:4px">${pools.map(p => `<span class="dot dot-${({ balanced:'ok', attention:'warn', critical:'bad', none:'' })[poolWater(p.id)]}" title="${esc(p.name)}: ${WLABEL[poolWater(p.id)]}"></span>`).join('')} ${pools.length}</span></td><td data-label="Last service">${fmtShort(last)}</td><td class="num" data-label="Balance">${bal > 0 ? `<b style="color:${od ? 'var(--bad-d)' : 'inherit'}">${money(bal)}</b>` : '<span class="muted">' + money(0) + '</span>'}</td></tr>`; }).join('')}
@@ -2539,10 +2593,11 @@ function waterHistory() {
   let tests = DB.waterTests.slice().sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || '')));
   if (UI.waterPool !== 'all') tests = tests.filter(t => t.poolId === UI.waterPool);
   if (UI.waterFilter !== 'all') tests = tests.filter(t => waterStatus(t) === UI.waterFilter);
+  if (UI.waterQ.trim()) { const q = UI.waterQ.trim().toLowerCase(); tests = tests.filter(t => { const p = poolById(t.poolId) || {}, pr = propById(p.propertyId) || {}, c = custById(p.customerId) || {}; return [p.name, pr.name, c.name].some(x => String(x || '').toLowerCase().includes(q)); }); }
   const total = tests.length;
   tests = tests.slice(0, 150);
-  return `<div class="filters"><label class="sr" for="whp">Pool</label><select id="whp" class="fsel" data-change="ui" data-key="waterPool"><option value="all">All pools</option>${optsHTML(poolOptions(), UI.waterPool)}</select><label class="sr" for="whs">Water status</label><select id="whs" class="fsel" data-change="ui" data-key="waterFilter">${optsHTML([['all','All statuses'],['balanced','Balanced'],['attention','Needs Attention'],['critical','Critical']], UI.waterFilter)}</select>${UI.waterPool !== 'all' ? `<button type="button" class="btn btn-ghost btn-sm" data-act="printWater" data-pool="${UI.waterPool}">${icon('print')}Print water report</button>` : ''}<span class="muted small">${total > 150 ? 'Showing latest 150 of ' + total : plural(total, 'test')}</span></div>
-  <div class="panel">${tests.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>Date</th><th>Pool</th>${PARAMS.map(p => `<th class="num">${esc(p.short)}</th>`).join('')}<th>Status</th><th><span class="sr">Open</span></th></tr></thead><tbody>${tests.map(t => { const p = poolById(t.poolId); return `<tr><td data-label="Date" class="nowrap">${fmtShort(t.date)}<div class="small muted">${fmtTime(t.time)} · ${esc(firstName(t.techId))}</div></td><td data-label="Pool">${p ? `<a href="#/pool/${p.id}">${esc(poolLabel(p))}</a>` : '—'}</td>${PARAMS.map(x => `<td class="num" data-label="${esc(x.short)}">${cellVal(x.key, t[x.key])}</td>`).join('')}<td data-label="Status">${wBadge(waterStatus(t))}</td><td data-label=""><div class="acts">${t.visitId && get('serviceVisits', t.visitId) ? `<a class="btn btn-ghost btn-sm" href="#/report/${t.visitId}">Report</a>` : `<button type="button" class="icon-btn" data-act="deleteTest" data-id="${t.id}" aria-label="Delete test">${icon('trash')}</button>`}</div></td></tr>`; }).join('')}</tbody></table></div>` : emptyState('flask', 'No water tests match', '')}</div>`;
+  return `<div class="filters">${searchBox('whq', UI.waterQ, 'Search pool or customer...', 'waterQ', 'whList')}<label class="sr" for="whp">Pool</label><select id="whp" class="fsel" data-change="ui" data-key="waterPool"><option value="all">All pools</option>${optsHTML(poolOptions(), UI.waterPool)}</select><label class="sr" for="whs">Water status</label><select id="whs" class="fsel" data-change="ui" data-key="waterFilter">${optsHTML([['all','All statuses'],['balanced','Balanced'],['attention','Needs Attention'],['critical','Critical']], UI.waterFilter)}</select>${UI.waterPool !== 'all' ? `<button type="button" class="btn btn-ghost btn-sm" data-act="printWater" data-pool="${UI.waterPool}">${icon('print')}Print water report</button>` : ''}</div>
+  <div id="whList"><p class="muted small listcount">${total > 150 ? 'Showing latest 150 of ' + total : plural(total, 'test')}</p><div class="panel">${tests.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>Date</th><th>Pool</th>${PARAMS.map(p => `<th class="num">${esc(p.short)}</th>`).join('')}<th>Status</th><th><span class="sr">Open</span></th></tr></thead><tbody>${tests.map(t => { const p = poolById(t.poolId); return `<tr><td data-label="Date" class="nowrap">${fmtShort(t.date)}<div class="small muted">${fmtTime(t.time)} · ${esc(firstName(t.techId))}</div></td><td data-label="Pool">${p ? `<a href="#/pool/${p.id}">${esc(poolLabel(p))}</a>` : '—'}</td>${PARAMS.map(x => `<td class="num" data-label="${esc(x.short)}">${cellVal(x.key, t[x.key])}</td>`).join('')}<td data-label="Status">${wBadge(waterStatus(t))}</td><td data-label=""><div class="acts">${t.visitId && get('serviceVisits', t.visitId) ? `<a class="btn btn-ghost btn-sm" href="#/report/${t.visitId}">Report</a>` : `<button type="button" class="icon-btn" data-act="deleteTest" data-id="${t.id}" aria-label="Delete test">${icon('trash')}</button>`}</div></td></tr>`; }).join('')}</tbody></table></div>` : emptyState('search', 'No matching records', 'Try a different search or adjust the filters.')}</div></div>`;
 }
 function recordTestForm(poolId) {
   const ct = DB.settings.currentTechId;
@@ -2629,22 +2684,24 @@ function viewHistory() {
   if (H.water !== 'all') list = list.filter(v => waterStatus(testForVisit(v.id)) === H.water);
   if (H.from) list = list.filter(v => v.date >= H.from);
   if (H.to) list = list.filter(v => v.date <= H.to);
+  if (H.q.trim()) { const q = H.q.trim().toLowerCase(); list = list.filter(v => { const p = poolById(v.poolId) || {}, pr = propById(p.propertyId) || {}, c = custById(p.customerId) || {}; return [c.name, pr.name, p.name, v.serviceType].some(x => String(x || '').toLowerCase().includes(q)); }); }
   list.sort((a, b) => b.date.localeCompare(a.date) || String(b.completion || b.time).localeCompare(String(a.completion || a.time)));
   const total = list.length, shown = list.slice(0, 120);
   const done = list.filter(v => v.status === 'completed').length;
-  return `<div class="wrap"><div class="page-h"><div><p class="eyebrow">Service Records</p><h1>Service History</h1></div><div class="muted">${plural(done, 'completed visit')} in this view</div></div>
+  return `<div class="wrap"><div class="page-h"><div><p class="eyebrow">Service Records</p><h1>Service History</h1></div></div>
   <div class="filters">
+    ${searchBox('hq', H.q, 'Search customer, pool, service...', 'hist.q', 'histList')}
     <label class="sr" for="hc">Customer</label><select id="hc" class="fsel" data-change="ui" data-key="hist.cust"><option value="all">All customers</option>${optsHTML(custOptions(), H.cust)}</select>
     <label class="sr" for="ht">Technician</label><select id="ht" class="fsel" data-change="ui" data-key="hist.tech">${techSelectOpts(H.tech)}</select>
     <label class="sr" for="hs">Service status</label><select id="hs" class="fsel" data-change="ui" data-key="hist.status">${optsHTML([['all','All statuses'],['completed','Completed'],['inprogress','In progress'],['skipped','Skipped'],['missed','Missed']], H.status)}</select>
     <label class="sr" for="hw">Water status</label><select id="hw" class="fsel" data-change="ui" data-key="hist.water">${optsHTML([['all','All water status'],['balanced','Balanced'],['attention','Needs Attention'],['critical','Critical'],['none','No test']], H.water)}</select>
-    <label class="small muted" for="hf">From</label><input id="hf" type="date" class="fsel" value="${H.from}" data-change="ui" data-key="hist.from">
-    <label class="small muted" for="hto">To</label><input id="hto" type="date" class="fsel" value="${H.to}" data-change="ui" data-key="hist.to">
-    ${H.cust !== 'all' || H.tech !== 'all' || H.status !== 'all' || H.water !== 'all' || H.from || H.to ? `<button type="button" class="btn btn-ghost btn-sm" data-act="clearHist">Clear filters</button>` : ''}
+    <span class="small muted" aria-hidden="true">From</span>${dateField('hf', H.from, 'From date', 'data-change="ui" data-key="hist.from"')}
+    <span class="small muted" aria-hidden="true">To</span>${dateField('hto', H.to, 'To date', 'data-change="ui" data-key="hist.to"')}
+    ${H.cust !== 'all' || H.tech !== 'all' || H.status !== 'all' || H.water !== 'all' || H.from || H.to || H.q ? `<button type="button" class="btn btn-ghost btn-sm" data-act="clearHist">Clear filters</button>` : ''}
   </div>
-  <section class="panel">${shown.length ? `<ol class="timeline">${shown.map(v => timelineItem(v, true)).join('')}</ol>${total > shown.length ? `<p class="muted small">Showing the latest ${shown.length} of ${total} visits. Narrow the filters to see older records.</p>` : ''}` : emptyState('history', 'No visits match these filters', 'Completed service visits appear here automatically.')}</section></div>`;
+  <div id="histList"><p class="muted small listcount">${plural(done, 'completed visit')} · ${plural(total, 'record')} in this view</p><section class="panel">${shown.length ? `<ol class="timeline">${shown.map(v => timelineItem(v, true)).join('')}</ol>${total > shown.length ? `<p class="muted small">Showing the latest ${shown.length} of ${total} visits. Narrow the filters to see older records.</p>` : ''}` : emptyState('search', 'No matching records', 'Try a different search or adjust the filters.')}</section></div></div>`;
 }
-ACT.clearHist = () => { UI.hist = { cust:'all', tech:'all', status:'all', water:'all', from:'', to:'' }; rerender(); };
+ACT.clearHist = () => { UI.hist = { q:'', cust:'all', tech:'all', status:'all', water:'all', from:'', to:'' }; rerender(); };
 
 /* =====================================================================
    EQUIPMENT & MAINTENANCE
@@ -2669,9 +2726,9 @@ function viewEquipment() {
     const logs = DB.equipmentMaintenance.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 150);
     body = `<div class="panel">${logs.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>Date</th><th>Equipment</th><th>Pool</th><th>Maintenance</th><th>Technician</th><th>Notes</th><th>Next due</th><th><span class="sr">Actions</span></th></tr></thead><tbody>${logs.map(m => { const e = get('equipment', m.equipmentId), p = poolById(m.poolId); return `<tr><td data-label="Date" class="nowrap">${fmtDate(m.date)}</td><td data-label="Equipment">${e ? esc(e.type + ': ' + e.name) : '<span class="muted">Removed</span>'}</td><td data-label="Pool">${p ? `<a href="#/pool/${p.id}">${esc(poolLabel(p))}</a>` : '—'}</td><td data-label="Maintenance">${esc(m.type)}</td><td data-label="Technician">${esc(staffName(m.techId))}</td><td data-label="Notes">${esc(m.notes || '—')}</td><td data-label="Next due" class="nowrap">${fmtDate(m.nextDate)}</td><td data-label=""><div class="acts"><button type="button" class="icon-btn" data-act="deleteMaint" data-id="${m.id}" aria-label="Delete maintenance record">${icon('trash')}</button></div></td></tr>`; }).join('')}</tbody></table></div>` : emptyState('wrench', 'No maintenance recorded yet', '')}</div>`;
   } else {
-    const list = all.filter(e => (UI.eqStatus === 'all' || eqStatus(e) === UI.eqStatus) && (UI.eqType === 'all' || e.type === UI.eqType)).sort((a, b) => stopNameForPool(a.poolId).localeCompare(stopNameForPool(b.poolId)) || EQ_TYPES.indexOf(a.type) - EQ_TYPES.indexOf(b.type));
-    body = `<div class="filters"><label class="sr" for="es">Equipment status</label><select id="es" class="fsel" data-change="ui" data-key="eqStatus">${optsHTML([['all','All statuses']].concat(EQ_STATUS), UI.eqStatus)}</select><label class="sr" for="et">Equipment type</label><select id="et" class="fsel" data-change="ui" data-key="eqType">${optsHTML([['all','All types']].concat(EQ_TYPES), UI.eqType)}</select><span class="muted small">${plural(list.length, 'item')}</span></div>
-    <div class="panel">${list.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>Equipment</th><th>Pool</th><th>Status</th><th>Last maint.</th><th>Next maint.</th><th>Notes</th><th><span class="sr">Actions</span></th></tr></thead><tbody>${list.map(e => { const st = eqStatus(e); return `<tr><td data-label="Equipment"><span class="row" style="gap:8px;flex-wrap:nowrap"><span style="color:var(--primary)">${icon(EQ_ICON[e.type] || 'wrench')}</span><span><b>${esc(e.type)}</b><div class="small muted">${esc(e.name)}</div></span></span></td><td data-label="Pool"><a href="#/pool/${e.poolId}">${esc(poolLabel(poolById(e.poolId)))}</a></td><td data-label="Status">${eqBadge(st)}</td><td data-label="Last maint." class="nowrap">${fmtShort(e.lastMaint)}</td><td data-label="Next maint." class="nowrap">${fmtShort(e.nextMaint)}</td><td data-label="Notes" class="small">${esc(e.notes || '—')}</td><td data-label=""><div class="acts"><button type="button" class="icon-btn" data-act="logMaint" data-id="${e.id}" aria-label="Record maintenance for ${esc(eqLabel(e))}">${icon('wrench')}</button><button type="button" class="icon-btn" data-act="editEquipment" data-id="${e.id}" aria-label="Edit ${esc(eqLabel(e))}">${icon('edit')}</button><button type="button" class="icon-btn" data-act="deleteEquipment" data-id="${e.id}" aria-label="Delete ${esc(eqLabel(e))}">${icon('trash')}</button></div></td></tr>`; }).join('')}</tbody></table></div>` : emptyState('wrench', 'No equipment matches', '')}</div>`;
+    const list = all.filter(e => (UI.eqStatus === 'all' || eqStatus(e) === UI.eqStatus) && (UI.eqType === 'all' || e.type === UI.eqType) && (!UI.eqQ.trim() || (() => { const q = UI.eqQ.trim().toLowerCase(), p = poolById(e.poolId) || {}, pr = propById(p.propertyId) || {}, c = custById(p.customerId) || {}; return [e.name, e.type, e.notes, p.name, pr.name, c.name].some(x => String(x || '').toLowerCase().includes(q)); })())).sort((a, b) => stopNameForPool(a.poolId).localeCompare(stopNameForPool(b.poolId)) || EQ_TYPES.indexOf(a.type) - EQ_TYPES.indexOf(b.type));
+    body = `<div class="filters">${searchBox('eqq', UI.eqQ, 'Search equipment, pool, customer...', 'eqQ', 'eqList')}<label class="sr" for="es">Equipment status</label><select id="es" class="fsel" data-change="ui" data-key="eqStatus">${optsHTML([['all','All statuses']].concat(EQ_STATUS), UI.eqStatus)}</select><label class="sr" for="et">Equipment type</label><select id="et" class="fsel" data-change="ui" data-key="eqType">${optsHTML([['all','All types']].concat(EQ_TYPES), UI.eqType)}</select></div>
+    <div id="eqList"><p class="muted small listcount">${plural(list.length, 'item')}</p><div class="panel">${list.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>Equipment</th><th>Pool</th><th>Status</th><th>Last maint.</th><th>Next maint.</th><th>Notes</th><th><span class="sr">Actions</span></th></tr></thead><tbody>${list.map(e => { const st = eqStatus(e); return `<tr><td data-label="Equipment"><span class="row" style="gap:8px;flex-wrap:nowrap"><span style="color:var(--primary)">${icon(EQ_ICON[e.type] || 'wrench')}</span><span><b>${esc(e.type)}</b><div class="small muted">${esc(e.name)}</div></span></span></td><td data-label="Pool"><a href="#/pool/${e.poolId}">${esc(poolLabel(poolById(e.poolId)))}</a></td><td data-label="Status">${eqBadge(st)}</td><td data-label="Last maint." class="nowrap">${fmtShort(e.lastMaint)}</td><td data-label="Next maint." class="nowrap">${fmtShort(e.nextMaint)}</td><td data-label="Notes" class="small">${esc(e.notes || '—')}</td><td data-label=""><div class="acts"><button type="button" class="icon-btn" data-act="logMaint" data-id="${e.id}" aria-label="Record maintenance for ${esc(eqLabel(e))}">${icon('wrench')}</button><button type="button" class="icon-btn" data-act="editEquipment" data-id="${e.id}" aria-label="Edit ${esc(eqLabel(e))}">${icon('edit')}</button><button type="button" class="icon-btn" data-act="deleteEquipment" data-id="${e.id}" aria-label="Delete ${esc(eqLabel(e))}">${icon('trash')}</button></div></td></tr>`; }).join('')}</tbody></table></div>` : emptyState('search', 'No matching records', 'Try a different search or adjust the filters.')}</div></div>`;
   }
   return `<div class="wrap"><div class="page-h"><div><p class="eyebrow">Pool Equipment</p><h1>Equipment</h1></div><div class="row"><button type="button" class="btn btn-ghost" data-act="printEquipment">${icon('print')}Equipment report</button><button type="button" class="btn btn-ghost" data-act="logMaint">${icon('wrench')}Record maintenance</button><button type="button" class="btn btn-primary" data-act="addEquipment">${icon('plus')}Add equipment</button></div></div>
   <div class="tiles"><div class="tile t-ok"><div class="tl">OK</div><div class="tv">${counts.OK}</div></div><div class="tile t-warn"><div class="tl">Maintenance Due</div><div class="tv">${counts['Maintenance Due']}</div></div><div class="tile t-warn"><div class="tl">Needs Attention</div><div class="tv">${counts['Needs Attention']}</div></div><div class="tile t-bad"><div class="tl">Problems</div><div class="tv">${counts.Problem}</div></div></div>
@@ -2759,13 +2816,13 @@ function viewChemicals(_, params) {
     const logs = DB.chemicalLogs.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 200);
     body = `<div class="panel">${logs.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>Date</th><th>Pool</th><th>Chemical</th><th class="num">Amount</th><th>Reason</th><th>Technician</th><th class="num">Cost</th></tr></thead><tbody>${logs.map(l => { const p = poolById(l.poolId), v = get('serviceVisits', l.visitId); return `<tr><td data-label="Date" class="nowrap">${fmtShort(l.date)}</td><td data-label="Pool">${p ? `<a href="#/pool/${p.id}">${esc(poolLabel(p))}</a>` : '—'}</td><td data-label="Chemical">${esc(l.chemical)}</td><td class="num" data-label="Amount">${fmtNum(l.amount)} ${esc(l.unit)}</td><td data-label="Reason">${esc(l.reason)}</td><td data-label="Technician">${esc(v ? firstName(v.techId) : '—')}</td><td class="num" data-label="Cost">${money(l.cost)}</td></tr>`; }).join('')}</tbody></table></div>` : emptyState('beaker', 'No chemicals logged yet', 'Chemicals logged during service visits appear here.')}</div>`;
   } else if (UI.chemTab === 'calc') {
-    body = `<section class="panel" style="max-width:820px"><div class="ph"><h2>Chemical Adjustment Calculator</h2></div>${calcHTML({})}</section>`;
+    body = `<section class="panel"><div class="ph"><h2>Chemical Adjustment Calculator</h2></div>${calcHTML({})}</section>`;
   } else {
     const byChem = {};
     monthLogs.forEach(l => { const k = l.chemical + '|' + l.unit; byChem[k] = byChem[k] || { l:l.chemical, unit:l.unit, amt:0, cost:0 }; byChem[k].amt += +l.amount; byChem[k].cost += +l.cost || 0; });
     const rows = Object.values(byChem).sort((a, b) => b.cost - a.cost);
     body = `<div class="grid-2"><section class="panel"><div class="ph"><h2>Chemical Inventory</h2><button type="button" class="btn btn-primary btn-sm" data-act="addChemical">${icon('plus')}Add chemical</button></div>
-      <div class="tblwrap"><table class="tbl"><thead><tr><th>Chemical</th><th>In stock</th><th class="num">Min.</th><th>Supplier</th><th class="num">Unit cost</th><th><span class="sr">Actions</span></th></tr></thead><tbody>${DB.chemicals.map(c => { const isLow = hasVal(c.min) && +c.qty <= +c.min; const pct = Math.min(100, (+c.qty / Math.max(1, +c.min * 2)) * 100); return `<tr><td data-label="Chemical"><b>${esc(c.name)}</b><div class="small muted">${esc(c.type)}${isLow ? ' · <b style="color:var(--bad-d)">LOW STOCK</b>' : ''}</div></td><td data-label="In stock"><div><b class="tnum">${fmtNum(c.qty)} ${esc(c.unit)}</b><div class="stockbar" style="margin-top:4px" aria-hidden="true"><i class="${isLow ? 'low' : ''}" style="width:${pct.toFixed(0)}%"></i></div></div></td><td class="num" data-label="Minimum">${fmtNum(c.min)}</td><td data-label="Supplier" class="small">${esc(c.supplier || '—')}</td><td class="num" data-label="Unit cost">${money(c.cost)}</td><td data-label=""><div class="acts"><button type="button" class="btn btn-ghost btn-sm" data-act="adjustStock" data-id="${c.id}">±&nbsp;Stock</button><button type="button" class="icon-btn" data-act="editChemical" data-id="${c.id}" aria-label="Edit ${esc(c.name)}">${icon('edit')}</button><button type="button" class="icon-btn" data-act="deleteChemical" data-id="${c.id}" aria-label="Delete ${esc(c.name)}">${icon('trash')}</button></div></td></tr>`; }).join('')}</tbody></table></div></section>
+      <div class="filters">${searchBox('chq', UI.chemQ, 'Search chemical or supplier...', 'chemQ', 'chemList')}</div><div id="chemList">${chemFiltered().length ? '' : emptyState('search', 'No matching records', 'Try a different chemical name or supplier.')}<div class="tblwrap"${chemFiltered().length ? '' : ' hidden'}><table class="tbl"><thead><tr><th>Chemical</th><th>In stock</th><th class="num">Min.</th><th>Supplier</th><th class="num">Unit cost</th><th><span class="sr">Actions</span></th></tr></thead><tbody>${chemFiltered().map(c => { const isLow = hasVal(c.min) && +c.qty <= +c.min; const pct = Math.min(100, (+c.qty / Math.max(1, +c.min * 2)) * 100); return `<tr><td data-label="Chemical"><b>${esc(c.name)}</b><div class="small muted">${esc(c.type)}${isLow ? ' · <b style="color:var(--bad-d)">LOW STOCK</b>' : ''}</div></td><td data-label="In stock"><div><b class="tnum">${fmtNum(c.qty)} ${esc(c.unit)}</b><div class="stockbar" style="margin-top:4px" aria-hidden="true"><i class="${isLow ? 'low' : ''}" style="width:${pct.toFixed(0)}%"></i></div></div></td><td class="num" data-label="Minimum">${fmtNum(c.min)}</td><td data-label="Supplier" class="small">${esc(c.supplier || '—')}</td><td class="num" data-label="Unit cost">${money(c.cost)}</td><td data-label=""><div class="acts"><button type="button" class="btn btn-ghost btn-sm" data-act="adjustStock" data-id="${c.id}">±&nbsp;Stock</button><button type="button" class="icon-btn" data-act="editChemical" data-id="${c.id}" aria-label="Edit ${esc(c.name)}">${icon('edit')}</button><button type="button" class="icon-btn" data-act="deleteChemical" data-id="${c.id}" aria-label="Delete ${esc(c.name)}">${icon('trash')}</button></div></td></tr>`; }).join('')}</tbody></table></div></div></section>
       <div class="stack"><section class="panel"><div class="ph"><h2>Low Stock</h2><span class="badge ${low.length ? 'b-bad' : 'b-ok'}">${low.length}</span></div>${low.length ? low.map(c => `<div class="statline"><span class="dot dot-bad"></span><b class="grow">${esc(c.name)}</b><span class="tnum">${fmtNum(c.qty)} / min ${fmtNum(c.min)} ${esc(c.unit)}</span><button type="button" class="btn btn-ghost btn-sm" data-act="adjustStock" data-id="${c.id}" data-mode="add">Restock</button></div>`).join('') : emptyState('check', 'Stock levels OK', '')}</section>
       <section class="panel"><div class="ph"><h2>Chemicals Used This Month</h2><span class="muted small">${MONTHS_L[parseD(T).getMonth()]}</span></div>${rows.length ? hbars(rows.map(r => ({ l:r.l, v:r.cost, s:fmtNum(r.amt) + ' ' + r.unit })), v => money(v)) + `<p class="small muted">${rows.map(r => esc(r.l.split(' ')[0]) + ': ' + fmtNum(r.amt) + ' ' + esc(r.unit)).join(' · ')}</p>` : emptyState('beaker', 'Nothing logged this month', '')}</section></div></div>`;
   }
@@ -2773,6 +2830,7 @@ function viewChemicals(_, params) {
   <div class="tiles"><div class="tile"><div class="tl">Products</div><div class="tv">${DB.chemicals.length}</div><div class="ts">Inventory value ${money(value)}</div></div><div class="tile ${low.length ? 't-bad' : 't-ok'}"><div class="tl">Low Stock</div><div class="tv">${low.length}</div><div class="ts">At or below minimum</div></div><div class="tile"><div class="tl">Used This Month</div><div class="tv">${monthLogs.length}</div><div class="ts">chemical log entries</div></div><div class="tile t-warn"><div class="tl">Est. Chemical Cost</div><div class="tv">${money(monthCost)}</div><div class="ts">this month, at unit cost</div></div></div>
   ${tabsHTML(tabs, UI.chemTab, 'chemTab')}${body}</div>`;
 }
+function chemFiltered() { const q = UI.chemQ.trim().toLowerCase(); return DB.chemicals.filter(c => !q || [c.name, c.supplier, c.type].some(x => String(x || '').toLowerCase().includes(q))); }
 function hbars(rows, fmt) { const max = Math.max(1e-9, ...rows.map(r => r.v)); return `<div class="hbars">${rows.map(r => `<div class="hbar"><span class="hb-l" title="${esc(r.l)}">${esc(r.l)}</span><span class="hb-t" aria-hidden="true"><i style="width:${(r.v / max * 100).toFixed(1)}%;${r.c ? 'background:' + r.c : ''}"></i></span><span class="hb-v">${fmt ? fmt(r.v) : fmtNum(r.v)}</span></div>`).join('')}</div>`; }
 function chemicalForm(c) {
   const isNew = !c;
@@ -2850,9 +2908,9 @@ function viewInvoices(_, params) {
     body = `<div class="filters"><label class="sr" for="ic2">Customer</label><select id="ic2" class="fsel" data-change="ui" data-key="invCust"><option value="all">All customers</option>${optsHTML(custOptions(), UI.invCust)}</select></div>
     <div class="panel">${pays.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>Date</th><th>Customer</th><th>Invoice</th><th>Method</th><th>Reference</th><th class="num">Amount</th><th><span class="sr">Actions</span></th></tr></thead><tbody>${pays.map(p => { const i = get('invoices', p.invoiceId); return `<tr><td data-label="Date" class="nowrap">${fmtDate(p.date)}</td><td data-label="Customer">${esc((custById(p.customerId) || {}).name || '—')}</td><td data-label="Invoice">${i ? `<a href="#/invoice/${i.id}">${esc(i.number)}</a>` : '—'}</td><td data-label="Method">${esc(p.method)}</td><td data-label="Reference">${esc(p.reference || '—')}${p.notes ? `<div class="small muted">${esc(p.notes)}</div>` : ''}</td><td class="num" data-label="Amount"><b>${money(p.amount)}</b></td><td data-label=""><div class="acts"><button type="button" class="icon-btn" data-act="deletePayment" data-id="${p.id}" aria-label="Delete payment">${icon('trash')}</button></div></td></tr>`; }).join('')}</tbody></table></div>` : emptyState('dollar', 'No payments recorded', '')}</div>`;
   } else {
-    const list = DB.invoices.filter(i => (UI.invStatus === 'all' || (UI.invStatus === 'open' ? invStatus(i) !== 'Paid' : invStatus(i) === UI.invStatus)) && (UI.invCust === 'all' || i.customerId === UI.invCust)).sort((a, b) => b.date.localeCompare(a.date) || b.number.localeCompare(a.number));
-    body = `<div class="filters"><label class="sr" for="is">Invoice status</label><select id="is" class="fsel" data-change="ui" data-key="invStatus">${optsHTML([['all','All statuses'],['open','All unpaid'],['Pending','Pending'],['Overdue','Overdue'],['Partially Paid','Partially Paid'],['Paid','Paid']], UI.invStatus)}</select><label class="sr" for="ic">Customer</label><select id="ic" class="fsel" data-change="ui" data-key="invCust"><option value="all">All customers</option>${optsHTML(custOptions(), UI.invCust)}</select><span class="muted small">${plural(list.length, 'invoice')}</span></div>
-    <div class="panel">${list.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>Invoice</th><th>Customer</th><th>Date</th><th>Due</th><th class="num">Total</th><th class="num">Balance</th><th>Status</th></tr></thead><tbody>${list.map(i => { const t = invTotals(i); return `<tr class="click" tabindex="0" data-act="go" data-href="#/invoice/${i.id}"><td data-label="Invoice"><b>${esc(i.number)}</b><div class="small muted">${esc(i.serviceType)}</div></td><td data-label="Customer">${esc((custById(i.customerId) || {}).name || '—')}</td><td data-label="Date" class="nowrap">${fmtShort(i.date)}</td><td data-label="Due" class="nowrap">${fmtShort(i.dueDate)}</td><td class="num" data-label="Total">${money(t.total)}</td><td class="num" data-label="Balance"><b>${money(Math.max(0, t.balance))}</b></td><td data-label="Status">${invBadge(i)}</td></tr>`; }).join('')}</tbody></table></div>` : emptyState('invoice', 'No invoices match', 'Create invoices from completed visits or manually.')}</div>`;
+    const list = DB.invoices.filter(i => (UI.invStatus === 'all' || (UI.invStatus === 'open' ? invStatus(i) !== 'Paid' : invStatus(i) === UI.invStatus)) && (UI.invCust === 'all' || i.customerId === UI.invCust) && (!UI.invQ.trim() || (() => { const q = UI.invQ.trim().toLowerCase(); return [i.number, (custById(i.customerId) || {}).name, i.serviceType, i.serviceDesc, i.additionalDesc].some(x => String(x || '').toLowerCase().includes(q)); })())).sort((a, b) => b.date.localeCompare(a.date) || b.number.localeCompare(a.number));
+    body = `<div class="filters">${searchBox('iq', UI.invQ, 'Search invoice #, customer, description...', 'invQ', 'invList')}<label class="sr" for="is">Invoice status</label><select id="is" class="fsel" data-change="ui" data-key="invStatus">${optsHTML([['all','All statuses'],['open','All unpaid'],['Pending','Pending'],['Overdue','Overdue'],['Partially Paid','Partially Paid'],['Paid','Paid']], UI.invStatus)}</select><label class="sr" for="ic">Customer</label><select id="ic" class="fsel" data-change="ui" data-key="invCust"><option value="all">All customers</option>${optsHTML(custOptions(), UI.invCust)}</select></div>
+    <div id="invList"><p class="muted small listcount">${plural(list.length, 'invoice')}</p><div class="panel">${list.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>Invoice</th><th>Customer</th><th>Date</th><th>Due</th><th class="num">Total</th><th class="num">Balance</th><th>Status</th></tr></thead><tbody>${list.map(i => { const t = invTotals(i); return `<tr class="click" tabindex="0" data-act="go" data-href="#/invoice/${i.id}"><td data-label="Invoice"><b>${esc(i.number)}</b><div class="small muted">${esc(i.serviceType)}</div></td><td data-label="Customer">${esc((custById(i.customerId) || {}).name || '—')}</td><td data-label="Date" class="nowrap">${fmtShort(i.date)}</td><td data-label="Due" class="nowrap">${fmtShort(i.dueDate)}</td><td class="num" data-label="Total">${money(t.total)}</td><td class="num" data-label="Balance"><b>${money(Math.max(0, t.balance))}</b></td><td data-label="Status">${invBadge(i)}</td></tr>`; }).join('')}</tbody></table></div>` : emptyState('search', 'No matching records', 'Try a different search or adjust the filters.')}</div></div>`;
   }
   return `<div class="wrap"><div class="page-h"><div><p class="eyebrow">Billing</p><h1>Invoices</h1></div><div class="row"><button type="button" class="btn btn-ghost" data-act="recordPayment">${icon('dollar')}Record payment</button><button type="button" class="btn btn-primary" data-act="newInvoice">${icon('plus')}New invoice</button></div></div>
   <div class="tiles"><div class="tile"><div class="tl">Outstanding</div><div class="tv">${money(outstanding)}</div><div class="ts">${plural(DB.invoices.filter(i => invStatus(i) !== 'Paid').length, 'unpaid invoice')}</div></div><div class="tile t-bad"><div class="tl">Overdue</div><div class="tv">${money(sum(od, i => invTotals(i).balance))}</div><div class="ts">${plural(od.length, 'invoice')}</div></div><div class="tile t-ok"><div class="tl">Collected This Month</div><div class="tv">${money(paidMonth)}</div></div><div class="tile"><div class="tl">Invoiced This Month</div><div class="tv">${money(invMonth)}</div></div></div>
@@ -3122,20 +3180,20 @@ function viewSettings() {
     body = `<section class="panel"><div class="ph"><h2>Technicians &amp; Staff</h2><button type="button" class="btn btn-primary btn-sm" data-act="addStaff">${icon('plus')}Add technician</button></div>
     <table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Email</th><th>Pools</th><th>Status</th><th><span class="sr">Actions</span></th></tr></thead><tbody>${DB.staff.map(s => `<tr><td data-label="Name"><span class="row" style="gap:8px;flex-wrap:nowrap"><span class="ni" style="background:${esc(s.color || '#0E7490')};color:#fff;font-weight:800;font-size:12px">${esc(initials(s.name))}</span><b>${esc(s.name)}</b></span></td><td data-label="Role">${esc(s.role || '—')}</td><td data-label="Phone">${esc(s.phone || '—')}</td><td data-label="Email">${esc(s.email || '—')}</td><td data-label="Pools">${DB.pools.filter(p => p.techId === s.id).length}</td><td data-label="Status">${s.active !== false ? '<span class="badge b-ok">Active</span>' : '<span class="badge">Inactive</span>'}</td><td data-label=""><div class="acts"><button type="button" class="icon-btn" data-act="editStaff" data-id="${s.id}" aria-label="Edit ${esc(s.name)}">${icon('edit')}</button><button type="button" class="icon-btn" data-act="deleteStaff" data-id="${s.id}" aria-label="Remove ${esc(s.name)}">${icon('trash')}</button></div></td></tr>`).join('') || `<tr><td colspan="7">${emptyState('user', 'No technicians yet', 'Add your first technician.')}</td></tr>`}</tbody></table></section>`;
   } else if (UI.setTab === 'service') {
-    body = `<section class="panel" style="max-width:820px"><div class="ph"><h2>Service &amp; Billing Defaults</h2></div><form data-submit="saveService" id="svcForm" novalidate><div class="fgrid">${SERVICE_FIELDS().map(f => fieldHTML(f, S.service[f.name])).join('')}</div><button class="btn btn-primary mt" type="submit">${icon('check')}Save service settings</button></form></section>`;
+    body = `<section class="panel"><div class="ph"><h2>Service &amp; Billing Defaults</h2></div><form data-submit="saveService" id="svcForm" novalidate><div class="fgrid auto">${SERVICE_FIELDS().map(f => fieldHTML(f, S.service[f.name])).join('')}</div><button class="btn btn-primary mt" type="submit">${icon('check')}Save service settings</button></form></section>`;
   } else if (UI.setTab === 'water') {
-    body = `<section class="panel" style="max-width:900px"><div class="ph"><h2>Water Test Target Ranges</h2><button type="button" class="btn btn-ghost btn-sm" data-act="resetRanges">Restore defaults</button></div>
+    body = `<section class="panel"><div class="ph"><h2>Water Test Target Ranges</h2><button type="button" class="btn btn-ghost btn-sm" data-act="resetRanges">Restore defaults</button></div>
     <p class="muted">Readings inside <b>Min–Max</b> show NORMAL; outside show LOW or HIGH. Readings beyond the optional <b>critical</b> limits mark the pool CRITICAL. Set these to match your business standards and local regulations.</p>
     <form data-submit="saveRanges" id="rangeForm" novalidate><div class="tblwrap"><table class="tbl"><thead><tr><th>Parameter</th><th>Critical low</th><th>Min</th><th>Max</th><th>Critical high</th></tr></thead><tbody>${PARAMS.map(p => { const r = S.ranges[p.key] || {}; const inp = (f, lbl) => `<td data-label="${lbl}"><label class="sr" for="r_${p.key}_${f}">${esc(p.label)} ${lbl}</label><input id="r_${p.key}_${f}" class="inp" style="max-width:120px;min-height:42px" name="${p.key}_${f}" type="number" step="any" inputmode="decimal" value="${hasVal(r[f]) ? r[f] : ''}"></td>`; return `<tr><td data-label="Parameter"><b>${esc(p.label)}</b><div class="small muted">${esc(unitFor(p.key) || 'pH units')}</div></td>${inp('critLow', 'Critical low')}${inp('min', 'Min')}${inp('max', 'Max')}${inp('critHigh', 'Critical high')}</tr>`; }).join('')}</tbody></table></div><p class="form-err" id="rangeErr" role="alert"></p><button class="btn btn-primary mt" type="submit">${icon('check')}Save ranges</button></form>
     <div class="mt">${safetyNote(SAFETY_PLAN)}</div></section>`;
   } else if (UI.setTab === 'checklist') {
-    body = `<section class="panel" style="max-width:720px"><div class="ph"><h2>Default Cleaning Checklist</h2></div><p class="muted">Used for every new service visit. Technicians can still add custom tasks during a visit.</p>
+    body = `<section class="panel"><div class="ph"><h2>Default Cleaning Checklist</h2></div><p class="muted">Used for every new service visit. Technicians can still add custom tasks during a visit.</p>
     <ul class="route">${S.checklist.map((l, i) => `<li class="stop" style="grid-template-columns:40px minmax(0,1fr) auto"><span class="node" style="width:36px;height:36px;font-size:13px">${i + 1}</span><div class="stop-main"><b>${esc(l)}</b></div><div class="stop-side"><button type="button" class="icon-btn" data-act="moveCheck" data-i="${i}" data-dir="-1" aria-label="Move ${esc(l)} up"${i === 0 ? ' disabled' : ''}>${icon('up')}</button><button type="button" class="icon-btn" data-act="moveCheck" data-i="${i}" data-dir="1" aria-label="Move ${esc(l)} down"${i === S.checklist.length - 1 ? ' disabled' : ''}>${icon('down')}</button><button type="button" class="icon-btn" data-act="removeCheck" data-i="${i}" aria-label="Remove ${esc(l)}">${icon('trash')}</button></div></li>`).join('')}</ul>
     <form class="row mt" data-submit="addDefaultCheck"><label class="sr" for="ndc">New checklist task</label><input id="ndc" class="inp" name="task" maxlength="80" placeholder="e.g. Clean waterfall feature" style="flex:1;min-width:200px"><button class="btn btn-primary" type="submit">${icon('plus')}Add task</button></form>
     <button type="button" class="btn btn-ghost btn-sm mt" data-act="resetChecklist">Restore default checklist</button></section>`;
   } else if (UI.setTab === 'chemicals') {
     const n = DB.chemicals.filter(hasRule).length;
-    body = `<section class="panel" style="max-width:820px"><div class="ph"><h2>Chemical Settings</h2></div>${safetyNote(SAFETY_PLAN)}
+    body = `<section class="panel"><div class="ph"><h2>Chemical Settings</h2></div>${safetyNote(SAFETY_PLAN)}
     <p class="mt">PoolFlow does <b>not</b> include manufacturer dosage rates. The chemical calculator only works with <b>label dosage rules you enter</b> for your own products, copied from each product label.</p>
     <p><b>${n}</b> of ${DB.chemicals.length} products have a label rule configured.</p>
     <div class="row"><button type="button" class="btn btn-primary" data-act="openRules">${icon('beaker')}Manage label dosage rules</button><a class="btn btn-ghost" href="#/chemicals">${icon('box')}Chemical inventory</a></div></section>`;
@@ -3150,7 +3208,7 @@ function viewSettings() {
       <div class="stack"><button type="button" class="btn btn-ghost" data-act="resetData">${icon('repeat')}Reset to initial business data</button><button type="button" class="btn btn-danger" data-act="clearData">${icon('trash')}Clear all data</button></div></section></div>`;
   } else {
     const b = S.business;
-    body = `<section class="panel" style="max-width:820px"><div class="ph"><h2>Business Profile</h2></div><form data-submit="saveBusiness" id="bizForm" novalidate><div class="fgrid">${BUSINESS_FIELDS().map(f => fieldHTML(f, b[f.name])).join('')}
+    body = `<section class="panel"><div class="ph"><h2>Business Profile</h2></div><form data-submit="saveBusiness" id="bizForm" novalidate><div class="fgrid auto">${BUSINESS_FIELDS().map(f => fieldHTML(f, b[f.name])).join('')}
       <div class="field full"><span class="flabel">Logo</span><div class="row">${b.logo ? `<img src="${esc(b.logo)}" alt="Current logo" style="max-height:60px;max-width:160px;border:1px solid var(--line);border-radius:10px;padding:4px;background:#fff">` : `<span class="muted small">No logo — the PoolFlow mark is used on documents.</span>`}<label class="btn btn-ghost btn-sm" for="logoFile" style="cursor:pointer">${icon('upload')}${b.logo ? 'Replace' : 'Upload'} logo<input id="logoFile" type="file" accept="image/*" class="sr" data-change="logoFile"></label>${b.logo ? `<button type="button" class="btn btn-danger btn-sm" data-act="removeLogo">Remove</button>` : ''}</div><span class="help">PNG, JPG or SVG up to 400 KB. Stored locally and shown on invoices and reports.</span></div></div>
       <button class="btn btn-primary mt" type="submit">${icon('check')}Save business profile</button></form></section>`;
   }
