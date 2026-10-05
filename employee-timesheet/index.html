@@ -1,0 +1,1131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Employee Timesheet</title>
+<style>
+/* Layout: fixed navy sidebar + light work canvas; cards on a cool grey ground (matches the Power Apps original) */
+:root {
+  --bg: #f3f5fa;
+  --surface: #ffffff;
+  --surface-2: #f6f8fc;
+  --line: #dfe4ee;
+  --line-soft: #ebeef5;
+  --fg: #111827;
+  --muted: #5b6475;
+  --faint: #8a93a5;
+  --accent: #2148c9;
+  --accent-hover: #1a3aa8;
+  --accent-soft: #e3eafb;
+  --accent-ink: #ffffff;
+  --overtime: #9b5fe0;
+  --side: #0b1531;
+  --side-2: #17234a;
+  --side-fg: #e7ecf8;
+  --side-muted: #9aa6c4;
+  --ok-bg: #e7f6ec; --ok-fg: #17733a; --ok-line: #bfe6cb;
+  --bad: #c0172b; --bad-soft: #fde8ea;
+  --pending-bg: #e6ebf6; --pending-fg: #34405a;
+  --shadow: 0 1px 2px rgba(17, 24, 39, .05), 0 2px 8px rgba(17, 24, 39, .04);
+  --overlay: rgba(15, 23, 42, .45);
+  --font: "Segoe UI", "Segoe UI Variable", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1424; --surface: #151d31; --surface-2: #1a2440; --line: #26314d; --line-soft: #1f2942;
+    --fg: #e8ecf5; --muted: #a3adc2; --faint: #7d88a1;
+    --accent: #5b82f0; --accent-hover: #7596f3; --accent-soft: #1f2e57; --accent-ink: #ffffff; --overtime: #b28af0;
+    --side: #080f22; --side-2: #18244a; --side-fg: #e7ecf8; --side-muted: #8f9bbb;
+    --ok-bg: #12301f; --ok-fg: #7fd9a0; --ok-line: #1f5134;
+    --bad: #f0596b; --bad-soft: #3a1820;
+    --pending-bg: #243049; --pending-fg: #c9d2e6;
+    --shadow: 0 1px 2px rgba(0,0,0,.3); --overlay: rgba(0,0,0,.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1424; --surface: #151d31; --surface-2: #1a2440; --line: #26314d; --line-soft: #1f2942;
+  --fg: #e8ecf5; --muted: #a3adc2; --faint: #7d88a1;
+  --accent: #5b82f0; --accent-hover: #7596f3; --accent-soft: #1f2e57; --accent-ink: #ffffff; --overtime: #b28af0;
+  --side: #080f22; --side-2: #18244a; --side-fg: #e7ecf8; --side-muted: #8f9bbb;
+  --ok-bg: #12301f; --ok-fg: #7fd9a0; --ok-line: #1f5134;
+  --bad: #f0596b; --bad-soft: #3a1820;
+  --pending-bg: #243049; --pending-fg: #c9d2e6;
+  --shadow: 0 1px 2px rgba(0,0,0,.3); --overlay: rgba(0,0,0,.6);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 var(--font); }
+[hidden] { display: none !important; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+svg { flex-shrink: 0; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- shell ---------- */
+.app { display: flex; min-height: 100%; }
+.sidebar {
+  width: 216px; flex-shrink: 0; background: var(--side); color: var(--side-fg);
+  display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
+}
+.brand { display: flex; align-items: center; gap: 10px; padding: 18px 18px 16px; border-bottom: 1px solid var(--side-2); }
+.brand-mark { width: 32px; height: 32px; border-radius: 50%; background: #2f8be6; display: grid; place-items: center; color: #fff; }
+.brand b { display: block; font-size: 15px; line-height: 1.15; }
+.brand span { font-size: 12px; color: var(--side-fg); opacity: .9; }
+.nav { display: flex; flex-direction: column; gap: 4px; padding: 12px 10px; }
+.nav a {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px;
+  color: var(--side-fg); text-decoration: none; font-weight: 600; font-size: 13.5px; border: 1.5px solid transparent;
+}
+.nav a:hover { background: var(--side-2); }
+.nav a.active { background: var(--side-2); border-color: #c9d6f5; }
+.side-foot { margin-top: auto; padding: 12px; }
+.side-card { background: var(--side-2); border-radius: 12px; padding: 12px 14px; font-size: 12px; color: var(--side-muted); }
+.side-card b { display: block; color: var(--side-fg); font-size: 13px; margin-bottom: 2px; }
+
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.topbar {
+  height: 52px; background: var(--surface); border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px; padding-inline: 24px; position: sticky; top: 0; z-index: 20;
+}
+.topbar .company { display: flex; align-items: center; gap: 8px; font-weight: 500; color: var(--fg); }
+.topbar .spacer { flex: 1; }
+.chip { background: var(--accent-soft); color: var(--fg); border-radius: 999px; padding: 4px 12px; font-size: 12.5px; font-weight: 600; }
+.icon-btn { background: none; border: 1px solid var(--line); border-radius: 8px; width: 34px; height: 34px; display: grid; place-items: center; color: var(--muted); }
+.icon-btn:hover { background: var(--surface-2); color: var(--fg); }
+.menu-btn { display: none; }
+
+.content { padding: 24px 26px 40px; display: flex; flex-direction: column; gap: 18px; max-width: 1280px; width: 100%; }
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.page-head h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.01em; text-wrap: balance; }
+.page-head p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+
+/* ---------- primitives ---------- */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px; border-radius: 8px; padding: 8px 14px;
+  font-weight: 600; font-size: 13px; border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+}
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { background: var(--accent-hover); }
+.btn.danger { color: var(--bad); border-color: var(--bad); background: var(--surface); }
+.btn.danger:hover { background: var(--bad-soft); }
+.btn.sm { padding: 5px 10px; font-size: 12.5px; }
+.link-btn { background: none; border: 0; padding: 2px 4px; color: var(--fg); font-weight: 600; font-size: 13px; border-radius: 4px; }
+.link-btn:hover { color: var(--accent); text-decoration: underline; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.card-pad { padding: 18px 20px; }
+.card h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.card .sub { margin: 2px 0 0; color: var(--muted); font-size: 12.5px; }
+.card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+
+.badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.badge.approved, .badge.active, .badge.ontrack { background: var(--accent); color: var(--accent-ink); }
+.badge.pending, .badge.away, .badge.atrisk, .badge.planning { background: var(--pending-bg); color: var(--pending-fg); }
+.badge.rejected, .badge.inactive { background: var(--bad); color: #fff; }
+.badge.completed { background: var(--ok-bg); color: var(--ok-fg); }
+
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field label { font-size: 12.5px; font-weight: 600; }
+.input, .select, textarea.input {
+  width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 8px;
+  padding: 8px 10px; font-size: 13px; min-height: 36px;
+}
+.input:focus, .select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+textarea.input { resize: vertical; min-height: 64px; }
+.select-wrap { position: relative; display: inline-flex; }
+.select {
+  appearance: none; -webkit-appearance: none; padding-right: 30px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a93a5' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
+.err { color: var(--bad); font-size: 12px; min-height: 0; }
+
+/* ---------- dashboard ---------- */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.kpi { padding: 18px 18px 20px; display: flex; justify-content: space-between; gap: 10px; min-height: 128px; }
+.kpi .label { font-size: 13px; color: var(--fg); margin-top: 16px; }
+.kpi .value { font-size: 26px; font-weight: 600; margin: 4px 0 2px; letter-spacing: -.01em; }
+.kpi .hint { font-size: 11.5px; color: var(--muted); }
+.kpi .ico { width: 34px; height: 34px; border-radius: 10px; background: var(--accent); color: #fff; display: grid; place-items: center; margin-top: 12px; }
+.dash-grid { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 18px; }
+.chart-box { position: relative; margin-top: 14px; }
+.chart-box svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart-box text { fill: var(--muted); font-size: 10px; font-family: var(--font); }
+.tooltip {
+  position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 10px; font-size: 11.5px; box-shadow: var(--shadow); white-space: nowrap; z-index: 2;
+}
+.tooltip b { display: block; font-size: 12px; }
+.tooltip i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
+.week-nav { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.quick { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.quick button {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-weight: 600; font-size: 13px;
+}
+.quick button:hover { background: var(--surface-2); border-color: var(--accent); }
+.quick .qi { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); display: grid; place-items: center; color: var(--fg); }
+.quick .chev { margin-left: auto; color: var(--muted); }
+
+/* ---------- tables ---------- */
+.table-wrap { overflow-x: auto; }
+table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.data th { text-align: left; font-weight: 600; padding: 12px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.data td { padding: 10px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+table.data tbody tr:hover { background: var(--surface-2); }
+table.data tbody tr:last-child td { border-bottom: 0; }
+table.data td.name, table.data th.name { font-weight: 600; }
+table.data .right { text-align: right; }
+.empty { padding: 36px 16px; text-align: center; color: var(--muted); }
+.empty b { display: block; color: var(--fg); margin-bottom: 4px; }
+.avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--fg); display: inline-grid; place-items: center; font-size: 11px; font-weight: 700; margin-right: 10px; vertical-align: middle; }
+.pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px 4px; color: var(--muted); font-size: 12.5px; flex-wrap: wrap; }
+.pager .btns { display: flex; gap: 6px; }
+
+/* ---------- filters ---------- */
+.filters { display: grid; grid-template-columns: minmax(200px, 2fr) repeat(4, minmax(130px, 1fr)); gap: 12px; align-items: center; padding: 26px 14px; }
+.search { position: relative; }
+.search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+.search .input { padding-left: 32px; }
+.date-btn { display: flex; align-items: center; gap: 8px; justify-content: space-between; width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-weight: 600; font-size: 13px; min-height: 36px; }
+.date-btn .x { color: var(--muted); padding: 0 2px; }
+.cal-anchor { position: relative; }
+.calendar {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.14); padding: 10px; width: 250px;
+}
+.cal-head { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; font-size: 12px; }
+.cal-grid .dow { color: var(--muted); font-size: 11px; padding: 4px 0; }
+.cal-grid button { border: 0; background: none; border-radius: 6px; padding: 5px 0; font-size: 12px; }
+.cal-grid button:hover { background: var(--surface-2); }
+.cal-grid button.out { color: var(--faint); }
+.cal-grid button.today { font-weight: 700; color: var(--accent); }
+.cal-grid button.sel { background: var(--accent); color: var(--accent-ink); }
+.cal-foot { display: flex; justify-content: space-between; margin-top: 8px; }
+
+/* ---------- projects ---------- */
+.proj-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.proj { padding: 18px 18px 20px; cursor: pointer; text-align: left; width: 100%; font: inherit; color: inherit; }
+.proj:hover { border-color: var(--accent); }
+.proj h3 { margin: 0; font-size: 14.5px; font-weight: 600; }
+.proj .client { color: var(--muted); font-size: 12.5px; margin: 1px 0 8px; }
+.proj .stats { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); margin-top: 18px; padding-top: 16px; }
+.proj .stats span { display: block; font-size: 11.5px; color: var(--muted); }
+.proj .stats b { font-size: 19px; font-weight: 600; }
+.progress { height: 6px; border-radius: 999px; background: var(--line-soft); margin-top: 14px; overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+.progress-label { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+
+/* ---------- reports ---------- */
+.seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+.seg button { border: 0; background: none; padding: 4px 12px; border-radius: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.seg button.on { background: var(--surface); color: var(--fg); box-shadow: var(--shadow); }
+.kpis.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+/* ---------- settings ---------- */
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.settings-grid .card-pad { display: flex; flex-direction: column; gap: 12px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.toggle-row .t { font-weight: 600; font-size: 13px; }
+.toggle-row .d { font-size: 12px; color: var(--muted); }
+.switch { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+.switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--line); transition: background .15s; }
+.switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.switch input:checked + span { background: var(--accent); }
+.switch input:checked + span::after { transform: translateX(16px); }
+.switch input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.actions-left { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------- modal + toast ---------- */
+.overlay { position: fixed; inset: 0; background: var(--overlay); display: grid; place-items: center; padding: 16px; z-index: 50; }
+.modal { background: var(--surface-2); border-radius: 14px; width: min(500px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; padding: 22px 22px 20px; box-shadow: 0 20px 60px rgba(0,0,0,.25); position: relative; }
+.modal h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.modal .sub { margin: 2px 0 14px; font-size: 12.5px; color: var(--muted); }
+.modal .close { position: absolute; top: 14px; right: 14px; border: 0; background: none; color: var(--muted); width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; }
+.modal .close:hover { background: var(--line-soft); color: var(--fg); }
+.modal .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+.modal .full { grid-column: 1 / -1; }
+.modal .foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; flex-wrap: wrap; align-items: center; }
+.modal .foot .left { margin-right: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.calc { background: var(--accent-soft); border-radius: 10px; padding: 9px 12px; align-self: end; }
+.calc span { display: block; font-size: 11.5px; color: var(--muted); }
+.calc b { font-size: 14px; }
+.detail-list { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 13px; margin: 6px 0 12px; }
+.detail-list dt { color: var(--muted); }
+.detail-list dd { margin: 0; font-weight: 600; }
+.mini-table { font-size: 12.5px; }
+.confirm-bar { background: var(--bad-soft); border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; font-size: 13px; }
+.confirm-bar span { flex: 1; min-width: 160px; }
+
+.toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 60; }
+.toast { background: var(--ok-bg); color: var(--ok-fg); border: 1px solid var(--ok-line); border-radius: 8px; padding: 10px 16px; font-size: 12.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; min-width: 220px; box-shadow: var(--shadow); animation: tin .2s ease-out; }
+.toast.bad { background: var(--bad-soft); color: var(--bad); border-color: var(--bad); }
+@keyframes tin { from { transform: translateY(8px); opacity: 0; } }
+.fade-in { animation: fin .18s ease-out; }
+@keyframes fin { from { opacity: .4; } }
+@media (prefers-reduced-motion: reduce) { .toast, .fade-in { animation: none; } .switch span, .switch span::after { transition: none; } }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1100px) {
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filters .search { grid-column: 1 / -1; }
+}
+@media (max-width: 900px) {
+  .dash-grid, .settings-grid, .proj-grid { grid-template-columns: minmax(0, 1fr); }
+  .sidebar { position: fixed; left: 0; top: 0; z-index: 40; transform: translateX(-100%); transition: transform .2s; height: 100%; }
+  .app.nav-open .sidebar { transform: none; box-shadow: 0 0 40px rgba(0,0,0,.4); }
+  .scrim { position: fixed; inset: 0; background: var(--overlay); z-index: 35; }
+  .menu-btn { display: grid; }
+  .topbar { padding-inline: 16px; }
+  .content { padding: 18px 16px 32px; }
+}
+@media (max-width: 560px) {
+  .kpis, .kpis.three { grid-template-columns: minmax(0, 1fr); }
+  .kpi { min-height: 0; }
+  .filters { grid-template-columns: minmax(0, 1fr); padding: 16px 14px; }
+  .modal .grid, .row2 { grid-template-columns: minmax(0, 1fr); }
+  .topbar .chip { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+    <div class="brand">
+      <div class="brand-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+      <div><b>Employee</b><span>Timesheet</span></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <div class="side-card"><b>Local workspace</b>Data is saved in this browser</div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim" hidden></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="Open menu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="company"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/></svg><span id="companyName"></span></div>
+      <div class="spacer"></div>
+      <span class="chip" id="todayChip"></span>
+    </header>
+    <main class="content" id="view"></main>
+  </div>
+</div>
+<div id="modalRoot"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= icons ================= */
+const P = {
+  dashboard: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+  timesheets: '<path d="M16 22h2a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v3"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="8" cy="16" r="6"/><path d="M9.5 17.5 8 16.25V14"/>',
+  employees: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  projects: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+  reports: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16v-3M11 16v-6M15 16V8M19 16V5"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  chevR: '<path d="m9 18 6-6-6-6"/>',
+  chevL: '<path d="m15 18-6-6 6-6"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  check: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  trend: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/>',
+  userPlus: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
+};
+const ic = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+
+/* ================= helpers ================= */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = (n) => String(n).padStart(2, '0');
+const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parse = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const monday = (d) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const w = (x.getDay() + 6) % 7; return addDays(x, -w); };
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const fmtDate = (s) => { const d = parse(s); return `${MON[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; };
+const fmtShort = (d) => `${MON[d.getMonth()]} ${d.getDate()}`;
+const fmtH = (h) => { const r = Math.round(h * 100) / 100; return (Number.isInteger(r) ? r : r.toFixed(2).replace(/0$/, '')) + 'h'; };
+const fmtNum = (n) => Math.round(n).toLocaleString('en-US');
+const mins = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+const calcHours = (start, end, brk) => {
+  if (!start || !end) return NaN;
+  let span = mins(end) - mins(start);
+  if (span <= 0) span += 1440; // overnight shift
+  return (span - (Number(brk) || 0)) / 60;
+};
+const initials = (n) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('');
+const uid = () => Math.random().toString(36).slice(2, 10);
+const statusClass = (s) => s.toLowerCase().replace(/\s+/g, '');
+
+/* ================= storage ================= */
+const KEY = 'employee-timesheet-v1';
+const store = {
+  load() { try { const raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : null; } catch { return null; } },
+  save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* storage unavailable: keep working in memory */ } },
+};
+
+/* ================= sample data ================= */
+function seed() {
+  const today = new Date();
+  const employees = [
+    { id: 'EMP-1042', name: 'Olivia Bennett', dept: 'Design', role: 'Product Designer', status: 'Active', email: 'olivia.bennett@acme.example', joined: '2024-03-11', project: 'p1' },
+    { id: 'EMP-1038', name: 'Marcus Chen', dept: 'Engineering', role: 'Frontend Engineer', status: 'Active', email: 'marcus.chen@acme.example', joined: '2023-09-04', project: 'p2' },
+    { id: 'EMP-1029', name: 'Sophia Martinez', dept: 'Marketing', role: 'Marketing Lead', status: 'Active', email: 'sophia.martinez@acme.example', joined: '2023-02-20', project: 'p3' },
+    { id: 'EMP-1021', name: 'Daniel Brooks', dept: 'Operations', role: 'Operations Manager', status: 'Away', email: 'daniel.brooks@acme.example', joined: '2022-07-18', project: 'p5' },
+    { id: 'EMP-1017', name: 'Aisha Patel', dept: 'Engineering', role: 'QA Engineer', status: 'Active', email: 'aisha.patel@acme.example', joined: '2022-04-04', project: 'p2' },
+    { id: 'EMP-1012', name: 'Ethan Williams', dept: 'Finance', role: 'Financial Analyst', status: 'Active', email: 'ethan.williams@acme.example', joined: '2021-11-15', project: 'p4' },
+    { id: 'EMP-1047', name: 'Priya Sharma', dept: 'Engineering', role: 'Backend Engineer', status: 'Active', email: 'priya.sharma@acme.example', joined: iso(addDays(today, -40)), project: 'p1' },
+    { id: 'EMP-1049', name: 'Lucas Romero', dept: 'Design', role: 'UX Researcher', status: 'Active', email: 'lucas.romero@acme.example', joined: iso(addDays(today, -12)), project: 'p3' },
+  ];
+  const projects = [
+    { id: 'p1', name: 'Atlas Redesign', client: 'Atlas & Co.', status: 'On track', budget: 600 },
+    { id: 'p2', name: 'Mobile Portal', client: 'Northstar Labs', status: 'At risk', budget: 700 },
+    { id: 'p3', name: 'Q4 Campaign', client: 'Brightline', status: 'On track', budget: 450 },
+    { id: 'p4', name: 'Finance Automation', client: 'Internal', status: 'Planning', budget: 300 },
+    { id: 'p5', name: 'Internal Operations', client: 'Internal', status: 'On track', budget: 400 },
+  ];
+  // Deterministic pseudo-random so the demo looks the same on every first load.
+  let s = 42; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+  const starts = ['08:00', '08:30', '09:00', '09:00', '09:30'];
+  const timesheets = [];
+  const thisMon = monday(today);
+  const firstMon = addDays(thisMon, -7 * 5);
+  for (let d = new Date(firstMon); d <= today; d = addDays(d, 1)) {
+    const dow = d.getDay(); if (dow === 0 || dow === 6) continue;
+    const ds = iso(d);
+    const ageDays = Math.round((today - d) / 864e5);
+    employees.forEach((e, i) => {
+      if (e.joined > ds) return;
+      if (e.status === 'Away' && ageDays < 4) return;
+      if (rnd() < 0.05) return; // occasional day off
+      const st = starts[Math.floor(rnd() * starts.length)];
+      let len = 8.5 * 60;
+      const r = rnd();
+      if ((i === 1 || i === 4) && r < 0.55) len += 60 + Math.round(rnd() * 2) * 30; // engineers run long
+      else if (r < 0.12) len += 60;
+      else if (r > 0.92) len -= 60;
+      const brk = rnd() < 0.2 ? 45 : 30;
+      const end = mins(st) + len + (brk - 30);
+      const endT = `${pad(Math.floor(end / 60) % 24)}:${pad(end % 60)}`;
+      const proj = rnd() < 0.82 ? e.project : projects[Math.floor(rnd() * projects.length)].id;
+      let status = 'Approved';
+      if (ageDays <= 7) status = rnd() < 0.55 ? 'Pending' : 'Approved';
+      if (rnd() < 0.03) status = 'Rejected';
+      timesheets.push({ id: uid(), empId: e.id, date: ds, projectId: proj, start: st, end: endT, brk, notes: '', status });
+    });
+  }
+  return {
+    employees, projects, timesheets,
+    settings: {
+      company: 'Acme Business Solutions', timezone: 'Pacific Time (UTC-08:00)',
+      hoursPerDay: 8, daysPerWeek: 5, trackOT: true, threshold: 40,
+      notif: { pending: true, weekly: false, overtime: true },
+    },
+  };
+}
+
+let state = store.load() || seed();
+const persist = () => store.save(state);
+persist();
+
+/* ================= derived data ================= */
+const empById = (id) => state.employees.find((e) => e.id === id);
+const projById = (id) => state.projects.find((p) => p.id === id);
+const hoursOf = (t) => calcHours(t.start, t.end, t.brk);
+const counted = (t) => t.status !== 'Rejected';
+const inRange = (t, from, to) => t.date >= iso(from) && t.date <= iso(to);
+const sumHours = (list) => list.reduce((a, t) => a + hoursOf(t), 0);
+
+// Overtime per employee = hours above the weekly threshold, week by week.
+function overtimeBreakdown(from, to) {
+  const thr = state.settings.trackOT ? Number(state.settings.threshold) || 40 : Infinity;
+  const per = new Map();
+  state.timesheets.filter((t) => counted(t) && inRange(t, from, to)).forEach((t) => {
+    const k = t.empId + '|' + iso(monday(parse(t.date)));
+    per.set(k, (per.get(k) || 0) + hoursOf(t));
+  });
+  const out = new Map();
+  per.forEach((h, k) => {
+    const emp = k.split('|')[0];
+    const o = out.get(emp) || { total: 0, regular: 0, overtime: 0 };
+    o.total += h; o.regular += Math.min(h, thr); o.overtime += Math.max(0, h - thr);
+    out.set(emp, o);
+  });
+  return out;
+}
+
+/* ================= UI state ================= */
+const ui = {
+  dashWeek: null,
+  ts: { q: '', date: '', emp: '', proj: '', status: '', page: 1, calOpen: false, calMonth: null },
+  emp: { q: '', dept: '' },
+  reportMode: 'weekly',
+};
+const PER_PAGE = 10;
+
+(function pickDashWeek() {
+  const thisMon = monday(new Date());
+  const days = new Set(state.timesheets.filter((t) => inRange(t, thisMon, addDays(thisMon, 6))).map((t) => t.date)).size;
+  ui.dashWeek = days >= 3 ? thisMon : addDays(thisMon, -7);
+})();
+
+/* ================= router ================= */
+const ROUTES = [
+  ['dashboard', 'Dashboard'], ['timesheets', 'Timesheets'], ['employees', 'Employees'],
+  ['projects', 'Projects'], ['reports', 'Reports'], ['settings', 'Settings'],
+];
+const current = () => { const h = location.hash.replace('#', ''); return ROUTES.some((r) => r[0] === h) ? h : 'dashboard'; };
+
+function renderNav() {
+  const r = current();
+  $('#nav').innerHTML = ROUTES.map(([k, l]) => `<a href="#${k}" class="${k === r ? 'active' : ''}" ${k === r ? 'aria-current="page"' : ''}>${ic(k)}${l}</a>`).join('');
+}
+function renderShell() {
+  $('#companyName').textContent = state.settings.company;
+  const t = new Date();
+  $('#todayChip').textContent = `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][t.getDay()]}, ${fmtShort(t)}`;
+}
+function render() {
+  renderNav(); renderShell();
+  const v = $('#view');
+  const r = current();
+  v.innerHTML = VIEWS[r]();
+  v.classList.remove('fade-in'); void v.offsetWidth; v.classList.add('fade-in');
+  AFTER[r]?.();
+}
+window.addEventListener('hashchange', () => { closeNav(); ui.ts.calOpen = false; render(); window.scrollTo(0, 0); });
+
+/* ================= shared pieces ================= */
+const badge = (s) => `<span class="badge ${statusClass(s)}">${esc(s)}</span>`;
+const pageHead = (title, sub, action = '') => `<div class="page-head"><div><h1>${title}</h1><p>${sub}</p></div>${action}</div>`;
+const addTsBtn = `<button class="btn primary" data-act="add-ts">${ic('plus', 14)}Add timesheet</button>`;
+
+function tsRows(list, opts = {}) {
+  if (!list.length) return `<tr><td colspan="9"><div class="empty"><b>No timesheets match</b>Try clearing a filter or add a new timesheet.</div></td></tr>`;
+  return list.map((t) => {
+    const e = empById(t.empId); const p = projById(t.projectId);
+    return `<tr>
+      <td class="name">${esc(e ? e.name : 'Removed employee')}</td>
+      <td class="num">${fmtDate(t.date)}</td>
+      <td>${esc(p ? p.name : '—')}</td>
+      <td class="num">${t.start}</td><td class="num">${t.end}</td>
+      <td class="num">${t.brk}m</td>
+      <td class="num"><b>${fmtH(hoursOf(t))}</b></td>
+      <td>${badge(t.status)}</td>
+      <td class="right"><button class="link-btn" data-act="view-ts" data-id="${t.id}">View / Edit</button></td>
+    </tr>`;
+  }).join('');
+}
+const tsTable = (rows) => `<div class="table-wrap"><table class="data"><thead><tr>
+  <th>Employee</th><th>Date</th><th>Project</th><th>Start</th><th>End</th><th>Break</th><th>Total</th><th>Status</th><th class="right">Action</th>
+  </tr></thead><tbody>${rows}</tbody></table></div>`;
+
+/* ================= charts ================= */
+function niceMax(v) { if (v <= 0) return 10; const p = Math.pow(10, Math.floor(Math.log10(v))); const n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
+function smoothPath(pts) {
+  if (pts.length < 2) return '';
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += ` C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0]},${p2[1]}`;
+  }
+  return d;
+}
+function areaChart(labels, values, fullLabels) {
+  const W = 620, H = 230, L = 34, R = 10, T = 10, B = 24;
+  const max = niceMax(Math.max(...values, 1) * 1.08);
+  const x = (i) => L + (i * (W - L - R)) / (labels.length - 1);
+  const y = (v) => T + (H - T - B) * (1 - v / max);
+  const pts = values.map((v, i) => [+x(i).toFixed(1), +y(v).toFixed(1)]);
+  const line = smoothPath(pts);
+  const ticks = [0, .25, .5, .75, 1].map((f) => max * f);
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Hours logged per day">
+    <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".28"/><stop offset="1" stop-color="var(--accent)" stop-opacity=".02"/></linearGradient></defs>
+    ${ticks.map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line-soft)"/><text x="${L - 6}" y="${y(v) + 3}" text-anchor="end">${fmtNum(v)}</text>`).join('')}
+    <path d="${line} L${pts[pts.length - 1][0]},${y(0)} L${pts[0][0]},${y(0)} Z" fill="url(#ag)"/>
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>
+    ${labels.map((l, i) => `<text x="${x(i)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === labels.length - 1 ? 'end' : 'middle'}">${l}</text>`).join('')}
+    <line id="hoverLine" x1="0" x2="0" y1="${T}" y2="${y(0)}" stroke="var(--faint)" stroke-dasharray="3 3" visibility="hidden"/>
+    <circle id="hoverDot" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2" visibility="hidden"/>
+    ${labels.map((l, i) => {
+      const w = (W - L - R) / (labels.length - 1);
+      return `<rect class="hit" data-i="${i}" x="${Math.max(L, x(i) - w / 2)}" y="${T}" width="${w}" height="${H - T - B}" fill="transparent"/>`;
+    }).join('')}
+  </svg><div class="tooltip" id="tip" hidden></div>
+  <script type="application/json" id="chartData">${JSON.stringify({ pts, values, labels: fullLabels })}<\/script>`;
+}
+function wireAreaChart(box) {
+  const data = JSON.parse($('#chartData', box).textContent);
+  const svg = $('svg', box), tip = $('#tip', box), lineEl = $('#hoverLine', box), dot = $('#hoverDot', box);
+  const show = (i) => {
+    const [px, py] = data.pts[i];
+    lineEl.setAttribute('x1', px); lineEl.setAttribute('x2', px); lineEl.setAttribute('visibility', 'visible');
+    dot.setAttribute('cx', px); dot.setAttribute('cy', py); dot.setAttribute('visibility', 'visible');
+    tip.innerHTML = `<b>${esc(data.labels[i])}</b><i style="background:var(--accent)"></i>Hours <span class="num">${fmtH(data.values[i])}</span>`;
+    tip.hidden = false;
+    const sr = svg.getBoundingClientRect(), scale = sr.width / 620;
+    const left = Math.min(Math.max(px * scale - tip.offsetWidth / 2, 0), sr.width - tip.offsetWidth);
+    tip.style.left = left + 'px'; tip.style.top = Math.max(py * scale - tip.offsetHeight - 12, 0) + 'px';
+  };
+  const hide = () => { tip.hidden = true; lineEl.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); };
+  box.querySelectorAll('.hit').forEach((r) => { r.addEventListener('mouseenter', () => show(+r.dataset.i)); r.addEventListener('click', () => show(+r.dataset.i)); });
+  svg.addEventListener('mouseleave', hide);
+}
+function barChart(rows) {
+  const W = 1000, H = 340, L = 34, R = 8, T = 10, B = 28;
+  const max = niceMax(Math.max(...rows.map((r) => r.regular + r.overtime), 1) * 1.08);
+  const y = (v) => T + (H - T - B) * (1 - v / max);
+  const n = Math.max(rows.length, 1), slot = (W - L - R) / n, bw = Math.min(slot * 0.62, 90);
+  const ticks = [0, .25, .5, .75, 1].map((f) => max * f);
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Regular and overtime hours by employee">
+    ${ticks.map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line-soft)"/><text x="${L - 6}" y="${y(v) + 3}" text-anchor="end">${fmtNum(v)}</text>`).join('')}
+    ${rows.map((r, i) => {
+      const cx = L + slot * i + slot / 2, x0 = cx - bw / 2;
+      const yr = y(r.regular), yo = y(r.regular + r.overtime);
+      return `<g class="bar" data-i="${i}">
+        <rect x="${L + slot * i}" y="${T}" width="${slot}" height="${H - T - B}" fill="transparent"/>
+        <rect x="${x0}" y="${yr}" width="${bw}" height="${Math.max(y(0) - yr, 0)}" fill="var(--accent)"/>
+        ${r.overtime > 0 ? `<rect x="${x0}" y="${yo}" width="${bw}" height="${Math.max(yr - yo, 0)}" fill="var(--overtime)"/>` : ''}
+        <text x="${cx}" y="${H - 10}" text-anchor="middle">${esc(r.label)}</text>
+      </g>`;
+    }).join('')}
+  </svg><div class="tooltip" id="btip" hidden></div>`;
+}
+function wireBarChart(box, rows) {
+  const svg = $('svg', box), tip = $('#btip', box);
+  box.querySelectorAll('.bar').forEach((g) => {
+    const on = () => {
+      const r = rows[+g.dataset.i];
+      tip.innerHTML = `<b>${esc(r.name)}</b><div><i style="background:var(--accent)"></i>Regular <span class="num">${fmtH(r.regular)}</span></div><div><i style="background:var(--overtime)"></i>Overtime <span class="num">${fmtH(r.overtime)}</span></div>`;
+      tip.hidden = false;
+      const sr = svg.getBoundingClientRect(), gr = g.getBoundingClientRect();
+      const left = Math.min(Math.max(gr.left - sr.left + gr.width / 2 - tip.offsetWidth / 2, 0), sr.width - tip.offsetWidth);
+      tip.style.left = left + 'px'; tip.style.top = '4px';
+    };
+    g.addEventListener('mouseenter', on); g.addEventListener('click', on);
+  });
+  svg.addEventListener('mouseleave', () => { tip.hidden = true; });
+}
+
+/* ================= views ================= */
+const VIEWS = {};
+const AFTER = {};
+
+VIEWS.dashboard = () => {
+  const wk = ui.dashWeek, wkEnd = addDays(wk, 6), prev = addDays(wk, -7);
+  const counted7 = state.timesheets.filter((t) => counted(t) && inRange(t, wk, wkEnd));
+  const hours = sumHours(counted7);
+  const prevHours = sumHours(state.timesheets.filter((t) => counted(t) && inRange(t, prev, addDays(prev, 6))));
+  const delta = prevHours ? ((hours - prevHours) / prevHours) * 100 : 0;
+  const pending = state.timesheets.filter((t) => t.status === 'Pending').length;
+  const ot = overtimeBreakdown(wk, wkEnd);
+  let otTotal = 0, otPeople = 0; ot.forEach((o) => { otTotal += o.overtime; if (o.overtime > 0) otPeople++; });
+  const newQ = state.employees.filter((e) => e.joined && e.joined >= iso(addDays(new Date(), -90))).length;
+  const days = [0, 1, 2, 3, 4].map((i) => addDays(wk, i));
+  const perDay = days.map((d) => sumHours(counted7.filter((t) => t.date === iso(d))));
+  const recent = [...state.timesheets].sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start)).slice(0, 5);
+  const isThis = iso(wk) === iso(monday(new Date()));
+  const kpi = (label, value, hint, icon) => `<div class="card kpi"><div><div class="label">${label}</div><div class="value num">${value}</div><div class="hint">${hint}</div></div><div class="ico">${ic(icon, 17)}</div></div>`;
+  return `
+    ${pageHead('Dashboard', 'Workforce time and attendance at a glance', addTsBtn)}
+    <div class="kpis">
+      ${kpi('Total Employees', state.employees.length, `${newQ} joined in the last 90 days`, 'employees')}
+      ${kpi(isThis ? 'Hours This Week' : 'Hours Last Week', fmtNum(hours), prevHours ? `${delta >= 0 ? '+' : ''}${delta.toFixed(1)}% from prior week` : 'No prior week data', 'clock')}
+      ${kpi('Pending Timesheets', pending, pending ? 'Require your attention' : 'All caught up', 'timesheets')}
+      ${kpi('Overtime Hours', fmtNum(otTotal), state.settings.trackOT ? `Across ${otPeople} employee${otPeople === 1 ? '' : 's'}` : 'Overtime tracking is off', 'trend')}
+    </div>
+    <div class="dash-grid">
+      <section class="card card-pad">
+        <div class="card-head">
+          <div><h2>Weekly hours</h2><p class="sub">Logged hours across the organization</p></div>
+          <div class="week-nav">
+            <button class="icon-btn" data-act="week" data-dir="-1" aria-label="Previous week">${ic('chevL', 14)}</button>
+            <span class="num">${fmtShort(wk)} – ${fmtShort(addDays(wk, 4))}</span>
+            <button class="icon-btn" data-act="week" data-dir="1" aria-label="Next week" ${addDays(wk, 7) > new Date() ? 'disabled' : ''}>${ic('chevR', 14)}</button>
+          </div>
+        </div>
+        <div class="chart-box" id="areaBox">${areaChart(['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], perDay, days.map((d) => `${['Mon', 'Tue', 'Wed', 'Thu', 'Fri'][(d.getDay() + 6) % 7]}, ${fmtShort(d)}`))}</div>
+      </section>
+      <section class="card card-pad">
+        <h2>Quick actions</h2><p class="sub">Common team management tasks</p>
+        <div class="quick">
+          <button data-act="add-ts"><span class="qi">${ic('plus', 14)}</span>Add Timesheet<span class="chev">${ic('chevR', 14)}</span></button>
+          <button data-act="go" data-to="timesheets"><span class="qi">${ic('timesheets', 14)}</span>View Timesheets<span class="chev">${ic('chevR', 14)}</span></button>
+          <button data-act="go-pending"><span class="qi">${ic('check', 14)}</span>Review Pending (${pending})<span class="chev">${ic('chevR', 14)}</span></button>
+          <button data-act="add-emp"><span class="qi">${ic('userPlus', 14)}</span>Add Employee<span class="chev">${ic('chevR', 14)}</span></button>
+        </div>
+      </section>
+    </div>
+    <section class="card">
+      <div class="card-pad" style="padding-bottom:4px"><div class="card-head"><div><h2>Recent timesheets</h2><p class="sub">Latest submitted employee hours</p></div><button class="btn sm" data-act="go" data-to="timesheets">View all</button></div></div>
+      ${tsTable(tsRows(recent))}
+    </section>`;
+};
+AFTER.dashboard = () => wireAreaChart($('#areaBox'));
+
+function filteredTimesheets() {
+  const f = ui.ts, q = f.q.trim().toLowerCase();
+  return state.timesheets.filter((t) => {
+    if (f.date && t.date !== f.date) return false;
+    if (f.emp && t.empId !== f.emp) return false;
+    if (f.proj && t.projectId !== f.proj) return false;
+    if (f.status && t.status !== f.status) return false;
+    if (q) {
+      const e = empById(t.empId), p = projById(t.projectId);
+      if (!`${e?.name ?? ''} ${p?.name ?? ''} ${t.notes}`.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }).sort((a, b) => b.date.localeCompare(a.date) || (empById(a.empId)?.name ?? '').localeCompare(empById(b.empId)?.name ?? ''));
+}
+function calendarHtml() {
+  const f = ui.ts;
+  const base = f.calMonth || (f.date ? parse(f.date) : new Date());
+  const y = base.getFullYear(), m = base.getMonth();
+  const first = new Date(y, m, 1), start = addDays(first, -first.getDay());
+  const todayS = iso(new Date());
+  let cells = '';
+  for (let i = 0; i < 42; i++) {
+    const d = addDays(start, i), ds = iso(d);
+    cells += `<button type="button" data-act="cal-pick" data-d="${ds}" class="num ${d.getMonth() !== m ? 'out' : ''} ${ds === todayS ? 'today' : ''} ${ds === f.date ? 'sel' : ''}">${d.getDate()}</button>`;
+  }
+  return `<div class="calendar" id="calendar" role="dialog" aria-label="Pick a date">
+    <div class="cal-head"><button class="icon-btn" data-act="cal-nav" data-dir="-1" aria-label="Previous month">${ic('chevL', 14)}</button>${MONTHS[m]} ${y}<button class="icon-btn" data-act="cal-nav" data-dir="1" aria-label="Next month">${ic('chevR', 14)}</button></div>
+    <div class="cal-grid">${['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => `<span class="dow">${d}</span>`).join('')}${cells}</div>
+    <div class="cal-foot"><button class="btn sm" data-act="cal-pick" data-d="">Any date</button><button class="btn sm" data-act="cal-pick" data-d="${todayS}">Today</button></div>
+  </div>`;
+}
+function tsListHtml() {
+  const list = filteredTimesheets();
+  const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
+  ui.ts.page = Math.min(ui.ts.page, pages);
+  const slice = list.slice((ui.ts.page - 1) * PER_PAGE, ui.ts.page * PER_PAGE);
+  const total = sumHours(list.filter(counted));
+  return `${tsTable(tsRows(slice))}
+    <div class="pager"><span class="num">${list.length} timesheet${list.length === 1 ? '' : 's'} · ${fmtH(total)} logged (excl. rejected)</span>
+    <div class="btns"><button class="btn sm" data-act="page" data-dir="-1" ${ui.ts.page <= 1 ? 'disabled' : ''}>Previous</button>
+    <span class="num" style="align-self:center">Page ${ui.ts.page} of ${pages}</span>
+    <button class="btn sm" data-act="page" data-dir="1" ${ui.ts.page >= pages ? 'disabled' : ''}>Next</button></div></div>`;
+}
+VIEWS.timesheets = () => {
+  const f = ui.ts;
+  const opt = (v, l, cur) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(l)}</option>`;
+  return `
+    ${pageHead('Timesheets', 'Review, filter, and manage submitted hours', addTsBtn)}
+    <section class="card filters">
+      <div class="search">${ic('search', 14)}<input class="input" id="f-q" type="search" placeholder="Search employee or project" value="${esc(f.q)}" aria-label="Search employee or project"></div>
+      <div class="cal-anchor">
+        <button class="date-btn" id="f-date" data-act="cal-toggle" aria-expanded="${f.calOpen}"><span style="display:flex;gap:8px;align-items:center">${ic('cal', 14)}${f.date ? fmtDate(f.date) : 'Any date'}</span>${f.date ? `<span class="x" data-act="cal-pick" data-d="" aria-label="Clear date">${ic('x', 12)}</span>` : ''}</button>
+        ${f.calOpen ? calendarHtml() : ''}
+      </div>
+      <select class="select" id="f-emp" aria-label="Filter by employee">${opt('', 'All employees', f.emp)}${state.employees.map((e) => opt(e.id, e.name, f.emp)).join('')}</select>
+      <select class="select" id="f-proj" aria-label="Filter by project">${opt('', 'All projects', f.proj)}${state.projects.map((p) => opt(p.id, p.name, f.proj)).join('')}</select>
+      <select class="select" id="f-status" aria-label="Filter by status">${opt('', 'All statuses', f.status)}${['Pending', 'Approved', 'Rejected'].map((s) => opt(s, s, f.status)).join('')}</select>
+    </section>
+    <section class="card" id="tsList">${tsListHtml()}</section>`;
+};
+AFTER.timesheets = () => {
+  const refresh = () => { $('#tsList').innerHTML = tsListHtml(); };
+  $('#f-q').addEventListener('input', (e) => { ui.ts.q = e.target.value; ui.ts.page = 1; refresh(); });
+  [['#f-emp', 'emp'], ['#f-proj', 'proj'], ['#f-status', 'status']].forEach(([s, k]) =>
+    $(s).addEventListener('change', (e) => { ui.ts[k] = e.target.value; ui.ts.page = 1; refresh(); }));
+};
+
+function filteredEmployees() {
+  const q = ui.emp.q.trim().toLowerCase();
+  return state.employees.filter((e) => (!ui.emp.dept || e.dept === ui.emp.dept) &&
+    (!q || `${e.name} ${e.id} ${e.role} ${e.dept}`.toLowerCase().includes(q)));
+}
+function empRowsHtml() {
+  const wk = monday(new Date());
+  const list = filteredEmployees();
+  if (!list.length) return `<tr><td colspan="7"><div class="empty"><b>No employees match</b>Change the search or department filter.</div></td></tr>`;
+  return list.map((e) => {
+    const h = sumHours(state.timesheets.filter((t) => t.empId === e.id && counted(t) && inRange(t, addDays(wk, -7), addDays(wk, -1))));
+    return `<tr><td class="name"><span class="avatar">${initials(e.name)}</span>${esc(e.name)}</td><td class="num">${esc(e.id)}</td><td>${esc(e.dept)}</td><td>${esc(e.role)}</td><td>${badge(e.status)}</td><td class="num">${fmtH(h)}</td>
+      <td class="right"><button class="link-btn" data-act="view-emp" data-id="${esc(e.id)}">View</button></td></tr>`;
+  }).join('');
+}
+VIEWS.employees = () => {
+  const depts = [...new Set(state.employees.map((e) => e.dept))].sort();
+  return `
+    ${pageHead('Employees', `${state.employees.length} employees across your organization`, `<button class="btn primary" data-act="add-emp">${ic('plus', 14)}Add employee</button>`)}
+    <section class="card">
+      <div class="filters" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr);padding:16px 14px 6px">
+        <div class="search">${ic('search', 14)}<input class="input" id="e-q" type="search" placeholder="Search name, ID or role" value="${esc(ui.emp.q)}" aria-label="Search employees"></div>
+        <select class="select" id="e-dept" aria-label="Filter by department"><option value="">All departments</option>${depts.map((d) => `<option ${d === ui.emp.dept ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select>
+      </div>
+      <div class="table-wrap"><table class="data"><thead><tr><th>Employee</th><th>ID</th><th>Department</th><th>Role</th><th>Status</th><th title="Hours logged last week">Last week</th><th class="right">Action</th></tr></thead>
+      <tbody id="empRows">${empRowsHtml()}</tbody></table></div>
+    </section>`;
+};
+AFTER.employees = () => {
+  $('#e-q').addEventListener('input', (e) => { ui.emp.q = e.target.value; $('#empRows').innerHTML = empRowsHtml(); });
+  $('#e-dept').addEventListener('change', (e) => { ui.emp.dept = e.target.value; $('#empRows').innerHTML = empRowsHtml(); });
+};
+
+VIEWS.projects = () => `
+  ${pageHead('Projects', 'Track active work and team allocation', `<button class="btn primary" data-act="add-proj">${ic('plus', 14)}Add project</button>`)}
+  <div class="proj-grid">${state.projects.map((p) => {
+    const ts = state.timesheets.filter((t) => t.projectId === p.id && counted(t));
+    const people = new Set(ts.map((t) => t.empId)).size;
+    const h = sumHours(ts);
+    const pct = p.budget ? Math.min(100, (h / p.budget) * 100) : 0;
+    return `<button class="card proj" data-act="edit-proj" data-id="${p.id}">
+      <h3>${esc(p.name)}</h3><div class="client">${esc(p.client)}</div>${badge(p.status)}
+      <div class="stats"><div><span>Assigned employees</span><b class="num">${people}</b></div><div><span>Hours logged</span><b class="num">${fmtNum(h)}h</b></div></div>
+      ${p.budget ? `<div class="progress" aria-hidden="true"><i style="width:${pct}%"></i></div><div class="progress-label"><span>Budget used</span><span class="num">${fmtNum(h)} / ${fmtNum(p.budget)}h</span></div>` : ''}
+    </button>`;
+  }).join('')}</div>`;
+
+function reportRange() {
+  const now = new Date();
+  if (ui.reportMode === 'weekly') { const m = ui.dashWeek; return [m, addDays(m, 6), `Week of ${fmtShort(m)}`]; }
+  const s = new Date(now.getFullYear(), now.getMonth(), 1);
+  const hasData = state.timesheets.some((t) => inRange(t, s, now) && counted(t));
+  const from = hasData && now.getDate() > 7 ? s : new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const to = new Date(from.getFullYear(), from.getMonth() + 1, 0);
+  return [from, to, `${MONTHS[from.getMonth()]} ${from.getFullYear()}`];
+}
+VIEWS.reports = () => {
+  const [from, to, label] = reportRange();
+  const ot = overtimeBreakdown(from, to);
+  let T = 0, Rg = 0, O = 0;
+  const rows = state.employees.map((e) => {
+    const o = ot.get(e.id) || { total: 0, regular: 0, overtime: 0 };
+    T += o.total; Rg += o.regular; O += o.overtime;
+    return { name: e.name, label: e.name.split(' ')[0], ...o };
+  }).filter((r) => r.total > 0);
+  const kpi = (l, v, h, i) => `<div class="card kpi"><div><div class="label">${l}</div><div class="value num">${v}</div><div class="hint">${h}</div></div><div class="ico">${ic(i, 17)}</div></div>`;
+  const pending = state.timesheets.filter((t) => t.status === 'Pending' && inRange(t, from, to)).length;
+  return `
+    ${pageHead('Reports', `Understand labor and overtime trends · ${label}`, `<div class="seg" role="tablist"><button role="tab" class="${ui.reportMode === 'weekly' ? 'on' : ''}" data-act="report" data-m="weekly">Weekly</button><button role="tab" class="${ui.reportMode === 'monthly' ? 'on' : ''}" data-act="report" data-m="monthly">Monthly</button></div>`)}
+    <div class="kpis three">
+      ${kpi('Total Hours', fmtNum(T), `${pending} pending in this period`, 'clock')}
+      ${kpi('Regular Hours', fmtNum(Rg), `Within ${state.settings.threshold}h weekly limit`, 'clock')}
+      ${kpi('Overtime Hours', fmtNum(O), T ? `${((O / T) * 100).toFixed(1)}% of total` : 'No hours logged', 'trend')}
+    </div>
+    <section class="card card-pad">
+      <div class="card-head"><div><h2>Employee hours comparison</h2><p class="sub">Regular and overtime hours by employee</p></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Regular</span><span><i style="background:var(--overtime)"></i>Overtime</span></div></div>
+      <div class="chart-box" id="barBox">${rows.length ? barChart(rows) : '<div class="empty"><b>No hours in this period</b>Approved and pending timesheets appear here.</div>'}</div>
+    </section>
+    <section class="card">
+      <div class="card-pad" style="padding-bottom:4px"><h2>Breakdown</h2><p class="sub">Hours per employee for ${esc(label)}</p></div>
+      <div class="table-wrap"><table class="data"><thead><tr><th>Employee</th><th>Total</th><th>Regular</th><th>Overtime</th></tr></thead><tbody>
+      ${rows.map((r) => `<tr><td class="name">${esc(r.name)}</td><td class="num">${fmtH(r.total)}</td><td class="num">${fmtH(r.regular)}</td><td class="num">${r.overtime ? `<b>${fmtH(r.overtime)}</b>` : '—'}</td></tr>`).join('') || '<tr><td colspan="4"><div class="empty">No data</div></td></tr>'}
+      </tbody></table></div>
+    </section>`;
+};
+AFTER.reports = () => {
+  const [from, to] = reportRange();
+  const ot = overtimeBreakdown(from, to);
+  const rows = state.employees.map((e) => ({ name: e.name, ...(ot.get(e.id) || { total: 0, regular: 0, overtime: 0 }) })).filter((r) => r.total > 0);
+  if (rows.length) wireBarChart($('#barBox'), rows);
+};
+
+const TIMEZONES = ['Pacific Time (UTC-08:00)', 'Mountain Time (UTC-07:00)', 'Central Time (UTC-06:00)', 'Eastern Time (UTC-05:00)', 'GMT (UTC+00:00)', 'Central European Time (UTC+01:00)', 'Gulf Standard Time (UTC+04:00)', 'Pakistan Standard Time (UTC+05:00)', 'India Standard Time (UTC+05:30)', 'Singapore Time (UTC+08:00)', 'Australian Eastern Time (UTC+10:00)'];
+VIEWS.settings = () => {
+  const s = state.settings;
+  const tog = (id, on, title, desc = '') => `<div class="toggle-row"><div><div class="t">${title}</div>${desc ? `<div class="d">${desc}</div>` : ''}</div><label class="switch"><input type="checkbox" id="${id}" ${on ? 'checked' : ''} aria-label="${esc(title)}"><span></span></label></div>`;
+  return `
+    ${pageHead('Settings', 'Configure your timesheet workspace')}
+    <div class="settings-grid">
+      <form class="card card-pad" id="form-company">
+        <div><h2>Company information</h2><p class="sub">Details displayed across your workspace</p></div>
+        <div class="field"><label for="s-company">Company name</label><input class="input" id="s-company" value="${esc(s.company)}" required maxlength="60"></div>
+        <div class="field"><label for="s-tz">Timezone</label><select class="select" id="s-tz">${TIMEZONES.map((t) => `<option ${t === s.timezone ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+        <div class="actions-left"><button class="btn primary" type="submit">Save changes</button></div>
+      </form>
+      <form class="card card-pad" id="form-hours">
+        <div><h2>Working hours</h2><p class="sub">Default work schedule for employees</p></div>
+        <div class="row2">
+          <div class="field"><label for="s-hpd">Hours per day</label><input class="input" id="s-hpd" type="number" min="1" max="24" step="0.5" value="${s.hoursPerDay}" required></div>
+          <div class="field"><label for="s-dpw">Days per week</label><input class="input" id="s-dpw" type="number" min="1" max="7" value="${s.daysPerWeek}" required></div>
+        </div>
+        <p class="sub">Standard week: <b class="num">${s.hoursPerDay * s.daysPerWeek}h</b></p>
+        <div class="actions-left"><button class="btn primary" type="submit">Save schedule</button></div>
+      </form>
+      <form class="card card-pad" id="form-ot">
+        <div><h2>Overtime settings</h2><p class="sub">Define when overtime begins</p></div>
+        ${tog('s-trackot', s.trackOT, 'Track overtime', 'Flag hours above weekly limit')}
+        <div class="field"><label for="s-thr">Weekly threshold (hours)</label><input class="input" id="s-thr" type="number" min="1" max="100" value="${s.threshold}" required></div>
+        <div class="actions-left"><button class="btn primary" type="submit">Save overtime</button></div>
+      </form>
+      <section class="card card-pad">
+        <div><h2>Notification preferences</h2><p class="sub">Choose which reminders are enabled</p></div>
+        ${tog('n-pending', s.notif.pending, 'Pending approval reminders')}
+        ${tog('n-weekly', s.notif.weekly, 'Weekly summaries')}
+        ${tog('n-overtime', s.notif.overtime, 'Overtime alerts')}
+      </section>
+      <section class="card card-pad" style="grid-column:1/-1">
+        <div><h2>Workspace data</h2><p class="sub">Everything is stored in this browser. Resetting restores the sample employees, projects and timesheets.</p></div>
+        <div class="actions-left"><button class="btn danger" data-act="reset-ask">Reset to sample data</button></div>
+        <div id="resetConfirm"></div>
+      </section>
+    </div>`;
+};
+AFTER.settings = () => {
+  const s = state.settings;
+  $('#form-company').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = $('#s-company').value.trim();
+    if (!name) return toast('Enter a company name', true);
+    s.company = name; s.timezone = $('#s-tz').value; persist(); renderShell(); toast('Company details saved');
+  });
+  $('#form-hours').addEventListener('submit', (e) => {
+    e.preventDefault();
+    s.hoursPerDay = Number($('#s-hpd').value); s.daysPerWeek = Number($('#s-dpw').value);
+    persist(); render(); toast('Schedule saved');
+  });
+  $('#form-ot').addEventListener('submit', (e) => {
+    e.preventDefault();
+    s.trackOT = $('#s-trackot').checked; s.threshold = Number($('#s-thr').value) || 40;
+    persist(); toast('Overtime settings saved');
+  });
+  [['n-pending', 'pending'], ['n-weekly', 'weekly'], ['n-overtime', 'overtime']].forEach(([id, k]) =>
+    $('#' + id).addEventListener('change', (e) => { s.notif[k] = e.target.checked; persist(); toast(`${e.target.getAttribute('aria-label')} ${e.target.checked ? 'on' : 'off'}`); }));
+};
+
+/* ================= modals ================= */
+let lastFocus = null;
+function openModal(html, onMount) {
+  lastFocus = document.activeElement;
+  $('#modalRoot').innerHTML = `<div class="overlay" id="overlay"><div class="modal" role="dialog" aria-modal="true">${html}<button class="close" data-act="close" aria-label="Close">${ic('x', 16)}</button></div></div>`;
+  onMount?.($('#modalRoot .modal'));
+  const first = $('#modalRoot .modal').querySelector('input, select, textarea, button:not(.close)');
+  first?.focus();
+}
+function closeModal() { $('#modalRoot').innerHTML = ''; lastFocus?.focus?.(); }
+
+function timesheetForm(t) {
+  const isNew = !t;
+  t = t || { empId: state.employees.find((e) => e.status !== 'Inactive')?.id || '', date: iso(new Date()), projectId: state.employees[0]?.project || state.projects[0]?.id, start: '09:00', end: '17:30', brk: 30, notes: '', status: 'Pending' };
+  const e = empById(t.empId);
+  openModal(`
+    <h2>${isNew ? 'Add timesheet' : 'Timesheet details'}</h2>
+    <p class="sub">${isNew ? 'Enter work details. Total hours are calculated when saved.' : `Submitted for ${esc(e?.name ?? 'removed employee')} · ${fmtDate(t.date)}`}</p>
+    <form id="tsForm" novalidate>
+      <div class="grid">
+        <div class="field full"><label for="t-emp">Employee</label><select class="select" id="t-emp" style="width:auto;min-width:200px">${state.employees.map((x) => `<option value="${esc(x.id)}" ${x.id === t.empId ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
+        <div class="field"><label for="t-date">Date</label><input class="input" type="date" id="t-date" value="${t.date}" required></div>
+        <div class="field"><label for="t-proj">Project</label><select class="select" id="t-proj">${state.projects.map((p) => `<option value="${p.id}" ${p.id === t.projectId ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
+        <div class="field"><label for="t-start">Start time</label><input class="input" type="time" id="t-start" value="${t.start}" required></div>
+        <div class="field"><label for="t-end">End time</label><input class="input" type="time" id="t-end" value="${t.end}" required></div>
+        <div class="field"><label for="t-brk">Break (minutes)</label><input class="input" type="number" min="0" max="600" step="5" id="t-brk" value="${t.brk}"></div>
+        <div class="calc" aria-live="polite"><span>Calculated total</span><b id="t-total" class="num"></b></div>
+        ${isNew ? '' : `<div class="field"><label for="t-status">Status</label><select class="select" id="t-status">${['Pending', 'Approved', 'Rejected'].map((s) => `<option ${s === t.status ? 'selected' : ''}>${s}</option>`).join('')}</select></div>`}
+        <div class="field full"><label for="t-notes">Notes</label><textarea class="input" id="t-notes" maxlength="500">${esc(t.notes)}</textarea></div>
+        <div class="err full" id="t-err" role="alert"></div>
+      </div>
+      <div class="foot">
+        ${isNew ? '' : `<div class="left">
+          ${t.status !== 'Approved' ? `<button type="button" class="btn sm" data-act="ts-status" data-s="Approved">${ic('check', 14)}Approve</button>` : ''}
+          ${t.status !== 'Rejected' ? `<button type="button" class="btn sm danger" data-act="ts-status" data-s="Rejected">Reject</button>` : ''}
+          <button type="button" class="btn sm" data-act="ts-delete-ask">Delete</button></div>`}
+        <button type="button" class="btn" data-act="close">Cancel</button>
+        <button type="submit" class="btn primary">${isNew ? 'Save timesheet' : 'Save changes'}</button>
+      </div>
+      <div id="tsConfirm"></div>
+    </form>`, (m) => {
+    const upd = () => {
+      const h = calcHours($('#t-start', m).value, $('#t-end', m).value, $('#t-brk', m).value);
+      $('#t-total', m).textContent = isNaN(h) ? 'Enter start and end' : h <= 0 ? 'Break is longer than shift' : `${fmtH(h)}${h > 12 ? ' · long shift' : ''}`;
+    };
+    ['#t-start', '#t-end', '#t-brk'].forEach((s) => $(s, m).addEventListener('input', upd)); upd();
+    if (isNew) $('#t-emp', m).addEventListener('change', (ev) => { const emp = empById(ev.target.value); if (emp?.project) $('#t-proj', m).value = emp.project; });
+    const setStatus = (s) => { const i = state.timesheets.findIndex((x) => x.id === t.id); if (i < 0) return; state.timesheets[i].status = s; persist(); closeModal(); render(); toast(`Timesheet ${s.toLowerCase()}`); };
+    m.addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-act]'); if (!b) return;
+      if (b.dataset.act === 'ts-status') setStatus(b.dataset.s);
+      if (b.dataset.act === 'ts-delete-ask') $('#tsConfirm', m).innerHTML = `<div class="confirm-bar"><span>Delete this timesheet? This can't be undone.</span><button type="button" class="btn sm" data-act="ts-delete-no">Keep</button><button type="button" class="btn sm danger" data-act="ts-delete-yes">Delete</button></div>`;
+      if (b.dataset.act === 'ts-delete-no') $('#tsConfirm', m).innerHTML = '';
+      if (b.dataset.act === 'ts-delete-yes') { state.timesheets = state.timesheets.filter((x) => x.id !== t.id); persist(); closeModal(); render(); toast('Timesheet deleted'); }
+    });
+    $('#tsForm', m).addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const rec = {
+        empId: $('#t-emp', m).value, date: $('#t-date', m).value, projectId: $('#t-proj', m).value,
+        start: $('#t-start', m).value, end: $('#t-end', m).value, brk: Math.max(0, Number($('#t-brk', m).value) || 0),
+        notes: $('#t-notes', m).value.trim(),
+      };
+      const h = calcHours(rec.start, rec.end, rec.brk);
+      const err = !rec.empId ? 'Choose an employee.' : !rec.date ? 'Pick the work date.' : !rec.start || !rec.end ? 'Enter both start and end time.'
+        : h <= 0 ? 'The break is longer than the shift. Shorten the break or adjust the times.' : h > 16 ? 'A single entry can be at most 16 hours. Split longer shifts into two entries.' : '';
+      const dup = state.timesheets.find((x) => x.id !== t.id && x.empId === rec.empId && x.date === rec.date && x.start === rec.start);
+      if (err || dup) { $('#t-err', m).textContent = err || 'This employee already has an entry starting at that time on this date.'; return; }
+      if (isNew) { state.timesheets.push({ id: uid(), ...rec, status: 'Pending' }); toast('Timesheet added'); }
+      else { Object.assign(state.timesheets.find((x) => x.id === t.id), rec, { status: $('#t-status', m).value }); toast('Timesheet updated'); }
+      persist(); closeModal(); render();
+    });
+  });
+}
+
+function employeeForm(e) {
+  const isNew = !e;
+  const nextId = 'EMP-' + (Math.max(1000, ...state.employees.map((x) => Number(x.id.split('-')[1]) || 0)) + 1);
+  e = e || { id: nextId, name: '', dept: '', role: '', status: 'Active', email: '', joined: iso(new Date()), project: state.projects[0]?.id };
+  const mine = state.timesheets.filter((t) => t.empId === e.id).sort((a, b) => b.date.localeCompare(a.date));
+  const depts = [...new Set(['Design', 'Engineering', 'Finance', 'Marketing', 'Operations', ...state.employees.map((x) => x.dept)])].sort();
+  openModal(`
+    <h2>${isNew ? 'Add employee' : esc(e.name)}</h2>
+    <p class="sub">${isNew ? 'New employees can log time right away.' : `${esc(e.id)} · ${esc(e.role)} · joined ${fmtDate(e.joined)}`}</p>
+    ${isNew ? '' : `<dl class="detail-list">
+      <dt>Total logged</dt><dd class="num">${fmtH(sumHours(mine.filter(counted)))}</dd>
+      <dt>Pending entries</dt><dd class="num">${mine.filter((t) => t.status === 'Pending').length}</dd>
+      <dt>Last entry</dt><dd>${mine[0] ? fmtDate(mine[0].date) + ' · ' + fmtH(hoursOf(mine[0])) : 'None yet'}</dd></dl>`}
+    <form id="empForm" novalidate><div class="grid">
+      <div class="field full"><label for="e-name">Full name</label><input class="input" id="e-name" value="${esc(e.name)}" required maxlength="60"></div>
+      <div class="field"><label for="e-id">Employee ID</label><input class="input" id="e-id" value="${esc(e.id)}" ${isNew ? '' : 'readonly'}></div>
+      <div class="field"><label for="e-status">Status</label><select class="select" id="e-status">${['Active', 'Away', 'Inactive'].map((s) => `<option ${s === e.status ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+      <div class="field"><label for="e-deptsel">Department</label><input class="input" id="e-deptsel" list="deptList" value="${esc(e.dept)}" required><datalist id="deptList">${depts.map((d) => `<option value="${esc(d)}">`).join('')}</datalist></div>
+      <div class="field"><label for="e-role">Role</label><input class="input" id="e-role" value="${esc(e.role)}" required maxlength="60"></div>
+      <div class="field"><label for="e-email">Email</label><input class="input" id="e-email" type="email" value="${esc(e.email)}"></div>
+      <div class="field"><label for="e-proj">Default project</label><select class="select" id="e-proj">${state.projects.map((p) => `<option value="${p.id}" ${p.id === e.project ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
+      <div class="err full" id="e-err" role="alert"></div>
+    </div>
+    ${!isNew && mine.length ? `<p class="sub" style="margin-top:14px"><b>Recent timesheets</b></p><div class="table-wrap"><table class="data mini-table"><tbody>${mine.slice(0, 5).map((t) => `<tr><td class="num">${fmtDate(t.date)}</td><td>${esc(projById(t.projectId)?.name ?? '—')}</td><td class="num">${fmtH(hoursOf(t))}</td><td>${badge(t.status)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+    <div class="foot">
+      ${isNew ? '' : `<div class="left"><button type="button" class="btn sm" data-act="emp-ts">${ic('timesheets', 14)}View timesheets</button><button type="button" class="btn sm danger" data-act="emp-del-ask">Remove</button></div>`}
+      <button type="button" class="btn" data-act="close">Cancel</button>
+      <button type="submit" class="btn primary">${isNew ? 'Add employee' : 'Save changes'}</button>
+    </div><div id="empConfirm"></div></form>`, (m) => {
+    m.addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-act]'); if (!b) return;
+      if (b.dataset.act === 'emp-ts') { Object.assign(ui.ts, { emp: e.id, q: '', date: '', proj: '', status: '', page: 1 }); closeModal(); location.hash = 'timesheets'; render(); }
+      if (b.dataset.act === 'emp-del-ask') $('#empConfirm', m).innerHTML = `<div class="confirm-bar"><span>Remove ${esc(e.name)} and their ${mine.length} timesheet${mine.length === 1 ? '' : 's'}?</span><button type="button" class="btn sm" data-act="emp-del-no">Keep</button><button type="button" class="btn sm danger" data-act="emp-del-yes">Remove</button></div>`;
+      if (b.dataset.act === 'emp-del-no') $('#empConfirm', m).innerHTML = '';
+      if (b.dataset.act === 'emp-del-yes') {
+        state.employees = state.employees.filter((x) => x.id !== e.id);
+        state.timesheets = state.timesheets.filter((t) => t.empId !== e.id);
+        if (ui.ts.emp === e.id) ui.ts.emp = '';
+        persist(); closeModal(); render(); toast('Employee removed');
+      }
+    });
+    $('#empForm', m).addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const rec = { name: $('#e-name', m).value.trim(), id: $('#e-id', m).value.trim().toUpperCase(), status: $('#e-status', m).value, dept: $('#e-deptsel', m).value.trim(), role: $('#e-role', m).value.trim(), email: $('#e-email', m).value.trim(), project: $('#e-proj', m).value };
+      const err = !rec.name ? 'Enter the employee’s name.' : !rec.id ? 'Enter an employee ID.' : isNew && empById(rec.id) ? `${rec.id} is already used. Pick another ID.` : !rec.dept ? 'Enter a department.' : !rec.role ? 'Enter a role.' : rec.email && !/^\S+@\S+\.\S+$/.test(rec.email) ? 'Enter a valid email address, or leave it blank.' : '';
+      if (err) { $('#e-err', m).textContent = err; return; }
+      if (isNew) { state.employees.push({ ...rec, joined: iso(new Date()) }); toast('Employee added'); }
+      else { Object.assign(empById(e.id), rec, { id: e.id }); toast('Employee updated'); }
+      persist(); closeModal(); render();
+    });
+  });
+}
+
+function projectForm(p) {
+  const isNew = !p;
+  p = p || { id: 'p' + uid(), name: '', client: '', status: 'Planning', budget: 200 };
+  const used = state.timesheets.filter((t) => t.projectId === p.id).length;
+  openModal(`
+    <h2>${isNew ? 'Add project' : esc(p.name)}</h2>
+    <p class="sub">${isNew ? 'Projects appear in the timesheet form right away.' : `${used} timesheet entr${used === 1 ? 'y' : 'ies'} logged against this project`}</p>
+    <form id="projForm" novalidate><div class="grid">
+      <div class="field full"><label for="p-name">Project name</label><input class="input" id="p-name" value="${esc(p.name)}" required maxlength="60"></div>
+      <div class="field"><label for="p-client">Client</label><input class="input" id="p-client" value="${esc(p.client)}" maxlength="60"></div>
+      <div class="field"><label for="p-status">Status</label><select class="select" id="p-status">${['Planning', 'On track', 'At risk', 'Completed'].map((s) => `<option ${s === p.status ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+      <div class="field"><label for="p-budget">Hours budget</label><input class="input" id="p-budget" type="number" min="0" value="${p.budget || 0}"></div>
+      <div class="err full" id="p-err" role="alert"></div>
+    </div>
+    <div class="foot">
+      ${isNew ? '' : `<div class="left"><button type="button" class="btn sm" data-act="proj-ts">${ic('timesheets', 14)}View timesheets</button>${used ? '' : '<button type="button" class="btn sm danger" data-act="proj-del">Delete</button>'}</div>`}
+      <button type="button" class="btn" data-act="close">Cancel</button>
+      <button type="submit" class="btn primary">${isNew ? 'Add project' : 'Save changes'}</button>
+    </div></form>`, (m) => {
+    m.addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-act]'); if (!b) return;
+      if (b.dataset.act === 'proj-ts') { Object.assign(ui.ts, { proj: p.id, emp: '', q: '', date: '', status: '', page: 1 }); closeModal(); location.hash = 'timesheets'; render(); }
+      if (b.dataset.act === 'proj-del') { state.projects = state.projects.filter((x) => x.id !== p.id); persist(); closeModal(); render(); toast('Project deleted'); }
+    });
+    $('#projForm', m).addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const rec = { name: $('#p-name', m).value.trim(), client: $('#p-client', m).value.trim() || 'Internal', status: $('#p-status', m).value, budget: Math.max(0, Number($('#p-budget', m).value) || 0) };
+      if (!rec.name) { $('#p-err', m).textContent = 'Enter a project name.'; return; }
+      if (isNew) { state.projects.push({ id: p.id, ...rec }); toast('Project added'); }
+      else { Object.assign(projById(p.id), rec); toast('Project updated'); }
+      persist(); closeModal(); render();
+    });
+  });
+}
+
+/* ================= toast ================= */
+function toast(msg, bad = false) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (bad ? ' bad' : '');
+  el.innerHTML = `${ic(bad ? 'x' : 'check', 15)}${esc(msg)}`;
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+}
+
+/* ================= global events ================= */
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-act]');
+  if (!b) {
+    if (ui.ts.calOpen && !ev.target.closest('.cal-anchor')) { ui.ts.calOpen = false; render(); }
+    if (ev.target.id === 'overlay') closeModal();
+    return;
+  }
+  const a = b.dataset.act;
+  switch (a) {
+    case 'add-ts': timesheetForm(); break;
+    case 'view-ts': timesheetForm(state.timesheets.find((t) => t.id === b.dataset.id)); break;
+    case 'add-emp': employeeForm(); break;
+    case 'view-emp': employeeForm(empById(b.dataset.id)); break;
+    case 'add-proj': projectForm(); break;
+    case 'edit-proj': projectForm(projById(b.dataset.id)); break;
+    case 'close': closeModal(); break;
+    case 'go': location.hash = b.dataset.to; break;
+    case 'go-pending': Object.assign(ui.ts, { status: 'Pending', emp: '', proj: '', q: '', date: '', page: 1 }); if (current() === 'timesheets') render(); else location.hash = 'timesheets'; break;
+    case 'week': ui.dashWeek = addDays(ui.dashWeek, 7 * Number(b.dataset.dir)); render(); break;
+    case 'report': ui.reportMode = b.dataset.m; render(); break;
+    case 'page': ui.ts.page += Number(b.dataset.dir); $('#tsList').innerHTML = tsListHtml(); break;
+    case 'cal-toggle': ui.ts.calOpen = !ui.ts.calOpen; ui.ts.calMonth = null; render(); break;
+    case 'cal-nav': { const base = ui.ts.calMonth || (ui.ts.date ? parse(ui.ts.date) : new Date()); ui.ts.calMonth = new Date(base.getFullYear(), base.getMonth() + Number(b.dataset.dir), 1); render(); break; }
+    case 'cal-pick': ev.stopPropagation(); ui.ts.date = b.dataset.d; ui.ts.calOpen = false; ui.ts.page = 1; render(); break;
+    case 'reset-ask': $('#resetConfirm').innerHTML = `<div class="confirm-bar"><span>Replace all current data with the sample workspace?</span><button class="btn sm" data-act="reset-no">Cancel</button><button class="btn sm danger" data-act="reset-yes">Reset data</button></div>`; break;
+    case 'reset-no': $('#resetConfirm').innerHTML = ''; break;
+    case 'reset-yes': state = seed(); persist(); render(); toast('Sample data restored'); break;
+  }
+});
+document.addEventListener('keydown', (ev) => {
+  if (ev.key !== 'Escape') return;
+  if ($('#overlay')) closeModal();
+  else if (ui.ts.calOpen) { ui.ts.calOpen = false; render(); }
+  else closeNav();
+});
+
+/* mobile nav */
+const openNav = () => { $('#app').classList.add('nav-open'); $('#scrim').hidden = false; };
+function closeNav() { $('#app').classList.remove('nav-open'); $('#scrim').hidden = true; }
+$('#menuBtn').addEventListener('click', openNav);
+$('#scrim').addEventListener('click', closeNav);
+
+render();
+})();
+</script>
+</body>
+</html>
