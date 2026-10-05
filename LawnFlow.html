@@ -1080,7 +1080,7 @@ function renderNav() {
   const moreActive = !MOBILE_TABS.includes(ui.route);
   $('#tabBar').innerHTML = MOBILE_TABS.map(id => { const r = ROUTES.find(x => x.id === id); return `<a href="#${id}" class="${ui.route === id ? 'active' : ''}">${icon(r.icon)}<span>${r.label}</span></a>`; }).join('') +
     `<a href="javascript:void 0" data-act="openMore" class="${moreActive ? 'active' : ''}">${icon('more')}<span>${moreActive ? ROUTES.find(r => r.id === ui.route).label : 'More'}</span></a>`;
-  $('#moreGrid').innerHTML = ROUTES.filter(r => !MOBILE_TABS.includes(r.id)).map(r => `<a href="#${r.id}" data-act="closeMore">${icon(r.icon)}${r.label}</a>`).join('');
+  $('#moreGrid').innerHTML = ROUTES.filter(r => !MOBILE_TABS.includes(r.id)).map(r => `<a href="#${r.id}">${icon(r.icon)}${r.label}</a>`).join('');
 }
 function go(route) {
   if (location.hash !== '#' + route) location.hash = route; else render();
