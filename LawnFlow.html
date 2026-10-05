@@ -74,7 +74,7 @@ svg.i{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .brand-mark{width:40px;height:40px;border-radius:11px;background:var(--forest-3);display:grid;place-items:center;box-shadow:inset 0 -6px 0 rgba(0,0,0,.12)}
 .brand-name{font-family:var(--font-display);font-size:21px;font-weight:700;letter-spacing:.14em;color:#fff;line-height:1}
 .brand-sub{font-size:11px;color:#a9c29a;margin-top:4px;letter-spacing:.02em}
-.nav{padding:6px 12px;display:flex;flex-direction:column;gap:2px;position:relative;z-index:1;overflow-y:auto;flex:1;padding-bottom:80px}
+.nav{padding:6px 12px 16px;display:flex;flex-direction:column;gap:2px;position:relative;z-index:1;flex:1;min-height:0}
 .nav-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;color:#7f9a74;padding:14px 10px 6px}
 .nav a{
   display:flex;align-items:center;gap:12px;padding:9px 11px;border-radius:10px;color:#d3dccb;
@@ -514,6 +514,24 @@ table.tbl{width:100%;border-collapse:collapse}
 .more-grid a,.more-grid button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 6px;border-radius:14px;background:var(--cream);text-decoration:none;color:var(--ink);font-weight:650;font-size:13px;border:0;cursor:pointer}
 .more-grid svg{width:22px;height:22px;color:var(--forest-3)}
 
+/* Short desktop windows: compress sidebar spacing so every item fits without a nested scrollbar */
+@media (min-width:861px) and (max-height:760px){
+  .brand{padding:16px 20px 12px}
+  .nav-label{padding:10px 10px 4px}
+  .nav a{padding:7px 11px}
+}
+@media (min-width:861px) and (max-height:600px){
+  .brand{padding:10px 20px 8px}
+  .brand-mark{width:34px;height:34px}
+  .nav-label{padding:6px 10px 2px;font-size:10px}
+  .nav a{padding:5px 11px;font-size:14px}
+  .sidebar::after{height:44px;background-size:100% 44px}
+}
+@media (min-width:861px) and (max-height:480px){
+  .brand-sub{display:none}
+  .nav-label{padding:4px 10px 1px}
+  .nav a{padding:3px 11px}
+}
 @media (max-width:1100px){
   .today-grid{grid-template-columns:1fr}
   .side-stack{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
