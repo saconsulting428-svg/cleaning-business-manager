@@ -1,0 +1,238 @@
+[
+ {
+  "name": "Main-Welcome-Sign",
+  "errors": [],
+  "warnings": [],
+  "min_web_mm": 2.2,
+  "holes": 36,
+  "smallest_hole_mm2": 15.2,
+  "score_clearance_mm": 5.0,
+  "size_mm": [
+   304.8,
+   203.2
+  ],
+  "svg_subpaths": 38,
+  "dxf_entities": 38,
+  "hang_holes": [
+   [
+    101.6,
+    186.0
+   ],
+   [
+    203.2,
+    186.0
+   ]
+  ],
+  "ok": true
+ },
+ {
+  "name": "Welcome",
+  "errors": [],
+  "warnings": [],
+  "min_web_mm": 2.2,
+  "holes": 12,
+  "smallest_hole_mm2": 19.63,
+  "score_clearance_mm": 4.0,
+  "size_mm": [
+   203.2,
+   69.85
+  ],
+  "svg_subpaths": 14,
+  "dxf_entities": 14,
+  "hang_holes": [
+   [
+    50.8,
+    10.5
+   ],
+   [
+    152.4,
+    10.5
+   ]
+  ],
+  "ok": true
+ },
+ {
+  "name": "Home",
+  "errors": [],
+  "warnings": [],
+  "min_web_mm": 2.2,
+  "holes": 11,
+  "smallest_hole_mm2": 19.63,
+  "score_clearance_mm": 3.85,
+  "size_mm": [
+   177.8,
+   101.6
+  ],
+  "svg_subpaths": 13,
+  "dxf_entities": 13,
+  "hang_holes": [
+   [
+    38.1,
+    35.45
+   ],
+   [
+    139.7,
+    35.45
+   ]
+  ],
+  "ok": true
+ },
+ {
+  "name": "Family",
+  "errors": [],
+  "warnings": [],
+  "min_web_mm": 2.2,
+  "holes": 11,
+  "smallest_hole_mm2": 19.63,
+  "score_clearance_mm": 3.05,
+  "size_mm": [
+   203.2,
+   76.2
+  ],
+  "svg_subpaths": 13,
+  "dxf_entities": 13,
+  "hang_holes": [
+   [
+    50.8,
+    13.54
+   ],
+   [
+    152.4,
+    13.54
+   ]
+  ],
+  "ok": true
+ },
+ {
+  "name": "Gather",
+  "errors": [],
+  "warnings": [],
+  "min_web_mm": 2.2,
+  "holes": 12,
+  "smallest_hole_mm2": 19.41,
+  "score_clearance_mm": 3.08,
+  "size_mm": [
+   203.2,
+   69.85
+  ],
+  "svg_subpaths": 14,
+  "dxf_entities": 14,
+  "hang_holes": [
+   [
+    50.8,
+    10.5
+   ],
+   [
+    152.4,
+    10.5
+   ]
+  ],
+  "ok": true
+ },
+ {
+  "name": "Hello",
+  "errors": [],
+  "warnings": [],
+  "min_web_mm": 2.2,
+  "holes": 10,
+  "smallest_hole_mm2": 19.63,
+  "score_clearance_mm": 4.0,
+  "size_mm": [
+   177.8,
+   63.5
+  ],
+  "svg_subpaths": 12,
+  "dxf_entities": 12,
+  "hang_holes": [
+   [
+    38.1,
+    10.5
+   ],
+   [
+    139.7,
+    10.5
+   ]
+  ],
+  "ok": true
+ },
+ {
+  "name": "Farm",
+  "errors": [],
+  "warnings": [],
+  "min_web_mm": 2.2,
+  "holes": 11,
+  "smallest_hole_mm2": 19.63,
+  "score_clearance_mm": 4.0,
+  "size_mm": [
+   177.8,
+   101.6
+  ],
+  "svg_subpaths": 13,
+  "dxf_entities": 13,
+  "hang_holes": [
+   [
+    38.1,
+    24.53
+   ],
+   [
+    139.7,
+    24.53
+   ]
+  ],
+  "ok": true
+ },
+ {
+  "name": "Our-Home",
+  "errors": [],
+  "warnings": [],
+  "min_web_mm": 2.2,
+  "holes": 14,
+  "smallest_hole_mm2": 19.63,
+  "score_clearance_mm": 3.1,
+  "size_mm": [
+   228.6,
+   76.2
+  ],
+  "svg_subpaths": 16,
+  "dxf_entities": 16,
+  "hang_holes": [
+   [
+    63.5,
+    26.41
+   ],
+   [
+    165.1,
+    26.41
+   ]
+  ],
+  "ok": true
+ },
+ {
+  "name": "Love-Grows-Here",
+  "errors": [],
+  "warnings": [
+   "1 thin region(s), e.g. at (119.7,47.6) area 2.4"
+  ],
+  "min_web_mm": 2.2,
+  "holes": 21,
+  "smallest_hole_mm2": 19.63,
+  "score_clearance_mm": 4.0,
+  "size_mm": [
+   203.2,
+   101.6
+  ],
+  "svg_subpaths": 23,
+  "dxf_entities": 23,
+  "hang_holes": [
+   [
+    50.8,
+    14.56
+   ],
+   [
+    152.4,
+    14.56
+   ]
+  ],
+  "ok": true
+ }
+]
