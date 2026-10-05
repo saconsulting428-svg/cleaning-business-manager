@@ -699,7 +699,7 @@ function every(fn, ms){ timers.push(setInterval(fn, ms)); }
 function later(fn, ms){ const t=setTimeout(fn, ms); timers.push(t); return t; }
 function clearTimers(){ timers.forEach(t=>{clearInterval(t);clearTimeout(t);}); timers=[]; }
 function go(path){ if(location.hash===path) render(); else location.hash = path; }
-function replace(path){ history.replaceState(null,'',path); render(); }
+function replace(path){ try{ history.replaceState(null,'',path); }catch(e){ location.replace(path); return; } render(); }
 let navDepth = 0;
 function back(fallback){ if(navDepth>1){ navDepth-=2; history.back(); } else { go(fallback || homePath()); } }
 function homePath(){ return S.role==='owner' ? '#/o/home' : '#/home'; }
@@ -1853,7 +1853,7 @@ const demo = {
   offline(){ S.offline=!S.offline; if(!S.offline){ S.loaded={}; } toast(S.offline?'Offline mode on':'Back online'); rerender(); },
   wallet(v){ v=+v; if(isNaN(v)) return; S.wallet.balance=v; toast('Wallet set to '+rs(v)); rerender(); },
   trust(t){ if(t){ S.user.rentals=5; S.user.rating=4.8; } else { S.user.rentals=1; S.user.rating=4.7; } toast(t?'Trusted renter (5 rentals, 4.8)':'New renter (1 rental, 4.7)'); rerender(); },
-  reset(){ closeSheet(true); seed(); S.otp=null; ADMIN_KYC.forEach(x=>x.status='pending'); history.replaceState(null,'','#/splash'); render(); toast('Prototype reset'); },
+  reset(){ closeSheet(true); seed(); S.otp=null; ADMIN_KYC.forEach(x=>x.status='pending'); try{ history.replaceState(null,'','#/splash'); }catch(e){} render(); toast('Prototype reset'); },
   resolve(id){ const b=bkg(id); b.dispute = b.dispute||{slots:[],desc:'',opened:now(),by:'owner'}; b.dispute.status='Resolved'; b.dispute.resolution='Owner and renter agreed on a Rs. 6,000 repair settlement, paid directly. Carzoh closed the case.'; completeRental(id); b.state='completed'; S.tickets.forEach(t=>{ if(t.booking===id) t.status='Resolved'; }); toast('Dispute resolved'); rerender(); },
 };
 function ensureLogged(role){ S.user.loggedIn=true; if(!S.user.name) S.user.name='Ali Raza'; if(!S.user.phone) S.user.phone='3214567890'; if(role) S.role=role; }
@@ -1925,7 +1925,7 @@ function jump(g,i){ closeSheet(true); if(document.body.classList.contains('mobil
    ========================================================= */
 seed();
 checkMobile();
-if(!location.hash) history.replaceState(null,'','#/splash');
+if(!location.hash.startsWith('#/')) { try{ history.replaceState(null,'','#/splash'); }catch(e){ location.hash='#/splash'; } }
 render();
 setInterval(()=>{ const t=$('#sbTime'); if(t) t.textContent = fmtTime(now()).replace(/ (am|pm)/,''); }, 15000);
 </script>
