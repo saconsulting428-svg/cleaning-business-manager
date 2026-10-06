@@ -66,7 +66,7 @@ X = **24, 271, 518, 765, 1012**. Har card mein:
 
 ### Lead time: actual vs planned (panel 826, 242, 420×218)
 * Heading "Lead time: actual vs planned" + sub "days · by sourcing region".
-* **Clustered column chart** (836, 275, 400×180): X = `DimSupplier[Region]`, Y = `[Lead Time Days]` (navy `#0B1630`) and `[Planned Lead Days]` (green `#10B981`). Data labels on (0 decimals), Y axis off, legend top-left ("Avg Supplier Lead Time", "Avg Planned Lead Time" – measures ke naam rename karein). Region ko `[Lead Time Days]` descending sort karein (Latin America → Europe).
+* **Clustered column chart** (836, 275, 400×180): X = `DimSupplier[Region]`, Y = `[Lead Time Days]` (navy `#0B1630`) and `[Planned Lead Days]` (green `#10B981`). Data labels on (0 decimals), Y axis off, legend top ("Avg Supplier Lead Time", "Avg Planned Lead Time" – measures ke naam rename karein). Region ko `[Lead Time Days]` descending sort karein (Latin America → Europe).
 
 ### Spend by supplier tier (panel 826, 474, 420×219)
 * Heading "Spend by supplier tier" + "USD".

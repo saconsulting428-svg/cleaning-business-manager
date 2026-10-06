@@ -39,7 +39,7 @@
     },
     "columnChart": {
       "*": {
-        "legend": [{"show": true, "position": "TopLeft", "fontSize": 9, "labelColor": {"solid": {"color": "#475569"}}}],
+        "legend": [{"show": true, "position": "Top", "fontSize": 9, "labelColor": {"solid": {"color": "#475569"}}}],
         "categoryAxis": [{"labelColor": {"solid": {"color": "#475569"}}, "fontSize": 9}],
         "valueAxis": [{"show": false}],
         "labels": [{"show": true, "fontSize": 9, "color": {"solid": {"color": "#0B1630"}}}],
@@ -48,7 +48,7 @@
     },
     "clusteredColumnChart": {
       "*": {
-        "legend": [{"show": true, "position": "TopLeft", "fontSize": 9, "labelColor": {"solid": {"color": "#475569"}}}],
+        "legend": [{"show": true, "position": "Top", "fontSize": 9, "labelColor": {"solid": {"color": "#475569"}}}],
         "categoryAxis": [{"labelColor": {"solid": {"color": "#475569"}}, "fontSize": 9}],
         "valueAxis": [{"show": false}],
         "labels": [{"show": true, "fontSize": 9, "color": {"solid": {"color": "#0B1630"}}}]
@@ -57,7 +57,7 @@
     "donutChart": {
       "*": {
         "legend": [{"show": true, "position": "RightCenter", "fontSize": 10, "labelColor": {"solid": {"color": "#475569"}}}],
-        "labels": [{"show": true, "labelStyle": "Data value", "fontSize": 9, "color": {"solid": {"color": "#475569"}}}]
+        "labels": [{"show": true, "labelStyle": "Data", "fontSize": 9, "color": {"solid": {"color": "#475569"}}}]
       }
     },
     "areaChart": {
