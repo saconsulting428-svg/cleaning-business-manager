@@ -1,0 +1,72 @@
+{
+  "name": "Faizaan's Shop",
+  "dataColors": ["#0B1630", "#10B981", "#5B6EF5", "#F5A524", "#E5484D", "#94A3B8", "#14B8A6", "#A78BFA"],
+  "background": "#FFFFFF",
+  "foreground": "#0B1630",
+  "tableAccent": "#10B981",
+  "good": "#10B981",
+  "bad": "#E5484D",
+  "neutral": "#F5A524",
+  "maximum": "#10B981",
+  "center": "#F5A524",
+  "minimum": "#E5484D",
+  "textClasses": {
+    "label": {"fontFace": "Segoe UI", "fontSize": 10, "color": "#64748B"},
+    "callout": {"fontFace": "Segoe UI Semibold", "fontSize": 28, "color": "#0B1630"},
+    "title": {"fontFace": "Segoe UI Semibold", "fontSize": 13, "color": "#0B1630"},
+    "header": {"fontFace": "Segoe UI Semibold", "fontSize": 12, "color": "#0B1630"}
+  },
+  "visualStyles": {
+    "*": {
+      "*": {
+        "background": [{"show": false}],
+        "border": [{"show": false}],
+        "title": [{"show": false, "fontColor": {"solid": {"color": "#0B1630"}}, "fontFamily": "Segoe UI Semibold"}],
+        "visualHeader": [{"show": false}]
+      }
+    },
+    "page": {
+      "*": {
+        "background": [{"color": {"solid": {"color": "#EAF6EF"}}, "transparency": 0}]
+      }
+    },
+    "slicer": {
+      "*": {
+        "data": [{"mode": "Dropdown"}],
+        "header": [{"show": true, "fontColor": {"solid": {"color": "#64748B"}}, "fontSize": 9}],
+        "items": [{"fontColor": {"solid": {"color": "#0B1630"}}, "fontSize": 10, "background": {"solid": {"color": "#FFFFFF"}}}]
+      }
+    },
+    "columnChart": {
+      "*": {
+        "legend": [{"show": true, "position": "TopLeft", "fontSize": 9, "labelColor": {"solid": {"color": "#475569"}}}],
+        "categoryAxis": [{"labelColor": {"solid": {"color": "#475569"}}, "fontSize": 9}],
+        "valueAxis": [{"show": false}],
+        "labels": [{"show": true, "fontSize": 9, "color": {"solid": {"color": "#0B1630"}}}],
+        "y1AxisReferenceLine": [{"show": false}]
+      }
+    },
+    "clusteredColumnChart": {
+      "*": {
+        "legend": [{"show": true, "position": "TopLeft", "fontSize": 9, "labelColor": {"solid": {"color": "#475569"}}}],
+        "categoryAxis": [{"labelColor": {"solid": {"color": "#475569"}}, "fontSize": 9}],
+        "valueAxis": [{"show": false}],
+        "labels": [{"show": true, "fontSize": 9, "color": {"solid": {"color": "#0B1630"}}}]
+      }
+    },
+    "donutChart": {
+      "*": {
+        "legend": [{"show": true, "position": "RightCenter", "fontSize": 10, "labelColor": {"solid": {"color": "#475569"}}}],
+        "labels": [{"show": true, "labelStyle": "Data value", "fontSize": 9, "color": {"solid": {"color": "#475569"}}}]
+      }
+    },
+    "areaChart": {
+      "*": {
+        "categoryAxis": [{"show": false}],
+        "valueAxis": [{"show": false}],
+        "legend": [{"show": false}],
+        "labels": [{"show": false}]
+      }
+    }
+  }
+}

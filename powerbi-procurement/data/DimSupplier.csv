@@ -1,0 +1,24 @@
+SupplierKey,Supplier,Region,Country,Tier
+1,Osaka Precision Devices,East Asia,Japan,Strategic
+2,Dongguan Smart Home Tech,East Asia,China,Preferred
+3,Shenzhen Voltline Electronics,East Asia,China,Preferred
+4,Seoul Derma Manufacturing,East Asia,South Korea,Approved
+5,Busan Audio Components,East Asia,South Korea,Approved
+6,Taipei Chipworks,East Asia,Taiwan,Approved
+7,Hanoi Packaging Group,East Asia,Vietnam,Approved
+8,Chengdu Textile Mills,East Asia,China,Strategic
+9,Stuttgart Motion Systems,Europe,Germany,Preferred
+10,Lyon Home Appliances,Europe,France,Approved
+11,Milan Design Textiles,Europe,Italy,Approved
+12,Gdansk Components,Europe,Poland,Preferred
+13,Porto Packaging,Europe,Portugal,Preferred
+14,Austin Circuit Labs,North America,USA,Strategic
+15,Toronto Home Goods,North America,Canada,Preferred
+16,Monterrey Assembly,North America,Mexico,Preferred
+17,Penang Semiconductors,Southeast Asia,Malaysia,Preferred
+18,Bangkok Appliance Co,Southeast Asia,Thailand,Preferred
+19,Jakarta Textiles,Southeast Asia,Indonesia,Preferred
+20,Pune Auto Parts,South Asia,India,Approved
+21,Dhaka Garments,South Asia,Bangladesh,Preferred
+22,Sao Paulo Plastics,Latin America,Brazil,Approved
+23,Bogota Personal Care,Latin America,Colombia,Approved

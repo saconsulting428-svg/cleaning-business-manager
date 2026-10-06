@@ -1,0 +1,78 @@
+// ============================================================
+// Faizaan's Shop - Procurement & suppliers   (DAX measures)
+// Table banao: Modeling > New table >  _Measures = ROW("x", 1)
+// phir har measure ko "New measure" se _Measures table mein paste karein
+// ============================================================
+
+// ---------- Targets (change freely) ----------
+Target OTD        = 0.92
+Target In-Full    = 0.95
+Target Reject     = 0.01
+
+// ---------- Core ----------
+Spend             = SUM ( FactProcurement[SpendUSD] )
+Orders            = SUM ( FactProcurement[Orders] )
+Spend PY          = CALCULATE ( [Spend], SAMEPERIODLASTYEAR ( DimDate[Date] ) )
+Spend vs PY %     = DIVIDE ( [Spend] - [Spend PY], [Spend PY] )
+
+OTD %             = DIVIDE ( SUM ( FactProcurement[OnTimeOrders] ), [Orders] )
+In-Full %         = DIVIDE ( SUM ( FactProcurement[InFullOrders] ), [Orders] )
+Lead Time Days    = DIVIDE ( SUM ( FactProcurement[ActualLeadDaysTotal] ), [Orders] )
+Planned Lead Days = DIVIDE ( SUM ( FactProcurement[PlannedLeadDaysTotal] ), [Orders] )
+Reject Rate       = DIVIDE ( SUM ( FactProcurement[UnitsRejected] ), SUM ( FactProcurement[UnitsReceived] ) )
+
+// ---------- KPI card text ----------
+Spend Label       = "$" & FORMAT ( [Spend] / 1000000, "#,0.0" ) & "M"
+OTD Label         = FORMAT ( [OTD %], "0.0%" )
+In-Full Label     = FORMAT ( [In-Full %], "0.0%" )
+Lead Time Label   = FORMAT ( [Lead Time Days], "0.0" ) & " days"
+Reject Label      = FORMAT ( [Reject Rate], "0.00%" )
+
+// ---------- Badges ("vs PY", "vs target", "vs plan") ----------
+Spend Badge =
+VAR d = [Spend vs PY %]
+RETURN IF ( d >= 0, "▲ ", "▼ " ) & FORMAT ( ABS ( d ), "0.0%" ) & " vs PY"
+
+OTD Badge =
+VAR d = ( [OTD %] - [Target OTD] ) * 100
+RETURN IF ( d >= 0, "▲ ", "▼ " ) & FORMAT ( ABS ( d ), "0.0" ) & "pp vs target"
+
+In-Full Badge =
+VAR d = ( [In-Full %] - [Target In-Full] ) * 100
+RETURN IF ( d >= 0, "▲ ", "▼ " ) & FORMAT ( ABS ( d ), "0.0" ) & "pp vs target"
+
+Lead Time Badge =
+VAR d = [Lead Time Days] - [Planned Lead Days]
+RETURN IF ( d >= 0, "▲ ", "▼ " ) & FORMAT ( ABS ( d ), "0.0" ) & " d vs plan"
+
+Reject Badge =
+VAR d = ( [Reject Rate] - [Target Reject] ) * 100
+RETURN IF ( d >= 0, "▲ ", "▼ " ) & FORMAT ( ABS ( d ), "0.0" ) & "pp vs target"
+
+// ---------- Badge colours (Conditional formatting > Format by > Field value) ----------
+// Green = good, Red = bad.   Spend/OTD/In-Full: higher is good.  Lead time/Reject: lower is good.
+Spend Badge Color     = IF ( [Spend vs PY %] >= 0, "#D9F5E8", "#FDE2E2" )
+OTD Badge Color       = IF ( [OTD %] >= [Target OTD], "#D9F5E8", "#FDE2E2" )
+In-Full Badge Color   = IF ( [In-Full %] >= [Target In-Full], "#D9F5E8", "#FDE2E2" )
+Lead Time Badge Color = IF ( [Lead Time Days] <= [Planned Lead Days], "#D9F5E8", "#FDE2E2" )
+Reject Badge Color    = IF ( [Reject Rate] <= [Target Reject], "#D9F5E8", "#FDE2E2" )
+Spend Badge Font      = IF ( [Spend vs PY %] >= 0, "#0E9F6E", "#D64545" )
+OTD Badge Font        = IF ( [OTD %] >= [Target OTD], "#0E9F6E", "#D64545" )
+In-Full Badge Font    = IF ( [In-Full %] >= [Target In-Full], "#0E9F6E", "#D64545" )
+Lead Time Badge Font  = IF ( [Lead Time Days] <= [Planned Lead Days], "#0E9F6E", "#D64545" )
+Reject Badge Font     = IF ( [Reject Rate] <= [Target Reject], "#0E9F6E", "#D64545" )
+
+// ---------- Spend hierarchy / tooltip ----------
+Share of Region =
+DIVIDE (
+    [Spend],
+    CALCULATE ( [Spend], ALLEXCEPT ( DimSupplier, DimSupplier[Region] ) )
+)
+
+Share of Total = DIVIDE ( [Spend], CALCULATE ( [Spend], ALLSELECTED () ) )
+
+OTD Tag = "OTD " & FORMAT ( [OTD %], "0%" )
+
+// ---------- Header ----------
+Data Through =
+"Data through " & FORMAT ( EOMONTH ( CALCULATE ( MAX ( FactProcurement[Date] ), ALL ( DimDate ) ), 0 ), "dd MMM yyyy" )
