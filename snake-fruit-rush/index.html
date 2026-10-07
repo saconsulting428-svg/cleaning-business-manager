@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#071d2a">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Snake Fruit Rush</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- HOME -->
+  <section id="home" class="screen active">
+    <button class="icon-btn corner sound-btn" aria-label="Toggle sound">🔊</button>
+    <div class="home-top">
+      <h1 class="logo"><span class="logo-1">SNAKE</span><span class="logo-2">FRUIT RUSH</span></h1>
+      <canvas id="homeCanvas" aria-hidden="true"></canvas>
+    </div>
+    <div class="home-menu">
+      <button class="btn primary big" id="btnPlay">PLAY</button>
+      <button class="btn secondary" id="btnHow">HOW TO PLAY</button>
+      <button class="btn secondary" id="btnThemes">THEMES</button>
+      <p class="hs">High Score: <b id="homeBest">0</b></p>
+    </div>
+  </section>
+
+  <!-- HOW TO PLAY -->
+  <section id="howto" class="screen">
+    <h2 class="title">HOW TO PLAY</h2>
+    <ul class="how-list">
+      <li><span>🍎</span>Eat fruits</li>
+      <li><span>🐍</span>Grow your snake</li>
+      <li><span>⭐</span>Collect Bonus Fruits</li>
+      <li><span>💥</span>Don't hit the walls</li>
+      <li><span>💥</span>Don't hit yourself</li>
+      <li><span>🏆</span>Beat your high score</li>
+    </ul>
+    <p class="hint">Swipe or use the arrows to steer</p>
+    <button class="btn secondary back" data-go="home">BACK</button>
+  </section>
+
+  <!-- THEMES -->
+  <section id="themes" class="screen">
+    <h2 class="title">THEMES</h2>
+    <div class="theme-grid" id="themeGrid"></div>
+    <button class="btn secondary back" data-go="home">BACK</button>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" class="screen">
+    <header class="hud">
+      <div class="stat"><span class="lbl">SCORE</span><b id="hudScore">0</b></div>
+      <div class="hud-mid">
+        <button class="icon-btn" id="btnPause" aria-label="Pause">❚❚</button>
+        <button class="icon-btn sound-btn" aria-label="Toggle sound">🔊</button>
+      </div>
+      <div class="stat right"><span class="lbl">BEST</span><b id="hudBest">0</b></div>
+    </header>
+    <div class="status">
+      <div class="fruits"><span id="hudFruits">FRUITS: 0 / 5</span><i class="bar"><i id="hudBar"></i></i></div>
+      <div class="combo" id="hudCombo">COMBO x1.2</div>
+    </div>
+    <div class="arena-wrap" id="arenaWrap">
+      <div class="arena" id="arena"><canvas id="canvas"></canvas></div>
+      <div class="banner" id="banner">BONUS FRUIT!</div>
+    </div>
+    <div class="dpad" aria-label="Directional controls">
+      <button class="dbtn up" data-dir="up" aria-label="Up">↑</button>
+      <button class="dbtn left" data-dir="left" aria-label="Left">←</button>
+      <button class="dbtn down" data-dir="down" aria-label="Down">↓</button>
+      <button class="dbtn right" data-dir="right" aria-label="Right">→</button>
+    </div>
+
+    <div class="overlay" id="pauseOv">
+      <div class="card">
+        <h2 class="title sm">PAUSED</h2>
+        <button class="btn primary" id="btnResume">RESUME</button>
+        <button class="btn secondary" id="btnPauseHome">HOME</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="overOv">
+      <div class="card over">
+        <h2 class="title go">GAME OVER</h2>
+        <div class="scores">
+          <div><span class="lbl">Score</span><b id="goScore">0</b></div>
+          <div><span class="lbl">Best</span><b id="goBest">0</b></div>
+        </div>
+        <div class="newbest" id="goNew">🏆 NEW BEST!</div>
+        <button class="btn primary" id="btnAgain">PLAY AGAIN</button>
+        <button class="btn reward" id="btnRevive">🎁 WATCH AD → REVIVE</button>
+        <button class="btn link" id="btnOverHome">HOME</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Simulated rewarded ad (replaced by AdMob later; see ads.js) -->
+  <div id="adOverlay" class="overlay ad">
+    <div class="card">
+      <div class="ad-tag">REWARD AD</div>
+      <p class="ad-text">Simulated advertisement</p>
+      <div class="ad-progress"><i id="adBar"></i></div>
+      <p class="ad-count">Reward in <b id="adCount">3</b>s</p>
+    </div>
+  </div>
+</div>
+
+<script src="ads.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
