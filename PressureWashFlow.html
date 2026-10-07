@@ -1,0 +1,2023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a1f33">
+<title>PressureWashFlow – Pressure washing jobs, quotes and customers</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a1f33'/%3E%3Cpath d='M16 5s-8 8.6-8 14a8 8 0 0 0 16 0c0-5.400-8-14-8-14z' fill='%2310b4e6'/%3E%3C/svg%3E">
+<style>
+/* ==========================================================================
+   PressureWashFlow – custom UI system (no frameworks)
+   ========================================================================== */
+:root{
+  --navy:#0a1f33; --navy-2:#112f4a; --navy-3:#1b4565;
+  --ink:#14283c; --muted:#5b7186; --line:#dce7ef; --bg:#eef4f8; --card:#fff;
+  --aqua:#10b4e6; --aqua-d:#0679a6; --foam:#e2f5fc; --foam-2:#c9ecf9;
+  --green:#23875c; --green-bg:#e4f4ec; --amber:#a96a0b; --amber-bg:#fdf1dc;
+  --red:#c63d33; --red-bg:#fbe7e5; --slate-bg:#e8eef3;
+  --radius:14px; --shadow:0 1px 2px rgba(10,31,51,.06),0 4px 14px rgba(10,31,51,.05);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent;min-height:100vh}
+body.modal-open{overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--aqua-d)}
+h1,h2,h3{line-height:1.15;letter-spacing:-.02em}
+svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.i.sm{width:16px;height:16px}
+svg.i.lg{width:28px;height:28px}
+:focus-visible{outline:3px solid #7fdcf5;outline-offset:2px}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
+.right{text-align:right}
+.nowrap{white-space:nowrap}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---------- App shell ---------- */
+.top{background:var(--navy);color:#fff;position:sticky;top:0;z-index:30;padding-top:env(safe-area-inset-top)}
+.top-in{max-width:1120px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;font-weight:800;font-size:18px;letter-spacing:-.03em}
+.brand .mark{width:36px;height:36px;border-radius:11px;background:var(--aqua);color:var(--navy);display:grid;place-items:center;overflow:hidden}
+.brand .mark img{width:100%;height:100%;object-fit:cover}
+.brand .mark svg{width:22px;height:22px;fill:var(--navy);stroke:none}
+.brand b{color:var(--aqua)}
+.dnav{display:none;margin-left:auto;gap:2px}
+.dnav a{display:flex;align-items:center;gap:7px;padding:9px 13px;border-radius:10px;color:#b8d3e4;text-decoration:none;font-weight:600;font-size:14px;position:relative}
+.dnav a:hover{color:#fff;background:rgba(255,255,255,.07)}
+.dnav a.on{color:#fff;background:rgba(16,180,230,.16)}
+.dnav a.on::after{content:"";position:absolute;left:12px;right:12px;bottom:3px;height:3px;border-radius:3px;background:var(--aqua)}
+.top .quick{margin-left:auto}
+.quick{display:flex;align-items:center;gap:6px;background:var(--aqua);color:var(--navy);border:0;border-radius:11px;padding:0 14px;height:40px;font-weight:800}
+.quick svg.i{stroke-width:2.6}
+@media(min-width:900px){.dnav{display:flex}.top .quick{margin-left:10px}}
+.bnav{position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--navy);display:flex;padding:6px 4px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -6px 20px rgba(10,31,51,.18)}
+.bnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;color:#8fb2c8;text-decoration:none;font-size:11px;font-weight:700;border-radius:10px;min-height:52px;justify-content:center}
+.bnav a.on{color:#fff}
+.bnav a.on svg{color:var(--aqua)}
+.bnav a.on span{box-shadow:0 2px 0 var(--aqua)}
+@media(min-width:900px){.bnav{display:none}}
+main#view{max-width:1120px;margin:0 auto;padding:0 16px 120px}
+@media(min-width:900px){main#view{padding-bottom:48px}}
+.demo-strip{background:var(--foam);border-bottom:1px solid var(--foam-2);color:var(--navy-2);font-size:13px}
+.demo-strip div{max-width:1120px;margin:0 auto;padding:8px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.demo-strip button{margin-left:auto;background:none;border:0;color:var(--aqua-d);font-weight:700;padding:6px}
+
+/* ---------- Page head ---------- */
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:22px 0 14px;flex-wrap:wrap}
+.page-head h1{font-size:28px;font-weight:800;position:relative;padding-bottom:12px}
+.page-head h1::after{content:"";position:absolute;left:0;bottom:0;width:54px;height:8px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 54 8'%3E%3Cpath d='M0 4Q6.750 0 13.500 4T27 4T40.500 4T54 4' fill='none' stroke='%2310b4e6' stroke-width='2.500' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat}
+.page-head .sub{color:var(--muted);font-size:14px;margin-top:2px}
+.page-head .acts{display:flex;gap:8px;flex-wrap:wrap}
+.back{display:inline-flex;align-items:center;gap:4px;color:var(--muted);text-decoration:none;font-weight:600;font-size:14px;padding:14px 0 0}
+.back:hover{color:var(--aqua-d)}
+
+/* ---------- Buttons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 16px;border-radius:11px;border:1.5px solid var(--line);background:#fff;font-weight:700;text-decoration:none;color:var(--ink);transition:background .12s,border-color .12s,transform .05s;white-space:nowrap}
+.btn:hover{border-color:#b7cbd9;background:#f6fafc}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--aqua-d);border-color:var(--aqua-d);color:#fff}
+.btn.primary:hover{background:#05688f;border-color:#05688f}
+.btn.navy{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.navy:hover{background:var(--navy-2)}
+.btn.good{background:var(--green);border-color:var(--green);color:#fff}
+.btn.good:hover{background:#1c704c}
+.btn.danger{color:var(--red);border-color:#efc4c0}
+.btn.danger:hover{background:var(--red-bg);border-color:var(--red)}
+.btn.danger.solid{background:var(--red);color:#fff;border-color:var(--red)}
+.btn.sm{min-height:36px;padding:0 12px;font-size:13.5px;border-radius:9px}
+.btn.block{width:100%}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--aqua-d)}
+.btn.ghost:hover{background:var(--foam)}
+.icon-btn{width:40px;height:40px;border-radius:10px;border:0;background:transparent;display:inline-grid;place-items:center;color:var(--muted)}
+.icon-btn:hover{background:var(--slate-bg);color:var(--ink)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ---------- Cards, badges ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.card + .card{margin-top:14px}
+.card[id]{scroll-margin-top:80px}
+.card h3.t{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.card h3.t svg{color:var(--aqua);width:15px;height:15px;fill:var(--aqua);stroke:none}
+.card h3.t svg.line{fill:none;stroke:var(--aqua)}
+.card h3.t .more{margin-left:auto;text-transform:none;letter-spacing:0;font-size:13px}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:800;letter-spacing:.02em;white-space:nowrap;background:var(--slate-bg);color:#3b5368}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8}
+.b-scheduled,.b-sent{background:var(--foam);color:#04668f}
+.b-in_progress{background:#fff0d6;color:#935a00}
+.b-completed,.b-approved{background:#dff3ea;color:#16704a}
+.b-paid{background:var(--green);color:#fff}
+.b-cancelled,.b-declined{background:var(--red-bg);color:#a8322a}
+.b-quote,.b-draft{background:var(--slate-bg);color:#3b5368}
+.b-expired{background:#efe6f7;color:#5d3d82}
+.b-unpaid{background:var(--amber-bg);color:#8a5509}
+.b-partial{background:#fff0d6;color:#935a00}
+.b-active{background:#dff3ea;color:#16704a}
+.b-inactive{background:var(--slate-bg);color:#5b7186}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:99px;background:var(--foam);color:#04668f;font-size:13px;font-weight:700}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none;margin:0 -16px;padding-left:16px;padding-right:16px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:0 15px;min-height:40px;font-weight:700;color:var(--muted);white-space:nowrap;display:inline-flex;align-items:center;gap:7px}
+.tab .n{background:var(--slate-bg);border-radius:99px;padding:0 7px;font-size:12px;color:var(--muted)}
+.tab.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.tab.on .n{background:rgba(255,255,255,.18);color:#fff}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.search{position:relative;flex:1;min-width:200px}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.search input{padding-left:38px}
+
+/* ---------- Forms ---------- */
+.fgrid{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:640px){.fgrid{grid-template-columns:1fr 1fr}.fgrid .full{grid-column:1/-1}}
+.fld{display:block;position:relative}
+.fld .lbl{display:block;font-size:12.5px;font-weight:800;color:#3b5368;margin-bottom:5px;letter-spacing:.01em}
+.fld .lbl i{color:var(--red);font-style:normal}
+.fld .hint{display:block;font-size:12.5px;color:var(--muted);margin-top:4px}
+input[type=text],input[type=number],input[type=email],input[type=tel],input[type=date],input[type=time],input[type=search],input[type=url],select,textarea{width:100%;min-height:46px;padding:10px 12px;border:1.5px solid #cbd9e4;border-radius:10px;background:#fff;font-size:16px;appearance:none;-webkit-appearance:none}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b7186' stroke-width='2.500' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-size:18px;padding-right:36px}
+textarea{min-height:84px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--aqua);box-shadow:0 0 0 3px rgba(16,180,230,.2)}
+.fld.has-err input,.fld.has-err select,.fld.has-err textarea{border-color:var(--red);background:#fffafa}
+.fld .err{color:var(--red);font-size:12.5px;font-weight:700;margin-top:4px}
+.checks{display:flex;flex-wrap:wrap;gap:8px}
+.check{position:relative}
+.check input{position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer;margin:0}
+.check span{display:inline-flex;align-items:center;gap:6px;min-height:42px;padding:0 14px;border:1.5px solid #cbd9e4;border-radius:99px;background:#fff;font-weight:700;color:#3b5368;font-size:14px}
+.check input:checked + span{background:var(--foam);border-color:var(--aqua);color:#04668f}
+.check input:checked + span::before{content:"✓";font-weight:900}
+.check input:focus-visible + span{outline:3px solid #7fdcf5;outline-offset:1px}
+.inline-add{display:flex;gap:8px;align-items:flex-end}
+.inline-add > *:first-child{flex:1}
+
+/* ---------- Modal ---------- */
+.modal-back{position:fixed;inset:0;background:rgba(6,20,34,.62);z-index:100;display:flex;align-items:flex-end;justify-content:center;animation:fade .15s}
+.modal{background:#fff;width:100%;max-height:94vh;display:flex;flex-direction:column;border-radius:20px 20px 0 0;animation:rise .2s;overflow:hidden}
+.modal form{display:flex;flex-direction:column;min-height:0;flex:1}
+.modal-h{display:flex;align-items:center;justify-content:space-between;padding:14px 12px 10px 20px;border-bottom:1px solid var(--line)}
+.modal-h h2{font-size:19px;font-weight:800}
+.modal-b{padding:18px 20px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.modal-f{display:flex;gap:10px;justify-content:flex-end;padding:12px 20px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#f8fbfd}
+.modal-f .btn{flex:1}
+@media(min-width:700px){
+  .modal-back{align-items:center;padding:20px}
+  .modal{max-width:620px;border-radius:18px;max-height:90vh}
+  .modal.wide{max-width:860px}
+  .modal.sm{max-width:440px}
+  .modal-f .btn{flex:none;min-width:110px}
+}
+@keyframes fade{from{opacity:0}}
+@keyframes rise{from{transform:translateY(24px);opacity:.5}}
+.menu-list{display:grid;gap:8px}
+.menu-list a,.menu-list button{display:flex;align-items:center;gap:12px;padding:14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;text-decoration:none;color:var(--ink);font-weight:700;text-align:left;min-height:56px;font-size:15px}
+.menu-list a:hover,.menu-list button:hover{border-color:var(--aqua);background:var(--foam)}
+.menu-list .ico{width:38px;height:38px;border-radius:10px;background:var(--foam);color:var(--aqua-d);display:grid;place-items:center;flex:none}
+.menu-list small{display:block;font-weight:500;color:var(--muted);font-size:13px}
+
+/* ---------- Toasts ---------- */
+#toasts{position:fixed;z-index:200;left:0;right:0;bottom:calc(84px + env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 16px}
+@media(min-width:900px){#toasts{bottom:28px}}
+.toast{background:var(--navy);color:#fff;padding:12px 18px;border-radius:12px;font-weight:700;box-shadow:0 8px 28px rgba(10,31,51,.3);display:flex;gap:9px;align-items:center;animation:rise .2s;max-width:440px;border-left:5px solid var(--aqua)}
+.toast.err{border-left-color:var(--red)}
+.toast.out{opacity:0;transition:opacity .3s}
+
+/* ---------- Empty state ---------- */
+.empty{text-align:center;padding:38px 20px;background:#fff;border:1.5px dashed #bcd0de;border-radius:var(--radius)}
+.empty .drop{width:64px;height:64px;margin:0 auto 12px;color:var(--aqua)}
+.empty h3{font-size:19px;margin-bottom:4px}
+.empty p{color:var(--muted);margin-bottom:16px}
+.empty.sm{padding:22px 14px}
+.empty.sm .drop{width:44px;height:44px}
+
+/* ---------- Today ---------- */
+.hero{background:var(--navy);color:#fff;margin:0 -16px;padding:22px 16px 0;position:relative}
+@media(min-width:1152px){.hero{margin:0 calc((1120px - 100vw)/2 - 16px);padding-left:calc((100vw - 1120px)/2 + 16px);padding-right:calc((100vw - 1120px)/2 + 16px)}}
+.hero .date{color:#8fc9e4;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.hero h1{font-size:30px;font-weight:800;margin:2px 0 4px}
+.hero h1 b{color:var(--aqua)}
+.hero .tag{color:#a9c6d8;font-size:14.5px;max-width:520px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:0;margin-top:18px;border-top:1px solid rgba(255,255,255,.12)}
+.stat{padding:13px 4px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.stat:nth-child(odd){padding-right:12px}
+.stat:nth-child(even){padding-left:14px;border-left:1px solid rgba(255,255,255,.12)}
+.stat .v{font-size:25px;font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.stat .l{font-size:12px;color:#8fb2c8;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.stat .v.warn{color:#ffc766}
+@media(min-width:700px){.stats{grid-template-columns:repeat(4,1fr)}.stat{border-bottom:0;padding:14px 18px;border-left:1px solid rgba(255,255,255,.12)}.stat:first-child{border-left:0;padding-left:0}.stat:nth-child(odd){padding-right:18px}.stat:nth-child(even){padding-left:18px}}
+.wave{display:block;width:100%;height:30px;margin-bottom:-1px}
+.wave path{fill:var(--bg)}
+.qa{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:2px 0 6px}
+.qa button{display:flex;flex-direction:column;align-items:center;gap:5px;background:#fff;border:1.5px solid var(--line);border-radius:13px;padding:12px 6px;font-weight:800;font-size:13.5px;color:var(--navy);min-height:70px;justify-content:center;box-shadow:var(--shadow)}
+.qa button:hover{border-color:var(--aqua);background:var(--foam)}
+.qa button svg{color:var(--aqua-d);stroke-width:2.6}
+.today-grid{display:grid;gap:18px;grid-template-columns:1fr}
+@media(min-width:960px){.today-grid{grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr);align-items:start}}
+.sect-t{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:800;margin:16px 0 10px;display:flex;align-items:center;gap:8px}
+.sect-t::before{content:"";width:10px;height:13px;background:var(--aqua);clip-path:path("M5 0C5 0 0 6 0 9a5 5 0 0 0 10 0C10 6 5 0 5 0z");display:inline-block}
+.sect-t .more{margin-left:auto;text-transform:none;letter-spacing:0;font-size:13px;font-weight:700}
+.tl{position:relative}
+.tl-item{display:grid;grid-template-columns:62px 1fr;gap:10px;position:relative}
+.tl-item::before{content:"";position:absolute;left:67px;top:30px;bottom:-14px;width:2px;background:repeating-linear-gradient(to bottom,#b9d3e3 0 5px,transparent 5px 9px)}
+.tl-item:last-child::before{display:none}
+.tl-time{font-weight:800;font-size:14px;padding-top:15px;line-height:1.1;color:var(--navy)}
+.tl-time small{display:block;font-size:11px;color:var(--muted);font-weight:700}
+.tl-card{margin:0 0 14px 20px;position:relative;min-width:0}
+@media(max-width:560px){.tl-item{grid-template-columns:44px 1fr;gap:6px}.tl-item::before{left:49px}.tl-card{margin-left:14px}.tl-card::before{left:-20px}.tl-time{font-size:13px}}
+.tl-card::before{content:"";position:absolute;left:-26px;top:19px;width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--aqua);z-index:1}
+.tl-item.done .tl-card::before{background:var(--green);border-color:var(--green)}
+.tl-item.prog .tl-card::before{background:#f5a524;border-color:#f5a524;box-shadow:0 0 0 5px rgba(245,165,36,.2)}
+.jc{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+.tl-item.prog .jc{border-color:#f3c77a}
+.jc .r1{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.jc .cn{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.jc .addr{display:flex;gap:6px;color:var(--muted);font-size:13.5px;margin-top:2px;align-items:center}
+.jc .addr svg{width:15px;height:15px}
+.jc .svc{margin-top:8px;font-weight:700;color:#04668f;font-size:14px}
+.jc .r3{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;flex-wrap:wrap}
+.jc .amt{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.jc .btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.jc .btns .btn{flex:1;min-width:90px}
+.fu{border-left:4px solid #f5a524;padding:12px 14px;background:#fff;border-radius:12px;border:1px solid var(--line);border-left-width:4px;border-left-color:#f5a524;margin-bottom:10px;box-shadow:var(--shadow)}
+.fu b{display:block}
+.fu .m{color:var(--muted);font-size:13.5px}
+.fu .tagl{font-size:11px;font-weight:800;letter-spacing:.08em;color:#935a00;text-transform:uppercase}
+.mini{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);text-decoration:none;color:inherit}
+.mini:last-child{border-bottom:0}
+.mini .a{font-weight:800}
+.mini .b{font-size:13px;color:var(--muted)}
+
+/* ---------- Tables -> cards ---------- */
+.tbl-wrap{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+table.rt{width:100%;border-collapse:collapse}
+table.rt th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:11px 14px;background:#f5f9fc;border-bottom:1px solid var(--line);font-weight:800;white-space:nowrap}
+table.rt td{padding:12px 14px;border-bottom:1px solid #edf3f7;vertical-align:middle}
+table.rt tr:last-child td{border-bottom:0}
+table.rt tbody tr[data-href]{cursor:pointer}
+table.rt tbody tr[data-href]:hover{background:#f4fafd}
+table.rt td b{font-weight:800}
+table.rt .sub{font-size:13px;color:var(--muted)}
+table.rt td.num,table.rt th.num{text-align:right}
+@media(max-width:760px){
+  .tbl-wrap{background:none;border:0;box-shadow:none;border-radius:0;overflow:visible}
+  table.rt,table.rt tbody{display:block}
+  table.rt thead{display:none}
+  table.rt tr{display:block;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow)}
+  table.rt td{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:5px 0;border:0;text-align:right}
+  table.rt td::before{content:attr(data-label);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800;text-align:left;flex:none}
+  table.rt td.first{display:block;text-align:left;padding-bottom:6px;font-size:16px}
+  table.rt td.first::before{display:none}
+  table.rt td.num{text-align:right}
+  table.rt td.acts{justify-content:flex-end;padding-top:8px}
+  table.rt td.acts::before{display:none}
+}
+.grid{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:640px){.grid.c2{grid-template-columns:1fr 1fr}}
+@media(min-width:960px){.grid.c3{grid-template-columns:1fr 1fr 1fr}.grid.c2{grid-template-columns:1fr 1fr}}
+.ic{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:15px;box-shadow:var(--shadow);transition:border-color .12s,transform .12s}
+.ic:hover{border-color:var(--aqua);transform:translateY(-1px)}
+.ic .h{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.ic .nm{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.ic .ad{color:var(--muted);font-size:13.5px;margin-top:2px}
+.ic .kv{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin-top:12px;padding-top:12px;border-top:1px solid #edf3f7}
+.kv .k{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:800}
+.kv .v{font-weight:700;font-size:14.5px}
+.kv .v.bad{color:#a8322a}
+.avatar{width:42px;height:42px;border-radius:12px;background:var(--foam);color:#04668f;font-weight:800;display:grid;place-items:center;flex:none;font-size:15px}
+
+/* ---------- Detail pages ---------- */
+.dh{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border-top:5px solid var(--aqua);margin-top:10px}
+.dh .top{background:none;position:static;color:inherit;padding:0}
+.dh h1{font-size:25px;font-weight:800}
+.dh .addr{display:flex;gap:6px;color:var(--muted);align-items:center;margin-top:4px;flex-wrap:wrap}
+.dh .big{font-size:32px;font-weight:800;letter-spacing:-.03em;color:var(--navy);line-height:1}
+.dh .row{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.statusbar{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.cols{display:grid;gap:14px;grid-template-columns:1fr;margin-top:14px}
+@media(min-width:900px){.cols{grid-template-columns:1fr 1fr}}
+.cols > .card + .card{margin-top:0}
+.dl{display:grid;grid-template-columns:130px 1fr;gap:9px 12px}
+.dl dt{color:var(--muted);font-size:13px;font-weight:700}
+.dl dd{font-weight:600;word-break:break-word}
+.notes{white-space:pre-wrap;background:#f6fafc;border-radius:10px;padding:10px 12px;border:1px solid #e6eff5;font-size:14.5px}
+.actionbar{position:sticky;bottom:calc(72px + env(safe-area-inset-bottom));z-index:20;display:flex;gap:8px;background:rgba(255,255,255,.97);border:1px solid var(--line);padding:10px;border-radius:16px;box-shadow:0 8px 30px rgba(10,31,51,.18);margin-top:16px}
+.actionbar .btn{flex:1;padding:0 8px}
+@media(min-width:900px){.actionbar{bottom:16px;max-width:680px;margin-left:auto;margin-right:auto}}
+@media(max-width:480px){.actionbar .btn{font-size:13px}.actionbar .btn svg{display:none}}
+
+/* ---------- Photos ---------- */
+.ba{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ba-col .tag{display:inline-block;font-size:11px;letter-spacing:.1em;font-weight:800;padding:3px 10px;border-radius:99px;margin-bottom:6px}
+.ba-col.before .tag{background:#fff0d6;color:#935a00}
+.ba-col.after .tag{background:#dff3ea;color:#16704a}
+.ph-main,.ph-empty{width:100%;aspect-ratio:4/3;border-radius:12px;object-fit:cover;display:block;background:#dfe9f0;border:0;cursor:zoom-in}
+.ph-empty{border:2px dashed #b8cfdd;background:#f4f9fc;display:grid;place-items:center;text-align:center;color:var(--muted);font-size:13px;font-weight:600;cursor:default;padding:10px}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-top:6px}
+.thumbs img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:9px;cursor:zoom-in;display:block}
+.ph-btns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.ph-btns .btn{flex:1;min-width:0;padding:0 8px;font-size:13px}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:10px}
+.gallery img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:11px;cursor:zoom-in;display:block}
+.lightbox img{width:100%;max-height:68vh;object-fit:contain;border-radius:10px;background:#0a1f33}
+.cond .check span{min-height:40px;font-size:13.5px;padding:0 12px}
+
+/* ---------- Quote builder ---------- */
+.builder{display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:960px){.builder{grid-template-columns:minmax(0,1fr) 370px;align-items:start}.b-sum{position:sticky;top:78px}}
+.builder .card + .card{margin-top:14px}
+.qline{border:1.5px solid var(--line);border-radius:12px;padding:12px;background:#fbfdfe}
+.qline + .qline{margin-top:10px}
+.qline .head{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.qline .head select{flex:1}
+.qline .calc{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qline .res{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px dashed #c8dae6}
+.qline .res b{font-size:20px;letter-spacing:-.02em}
+.qline .res span{color:var(--muted);font-size:13px}
+.addon{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--line);border-radius:11px;cursor:pointer;min-height:48px;background:#fff}
+.addon input{width:20px;height:20px;accent-color:var(--aqua-d);flex:none}
+.addon span{flex:1;font-weight:700}
+.addon b{color:#04668f}
+.addon:has(input:checked){border-color:var(--aqua);background:var(--foam)}
+.sumrow{display:flex;justify-content:space-between;gap:10px;padding:7px 0;font-size:14.5px}
+.sumrow.sub{color:var(--muted)}
+.sumrow.total{border-top:2px solid var(--navy);margin-top:8px;padding-top:12px;font-size:16px;font-weight:800}
+.sumrow.total b{font-size:30px;letter-spacing:-.03em;color:var(--navy);line-height:1}
+.b-sum .card{background:linear-gradient(180deg,#fff,#f4fafd)}
+.b-sum .btn-col{display:grid;gap:8px;margin-top:14px}
+.mtot{position:fixed;z-index:25;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid var(--line);padding:8px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 -4px 16px rgba(10,31,51,.1)}
+.mtot .l{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:800}
+.mtot b{font-size:22px;letter-spacing:-.02em;display:block;line-height:1.1}
+.mtot .btn{margin-left:auto}
+@media(min-width:960px){.mtot{display:none}}
+
+/* ---------- Reports ---------- */
+.rstats{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+@media(min-width:760px){.rstats{grid-template-columns:repeat(4,1fr)}}
+.rs{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 14px;box-shadow:var(--shadow)}
+.rs .v{font-size:23px;font-weight:800;letter-spacing:-.03em}
+.rs .l{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:800;margin-top:2px}
+.rs .s{font-size:12.5px;color:var(--muted);margin-top:2px}
+.bars{display:flex;align-items:flex-end;gap:10px;height:170px;padding-top:10px}
+.bars .col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:5px;min-width:0}
+.bars .bar{width:100%;max-width:56px;background:linear-gradient(180deg,var(--aqua),var(--aqua-d));border-radius:8px 8px 3px 3px;min-height:3px}
+.bars .col.cur .bar{background:var(--navy)}
+.bars .val{font-size:11.5px;font-weight:800;color:var(--navy)}
+.bars .lab{font-size:12px;color:var(--muted);font-weight:700}
+.hbar{display:grid;grid-template-columns:130px 1fr 60px;gap:10px;align-items:center;margin:8px 0;font-size:13.5px}
+.hbar .tr{background:#e8f1f7;border-radius:99px;height:12px;overflow:hidden}
+.hbar .fl{height:100%;background:var(--aqua);border-radius:99px}
+.hbar b{text-align:right}
+@media(max-width:520px){.hbar{grid-template-columns:96px 1fr 44px}}
+
+/* ---------- Pay summary ---------- */
+.pay-sum{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.pay-sum .rs.warn .v{color:#935a00}
+.pay-sum .rs.ok .v{color:var(--green)}
+.progress{height:8px;background:#e1ebf2;border-radius:99px;overflow:hidden;margin-top:6px}
+.progress i{display:block;height:100%;background:var(--green)}
+
+/* ---------- Docs (print) ---------- */
+.doc-wrap{background:#e9f0f5;padding:12px;border-radius:12px;overflow:auto}
+.doc{background:#fff;color:#111;max-width:760px;margin:0 auto;padding:36px 38px;font-family:"Segoe UI",system-ui,Arial,sans-serif;font-size:13.5px;line-height:1.5;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.doc .dh1{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #0679a6;padding-bottom:14px;margin-bottom:18px}
+.doc .biz{display:flex;gap:12px;align-items:center}
+.doc .biz img{width:54px;height:54px;object-fit:contain}
+.doc .biz h2{font-size:20px;color:#0a1f33}
+.doc .biz p{font-size:12px;color:#555}
+.doc .dt{text-align:right}
+.doc .dt h1{font-size:26px;letter-spacing:.08em;color:#0679a6;text-transform:uppercase;font-weight:800}
+.doc .dt p{font-size:12.5px;color:#444}
+.doc .two{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+.doc .two h4{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#777;margin-bottom:3px}
+.doc table{width:100%;border-collapse:collapse;margin-bottom:12px}
+.doc th{background:#0a1f33;color:#fff;text-align:left;padding:8px 10px;font-size:11px;letter-spacing:.07em;text-transform:uppercase}
+.doc td{padding:9px 10px;border-bottom:1px solid #e3e8ec;vertical-align:top}
+.doc td.n,.doc th.n{text-align:right}
+.doc td small{display:block;color:#666;font-size:11.5px}
+.doc .tot{margin-left:auto;width:280px}
+.doc .tot div{display:flex;justify-content:space-between;padding:4px 0}
+.doc .tot .g{border-top:2px solid #0a1f33;margin-top:6px;padding-top:8px;font-size:17px;font-weight:800}
+.doc .note{background:#f3f8fb;border-left:4px solid #10b4e6;padding:10px 12px;margin:12px 0;white-space:pre-wrap}
+.doc .foot{margin-top:24px;padding-top:12px;border-top:1px solid #ddd;text-align:center;color:#666;font-size:12px}
+.doc .sig{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:34px}
+.doc .sig div{border-top:1px solid #333;padding-top:4px;font-size:11.5px;color:#555}
+.doc .pics{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}
+.doc .pics img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px}
+.doc .pics h4{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#777;margin-bottom:3px}
+.doc .stamp{display:inline-block;border:3px solid #23875c;color:#23875c;font-weight:800;letter-spacing:.15em;padding:2px 12px;transform:rotate(-6deg);text-transform:uppercase;font-size:18px;margin-left:12px}
+@media(max-width:600px){.doc{padding:20px 16px}.doc .dh1,.doc .two{display:block}.doc .dt{text-align:left;margin-top:10px}.doc .tot{width:100%}}
+#print-root{display:none}
+@media print{
+  @page{margin:12mm}
+  html,body{background:#fff!important}
+  body.printing > *:not(#print-root){display:none!important}
+  body.printing #print-root{display:block!important}
+  #print-root .doc{box-shadow:none;max-width:none;padding:0}
+  .doc th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<!-- Icon sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<symbol id="i-today" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 15.500l2.500 2.500 5-5"/></symbol>
+<symbol id="i-jobs" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></symbol>
+<symbol id="i-quotes" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></symbol>
+<symbol id="i-customers" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.870"/><path d="M16 3.130a4 4 0 0 1 0 7.750"/></symbol>
+<symbol id="i-properties" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.500"/><rect x="14" y="3" width="7" height="7" rx="1.500"/><rect x="3" y="14" width="7" height="7" rx="1.500"/><rect x="14" y="14" width="7" height="7" rx="1.500"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.920v3a2 2 0 0 1-2.180 2 19.790 19.790 0 0 1-8.630-3.070 19.500 19.500 0 0 1-6-6 19.790 19.790 0 0 1-3.070-8.670A2 2 0 0 1 4.110 2h3a2 2 0 0 1 2 1.720 12.840 12.840 0 0 0 .7 2.810 2 2 0 0 1-.45 2.110L8.090 9.910a16 16 0 0 0 6 6l1.270-1.270a2 2 0 0 1 2.110-.45 12.840 12.840 0 0 0 2.810.7A2 2 0 0 1 22 16.920z"/></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24"><path d="M4 4h16c1.100 0 2 .9 2 2v12c0 1.100-.9 2-2 2H4c-1.100 0-2-.9-2-2V6c0-1.100.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></symbol>
+<symbol id="i-nav" viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.500 3.500a2.120 2.120 0 0 1 3 3L7 19l-4 1 1-4L16.500 3.500z"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+<symbol id="i-print" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></symbol>
+<symbol id="i-dollar" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.500a3.500 3.500 0 0 0 0 7h5a3.500 3.500 0 0 1 0 7H6"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+<symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.700 6.300a1 1 0 0 0 0 1.400l1.600 1.600a1 1 0 0 0 1.400 0l3.770-3.770a6 6 0 0 1-7.940 7.940l-6.910 6.910a2.120 2.120 0 0 1-3-3l6.910-6.910a6 6 0 0 1 7.940-7.940l-3.760 3.760z"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.650" y2="16.650"/></symbol>
+<symbol id="i-repeat" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></symbol>
+<symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l3-2 2.500 2 2.500-2 2.500 2L17 20l3 2V2l-3 2-2.500-2L12 4 9.500 2 7 4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.500" cy="8.500" r="1.500"/><polyline points="21 15 16 10 5 21"/></symbol>
+<symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 2.500S5 10 5 15a7 7 0 0 0 14 0c0-5-7-12.500-7-12.500z" stroke="none"/></symbol>
+</defs>
+</svg>
+
+<div id="app">
+  <header class="top">
+    <div class="top-in">
+      <a class="brand" href="#/today" aria-label="PressureWashFlow home"><span class="mark" id="brandMark"></span><span>Pressure<b>Wash</b>Flow</span></a>
+      <nav class="dnav" id="dnav" aria-label="Main"></nav>
+      <button class="quick" data-act="quickMenu" aria-label="Quick add"><svg class="i"><use href="#i-plus"/></svg><span>New</span></button>
+    </div>
+  </header>
+  <div id="demoStrip"></div>
+  <main id="view"></main>
+  <nav class="bnav" id="bnav" aria-label="Main"></nav>
+</div>
+<div id="print-root"></div>
+<div id="modal-root"></div>
+<div id="toasts" aria-live="polite"></div>
+<input type="file" id="importFile" accept="application/json,.json" class="hidden">
+
+<script>
+(function () {
+'use strict';
+
+/* ==========================================================================
+   1. UTILITIES
+   ========================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const nowISO = () => new Date().toISOString();
+const num = v => { const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : 0; };
+const sum = (arr, fn) => arr.reduce((a, x) => a + (fn(x) || 0), 0);
+const clone = o => JSON.parse(JSON.stringify(o));
+const ic = (n, cls) => `<svg class="i ${cls || ''}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const parseDate = s => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1); };
+const todayStr = () => ymd(new Date());
+const addDays = (s, n) => { const d = parseDate(s); d.setDate(d.getDate() + n); return ymd(d); };
+const daysBetween = (a, b) => Math.round((parseDate(b) - parseDate(a)) / 86400000);
+const fmtDate = s => s ? parseDate(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+const fmtDateLong = s => s ? parseDate(s).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '—';
+const fmtTime = t => { if (!t) return ''; const [h, m] = t.split(':').map(Number); return (h % 12 || 12) + ':' + pad(m) + ' ' + (h < 12 ? 'AM' : 'PM'); };
+const fmtNum = n => (Math.round(n * 100) / 100).toLocaleString();
+const initials = s => String(s).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+const addMonths = (s, n) => { const d = parseDate(s); d.setMonth(d.getMonth() + n); return ymd(d); };
+const telHref = p => 'tel:' + String(p || '').replace(/[^0-9+]/g, '');
+const mapsHref = a => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(a);
+
+/* ==========================================================================
+   2. CONSTANTS
+   ========================================================================== */
+const JOB_STATUS = { quote: 'Quote', scheduled: 'Scheduled', in_progress: 'In Progress', completed: 'Completed', paid: 'Paid', cancelled: 'Cancelled' };
+const QUOTE_STATUS = { draft: 'Draft', sent: 'Sent', approved: 'Approved', declined: 'Declined', expired: 'Expired' };
+const PROPERTY_TYPES = ['Residential', 'Commercial', 'Rental', 'HOA', 'Other'];
+const PAY_METHODS = ['Cash', 'Card', 'Bank Transfer', 'Check', 'Other'];
+const CONDITIONS = ['Heavy Dirt', 'Mildew', 'Algae', 'Oil Stains', 'Rust', 'Tire Marks', 'Green Growth', 'Customer Request', 'Other'];
+const METHODS = { flat: 'Flat Rate', sqft: 'Per Square Foot', linft: 'Per Linear Foot', hourly: 'Hourly', custom: 'Custom Price' };
+const UNITS = { sqft: 'sq ft', linft: 'linear ft', hourly: 'hours' };
+const CATEGORIES = ['House & Siding', 'Flatwork (Concrete)', 'Wood & Fences', 'Roof & Gutters', 'Commercial', 'Other'];
+const CURRENCIES = ['USD', 'CAD', 'GBP', 'EUR', 'AUD', 'NZD'];
+const FOLLOWUPS = [['', 'No follow-up'], ['30', '30 days'], ['60', '60 days'], ['90', '90 days'], ['180', '6 months'], ['custom', 'Custom…']];
+const LS_KEY = 'pressurewashflow.v1';
+const COLLS = ['customers', 'properties', 'quotes', 'jobs', 'payments', 'services'];
+
+const DEFAULT_ADDONS = [
+  { id: 'ao_oil', name: 'Oil Stain Treatment', price: 50 },
+  { id: 'ao_gutter', name: 'Gutter Cleaning', price: 75 },
+  { id: 'ao_rust', name: 'Rust Removal', price: 40 },
+  { id: 'ao_mildew', name: 'Mildew Treatment', price: 35 },
+  { id: 'ao_window', name: 'Window Rinse', price: 30 }
+];
+const DEFAULT_SETTINGS = {
+  business: { name: 'My Pressure Washing Co.', phone: '', email: '', address: '', logo: '' },
+  currency: 'USD', taxRate: 0, quoteValidDays: 14, defaultDuration: 2, followUpDays: 90,
+  crews: 'Crew A, Crew B', invoiceNote: 'Thank you for your business! Payment is due upon receipt.',
+  addons: DEFAULT_ADDONS, nextQuote: 1001, nextInvoice: 1001, demo: false, lastBackup: ''
+};
+const emptyDB = () => ({ v: 1, customers: [], properties: [], quotes: [], jobs: [], payments: [], services: [], settings: clone(DEFAULT_SETTINGS) });
+
+/* ==========================================================================
+   3. DATA LAYER  (localStorage for records, IndexedDB for photos)
+   ========================================================================== */
+let DB = emptyDB();
+let PHOTOS = [];          // in-memory mirror of IndexedDB photo records
+const PHOTO_URL = {};     // photo id -> object URL
+
+function normalizeDB(d) {
+  const base = emptyDB();
+  COLLS.forEach(k => { base[k] = Array.isArray(d && d[k]) ? d[k] : []; });
+  const s = (d && d.settings) || {};
+  base.settings = Object.assign(clone(DEFAULT_SETTINGS), s);
+  base.settings.business = Object.assign({}, DEFAULT_SETTINGS.business, s.business || {});
+  if (!Array.isArray(base.settings.addons)) base.settings.addons = clone(DEFAULT_ADDONS);
+  return base;
+}
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) return normalizeDB(JSON.parse(raw));
+  } catch (e) { console.error('Could not read saved data', e); }
+  return null;
+}
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); return true; }
+  catch (e) { console.error(e); toast('Could not save – browser storage is full. Export a backup.', 'err'); return false; }
+}
+const get = (coll, id) => DB[coll].find(x => x.id === id);
+function add(coll, obj) {
+  const t = nowISO();
+  const rec = Object.assign({ id: uid(coll.slice(0, 3)), createdAt: t, updatedAt: t }, obj);
+  DB[coll].push(rec); save(); return rec;
+}
+function upd(coll, id, patch) {
+  const r = get(coll, id); if (!r) return null;
+  Object.assign(r, patch, { updatedAt: nowISO() }); save(); return r;
+}
+function del(coll, id) { DB[coll] = DB[coll].filter(x => x.id !== id); save(); }
+
+/* ---- IndexedDB ---- */
+const IDBX = {
+  db: null, ok: false,
+  open() {
+    return new Promise(res => {
+      try {
+        const req = indexedDB.open('pressurewashflow', 1);
+        req.onupgradeneeded = () => { req.result.createObjectStore('photos', { keyPath: 'id' }); };
+        req.onsuccess = () => { this.db = req.result; this.ok = true; res(true); };
+        req.onerror = () => res(false);
+        req.onblocked = () => res(false);
+      } catch (e) { res(false); }
+    });
+  },
+  tx(mode, fn) {
+    return new Promise((res, rej) => {
+      if (!this.ok) return res(null);
+      const t = this.db.transaction('photos', mode); const st = t.objectStore('photos');
+      let out; const r = fn(st); if (r) r.onsuccess = () => { out = r.result; };
+      t.oncomplete = () => res(out); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+    });
+  },
+  all() { return this.tx('readonly', s => s.getAll()).then(r => r || []); },
+  put(rec) { return this.tx('readwrite', s => s.put(rec)); },
+  remove(id) { return this.tx('readwrite', s => s.delete(id)); },
+  clear() { return this.tx('readwrite', s => s.clear()); }
+};
+function registerPhoto(rec) {
+  PHOTOS.push(rec); PHOTO_URL[rec.id] = URL.createObjectURL(rec.blob);
+}
+function unregisterPhoto(id) {
+  PHOTOS = PHOTOS.filter(p => p.id !== id);
+  if (PHOTO_URL[id]) { URL.revokeObjectURL(PHOTO_URL[id]); delete PHOTO_URL[id]; }
+}
+const photosFor = (type, id, kind) => PHOTOS.filter(p => p.ownerType === type && p.ownerId === id && (!kind || p.kind === kind)).sort((a, b) => a.createdAt < b.createdAt ? -1 : 1);
+
+function loadImage(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file); const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); res(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Not a readable image')); };
+    img.src = url;
+  });
+}
+async function resizeImage(file, max, quality, type) {
+  const img = await loadImage(file);
+  let w = img.naturalWidth, h = img.naturalHeight; const k = Math.min(1, max / Math.max(w, h));
+  w = Math.round(w * k); h = Math.round(h * k);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  if (type === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); }
+  ctx.drawImage(img, 0, 0, w, h);
+  return new Promise((res, rej) => c.toBlob(b => b ? res({ blob: b, canvas: c }) : rej(new Error('Resize failed')), type, quality));
+}
+async function storePhoto(blob, meta) {
+  const t = nowISO();
+  const rec = Object.assign({ id: uid('photo'), createdAt: t, updatedAt: t, blob }, meta);
+  await IDBX.put(rec); registerPhoto(rec); return rec;
+}
+async function addPhotoFiles(files, meta) {
+  let n = 0;
+  for (const f of files) {
+    if (!f.type.startsWith('image/')) { toast(f.name + ' is not an image', 'err'); continue; }
+    try {
+      const { blob } = await resizeImage(f, 1400, 0.82, 'image/jpeg');
+      await storePhoto(blob, meta); n++;
+    } catch (e) { console.error(e); toast('Could not add ' + f.name, 'err'); }
+  }
+  if (n) toast(n > 1 ? n + ' photos added' : 'Photo added');
+  if (!IDBX.ok && n) toast('Photo storage is unavailable in this browser mode – photos will not persist', 'err');
+  return n;
+}
+async function removePhoto(id) {
+  await IDBX.remove(id); unregisterPhoto(id);
+}
+function blobToDataURL(b) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); }); }
+function dataURLToBlob(u) {
+  const [head, body] = u.split(','); const mime = (head.match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
+  const bin = atob(body); const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+/* ==========================================================================
+   4. BUSINESS LOGIC
+   ========================================================================== */
+const S = () => DB.settings;
+function money(n) {
+  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: S().currency }).format(n || 0); }
+  catch (e) { return '$' + (n || 0).toFixed(2); }
+}
+function moneyShort(n) {
+  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: S().currency, maximumFractionDigits: 0 }).format(n || 0); }
+  catch (e) { return '$' + Math.round(n || 0); }
+}
+const custName = c => c ? (c.firstName + ' ' + c.lastName).trim() : 'Unknown customer';
+const propAddress = p => p ? [p.address, [p.city, p.state].filter(Boolean).join(', '), p.zip].filter(Boolean).join(p.city || p.state ? ' ' : ', ').replace(/\s+/g, ' ').trim() : '';
+const propLine = p => p ? [p.address, p.city, [p.state, p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ') : '';
+const jobCustomer = j => get('customers', j.customerId);
+const jobProperty = j => get('properties', j.propertyId);
+const paidOf = jobId => sum(DB.payments.filter(p => p.jobId === jobId), p => p.amount);
+const isBillable = j => j.status === 'completed' || j.status === 'in_progress' || j.status === 'paid';
+const balanceOf = j => (j.status === 'cancelled' || j.status === 'quote' || j.status === 'scheduled') ? 0 : Math.max(0, (j.amount || 0) - paidOf(j.id));
+function billStatus(j) {
+  const paid = paidOf(j.id);
+  if ((j.amount || 0) > 0 && paid >= j.amount - 0.005) return 'paid';
+  if (paid > 0) return 'partial';
+  return 'unpaid';
+}
+const totalOutstanding = () => sum(DB.jobs, balanceOf);
+function syncPaidStatus(jobId) {
+  const j = get('jobs', jobId); if (!j) return;
+  const bal = Math.max(0, (j.amount || 0) - paidOf(j.id));
+  if (j.status === 'completed' && bal <= 0.005 && j.amount > 0) upd('jobs', j.id, { status: 'paid' });
+  else if (j.status === 'paid' && bal > 0.005) upd('jobs', j.id, { status: 'completed' });
+}
+const servicesText = j => (j.services || []).join(' + ') || '—';
+const doneJob = j => j.status === 'completed' || j.status === 'paid';
+
+function customerStats(cid) {
+  const jobs = DB.jobs.filter(j => j.customerId === cid && j.status !== 'cancelled');
+  const done = jobs.filter(doneJob); const t = todayStr();
+  const upcoming = jobs.filter(j => (j.status === 'scheduled' || j.status === 'in_progress') && j.date >= t).sort((a, b) => a.date < b.date ? -1 : 1);
+  const last = done.map(j => j.date).sort().pop();
+  return {
+    jobs: jobs.filter(j => j.status !== 'quote').length, revenue: sum(done, j => j.amount),
+    last: last || '', next: upcoming.length ? upcoming[0].date : '', outstanding: sum(jobs, balanceOf)
+  };
+}
+function propertyStats(pid) {
+  const jobs = DB.jobs.filter(j => j.propertyId === pid && j.status !== 'cancelled');
+  const done = jobs.filter(doneJob).sort((a, b) => a.date < b.date ? 1 : -1);
+  const names = []; done.forEach(j => (j.services || []).forEach(n => { if (!names.includes(n)) names.push(n); }));
+  return { jobs: jobs.length, revenue: sum(done, j => j.amount), last: done.length ? done[0].date : '', services: names, history: jobs.slice().sort((a, b) => a.date < b.date ? 1 : -1) };
+}
+
+/* ---- Quote calculator ---- */
+function lineAmount(l) {
+  if (l.method === 'flat' || l.method === 'custom') return num(l.rate);
+  return num(l.qty) * num(l.rate);
+}
+function quoteCalc(q) {
+  const lines = (q.lines || []).map(l => Object.assign({}, l, { amount: lineAmount(l) }));
+  const servicesTotal = sum(lines, l => l.amount);
+  const addonsTotal = sum(q.addons || [], a => num(a.price));
+  const subtotal = servicesTotal + addonsTotal;
+  let discount = q.discountType === 'percent' ? subtotal * Math.min(100, num(q.discountValue)) / 100 : num(q.discountValue);
+  discount = Math.min(discount, subtotal);
+  const taxable = subtotal - discount;
+  const tax = taxable * num(q.taxRate != null ? q.taxRate : S().taxRate) / 100;
+  return { lines, servicesTotal, addonsTotal, subtotal, discount, taxable, tax, total: Math.round((taxable + tax) * 100) / 100 };
+}
+const lineDetail = l => (l.method === 'flat') ? 'Flat rate' : (l.method === 'custom') ? 'Custom price' : `${fmtNum(num(l.qty))} ${UNITS[l.method]} × ${money(num(l.rate))}/${UNITS[l.method].replace('linear ft', 'lin ft')}`;
+function quoteItems(q) {   // line items used for jobs / invoices / printouts
+  const c = quoteCalc(q); const items = [];
+  c.lines.forEach(l => items.push({ name: l.name, detail: lineDetail(l), amount: l.amount }));
+  (q.addons || []).forEach(a => items.push({ name: a.name, detail: 'Add-on', amount: num(a.price) }));
+  if (c.discount > 0) items.push({ name: 'Discount' + (q.discountType === 'percent' ? ` (${num(q.discountValue)}%)` : ''), detail: '', amount: -c.discount });
+  if (c.tax > 0) items.push({ name: `Tax (${num(q.taxRate != null ? q.taxRate : S().taxRate)}%)`, detail: '', amount: c.tax });
+  return items;
+}
+const quoteServicesText = q => (q.lines || []).map(l => l.name).filter(Boolean).join(' + ') || '—';
+function newQuoteNumber() { const n = S().nextQuote++; save(); return 'Q-' + n; }
+function newInvoiceNumber() { const n = S().nextInvoice++; save(); return 'INV-' + n; }
+
+function expireQuotes() {
+  const t = todayStr(); let ch = false;
+  DB.quotes.forEach(q => { if ((q.status === 'sent' || q.status === 'draft') && q.validUntil && q.validUntil < t && !q.jobId) { q.status = 'expired'; q.updatedAt = nowISO(); ch = true; } });
+  if (ch) save();
+}
+function followupActive(j) {
+  const f = j.followUp; if (!f || f.done || !f.dueDate || !doneJob(j)) return false;
+  const later = DB.jobs.some(x => x.id !== j.id && x.propertyId === j.propertyId && x.status !== 'cancelled' && x.date > j.date) ||
+                DB.quotes.some(q => q.propertyId === j.propertyId && q.createdAt > (j.completedAt || j.createdAt) && ['draft', 'sent', 'approved'].includes(q.status));
+  return !later;
+}
+
+/* ==========================================================================
+   5. UI PRIMITIVES  (toast, modal, forms, confirm)
+   ========================================================================== */
+const view = $('#view'), modalRoot = $('#modal-root'), printRoot = $('#print-root');
+function toast(msg, kind) {
+  const el = document.createElement('div'); el.className = 'toast' + (kind === 'err' ? ' err' : '');
+  el.innerHTML = (kind === 'err' ? '' : ic('check', 'sm')) + '<span>' + esc(msg) + '</span>';
+  $('#toasts').appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 350); }, kind === 'err' ? 4500 : 2400);
+}
+
+const modals = [];
+function openModal({ title, html, cls = '', dismiss = false, onClose }) {
+  const back = document.createElement('div'); back.className = 'modal-back';
+  back.innerHTML = `<div class="modal ${cls}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-h"><h2>${esc(title)}</h2><button type="button" class="icon-btn" data-modal-close aria-label="Close">${ic('x')}</button></div>${html}</div>`;
+  modalRoot.appendChild(back); document.body.classList.add('modal-open');
+  const m = { el: back, onClose, closed: false };
+  modals.push(m);
+  back.addEventListener('mousedown', e => { if (dismiss && e.target === back) closeModal(m); });
+  back.addEventListener('click', e => { if (e.target.closest('[data-modal-close]')) closeModal(m); });
+  const first = $('input:not([type=hidden]):not([type=file]):not([type=checkbox]), select, textarea', back);
+  if (first && window.matchMedia('(min-width:700px)').matches) setTimeout(() => first.focus(), 30);
+  return m;
+}
+function closeModal(m) {
+  if (!m || m.closed) return; m.closed = true;
+  m.el.remove(); const i = modals.indexOf(m); if (i > -1) modals.splice(i, 1);
+  if (!modals.length) document.body.classList.remove('modal-open');
+  if (m.onClose) m.onClose();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && modals.length) closeModal(modals[modals.length - 1]); });
+
+/* Field builders */
+function fld(label, name, val, o = {}) {
+  const req = o.required ? ' required' : '';
+  const L = `<span class="lbl">${esc(label)}${o.required ? ' <i>*</i>' : ''}</span>`;
+  const cls = 'fld' + (o.full ? ' full' : '');
+  const hint = o.hint ? `<span class="hint">${esc(o.hint)}</span>` : '';
+  let ctl;
+  const attrs = (o.attrs || '') + (o.placeholder ? ` placeholder="${esc(o.placeholder)}"` : '');
+  if (o.type === 'select') {
+    ctl = `<select name="${name}"${req} ${attrs}>${(o.options || []).map(op => { const [v, t] = Array.isArray(op) ? op : [op, op]; return `<option value="${esc(v)}"${String(v) === String(val) ? ' selected' : ''}>${esc(t)}</option>`; }).join('')}</select>`;
+  } else if (o.type === 'textarea') {
+    ctl = `<textarea name="${name}" rows="${o.rows || 3}"${req} ${attrs}>${esc(val)}</textarea>`;
+  } else {
+    ctl = `<input type="${o.type || 'text'}" name="${name}" value="${esc(val)}"${req} ${attrs}${o.list ? ` list="${o.list}"` : ''}${o.type === 'number' ? ` step="${o.step || 'any'}" min="${o.min != null ? o.min : 0}" inputmode="decimal"` : ''}>`;
+  }
+  return `<label class="${cls}">${L}${ctl}${hint}</label>`;
+}
+const optList = (arr, firstLabel) => (firstLabel ? [['', firstLabel]] : []).concat(arr.map(x => Array.isArray(x) ? x : [x, x]));
+const custOptions = () => DB.customers.slice().sort((a, b) => custName(a).localeCompare(custName(b))).map(c => [c.id, custName(c)]);
+const propOptions = cid => DB.properties.filter(p => p.customerId === cid).map(p => [p.id, p.name + ' — ' + propLine(p)]);
+
+function checkRequired(form) {
+  const errs = {};
+  $$('[required]', form).forEach(el => {
+    if (!el.name) return; const v = String(el.value || '').trim();
+    if (!v) errs[el.name] = 'This field is required';
+    else if (el.type === 'number' && el.min !== '' && num(v) < num(el.min)) errs[el.name] = 'Must be ' + el.min + ' or more';
+  });
+  $$('input[type=email]', form).forEach(el => { if (el.value && el.validity.typeMismatch) errs[el.name] = 'Enter a valid email address'; });
+  return errs;
+}
+function showErrors(form, errs) {
+  $$('.fld.has-err', form).forEach(f => { f.classList.remove('has-err'); const e = $('.err', f); if (e) e.remove(); });
+  let first = null;
+  Object.keys(errs).forEach(n => {
+    const el = form.elements[n]; if (!el) return;
+    const wrap = (el.closest ? el.closest('.fld') : null); if (!wrap) return;
+    wrap.classList.add('has-err'); const d = document.createElement('div'); d.className = 'err'; d.textContent = errs[n]; wrap.appendChild(d);
+    if (!first) first = el;
+  });
+  if (first) { first.focus(); first.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+}
+function formData(form) {
+  const out = {};
+  $$('input,select,textarea', form).forEach(el => {
+    if (!el.name) return;
+    if (el.type === 'checkbox') {
+      if (el.name.endsWith('[]')) { const k = el.name.slice(0, -2); out[k] = out[k] || []; if (el.checked) out[k].push(el.value); }
+      else out[el.name] = el.checked;
+    } else if (el.type === 'radio') { if (el.checked) out[el.name] = el.value; }
+    else if (el.type !== 'file') out[el.name] = el.value.trim ? el.value.trim() : el.value;
+  });
+  return out;
+}
+function formModal({ title, body, submit = 'Save', cls = '', onSubmit, onOpen, danger }) {
+  const m = openModal({ title, cls, html: `<form novalidate><div class="modal-b">${body}</div><div class="modal-f"><button type="button" class="btn" data-modal-close>Cancel</button><button type="submit" class="btn ${danger ? 'danger solid' : 'primary'}">${esc(submit)}</button></div></form>` });
+  const form = $('form', m.el);
+  form.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const errs = checkRequired(form);
+    if (Object.keys(errs).length) { showErrors(form, errs); return; }
+    const r = await onSubmit(formData(form), form, m);
+    if (r && r.errors) { showErrors(form, r.errors); return; }
+    if (r !== false) closeModal(m);
+  });
+  if (onOpen) onOpen(form, m);
+  return m;
+}
+function confirmBox(msg, { ok = 'Delete', title = 'Are you sure?', danger = true } = {}) {
+  return new Promise(res => {
+    let answer = false;
+    const m = openModal({ title, cls: 'sm', onClose: () => res(answer), html: `<div class="modal-b"><p>${esc(msg)}</p></div><div class="modal-f"><button type="button" class="btn" data-modal-close>Cancel</button><button type="button" class="btn ${danger ? 'danger solid' : 'primary'}" data-confirm-ok>${esc(ok)}</button></div>` });
+    $('[data-confirm-ok]', m.el).addEventListener('click', () => { answer = true; closeModal(m); });
+  });
+}
+function emptyState({ title, text, btn, act, id, small }) {
+  return `<div class="empty ${small ? 'sm' : ''}"><svg class="drop" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6S14 26 14 39a18 18 0 0 0 36 0C50 26 32 6 32 6z" fill="#e2f5fc" stroke="#10b4e6" stroke-width="2.500"/><path d="M22 40q5 6 10 0t10 0" fill="none" stroke="#10b4e6" stroke-width="2.500" stroke-linecap="round"/></svg><h3>${esc(title)}</h3><p>${esc(text)}</p>${btn ? `<button class="btn primary" data-act="${act}" ${id ? `data-id="${id}"` : ''}>${ic('plus')} ${esc(btn)}</button>` : ''}</div>`;
+}
+const badge = (cls, label) => `<span class="badge b-${cls}">${esc(label)}</span>`;
+const jobBadge = j => badge(j.status, JOB_STATUS[j.status] || j.status);
+const quoteBadge = q => badge(q.status, QUOTE_STATUS[q.status] || q.status);
+
+/* ==========================================================================
+   6. PRINT / DOCUMENT BUILDERS
+   ========================================================================== */
+function printHTML(html) {
+  printRoot.innerHTML = html; document.body.classList.add('printing');
+  const imgs = $$('img', printRoot);
+  Promise.all(imgs.map(i => i.decode ? i.decode().catch(() => {}) : null)).then(() => setTimeout(() => window.print(), 60));
+}
+window.addEventListener('afterprint', () => { document.body.classList.remove('printing'); printRoot.innerHTML = ''; });
+function openDoc(title, html) {
+  const m = openModal({ title, cls: 'wide', dismiss: true, html: `<div class="modal-b"><div class="doc-wrap">${html}</div></div><div class="modal-f"><button type="button" class="btn" data-modal-close>Close</button><button type="button" class="btn primary" data-doc-print>${ic('print')} Print</button></div>` });
+  $('[data-doc-print]', m.el).addEventListener('click', () => printHTML(html));
+}
+function docHead(kind, numLine, dateLine) {
+  const b = S().business;
+  return `<div class="dh1"><div class="biz">${b.logo ? `<img src="${b.logo}" alt="">` : ''}<div><h2>${esc(b.name)}</h2><p>${[b.address, b.phone, b.email].filter(Boolean).map(esc).join(' · ')}</p></div></div><div class="dt"><h1>${kind}</h1><p><b>${esc(numLine)}</b></p><p>${dateLine}</p></div></div>`;
+}
+function docParties(c, p, extraTitle, extra) {
+  return `<div class="two"><div><h4>${extraTitle || 'Prepared for'}</h4><b>${esc(custName(c))}</b><br>${esc(c ? c.phone : '')}<br>${esc(c ? c.email : '')}</div><div><h4>Service location</h4><b>${esc(p ? p.name : '')}</b><br>${esc(propLine(p))}${extra ? '<br>' + extra : ''}</div></div>`;
+}
+function docItems(items) {
+  return `<table><thead><tr><th>Description</th><th class="n">Amount</th></tr></thead><tbody>${items.map(i => `<tr><td>${esc(i.name)}${i.detail ? `<small>${esc(i.detail)}</small>` : ''}</td><td class="n">${money(i.amount)}</td></tr>`).join('')}</tbody></table>`;
+}
+function quoteDoc(q) {
+  const c = get('customers', q.customerId), p = get('properties', q.propertyId), calc = quoteCalc(q);
+  const items = quoteItems(q).filter(i => !/^(Discount|Tax)/.test(i.name));
+  return `<div class="doc">${docHead('Quote', q.number || 'Draft quote', 'Date: ' + fmtDate((q.createdAt || nowISO()).slice(0, 10)) + (q.validUntil ? '<br>Valid until: ' + fmtDate(q.validUntil) : ''))}
+  ${docParties(c, p)}${docItems(items)}
+  <div class="tot"><div><span>Subtotal</span><span>${money(calc.subtotal)}</span></div>${calc.discount > 0 ? `<div><span>Discount</span><span>−${money(calc.discount)}</span></div>` : ''}${calc.tax > 0 ? `<div><span>Tax</span><span>${money(calc.tax)}</span></div>` : ''}<div class="g"><span>Total</span><span>${money(calc.total)}</span></div></div>
+  ${q.notes ? `<div class="note"><b>Notes</b><br>${esc(q.notes)}</div>` : ''}
+  <div class="sig"><div>Customer approval signature</div><div>Date</div></div>
+  <div class="foot">Thank you for considering ${esc(S().business.name)}. This quote is an estimate based on the information provided.</div></div>`;
+}
+function invoiceDoc(j) {
+  const c = jobCustomer(j), p = jobProperty(j), paid = paidOf(j.id), bal = Math.max(0, j.amount - paid);
+  const items = (j.items && j.items.length) ? j.items : [{ name: servicesText(j), detail: '', amount: j.amount }];
+  const pays = DB.payments.filter(x => x.jobId === j.id).sort((a, b) => a.date < b.date ? -1 : 1);
+  return `<div class="doc">${docHead('Invoice', j.invoiceNo, 'Invoice date: ' + fmtDate(j.invoiceDate) + '<br>Service date: ' + fmtDate(j.date))}
+  ${docParties(c, p, 'Bill to')}${docItems(items)}
+  <div class="tot"><div><span>Invoice total</span><span>${money(j.amount)}</span></div>${pays.map(x => `<div><span>Paid ${fmtDate(x.date)} (${esc(x.method)})</span><span>−${money(x.amount)}</span></div>`).join('')}<div class="g"><span>Balance due${bal <= 0.005 ? '' : ''}</span><span>${money(bal)}</span></div></div>
+  ${bal <= 0.005 ? '<p style="margin-top:8px"><span class="stamp">Paid</span></p>' : ''}
+  ${S().invoiceNote ? `<div class="note">${esc(S().invoiceNote)}</div>` : ''}
+  <div class="foot">${esc(S().business.name)}${S().business.phone ? ' · ' + esc(S().business.phone) : ''}</div></div>`;
+}
+function jobSummaryDoc(j) {
+  const c = jobCustomer(j), p = jobProperty(j);
+  const items = (j.items && j.items.length) ? j.items : [{ name: servicesText(j), detail: '', amount: j.amount }];
+  const b = photosFor('job', j.id, 'before')[0], a = photosFor('job', j.id, 'after')[0];
+  const rows = [['Status', JOB_STATUS[j.status]], ['Scheduled', fmtDate(j.date) + (j.time ? ' at ' + fmtTime(j.time) : '')], ['Crew', j.crew || '—'], ['Est. duration', j.duration ? j.duration + ' hr' : '—'], ['Property', (p ? p.type : '') + (p && p.sqft ? ' · ~' + fmtNum(p.sqft) + ' sq ft' : '')]];
+  return `<div class="doc">${docHead('Job Summary', 'Job · ' + fmtDate(j.date), 'Status: ' + JOB_STATUS[j.status])}
+  ${docParties(c, p, 'Customer', p && p.access ? '<small>Access: ' + esc(p.access) + '</small>' : '')}
+  <table><tbody>${rows.map(r => `<tr><td style="width:150px"><b>${r[0]}</b></td><td>${esc(r[1])}</td></tr>`).join('')}</tbody></table>
+  ${docItems(items)}<div class="tot"><div class="g"><span>Job total</span><span>${money(j.amount)}</span></div></div>
+  ${(j.conditions && j.conditions.length) ? `<div class="note"><b>Conditions found:</b> ${j.conditions.map(esc).join(', ')}${j.conditionOther ? ' — ' + esc(j.conditionOther) : ''}</div>` : ''}
+  ${j.techNotes ? `<div class="note"><b>Technician notes</b><br>${esc(j.techNotes)}</div>` : ''}
+  ${(a || b) ? `<div class="pics"><div><h4>Before</h4>${b ? `<img src="${PHOTO_URL[b.id]}" alt="Before">` : ''}</div><div><h4>After</h4>${a ? `<img src="${PHOTO_URL[a.id]}" alt="After">` : ''}</div></div>` : ''}
+  <div class="foot">${esc(S().business.name)}</div></div>`;
+}
+
+/* ==========================================================================
+   7. ROUTER + SHELL
+   ========================================================================== */
+const UI = { tab: { jobs: 'all', quotes: 'all', payments: 'unpaid', properties: 'all' }, q: {} };
+const NAV = [['today', 'Today'], ['jobs', 'Jobs'], ['quotes', 'Quotes'], ['customers', 'Customers'], ['properties', 'Properties'], ['more', 'More']];
+const NAV_OF = { today: 'today', jobs: 'jobs', job: 'jobs', quotes: 'quotes', quote: 'quotes', customers: 'customers', customer: 'customers', properties: 'properties', property: 'properties', more: 'more', services: 'more', payments: 'more', reports: 'more', settings: 'more' };
+const PAGES = {};
+let lastKey = '';
+
+function route() {
+  const h = location.hash.replace(/^#\/?/, '') || 'today';
+  const [path, qs] = h.split('?'); const parts = path.split('/');
+  return { name: parts[0] || 'today', id: parts[1] || '', q: new URLSearchParams(qs || '') };
+}
+function renderShell() {
+  $('#dnav').innerHTML = NAV.map(([k, l]) => `<a href="#/${k}" data-nav="${k}">${ic(k)}<span>${l}</span></a>`).join('');
+  $('#bnav').innerHTML = NAV.map(([k, l]) => `<a href="#/${k}" data-nav="${k}">${ic(k)}<span>${l}</span></a>`).join('');
+  const b = S().business;
+  $('#brandMark').innerHTML = b.logo ? `<img src="${b.logo}" alt="">` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.500S5 10 5 15a7 7 0 0 0 14 0c0-5-7-12.500-7-12.500z"/></svg>`;
+  $('#demoStrip').innerHTML = S().demo ? `<div class="demo-strip"><div>${ic('drop', 'sm')} You're looking at <b>demo data</b> — explore freely, then clear it in <a href="#/settings">Settings → Data</a> to start your own.<button data-act="hideDemo">Hide</button></div></div>` : '';
+}
+function render() {
+  const r = route();
+  const key = r.name + '/' + r.id;
+  const keep = key === lastKey ? window.scrollY : 0; lastKey = key;
+  let html;
+  try { html = (PAGES[r.name] || PAGES.today)(r); }
+  catch (e) { console.error(e); html = `<div class="page-head"><h1>Something went wrong</h1></div>${emptyState({ title: 'This page could not be shown', text: 'Try going back to Today.', btn: '', small: true })}<p><a class="btn primary" href="#/today">Go to Today</a></p>`; }
+  view.innerHTML = html;
+  const nk = NAV_OF[r.name] || 'today';
+  $$('[data-nav]').forEach(a => { a.classList.toggle('on', a.dataset.nav === nk); if (a.dataset.nav === nk) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  document.title = 'PressureWashFlow – ' + (S().business.name || '');
+  window.scrollTo(0, keep);
+}
+function notFound(what, back) {
+  return `<div class="page-head"><h1>${what} not found</h1></div>${emptyState({ title: what + ' not found', text: 'It may have been deleted.', btn: '', small: true })}<a class="btn primary" href="${back}">Go back</a>`;
+}
+const pageHead = (title, sub, acts) => `<div class="page-head"><div><h1>${title}</h1>${sub ? `<div class="sub">${sub}</div>` : ''}</div>${acts ? `<div class="acts">${acts}</div>` : ''}</div>`;
+const tabsHTML = (page, list) => `<div class="tabs" role="tablist">${list.map(([k, l, n]) => `<button class="tab ${UI.tab[page] === k ? 'on' : ''}" role="tab" aria-selected="${UI.tab[page] === k}" data-act="tab" data-page="${page}" data-val="${k}">${l}${n != null ? `<span class="n">${n}</span>` : ''}</button>`).join('')}</div>`;
+const searchBox = (page, ph) => `<div class="search">${ic('search', 'sm')}<input type="search" placeholder="${ph}" value="${esc(UI.q[page] || '')}" data-live="${page}" aria-label="${ph}"></div>`;
+const contactBtns = (c, size) => c ? `${c.phone ? `<a class="btn ${size || ''}" href="${telHref(c.phone)}">${ic('phone', 'sm')} Call</a>` : ''}${c.email ? `<a class="btn ${size || ''}" href="mailto:${esc(c.email)}">${ic('mail', 'sm')} Email</a>` : ''}` : '';
+const navBtn = (p, size) => p ? `<a class="btn ${size || ''}" target="_blank" rel="noopener" href="${mapsHref(propLine(p))}">${ic('nav', 'sm')} Navigate</a>` : '';
+const matchQ = (q, ...fields) => !q || fields.join(' ').toLowerCase().includes(q.toLowerCase());
+
+/* ==========================================================================
+   8. TODAY
+   ========================================================================== */
+function jobActions(j) {
+  const p = jobProperty(j); let primary = '';
+  if (j.status === 'scheduled' || j.status === 'quote') primary = `<button class="btn primary" data-act="startJob" data-id="${j.id}">${ic('play', 'sm')} Start Job</button>`;
+  else if (j.status === 'in_progress') primary = `<button class="btn good" data-act="completeJob" data-id="${j.id}">${ic('check', 'sm')} Complete</button>`;
+  else if (j.status === 'completed') primary = `<button class="btn primary" data-act="recordPayment" data-id="${j.id}">${ic('dollar', 'sm')} Get Paid</button>`;
+  return primary + `<a class="btn" href="#/job/${j.id}">View</a>` + navBtn(p);
+}
+function routeItem(j) {
+  const c = jobCustomer(j), p = jobProperty(j);
+  const cls = doneJob(j) ? 'done' : j.status === 'in_progress' ? 'prog' : '';
+  const t = j.time ? fmtTime(j.time).split(' ') : ['—', ''];
+  return `<div class="tl-item ${cls}"><div class="tl-time">${t[0]}<small>${t[1] || ''}</small></div><div class="tl-card"><div class="jc">
+    <div class="r1"><div><div class="cn">${esc(custName(c))}</div><div class="addr">${ic('pin')}<span>${esc(p ? p.name + ' · ' + propLine(p) : '')}</span></div></div>${jobBadge(j)}</div>
+    <div class="svc">${esc(servicesText(j))}</div>
+    <div class="r3"><span class="amt">${money(j.amount)}</span>${j.crew ? `<span class="muted">${esc(j.crew)}${j.duration ? ' · ~' + j.duration + ' hr' : ''}</span>` : ''}</div>
+    <div class="btns">${jobActions(j)}</div></div></div></div>`;
+}
+PAGES.today = () => {
+  const t = todayStr(), b = S().business;
+  const jobs = DB.jobs.filter(j => j.date === t && j.status !== 'cancelled').sort((a, c) => (a.time || '99') < (c.time || '99') ? -1 : 1);
+  const remaining = jobs.filter(j => !doneJob(j)).length;
+  const hr = new Date().getHours(); const greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  const out = totalOutstanding();
+  const fus = DB.jobs.filter(j => followupActive(j) && j.followUp.dueDate <= addDays(t, 7)).sort((a, c) => a.followUp.dueDate < c.followUp.dueDate ? -1 : 1);
+  const openQ = DB.quotes.filter(q => q.status === 'sent' || q.status === 'draft').sort((a, c) => a.createdAt < c.createdAt ? 1 : -1).slice(0, 4);
+  const owing = DB.jobs.filter(j => balanceOf(j) > 0 && j.status === 'completed').sort((a, c) => a.date < c.date ? -1 : 1).slice(0, 4);
+  const upcoming = DB.jobs.filter(j => j.date > t && (j.status === 'scheduled')).sort((a, c) => (a.date + (a.time || '')) < (c.date + (c.time || '')) ? -1 : 1).slice(0, 4);
+
+  const fuHTML = fus.map(j => {
+    const c = jobCustomer(j), ago = daysBetween(j.date, t);
+    return `<div class="fu"><div class="tagl">Follow-up due</div><b>${esc(custName(c))}</b><div class="m">${esc(servicesText(j))}</div><div class="m">Last service: ${ago <= 0 ? 'today' : ago + ' days ago'} · ${esc(jobProperty(j) ? jobProperty(j).name : '')}</div>
+      <div class="btn-row" style="margin-top:10px"><button class="btn primary sm" data-act="followupQuote" data-id="${j.id}">${ic('quotes', 'sm')} Create Follow-up Quote</button><button class="btn sm" data-act="dismissFollowup" data-id="${j.id}">Dismiss</button></div></div>`;
+  }).join('');
+
+  return `<section class="hero">
+    <div class="date">${new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+    <h1>${greet}, <b>${esc(b.name)}</b></h1>
+    <p class="tag">Pressure washing jobs, quotes and customers — all in one simple place.</p>
+    <div class="stats">
+      <div class="stat"><div class="v">${jobs.length}</div><div class="l">Today's jobs</div></div>
+      <div class="stat"><div class="v">${remaining}</div><div class="l">Jobs remaining</div></div>
+      <div class="stat"><div class="v">${moneyShort(sum(jobs, j => j.amount))}</div><div class="l">Expected revenue</div></div>
+      <div class="stat"><div class="v ${out > 0 ? 'warn' : ''}">${moneyShort(out)}</div><div class="l">Unpaid</div></div>
+    </div>
+    <svg class="wave" viewBox="0 0 1200 30" preserveAspectRatio="none" aria-hidden="true"><path d="M0 18 C150 36 300 0 450 14 S750 34 900 14 1100 2 1200 16 V30 H0Z"/></svg>
+  </section>
+  <div class="qa" style="margin-top:12px">
+    <button data-act="newQuote">${ic('plus')}<span>New Quote</span></button>
+    <button data-act="newJob">${ic('plus')}<span>New Job</span></button>
+    <button data-act="newCustomer">${ic('plus')}<span>Add Customer</span></button>
+  </div>
+  <div class="today-grid">
+    <div>
+      <div class="sect-t">Today's Route</div>
+      ${jobs.length ? `<div class="tl">${jobs.map(routeItem).join('')}</div>` : emptyState({ title: 'No jobs scheduled', text: 'Your next pressure washing job will appear here.', btn: 'Create Job', act: 'newJob' })}
+    </div>
+    <div>
+      ${fus.length ? `<div class="sect-t">Follow-ups</div>${fuHTML}` : ''}
+      ${owing.length ? `<div class="sect-t">Waiting for payment<a class="more" href="#/payments">All</a></div><div class="card">${owing.map(j => `<a class="mini" href="#/job/${j.id}"><div><div class="a">${esc(custName(jobCustomer(j)))}</div><div class="b">${esc(servicesText(j))} · ${fmtDate(j.date)}</div></div><b>${money(balanceOf(j))}</b></a>`).join('')}</div>` : ''}
+      <div class="sect-t">Open quotes<a class="more" href="#/quotes">All</a></div>
+      <div class="card">${openQ.length ? openQ.map(q => `<a class="mini" href="#/quote/${q.id}"><div><div class="a">${esc(custName(get('customers', q.customerId)))}</div><div class="b">${esc(quoteServicesText(q))}</div></div><div class="right"><b>${money(quoteCalc(q).total)}</b><div>${quoteBadge(q)}</div></div></a>`).join('') : '<p class="muted">No open quotes. Send one to win your next job.</p>'}</div>
+      <div class="sect-t">Coming up<a class="more" href="#/jobs">All jobs</a></div>
+      <div class="card">${upcoming.length ? upcoming.map(j => `<a class="mini" href="#/job/${j.id}"><div><div class="a">${esc(custName(jobCustomer(j)))}</div><div class="b">${esc(servicesText(j))}</div></div><div class="right"><b>${fmtDate(j.date).replace(/, \d{4}$/, '')}</b><div class="b">${fmtTime(j.time)}</div></div></a>`).join('') : '<p class="muted">Nothing scheduled after today.</p>'}</div>
+    </div>
+  </div>`;
+};
+
+/* ==========================================================================
+   9. JOBS
+   ========================================================================== */
+const JOB_TABS = [['all', 'All'], ['scheduled', 'Scheduled'], ['in_progress', 'In Progress'], ['completed', 'Completed'], ['unpaid', 'Unpaid']];
+function jobsFor(tab, q) {
+  let list = DB.jobs.filter(j => {
+    if (tab === 'scheduled') return j.status === 'scheduled';
+    if (tab === 'in_progress') return j.status === 'in_progress';
+    if (tab === 'completed') return doneJob(j);
+    if (tab === 'unpaid') return balanceOf(j) > 0;
+    return true;
+  });
+  if (q) list = list.filter(j => matchQ(q, custName(jobCustomer(j)), jobProperty(j) ? jobProperty(j).name + ' ' + propLine(jobProperty(j)) : '', servicesText(j), j.crew));
+  return list.sort((a, b) => tab === 'scheduled' || tab === 'in_progress' ? ((a.date + (a.time || '')) < (b.date + (b.time || '')) ? -1 : 1) : ((a.date + (a.time || '')) < (b.date + (b.time || '')) ? 1 : -1));
+}
+function jobsTable() {
+  const list = jobsFor(UI.tab.jobs, UI.q.jobs);
+  if (!list.length) return DB.jobs.length ? emptyState({ title: 'No jobs match', text: 'Try a different filter or search.', small: true }) : emptyState({ title: 'No jobs yet', text: 'Your next pressure washing job will appear here.', btn: 'Create Job', act: 'newJob' });
+  return `<div class="tbl-wrap"><table class="rt"><thead><tr><th>Customer</th><th>Property</th><th>Service</th><th>Date</th><th>Crew</th><th class="num">Amount</th><th>Status</th></tr></thead><tbody>${list.map(j => {
+    const c = jobCustomer(j), p = jobProperty(j);
+    return `<tr data-href="#/job/${j.id}"><td class="first" data-label="Customer"><b>${esc(custName(c))}</b></td><td data-label="Property"><span>${esc(p ? p.name : '—')}<div class="sub">${esc(p ? propLine(p) : '')}</div></span></td><td data-label="Service">${esc(servicesText(j))}</td><td data-label="Date" class="nowrap">${fmtDate(j.date)}<div class="sub">${fmtTime(j.time)}</div></td><td data-label="Crew">${esc(j.crew || '—')}</td><td class="num" data-label="Amount"><b>${money(j.amount)}</b>${balanceOf(j) > 0 ? `<div class="sub" style="color:#a8322a">${money(balanceOf(j))} due</div>` : ''}</td><td data-label="Status">${jobBadge(j)}</td></tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+PAGES.jobs = () => {
+  const cnt = k => jobsFor(k, '').length;
+  return pageHead('Jobs', 'Every pressure washing job, start to payment.', `<button class="btn primary" data-act="newJob">${ic('plus')} New Job</button>`) +
+    tabsHTML('jobs', JOB_TABS.map(([k, l]) => [k, l, cnt(k)])) +
+    `<div class="toolbar">${searchBox('jobs', 'Search customer, address, service…')}</div><div id="listbody">${jobsTable()}</div>`;
+};
+const LIVE = { jobs: () => jobsTable(), quotes: () => quotesTable(), customers: () => customerCards(), properties: () => propertyCards() };
+
+/* ---- Job form ---- */
+function crewList() { return String(S().crews || '').split(',').map(s => s.trim()).filter(Boolean); }
+function propSelectHTML(cid, selected) {
+  const ps = propOptions(cid);
+  if (!cid) return optList([], 'Select a customer first').map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join('');
+  if (!ps.length) return '<option value="">No properties yet – add one →</option>';
+  return optList(ps, 'Select property…').map(([v, t]) => `<option value="${esc(v)}"${v === selected ? ' selected' : ''}>${esc(t)}</option>`).join('');
+}
+function wireCustProp(form, onProps) {
+  const cs = form.elements.customerId, ps = form.elements.propertyId; if (!cs || !ps) return;
+  cs.addEventListener('change', () => { ps.innerHTML = propSelectHTML(cs.value, ''); const o = propOptions(cs.value); if (o.length === 1) ps.value = o[0][0]; if (onProps) onProps(); });
+  const add = $('[data-add-prop]', form);
+  if (add) add.addEventListener('click', () => {
+    if (!cs.value) { showErrors(form, { customerId: 'Choose a customer first' }); return; }
+    openPropertyForm(null, { customerId: cs.value, onSaved: p => { ps.innerHTML = propSelectHTML(cs.value, p.id); ps.value = p.id; } });
+  });
+}
+function openJobForm(id, pre = {}) {
+  const j = id ? get('jobs', id) : null;
+  const d = j || Object.assign({ customerId: '', propertyId: '', services: [], amount: '', date: todayStr(), time: '09:00', crew: crewList()[0] || '', duration: S().defaultDuration, status: 'scheduled', techNotes: '' }, pre);
+  const svcNames = DB.services.filter(s => s.active).map(s => s.name);
+  (d.services || []).forEach(n => { if (!svcNames.includes(n)) svcNames.push(n); });
+  const statusOpts = Object.keys(JOB_STATUS).filter(k => k !== 'paid' || d.status === 'paid').map(k => [k, JOB_STATUS[k]]);
+  const body = `<div class="fgrid">
+    ${fld('Customer', 'customerId', d.customerId, { type: 'select', required: true, options: optList(custOptions(), 'Select customer…') })}
+    <div class="fld"><span class="lbl">Property <i>*</i></span><div class="inline-add"><select name="propertyId" required>${propSelectHTML(d.customerId, d.propertyId)}</select><button type="button" class="btn" data-add-prop aria-label="Add property">${ic('plus')}</button></div></div>
+    <div class="fld full"><span class="lbl">Services <i>*</i></span><div class="checks" id="svcChecks">${svcNames.length ? svcNames.map(n => `<label class="check"><input type="checkbox" name="services[]" value="${esc(n)}" ${(d.services || []).includes(n) ? 'checked' : ''}><span>${esc(n)}</span></label>`).join('') : '<span class="muted">Add services under More → Services</span>'}</div></div>
+    ${fld('Job amount', 'amount', d.amount, { type: 'number', required: true, min: 0, placeholder: '0.00', hint: j && j.items && j.items.length ? 'Changing the amount replaces the quote line items on the invoice.' : '' })}
+    ${fld('Status', 'status', d.status, { type: 'select', options: statusOpts })}
+    ${fld('Scheduled date', 'date', d.date, { type: 'date', required: true })}
+    ${fld('Start time', 'time', d.time, { type: 'time' })}
+    ${fld('Crew', 'crew', d.crew, { list: 'crewList', placeholder: 'Who is doing this job?' })}<datalist id="crewList">${crewList().map(c => `<option value="${esc(c)}">`).join('')}</datalist>
+    ${fld('Estimated duration (hours)', 'duration', d.duration, { type: 'number', step: '0.25', min: 0 })}
+    ${fld('Technician notes', 'techNotes', d.techNotes, { type: 'textarea', full: true, rows: 3, placeholder: 'Gate codes, surface issues, products to bring…' })}
+  </div>`;
+  formModal({
+    title: j ? 'Edit Job' : 'New Job', body, submit: j ? 'Save Job' : 'Create Job', cls: 'wide',
+    onOpen: f => wireCustProp(f),
+    onSubmit: (v, form) => {
+      if (!v.services || !v.services.length) { toast('Pick at least one service', 'err'); return false; }
+      const amount = num(v.amount);
+      const patch = { customerId: v.customerId, propertyId: v.propertyId, services: v.services, amount, date: v.date, time: v.time, crew: v.crew, duration: num(v.duration), status: v.status, techNotes: v.techNotes };
+      if (j) {
+        if (j.items && j.items.length && Math.abs(sum(j.items, i => i.amount) - amount) > 0.01) patch.items = [];
+        if (v.status === 'in_progress' && !j.startedAt) patch.startedAt = nowISO();
+        upd('jobs', j.id, patch); syncPaidStatus(j.id); toast('Job updated');
+      } else {
+        const rec = add('jobs', Object.assign({ quoteId: '', items: [], conditions: [], conditionOther: '', followUp: null, invoiceNo: '', invoiceDate: '' }, patch));
+        toast('Job created'); if (route().name === 'jobs' || route().name === 'today') { /* stay */ } else if (route().name !== 'job') location.hash = '#/job/' + rec.id;
+      }
+      render();
+    }
+  });
+}
+
+/* ---- Job detail ---- */
+function photoBlock(type, ownerId, kind, label, opts = {}) {
+  const ph = photosFor(type, ownerId, kind);
+  const inputs = (cap) => `<input class="sr" type="file" accept="image/*" ${cap ? 'capture="environment"' : 'multiple'} data-photo-input data-type="${type}" data-owner="${ownerId}" data-kind="${kind}">`;
+  const btns = `<div class="ph-btns"><label class="btn sm">${ic('camera', 'sm')} Camera${inputs(true)}</label><label class="btn sm">${ic('upload', 'sm')} Upload${inputs(false)}</label></div>`;
+  if (opts.gallery) return `${ph.length ? `<div class="gallery">${ph.map(p => `<img src="${PHOTO_URL[p.id]}" alt="${esc(label)}" data-act="photo" data-id="${p.id}" loading="lazy">`).join('')}</div>` : emptyState({ title: 'No photos yet', text: 'Add curb-appeal photos so you recognise the property at a glance.', small: true })}${btns}`;
+  const main = ph[ph.length - 1];
+  return `<div class="ba-col ${kind}"><span class="tag">${label.toUpperCase()}</span>${main ? `<img class="ph-main" src="${PHOTO_URL[main.id]}" alt="${esc(label)} photo" data-act="photo" data-id="${main.id}">` : `<div class="ph-empty">${ic('image', 'lg')}<span>No ${label.toLowerCase()} photo yet</span></div>`}${ph.length > 1 ? `<div class="thumbs">${ph.slice(0, -1).map(p => `<img src="${PHOTO_URL[p.id]}" alt="" data-act="photo" data-id="${p.id}">`).join('')}</div>` : ''}${btns}</div>`;
+}
+PAGES.job = r => {
+  const j = get('jobs', r.id); if (!j) return notFound('Job', '#/jobs');
+  const c = jobCustomer(j), p = jobProperty(j), paid = paidOf(j.id), bal = Math.max(0, j.amount - paid);
+  const items = (j.items && j.items.length) ? j.items : [{ name: servicesText(j), detail: '', amount: j.amount }];
+  const pays = DB.payments.filter(x => x.jobId === j.id).sort((a, b) => a.date < b.date ? 1 : -1);
+  const pct = j.amount > 0 ? Math.min(100, paid / j.amount * 100) : 0;
+  const next = { scheduled: ['startJob', 'Start Job', 'play', 'primary'], quote: ['startJob', 'Start Job', 'play', 'primary'], in_progress: ['completeJob', 'Mark Completed', 'check', 'good'] }[j.status];
+  const statusOpts = Object.keys(JOB_STATUS).map(k => `<option value="${k}" ${k === j.status ? 'selected' : ''}>${JOB_STATUS[k]}</option>`).join('');
+  const conds = CONDITIONS.map(n => `<label class="check"><input type="checkbox" data-chg="condition" data-id="${j.id}" value="${n}" ${(j.conditions || []).includes(n) ? 'checked' : ''}><span>${n}</span></label>`).join('');
+  const f = j.followUp;
+  return `<a class="back" href="#/jobs">${ic('back', 'sm')} Jobs</a>
+  <div class="dh"><div class="row"><div>
+      <h1>${c ? `<a href="#/customer/${c.id}" style="color:inherit;text-decoration:none">${esc(custName(c))}</a>` : 'Unknown customer'}</h1>
+      <div class="addr">${ic('pin', 'sm')}<span>${p ? `<a href="#/property/${p.id}">${esc(p.name)}</a> · ${esc(propLine(p))}` : '—'}</span></div>
+    </div><div class="right"><div class="big">${money(j.amount)}</div><div style="margin-top:8px">${jobBadge(j)}</div></div></div>
+    <div class="btn-row" style="margin-top:14px">${navBtn(p, 'sm')}${contactBtns(c, 'sm')}<button class="btn sm" data-act="editJob" data-id="${j.id}">${ic('edit', 'sm')} Edit</button><button class="btn sm" data-act="printJob" data-id="${j.id}">${ic('print', 'sm')} Job Summary</button><button class="btn sm danger" data-act="delJob" data-id="${j.id}">${ic('trash', 'sm')} Delete</button></div>
+    <div class="statusbar"><label class="fld" style="min-width:190px"><span class="lbl">Change status</span><select data-chg="setStatus" data-id="${j.id}">${statusOpts}</select></label></div></div>
+  <div class="cols">
+    <div class="card"><h3 class="t">${ic('drop')} Service</h3>
+      <div class="chips" style="margin-bottom:12px">${(j.services || []).map(s => `<span class="chip">${esc(s)}</span>`).join('') || '<span class="muted">No services listed</span>'}</div>
+      <table style="width:100%;border-collapse:collapse"><tbody>${items.map(i => `<tr><td style="padding:6px 0;border-bottom:1px solid #edf3f7">${esc(i.name)}${i.detail ? `<div class="muted" style="font-size:12.5px">${esc(i.detail)}</div>` : ''}</td><td style="padding:6px 0;border-bottom:1px solid #edf3f7;text-align:right;font-weight:700">${money(i.amount)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="card"><h3 class="t">${ic('pin', 'line')} Property details</h3>${p ? `<dl class="dl">
+      <dt>Type</dt><dd>${esc(p.type)}</dd>${p.surfaces ? `<dt>Surfaces</dt><dd>${esc(p.surfaces)}</dd>` : ''}
+      <dt>Approx. area</dt><dd>${p.sqft ? fmtNum(p.sqft) + ' sq ft' : '—'}${p.drivewaySqft ? ` · driveway ${fmtNum(p.drivewaySqft)} sq ft` : ''}</dd>
+      ${p.access ? `<dt>Access</dt><dd>${esc(p.access)}</dd>` : ''}${p.gate ? `<dt>Gate</dt><dd>${esc(p.gate)}</dd>` : ''}${p.water ? `<dt>Water</dt><dd>${esc(p.water)}</dd>` : ''}${p.notes ? `<dt>Notes</dt><dd>${esc(p.notes)}</dd>` : ''}</dl>` : '<p class="muted">Property missing</p>'}</div>
+    <div class="card"><h3 class="t">${ic('clock', 'line')} Job details</h3><dl class="dl">
+      <dt>Date</dt><dd>${fmtDateLong(j.date)}</dd><dt>Start time</dt><dd>${fmtTime(j.time) || '—'}</dd><dt>Crew</dt><dd>${esc(j.crew || '—')}</dd><dt>Est. duration</dt><dd>${j.duration ? j.duration + ' hr' : '—'}</dd></dl>
+      <label class="fld" style="margin-top:12px"><span class="lbl">Technician notes</span><textarea data-chg="techNotes" data-id="${j.id}" rows="3" placeholder="Add notes from the job site…">${esc(j.techNotes || '')}</textarea><span class="hint">Saved automatically when you tap away.</span></label></div>
+    <div class="card cond"><h3 class="t">${ic('drop')} Condition notes</h3><div class="checks">${conds}</div>
+      ${(j.conditions || []).includes('Other') ? `<label class="fld" style="margin-top:10px"><span class="lbl">Other – describe</span><input type="text" data-chg="condOther" data-id="${j.id}" value="${esc(j.conditionOther || '')}" placeholder="What else did you find?"></label>` : ''}</div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3 class="t">${ic('image', 'line')} Before / After</h3>
+    <div class="ba">${photoBlock('job', j.id, 'before', 'Before')}${photoBlock('job', j.id, 'after', 'After')}</div></div>
+  <div class="cols"><div class="card"><h3 class="t">${ic('dollar', 'line')} Payment</h3>
+    <div class="row" style="display:flex;justify-content:space-between;gap:10px"><div><div class="kv"><div class="k">Paid</div></div><b style="font-size:20px">${money(paid)}</b></div><div class="right"><div class="kv"><div class="k">Balance</div></div><b style="font-size:20px;color:${bal > 0 && isBillable(j) ? '#a8322a' : 'inherit'}">${money(bal)}</b></div></div>
+    <div class="progress"><i style="width:${pct}%"></i></div>
+    ${pays.length ? `<div style="margin-top:10px">${pays.map(x => `<div class="mini"><div><div class="a">${money(x.amount)} · ${esc(x.method)}</div><div class="b">${fmtDate(x.date)}${x.notes ? ' · ' + esc(x.notes) : ''}</div></div><div class="btn-row"><button class="btn sm" data-act="editPayment" data-id="${x.id}" aria-label="Edit payment">${ic('edit', 'sm')}</button><button class="btn sm danger" data-act="delPayment" data-id="${x.id}" aria-label="Delete payment">${ic('trash', 'sm')}</button></div></div>`).join('')}</div>` : '<p class="muted" style="margin-top:10px">No payments recorded yet.</p>'}
+    ${j.invoiceNo ? `<p class="muted" style="margin-top:10px">Invoice ${esc(j.invoiceNo)} · ${fmtDate(j.invoiceDate)}</p>` : ''}</div>
+    <div class="card"><h3 class="t">${ic('repeat', 'line')} Repeat service</h3>${f ? `<p><b>${f.done ? 'Follow-up handled' : 'Next recommended service: ' + fmtDate(f.dueDate)}</b></p><p class="muted">${f.days >= 180 ? '6 months' : f.days + ' days'} after completion.</p>${!f.done && followupActive(j) ? `<div class="btn-row" style="margin-top:10px"><button class="btn primary sm" data-act="followupQuote" data-id="${j.id}">Create Follow-up Quote</button></div>` : ''}` : `<p class="muted">${doneJob(j) ? 'No follow-up was set for this job.' : 'When you complete this job you can set the next recommended service.'}</p>`}</div></div>
+  <div class="actionbar">${next ? `<button class="btn ${next[3]}" data-act="${next[0]}" data-id="${j.id}">${ic(next[2], 'sm')} ${next[1]}</button>` : ''}<button class="btn" data-act="invoice" data-id="${j.id}">${ic('receipt', 'sm')} ${j.invoiceNo ? 'View Invoice' : 'Create Invoice'}</button><button class="btn ${bal > 0 ? 'primary' : ''}" data-act="recordPayment" data-id="${j.id}">${ic('dollar', 'sm')} Record Payment</button></div>`;
+};
+
+function startJob(id) {
+  const j = get('jobs', id); if (!j) return;
+  upd('jobs', id, { status: 'in_progress', startedAt: nowISO() }); toast('Job started – good luck out there'); render();
+}
+function completeJob(id) {
+  const j = get('jobs', id); if (!j) return;
+  const def = String(S().followUpDays || 90);
+  const body = `<div class="fgrid">
+    <div class="fld full"><span class="lbl">Next recommended service</span><div class="checks" id="fuChecks">${FOLLOWUPS.map(([v, l]) => `<label class="check"><input type="radio" name="fu" value="${v}" ${(FOLLOWUPS.some(x => x[0] === def) ? def : '90') === v ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div><span class="hint">We'll remind you on the Today screen when it's time to quote the repeat service.</span></div>
+    <div class="fld full hidden" id="fuCustom"><label class="fld"><span class="lbl">Custom – days until next service</span><input type="number" name="fuDays" min="1" step="1" value="120" inputmode="numeric"></label></div>
+    ${fld('Final technician notes', 'techNotes', j.techNotes || '', { type: 'textarea', full: true, placeholder: 'Anything to remember for next time?' })}
+    ${photosFor('job', j.id, 'after').length ? '' : '<p class="hint full" style="grid-column:1/-1">Tip: add an After photo from the job screen – customers love the comparison.</p>'}
+  </div>`;
+  formModal({
+    title: 'Complete job', body, submit: 'Mark Completed', onOpen: f => {
+      $$('input[name=fu]', f).forEach(r => r.addEventListener('change', () => $('#fuCustom', f).classList.toggle('hidden', f.elements.fu.value !== 'custom')));
+    },
+    onSubmit: v => {
+      let days = v.fu === 'custom' ? Math.max(1, Math.round(num(v.fuDays))) : num(v.fu);
+      const t = todayStr();
+      upd('jobs', id, { status: 'completed', completedAt: nowISO(), techNotes: v.techNotes, followUp: days ? { days, dueDate: addDays(t, days), done: false } : null });
+      syncPaidStatus(id); toast('Job completed'); render();
+    }
+  });
+}
+function setJobStatus(id, status) {
+  const j = get('jobs', id); if (!j || j.status === status) return;
+  if (status === 'completed' && !doneJob(j)) { render(); return completeJob(id); }
+  if (status === 'paid') {
+    const due = Math.max(0, j.amount - paidOf(id));
+    if (due > 0.005) { render(); toast('Record the payment to mark this job paid'); return openPaymentForm(null, { jobId: id }); }
+    upd('jobs', id, { status: 'paid', completedAt: j.completedAt || nowISO() });
+  } else {
+    const patch = { status }; if (status === 'in_progress' && !j.startedAt) patch.startedAt = nowISO();
+    upd('jobs', id, patch);
+  }
+  toast('Status changed to ' + JOB_STATUS[status]); render();
+}
+
+/* ==========================================================================
+   10. QUOTES  (list + builder)
+   ========================================================================== */
+const QUOTE_TABS = [['all', 'All'], ['draft', 'Draft'], ['sent', 'Sent'], ['approved', 'Approved'], ['declined', 'Declined'], ['expired', 'Expired']];
+function quotesFor(tab, q) {
+  let list = DB.quotes.filter(x => tab === 'all' || x.status === tab);
+  if (q) list = list.filter(x => matchQ(q, custName(get('customers', x.customerId)), x.number, quoteServicesText(x), (get('properties', x.propertyId) || {}).name));
+  return list.sort((a, b) => a.createdAt < b.createdAt ? 1 : -1);
+}
+function quotesTable() {
+  const list = quotesFor(UI.tab.quotes, UI.q.quotes);
+  if (!list.length) return DB.quotes.length ? emptyState({ title: 'No quotes match', text: 'Try another status or search.', small: true }) : emptyState({ title: 'No quotes yet', text: 'Build a quote in under a minute and win the job.', btn: 'New Quote', act: 'newQuote' });
+  return `<div class="tbl-wrap"><table class="rt"><thead><tr><th>Quote</th><th>Customer</th><th>Property</th><th>Services</th><th>Valid until</th><th class="num">Total</th><th>Status</th></tr></thead><tbody>${list.map(q => {
+    const c = get('customers', q.customerId), p = get('properties', q.propertyId);
+    return `<tr data-href="#/quote/${q.id}"><td class="first" data-label="Quote"><b>${esc(q.number)}</b></td><td data-label="Customer">${esc(custName(c))}</td><td data-label="Property">${esc(p ? p.name : '—')}</td><td data-label="Services">${esc(quoteServicesText(q))}</td><td data-label="Valid until" class="nowrap">${fmtDate(q.validUntil)}</td><td class="num" data-label="Total"><b>${money(quoteCalc(q).total)}</b></td><td data-label="Status">${quoteBadge(q)}</td></tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+PAGES.quotes = () => pageHead('Quotes', 'Price it, send it, win it.', `<button class="btn primary" data-act="newQuote">${ic('plus')} New Quote</button>`) +
+  tabsHTML('quotes', QUOTE_TABS.map(([k, l]) => [k, l, quotesFor(k, '').length])) +
+  `<div class="toolbar">${searchBox('quotes', 'Search quotes, customers…')}</div><div id="listbody">${quotesTable()}</div>`;
+
+/* ---- Builder state ---- */
+let Q = null;
+const newLine = () => ({ id: uid('ln'), serviceId: '', name: '', method: 'sqft', qty: 0, rate: 0 });
+function areaFor(name, p) {
+  if (!p) return 0;
+  if (/driveway/i.test(name)) return num(p.drivewaySqft);
+  if (/house|siding|roof|commercial/i.test(name)) return num(p.sqft);
+  return 0;
+}
+function applyService(line, svcId) {
+  const s = get('services', svcId);
+  if (!s) { line.serviceId = ''; line.name = ''; return; }
+  line.serviceId = s.id; line.name = s.name; line.method = s.method; line.rate = num(s.rate);
+  if (!num(line.qty) && (s.method === 'sqft')) line.qty = areaFor(s.name, get('properties', Q.propertyId)) || 0;
+  if (s.method === 'hourly' && !num(line.qty)) line.qty = 2;
+}
+function initQ(r) {
+  const key = r.id + '?' + r.q.toString();
+  if (Q && Q._key === key) return true;
+  let q;
+  if (r.id === 'new') {
+    q = { _new: true, customerId: r.q.get('customer') || '', propertyId: r.q.get('property') || '', lines: [], addons: [], discountType: 'amount', discountValue: 0, notes: '', status: 'draft', validUntil: addDays(todayStr(), S().quoteValidDays), taxRate: S().taxRate };
+    const from = r.q.get('from') && get('jobs', r.q.get('from'));
+    if (from) {
+      q.customerId = from.customerId; q.propertyId = from.propertyId; q.fromJob = from.id;
+      q.notes = 'Repeat service – last cleaned ' + fmtDate(from.date) + '.';
+    }
+    if (q.propertyId && !q.customerId) { const p = get('properties', q.propertyId); if (p) q.customerId = p.customerId; }
+    Q = q; // so applyService can read the property
+    if (from) (from.services || []).forEach(n => { const s = DB.services.find(x => x.name === n); const l = newLine(); if (s) applyService(l, s.id); else { l.name = n; } q.lines.push(l); });
+    if (!q.lines.length) q.lines.push(newLine());
+    if (q.customerId && !q.propertyId) { const ps = DB.properties.filter(p => p.customerId === q.customerId); if (ps.length === 1) q.propertyId = ps[0].id; }
+  } else {
+    const s = get('quotes', r.id); if (!s) { Q = null; return false; }
+    q = clone(s); if (!q.lines.length) q.lines.push(newLine());
+  }
+  q._key = key; q._err = {}; Q = q; return true;
+}
+const qerr = k => Q._err && Q._err[k] ? `<div class="err">${esc(Q._err[k])}</div>` : '';
+function qlineHTML(l, i) {
+  const svcs = DB.services.filter(s => s.active || s.id === l.serviceId);
+  const perUnit = l.method === 'sqft' || l.method === 'linft' || l.method === 'hourly';
+  const unit = UNITS[l.method];
+  const hint = (() => { const p = get('properties', Q.propertyId); const a = p ? areaFor(l.name, p) : 0; return a && l.method === 'sqft' ? `Property record: ${fmtNum(a)} sq ft` : ''; })();
+  return `<div class="qline" data-line="${l.id}">
+    <div class="head"><label class="fld ${Q._err && Q._err['s' + l.id] ? 'has-err' : ''}" style="flex:1"><span class="lbl">Service ${i + 1}</span><select data-ql="${l.id}:serviceId" aria-label="Service"><option value="">Choose service…</option>${svcs.map(s => `<option value="${s.id}" ${s.id === l.serviceId ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}${!l.serviceId && l.name ? `<option selected value="">${esc(l.name)}</option>` : ''}</select>${qerr('s' + l.id)}</label>
+      <button class="icon-btn" data-act="delLine" data-id="${l.id}" aria-label="Remove service" style="margin-top:18px">${ic('trash')}</button></div>
+    <div class="calc">
+      <label class="fld"><span class="lbl">Pricing method</span><select data-ql="${l.id}:method">${Object.keys(METHODS).map(k => `<option value="${k}" ${k === l.method ? 'selected' : ''}>${METHODS[k]}</option>`).join('')}</select></label>
+      ${perUnit ? `<label class="fld ${Q._err && Q._err['q' + l.id] ? 'has-err' : ''}"><span class="lbl">${l.method === 'hourly' ? 'Hours' : 'Area / quantity (' + unit + ')'}</span><input type="number" min="0" step="any" inputmode="decimal" data-ql="${l.id}:qty" value="${l.qty || ''}" placeholder="0">${qerr('q' + l.id)}${hint ? `<span class="hint">${hint}</span>` : ''}</label>` : '<div></div>'}
+      <label class="fld ${perUnit ? '' : ''}"><span class="lbl">${perUnit ? 'Rate per ' + (unit === 'hours' ? 'hour' : unit) : (l.method === 'flat' ? 'Flat price' : 'Custom price')}</span><input type="number" min="0" step="any" inputmode="decimal" data-ql="${l.id}:rate" value="${l.rate === 0 ? '' : l.rate}" placeholder="0.00"></label>
+    </div>
+    <div class="res"><span>${perUnit ? `${fmtNum(num(l.qty))} ${unit} × ${money(num(l.rate))}` : 'Estimated price'}</span><b data-line-amt="${l.id}">${money(lineAmount(l))}</b></div></div>`;
+}
+function quoteSummaryHTML() {
+  const c = quoteCalc(Q);
+  return `${c.lines.filter(l => l.name).map(l => `<div class="sumrow"><span>${esc(l.name)}</span><span>${money(l.amount)}</span></div>`).join('')}
+    ${(Q.addons || []).map(a => `<div class="sumrow"><span>+ ${esc(a.name)}</span><span>${money(a.price)}</span></div>`).join('')}
+    <div class="sumrow sub"><span>Subtotal</span><span>${money(c.subtotal)}</span></div>
+    ${c.discount > 0 ? `<div class="sumrow sub"><span>Discount</span><span>−${money(c.discount)}</span></div>` : ''}
+    ${c.tax > 0 ? `<div class="sumrow sub"><span>Tax (${num(Q.taxRate)}%)</span><span>${money(c.tax)}</span></div>` : ''}
+    <div class="sumrow total"><span>Total</span><b>${money(c.total)}</b></div>`;
+}
+function updateQuoteSummary() {
+  const s = $('#qsum'); if (s) s.innerHTML = quoteSummaryHTML();
+  Q.lines.forEach(l => { const el = $(`[data-line-amt="${l.id}"]`); if (el) el.textContent = money(lineAmount(l)); const row = $(`[data-line="${l.id}"] .res span`); if (row) row.textContent = (l.method === 'flat' || l.method === 'custom') ? 'Estimated price' : `${fmtNum(num(l.qty))} ${UNITS[l.method]} × ${money(num(l.rate))}`; });
+  const m = $('#mtotal'); if (m) m.textContent = money(quoteCalc(Q).total);
+}
+PAGES.quote = r => {
+  if (!initQ(r)) return notFound('Quote', '#/quotes');
+  const c = get('customers', Q.customerId);
+  const ps = propOptions(Q.customerId);
+  const presetNames = S().addons.map(a => a.name);
+  const customAddons = (Q.addons || []).filter(a => !presetNames.includes(a.name));
+  const converted = Q.jobId && get('jobs', Q.jobId);
+  const total = quoteCalc(Q).total;
+  return `<a class="back" href="#/quotes">${ic('back', 'sm')} Quotes</a>
+  ${pageHead(Q._new ? 'New Quote' : 'Quote ' + esc(Q.number), Q._new ? 'Pick the customer, property and services — the total updates as you type.' : (c ? esc(custName(c)) : ''), Q._new ? '' : quoteBadge(Q))}
+  <div class="builder"><div>
+    <div class="card"><h3 class="t">${ic('customers', 'line')} Who &amp; where</h3><div class="fgrid">
+      <div class="fld ${Q._err.customerId ? 'has-err' : ''}"><span class="lbl">Customer <i>*</i></span><div class="inline-add"><select data-q="customerId" aria-label="Customer"><option value="">Select customer…</option>${custOptions().map(([v, t]) => `<option value="${v}" ${v === Q.customerId ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select><button class="btn" data-act="qNewCustomer" aria-label="New customer">${ic('plus')}</button></div>${qerr('customerId')}</div>
+      <div class="fld ${Q._err.propertyId ? 'has-err' : ''}"><span class="lbl">Property <i>*</i></span><div class="inline-add"><select data-q="propertyId" aria-label="Property">${Q.customerId ? (ps.length ? '<option value="">Select property…</option>' + ps.map(([v, t]) => `<option value="${v}" ${v === Q.propertyId ? 'selected' : ''}>${esc(t)}</option>`).join('') : '<option value="">No properties yet – add one →</option>') : '<option value="">Select a customer first</option>'}</select><button class="btn" data-act="qNewProperty" aria-label="New property">${ic('plus')}</button></div>${qerr('propertyId')}</div>
+    </div></div>
+    <div class="card"><h3 class="t">${ic('drop')} Services &amp; pricing</h3>
+      ${Q.lines.map(qlineHTML).join('')}
+      <button class="btn block" style="margin-top:12px" data-act="addLine">${ic('plus')} Add another service</button></div>
+    <div class="card"><h3 class="t">${ic('plus', 'line')} Add-ons</h3><div class="grid c2">${S().addons.map(a => `<label class="addon"><input type="checkbox" data-qa="${a.id}" ${(Q.addons || []).some(x => x.name === a.name) ? 'checked' : ''}><span>${esc(a.name)}</span><b>+${money(a.price)}</b></label>`).join('')}
+      ${customAddons.map(a => `<div class="addon" style="cursor:default"><span>${esc(a.name)}</span><b>+${money(a.price)}</b><button class="icon-btn" data-act="delCustomAddon" data-name="${esc(a.name)}" aria-label="Remove">${ic('x')}</button></div>`).join('')}</div>
+      <button class="btn sm" style="margin-top:10px" data-act="customAddon">${ic('plus', 'sm')} Custom add-on</button></div>
+    <div class="card"><h3 class="t">${ic('receipt', 'line')} Discount, status &amp; notes</h3><div class="fgrid">
+      <label class="fld"><span class="lbl">Discount type</span><select data-q="discountType"><option value="amount" ${Q.discountType === 'amount' ? 'selected' : ''}>Amount (${esc(S().currency)})</option><option value="percent" ${Q.discountType === 'percent' ? 'selected' : ''}>Percent (%)</option></select></label>
+      <label class="fld"><span class="lbl">Discount</span><input type="number" min="0" step="any" inputmode="decimal" data-q="discountValue" value="${Q.discountValue || ''}" placeholder="0"></label>
+      <label class="fld"><span class="lbl">Status</span><select data-q="status">${Object.keys(QUOTE_STATUS).map(k => `<option value="${k}" ${k === Q.status ? 'selected' : ''}>${QUOTE_STATUS[k]}</option>`).join('')}</select></label>
+      <label class="fld"><span class="lbl">Valid until</span><input type="date" data-q="validUntil" value="${esc(Q.validUntil)}"></label>
+      <label class="fld full"><span class="lbl">Notes for the customer</span><textarea data-q="notes" rows="3" placeholder="Scope, products used, scheduling notes…">${esc(Q.notes)}</textarea></label></div></div>
+  </div>
+  <aside class="b-sum"><div class="card"><h3 class="t">${ic('dollar', 'line')} Estimate</h3><div id="qsum">${quoteSummaryHTML()}</div>
+    <div class="btn-col"><button class="btn primary" data-act="saveQuote">${ic('check', 'sm')} Save Quote</button>
+    ${converted ? `<a class="btn good" href="#/job/${Q.jobId}">${ic('jobs', 'sm')} View Job</a>` : `<button class="btn good" data-act="convertQuote">${ic('jobs', 'sm')} Convert to Job</button>`}
+    <button class="btn" data-act="printQuote">${ic('print', 'sm')} Print Quote</button>
+    ${Q._new ? '' : `<button class="btn danger" data-act="delQuote" data-id="${Q.id}">${ic('trash', 'sm')} Delete Quote</button>`}</div></div></aside></div>
+  <div class="mtot"><div><span class="l">Total</span><b id="mtotal">${money(total)}</b></div><button class="btn primary" data-act="saveQuote">Save Quote</button></div>`;
+};
+function validateQuote() {
+  const err = {};
+  if (!Q.customerId) err.customerId = 'Choose a customer';
+  if (!Q.propertyId) err.propertyId = Q.customerId ? 'Choose or add a property' : 'Choose a customer first';
+  Q.lines.forEach(l => {
+    if (!l.serviceId && !l.name) err['s' + l.id] = 'Choose a service';
+    if ((l.method === 'sqft' || l.method === 'linft' || l.method === 'hourly') && num(l.qty) <= 0) err['q' + l.id] = 'Enter a quantity';
+  });
+  Q._err = err;
+  if (Object.keys(err).length) { render(); const el = $('.has-err'); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); toast('Please fix the highlighted fields', 'err'); return false; }
+  return true;
+}
+function persistQuote() {
+  if (!validateQuote()) return null;
+  const data = clone(Q); ['_key', '_new', '_err', 'fromJob'].forEach(k => delete data[k]);
+  data.lines = data.lines.filter(l => l.name || l.serviceId);
+  if (!data.validUntil) data.validUntil = addDays(todayStr(), S().quoteValidDays);
+  let rec;
+  if (Q._new) { data.number = newQuoteNumber(); rec = add('quotes', data); }
+  else { delete data.id; rec = upd('quotes', Q.id, data); }
+  if (Q.fromJob) { const j = get('jobs', Q.fromJob); if (j && j.followUp) upd('jobs', j.id, { followUp: Object.assign({}, j.followUp, { done: true, quoteId: rec.id }) }); }
+  return rec;
+}
+function saveQuote() {
+  const wasNew = Q._new; const rec = persistQuote(); if (!rec) return;
+  toast('Quote saved'); Q = null;
+  if (wasNew) location.hash = '#/quote/' + rec.id; else render();
+}
+function convertQuote() {
+  const rec = persistQuote(); if (!rec) return;
+  const q = rec; const p = get('properties', q.propertyId), c = get('customers', q.customerId);
+  const body = `<p class="muted" style="margin-bottom:12px">Schedule the job for <b>${esc(custName(c))}</b> at <b>${esc(p ? p.name : '')}</b> — ${money(quoteCalc(q).total)}.</p><div class="fgrid">
+    ${fld('Date', 'date', addDays(todayStr(), 1), { type: 'date', required: true })}${fld('Start time', 'time', '09:00', { type: 'time' })}
+    ${fld('Crew', 'crew', crewList()[0] || '', { list: 'crewList' })}<datalist id="crewList">${crewList().map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+    ${fld('Estimated duration (hours)', 'duration', S().defaultDuration, { type: 'number', step: '0.25' })}</div>`;
+  formModal({
+    title: 'Convert to Job', body, submit: 'Create Job', onSubmit: v => {
+      const job = add('jobs', { customerId: q.customerId, propertyId: q.propertyId, quoteId: q.id, services: q.lines.map(l => l.name), items: quoteItems(q), amount: quoteCalc(q).total, status: 'scheduled', date: v.date, time: v.time, crew: v.crew, duration: num(v.duration), techNotes: q.notes || '', conditions: [], conditionOther: '', followUp: null, invoiceNo: '', invoiceDate: '' });
+      upd('quotes', q.id, { jobId: job.id, status: 'approved' }); Q = null;
+      toast('Job created'); location.hash = '#/job/' + job.id; render();
+    }
+  });
+}
+
+/* ==========================================================================
+   11. CUSTOMERS
+   ========================================================================== */
+function customerCards() {
+  const list = DB.customers.filter(c => matchQ(UI.q.customers, custName(c), c.phone, c.email)).sort((a, b) => custName(a).localeCompare(custName(b)));
+  if (!list.length) return DB.customers.length ? emptyState({ title: 'No customers match', text: 'Try a different name or phone number.', small: true }) : emptyState({ title: 'No customers yet', text: 'Add your first customer to start quoting and booking jobs.', btn: 'Add Customer', act: 'newCustomer' });
+  return `<div class="grid c3">${list.map(c => {
+    const s = customerStats(c.id);
+    return `<a class="ic" href="#/customer/${c.id}"><div class="h"><div style="display:flex;gap:11px;align-items:center"><div class="avatar">${esc(initials(custName(c)))}</div><div><div class="nm">${esc(custName(c))}</div><div class="ad">${esc(c.phone || c.email || 'No contact info')}</div></div></div></div>
+    <div class="kv"><div><div class="k">Total jobs</div><div class="v">${s.jobs}</div></div><div><div class="k">Total revenue</div><div class="v">${money(s.revenue)}</div></div><div><div class="k">Last service</div><div class="v">${s.last ? fmtDate(s.last) : '—'}</div></div><div><div class="k">Next service</div><div class="v">${s.next ? fmtDate(s.next) : '—'}</div></div><div style="grid-column:1/-1"><div class="k">Outstanding balance</div><div class="v ${s.outstanding > 0 ? 'bad' : ''}">${money(s.outstanding)}</div></div></div></a>`;
+  }).join('')}</div>`;
+}
+PAGES.customers = () => pageHead('Customers', 'The people behind every job.', `<button class="btn primary" data-act="newCustomer">${ic('plus')} Add Customer</button>`) +
+  `<div class="toolbar">${searchBox('customers', 'Search name, phone, email…')}</div><div id="listbody">${customerCards()}</div>`;
+
+function openCustomerForm(id, onSaved) {
+  const c = id ? get('customers', id) : { firstName: '', lastName: '', phone: '', email: '', notes: '' };
+  const body = `<div class="fgrid">${fld('First name', 'firstName', c.firstName, { required: true })}${fld('Last name', 'lastName', c.lastName, { required: true })}${fld('Phone', 'phone', c.phone, { type: 'tel', placeholder: '(555) 123-4567' })}${fld('Email', 'email', c.email, { type: 'email', placeholder: 'name@example.com' })}${fld('Notes', 'notes', c.notes, { type: 'textarea', full: true, placeholder: 'Preferences, pets, how they found you…' })}</div>`;
+  formModal({
+    title: id ? 'Edit Customer' : 'New Customer', body, submit: id ? 'Save Customer' : 'Add Customer',
+    onSubmit: v => {
+      const patch = { firstName: v.firstName, lastName: v.lastName, phone: v.phone, email: v.email, notes: v.notes };
+      let rec; if (id) { rec = upd('customers', id, patch); toast('Customer updated'); } else { rec = add('customers', patch); toast('Customer added'); }
+      if (onSaved) onSaved(rec); else if (!id && route().name === 'customers') { /* stay */ } else if (!id) { location.hash = '#/customer/' + rec.id; return; }
+      render();
+    }
+  });
+}
+PAGES.customer = r => {
+  const c = get('customers', r.id); if (!c) return notFound('Customer', '#/customers');
+  const s = customerStats(c.id), props = DB.properties.filter(p => p.customerId === c.id);
+  const jobs = DB.jobs.filter(j => j.customerId === c.id).sort((a, b) => a.date < b.date ? 1 : -1);
+  const quotes = DB.quotes.filter(q => q.customerId === c.id).sort((a, b) => a.createdAt < b.createdAt ? 1 : -1);
+  return `<a class="back" href="#/customers">${ic('back', 'sm')} Customers</a>
+  <div class="dh"><div class="row"><div style="display:flex;gap:14px;align-items:center"><div class="avatar" style="width:56px;height:56px;font-size:19px">${esc(initials(custName(c)))}</div><div><h1>${esc(custName(c))}</h1><div class="addr">${c.phone ? esc(c.phone) : ''}${c.phone && c.email ? ' · ' : ''}${esc(c.email)}</div></div></div></div>
+    <div class="btn-row" style="margin-top:14px"><button class="btn primary sm" data-act="newQuote" data-customer="${c.id}">${ic('quotes', 'sm')} New Quote</button><button class="btn sm" data-act="newJob" data-customer="${c.id}">${ic('jobs', 'sm')} New Job</button>${contactBtns(c, 'sm')}<button class="btn sm" data-act="editCustomer" data-id="${c.id}">${ic('edit', 'sm')} Edit</button><button class="btn sm danger" data-act="delCustomer" data-id="${c.id}">${ic('trash', 'sm')} Delete</button></div>
+    <div class="kv" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));display:grid;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid #edf3f7"><div><div class="k">Total jobs</div><div class="v">${s.jobs}</div></div><div><div class="k">Total revenue</div><div class="v">${money(s.revenue)}</div></div><div><div class="k">Last service</div><div class="v">${s.last ? fmtDate(s.last) : '—'}</div></div><div><div class="k">Next service</div><div class="v">${s.next ? fmtDate(s.next) : '—'}</div></div><div><div class="k">Outstanding</div><div class="v ${s.outstanding > 0 ? 'bad' : ''}">${money(s.outstanding)}</div></div></div></div>
+  ${c.notes ? `<div class="card" style="margin-top:14px"><h3 class="t">${ic('drop')} Notes</h3><div class="notes">${esc(c.notes)}</div></div>` : ''}
+  <div class="sect-t">Properties<button class="btn sm more" data-act="newProperty" data-customer="${c.id}">${ic('plus', 'sm')} Add Property</button></div>
+  ${props.length ? `<div class="grid c2">${props.map(propertyCard).join('')}</div>` : emptyState({ title: 'No properties yet', text: 'Add the address where you wash for this customer.', btn: 'Add Property', act: 'newProperty', id: '', small: true }).replace('data-act="newProperty"', `data-act="newProperty" data-customer="${c.id}"`)}
+  <div class="sect-t">Job history</div>
+  ${jobs.length ? `<div class="tbl-wrap"><table class="rt"><thead><tr><th>Date</th><th>Property</th><th>Service</th><th class="num">Amount</th><th>Status</th></tr></thead><tbody>${jobs.map(j => `<tr data-href="#/job/${j.id}"><td class="first nowrap" data-label="Date"><b>${fmtDate(j.date)}</b></td><td data-label="Property">${esc((jobProperty(j) || {}).name || '—')}</td><td data-label="Service">${esc(servicesText(j))}</td><td class="num" data-label="Amount"><b>${money(j.amount)}</b></td><td data-label="Status">${jobBadge(j)}</td></tr>`).join('')}</tbody></table></div>` : emptyState({ title: 'No jobs yet', text: 'Jobs for this customer will show up here.', btn: 'Create Job', act: 'newJob', small: true }).replace('data-act="newJob"', `data-act="newJob" data-customer="${c.id}"`)}
+  ${quotes.length ? `<div class="sect-t">Quotes</div><div class="card">${quotes.map(q => `<a class="mini" href="#/quote/${q.id}"><div><div class="a">${esc(q.number)} · ${esc(quoteServicesText(q))}</div><div class="b">${fmtDate(q.createdAt.slice(0, 10))}</div></div><div class="right"><b>${money(quoteCalc(q).total)}</b><div>${quoteBadge(q)}</div></div></a>`).join('')}</div>` : ''}`;
+};
+async function deleteCustomer(id) {
+  const c = get('customers', id); if (!c) return;
+  const props = DB.properties.filter(p => p.customerId === id), jobs = DB.jobs.filter(j => j.customerId === id), quotes = DB.quotes.filter(q => q.customerId === id);
+  const ok = await confirmBox(`Delete ${custName(c)}? This also removes ${props.length} propert${props.length === 1 ? 'y' : 'ies'}, ${jobs.length} job${jobs.length === 1 ? '' : 's'}, ${quotes.length} quote${quotes.length === 1 ? '' : 's'} and their payments and photos. This cannot be undone.`, { ok: 'Delete customer' });
+  if (!ok) return;
+  for (const p of props) await purgeProperty(p.id);
+  DB.jobs.filter(j => j.customerId === id).forEach(j => purgeJob(j.id));
+  DB.quotes = DB.quotes.filter(q => q.customerId !== id); del('customers', id);
+  toast('Customer deleted'); location.hash = '#/customers'; render();
+}
+
+/* ==========================================================================
+   12. PROPERTIES
+   ========================================================================== */
+function propertyCard(p) {
+  const c = get('customers', p.customerId), s = propertyStats(p.id), ph = photosFor('property', p.id)[0];
+  return `<a class="ic" href="#/property/${p.id}">${ph ? `<img src="${PHOTO_URL[ph.id]}" alt="" style="width:100%;aspect-ratio:16/7;object-fit:cover;border-radius:10px;margin-bottom:10px;display:block">` : ''}<div class="h"><div><div class="nm">${esc(p.name)}</div><div class="ad">${esc(propLine(p))}</div></div><span class="chip">${esc(p.type)}</span></div>
+    <div class="kv"><div><div class="k">Customer</div><div class="v">${esc(custName(c))}</div></div><div><div class="k">Last service</div><div class="v">${s.last ? fmtDate(s.last) : '—'}</div></div><div style="grid-column:1/-1"><div class="k">Services</div><div class="v">${esc(s.services.slice(0, 4).join(', ') || '—')}</div></div><div><div class="k">Total revenue</div><div class="v">${money(s.revenue)}</div></div><div><div class="k">Jobs</div><div class="v">${s.jobs}</div></div></div></a>`;
+}
+function propertyCards() {
+  const tab = UI.tab.properties;
+  const list = DB.properties.filter(p => (tab === 'all' || p.type === tab) && matchQ(UI.q.properties, p.name, propLine(p), custName(get('customers', p.customerId)))).sort((a, b) => a.name.localeCompare(b.name));
+  if (!list.length) return DB.properties.length ? emptyState({ title: 'No properties match', text: 'Try a different filter or search.', small: true }) : emptyState({ title: 'No properties yet', text: 'Properties are the addresses you wash. Add one to start quoting.', btn: 'Add Property', act: 'newProperty' });
+  return `<div class="grid c3">${list.map(propertyCard).join('')}</div>`;
+}
+PAGES.properties = () => pageHead('Properties', 'Every address you service, with the details that matter.', `<button class="btn primary" data-act="newProperty">${ic('plus')} Add Property</button>`) +
+  tabsHTML('properties', [['all', 'All'], ...PROPERTY_TYPES.map(t => [t, t])]) +
+  `<div class="toolbar">${searchBox('properties', 'Search property, address, customer…')}</div><div id="listbody">${propertyCards()}</div>`;
+
+function openPropertyForm(id, opts = {}) {
+  const p = id ? get('properties', id) : Object.assign({ customerId: '', name: '', address: '', city: '', state: '', zip: '', type: 'Residential', notes: '', sqft: '', drivewaySqft: '', surfaces: '', roofType: '', fence: '', deck: '', patio: '', access: '', water: '', gate: '' }, { customerId: opts.customerId || '' });
+  const body = `<div class="fgrid">
+    ${fld('Customer', 'customerId', p.customerId, { type: 'select', required: true, options: optList(custOptions(), 'Select customer…') })}
+    ${fld('Property name', 'name', p.name, { required: true, placeholder: 'e.g. Johnson Residence' })}
+    ${fld('Street address', 'address', p.address, { required: true, full: true })}
+    ${fld('City', 'city', p.city, { required: true })}${fld('State', 'state', p.state)}${fld('ZIP', 'zip', p.zip)}
+    ${fld('Property type', 'type', p.type, { type: 'select', options: PROPERTY_TYPES })}
+    ${fld('Approx. square footage', 'sqft', p.sqft, { type: 'number', hint: 'House / building area to wash' })}
+    ${fld('Driveway size (sq ft)', 'drivewaySqft', p.drivewaySqft, { type: 'number' })}
+    ${fld('Exterior surfaces', 'surfaces', p.surfaces, { placeholder: 'Vinyl siding, brick, concrete…' })}
+    ${fld('Roof type', 'roofType', p.roofType, { placeholder: 'Asphalt shingle, metal, tile…' })}
+    ${fld('Fence', 'fence', p.fence, { placeholder: 'Wood privacy, ~160 ft' })}
+    ${fld('Deck', 'deck', p.deck, { placeholder: 'Wood deck, ~300 sq ft' })}
+    ${fld('Patio', 'patio', p.patio, { placeholder: 'Concrete patio, ~350 sq ft' })}
+    ${fld('Special access notes', 'access', p.access, { type: 'textarea', full: true, rows: 2, placeholder: 'Parking, dogs, tight corners…' })}
+    ${fld('Water source notes', 'water', p.water, { type: 'textarea', rows: 2, placeholder: 'Spigot location, pressure, bring tank?' })}
+    ${fld('Gate / access information', 'gate', p.gate, { type: 'textarea', rows: 2, placeholder: 'Gate code, key location…' })}
+    ${fld('Other notes', 'notes', p.notes, { type: 'textarea', full: true, rows: 2 })}
+  </div>`;
+  formModal({
+    title: id ? 'Edit Property' : 'New Property', body, submit: id ? 'Save Property' : 'Add Property', cls: 'wide',
+    onSubmit: v => {
+      const patch = { customerId: v.customerId, name: v.name, address: v.address, city: v.city, state: v.state, zip: v.zip, type: v.type, notes: v.notes, sqft: num(v.sqft) || '', drivewaySqft: num(v.drivewaySqft) || '', surfaces: v.surfaces, roofType: v.roofType, fence: v.fence, deck: v.deck, patio: v.patio, access: v.access, water: v.water, gate: v.gate };
+      let rec; if (id) { rec = upd('properties', id, patch); toast('Property updated'); } else { rec = add('properties', patch); toast('Property added'); }
+      if (opts.onSaved) opts.onSaved(rec);
+      render();
+    }
+  });
+}
+PAGES.property = r => {
+  const p = get('properties', r.id); if (!p) return notFound('Property', '#/properties');
+  const c = get('customers', p.customerId), s = propertyStats(p.id);
+  const det = [['Type', p.type], ['Approx. area', p.sqft ? fmtNum(p.sqft) + ' sq ft' : ''], ['Driveway', p.drivewaySqft ? fmtNum(p.drivewaySqft) + ' sq ft' : ''], ['Exterior surfaces', p.surfaces], ['Roof type', p.roofType], ['Fence', p.fence], ['Deck', p.deck], ['Patio', p.patio], ['Access notes', p.access], ['Water source', p.water], ['Gate / access', p.gate], ['Notes', p.notes]].filter(x => x[1]);
+  return `<a class="back" href="#/properties">${ic('back', 'sm')} Properties</a>
+  <div class="dh"><div class="row"><div><h1>${esc(p.name)}</h1><div class="addr">${ic('pin', 'sm')}<span>${esc(propLine(p))}</span></div><div style="margin-top:6px">${c ? `Customer: <a href="#/customer/${c.id}"><b>${esc(custName(c))}</b></a>` : ''}</div></div><span class="chip">${esc(p.type)}</span></div>
+    <div class="btn-row" style="margin-top:14px">${navBtn(p, 'sm')}${contactBtns(c, 'sm')}<button class="btn primary sm" data-act="newQuote" data-property="${p.id}">${ic('quotes', 'sm')} New Quote</button><button class="btn sm" data-act="newJob" data-property="${p.id}">${ic('jobs', 'sm')} New Job</button><button class="btn sm" data-act="editProperty" data-id="${p.id}">${ic('edit', 'sm')} Edit</button><button class="btn sm danger" data-act="delProperty" data-id="${p.id}">${ic('trash', 'sm')} Delete</button></div>
+    <div class="kv" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid #edf3f7"><div><div class="k">Last service</div><div class="v">${s.last ? fmtDate(s.last) : '—'}</div></div><div><div class="k">Total revenue</div><div class="v">${money(s.revenue)}</div></div><div><div class="k">Jobs</div><div class="v">${s.jobs}</div></div></div>
+    ${s.services.length ? `<div class="chips" style="margin-top:12px">${s.services.map(n => `<span class="chip">${esc(n)}</span>`).join('')}</div>` : ''}</div>
+  <div class="cols"><div class="card"><h3 class="t">${ic('pin', 'line')} Property details</h3>${det.length ? `<dl class="dl">${det.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : '<p class="muted">No details yet – tap Edit to add square footage, access notes and more.</p>'}</div>
+    <div class="card"><h3 class="t">${ic('camera', 'line')} Property photos</h3>${photoBlock('property', p.id, 'property', 'Property photo', { gallery: true })}</div></div>
+  <div class="sect-t">Service history</div>
+  ${s.history.length ? `<div class="tbl-wrap"><table class="rt"><thead><tr><th>Date</th><th>Service</th><th>Crew</th><th class="num">Amount</th><th>Status</th></tr></thead><tbody>${s.history.map(j => `<tr data-href="#/job/${j.id}"><td class="first nowrap" data-label="Date"><b>${fmtDate(j.date)}</b></td><td data-label="Service">${esc(servicesText(j))}</td><td data-label="Crew">${esc(j.crew || '—')}</td><td class="num" data-label="Amount"><b>${money(j.amount)}</b></td><td data-label="Status">${jobBadge(j)}</td></tr>`).join('')}</tbody></table></div>` : emptyState({ title: 'No service history', text: 'Completed jobs at this property will build its history here.', btn: 'Create Job', act: 'newJob', small: true }).replace('data-act="newJob"', `data-act="newJob" data-property="${p.id}"`)}`;
+};
+function purgeJob(id) {
+  PHOTOS.filter(x => x.ownerType === 'job' && x.ownerId === id).forEach(x => removePhoto(x.id));
+  DB.payments = DB.payments.filter(x => x.jobId !== id);
+  DB.quotes.forEach(q => { if (q.jobId === id) q.jobId = ''; });
+  del('jobs', id);
+}
+async function purgeProperty(id) {
+  DB.jobs.filter(j => j.propertyId === id).forEach(j => purgeJob(j.id));
+  DB.quotes = DB.quotes.filter(q => q.propertyId !== id);
+  PHOTOS.filter(x => x.ownerType === 'property' && x.ownerId === id).forEach(x => removePhoto(x.id));
+  del('properties', id);
+}
+async function deleteProperty(id) {
+  const p = get('properties', id); if (!p) return;
+  const jobs = DB.jobs.filter(j => j.propertyId === id).length, quotes = DB.quotes.filter(q => q.propertyId === id).length;
+  const ok = await confirmBox(`Delete ${p.name}? This also removes ${jobs} job${jobs === 1 ? '' : 's'}, ${quotes} quote${quotes === 1 ? '' : 's'} and related payments and photos.`, { ok: 'Delete property' });
+  if (!ok) return; await purgeProperty(id); toast('Property deleted'); location.hash = '#/properties'; render();
+}
+
+/* ==========================================================================
+   13. PAYMENTS
+   ========================================================================== */
+const PAY_TABS = [['unpaid', 'Unpaid'], ['partial', 'Partial'], ['paid', 'Paid'], ['history', 'Payment history']];
+const billingJobs = () => DB.jobs.filter(j => (j.status === 'completed' || j.status === 'in_progress' || j.status === 'paid') && j.amount > 0);
+function billingFor(tab) {
+  return billingJobs().filter(j => { const b = billStatus(j); return tab === 'paid' ? b === 'paid' : tab === 'partial' ? b === 'partial' : b === 'unpaid'; }).sort((a, b) => a.date < b.date ? 1 : -1);
+}
+PAGES.payments = () => {
+  const month = todayStr().slice(0, 7), tab = UI.tab.payments;
+  const collected = sum(DB.payments.filter(p => p.date.startsWith(month)), p => p.amount);
+  let content;
+  if (tab === 'history') {
+    const list = DB.payments.slice().sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : (a.createdAt < b.createdAt ? 1 : -1));
+    content = list.length ? `<div class="tbl-wrap"><table class="rt"><thead><tr><th>Date</th><th>Customer</th><th>Job</th><th>Method</th><th>Notes</th><th class="num">Amount</th><th></th></tr></thead><tbody>${list.map(p => { const j = get('jobs', p.jobId); return `<tr><td class="first nowrap" data-label="Date"><b>${fmtDate(p.date)}</b></td><td data-label="Customer">${esc(custName(get('customers', p.customerId)))}</td><td data-label="Job">${j ? `<a href="#/job/${j.id}">${esc(servicesText(j))}</a>` : '—'}</td><td data-label="Method">${esc(p.method)}</td><td data-label="Notes">${esc(p.notes || '—')}</td><td class="num" data-label="Amount"><b>${money(p.amount)}</b></td><td class="acts"><div class="btn-row" style="justify-content:flex-end"><button class="btn sm" data-act="editPayment" data-id="${p.id}" aria-label="Edit payment">${ic('edit', 'sm')}</button><button class="btn sm danger" data-act="delPayment" data-id="${p.id}" aria-label="Delete payment">${ic('trash', 'sm')}</button></div></td></tr>`; }).join('')}</tbody></table></div>`
+      : emptyState({ title: 'No payments recorded', text: 'Payments you record against jobs will be listed here.', btn: 'Record Payment', act: 'recordPayment' });
+  } else {
+    const list = billingFor(tab);
+    content = list.length ? `<div class="tbl-wrap"><table class="rt"><thead><tr><th>Customer</th><th>Service</th><th>Date</th><th class="num">Amount</th><th class="num">Paid</th><th class="num">Balance</th><th>Status</th><th></th></tr></thead><tbody>${list.map(j => { const paid = paidOf(j.id), bs = billStatus(j); return `<tr data-href="#/job/${j.id}"><td class="first" data-label="Customer"><b>${esc(custName(jobCustomer(j)))}</b><div class="sub">${esc((jobProperty(j) || {}).name || '')}</div></td><td data-label="Service">${esc(servicesText(j))}</td><td class="nowrap" data-label="Date">${fmtDate(j.date)}</td><td class="num" data-label="Amount">${money(j.amount)}</td><td class="num" data-label="Paid">${money(paid)}</td><td class="num" data-label="Balance"><b style="color:${bs === 'paid' ? 'inherit' : '#a8322a'}">${money(Math.max(0, j.amount - paid))}</b></td><td data-label="Status">${badge(bs, bs[0].toUpperCase() + bs.slice(1))}</td><td class="acts">${bs !== 'paid' ? `<button class="btn primary sm" data-act="recordPayment" data-id="${j.id}">${ic('dollar', 'sm')} Record</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>`
+      : emptyState({ title: tab === 'paid' ? 'Nothing paid yet' : tab === 'partial' ? 'No partial payments' : 'All caught up', text: tab === 'unpaid' ? 'No unpaid jobs – every completed job has been paid.' : 'Jobs will appear here as payments come in.', small: true });
+  }
+  return pageHead('Payments', 'Track what you’ve been paid and who still owes you. No payment gateway needed.', `<button class="btn primary" data-act="recordPayment">${ic('plus')} Record Payment</button>`) +
+    `<div class="pay-sum"><div class="rs ok"><div class="v">${money(collected)}</div><div class="l">Collected this month</div></div><div class="rs warn"><div class="v">${money(totalOutstanding())}</div><div class="l">Outstanding</div></div></div>` +
+    tabsHTML('payments', PAY_TABS.map(([k, l]) => [k, l, k === 'history' ? DB.payments.length : billingFor(k).length])) + content;
+};
+function openPaymentForm(id, pre = {}) {
+  const pay = id ? get('payments', id) : null;
+  const dueOf = j => Math.max(0, j.amount - paidOf(j.id) + (pay && pay.jobId === j.id ? pay.amount : 0));
+  const jobId = pay ? pay.jobId : (pre.jobId || '');
+  const jobs = DB.jobs.filter(j => j.status !== 'cancelled' && j.status !== 'quote' && (j.id === jobId || dueOf(j) > 0.005)).sort((a, b) => (a.status === 'completed' ? 0 : 1) - (b.status === 'completed' ? 0 : 1) || (a.date < b.date ? 1 : -1));
+  if (!jobs.length) { toast('No jobs with a balance to collect on', 'err'); return; }
+  const sel = jobId || jobs[0].id; const selJob = get('jobs', sel);
+  const body = `<div class="fgrid">
+    <div class="full">${fld('Job', 'jobId', sel, { type: 'select', required: true, options: jobs.map(j => [j.id, `${custName(jobCustomer(j))} — ${servicesText(j)} (${money(dueOf(j))} due)`]) })}</div>
+    <div class="fld full"><span class="lbl">Customer</span><div id="payCust" class="chip">${esc(custName(jobCustomer(selJob)))}</div></div>
+    ${fld('Amount', 'amount', pay ? pay.amount : dueOf(selJob).toFixed(2), { type: 'number', required: true, min: 0.01, hint: 'Defaults to the balance due.' })}
+    ${fld('Payment date', 'date', pay ? pay.date : todayStr(), { type: 'date', required: true })}
+    ${fld('Payment method', 'method', pay ? pay.method : 'Card', { type: 'select', options: PAY_METHODS })}
+    ${fld('Notes', 'notes', pay ? pay.notes : '', { placeholder: 'Check #, deposit, tip…' })}</div>`;
+  formModal({
+    title: pay ? 'Edit Payment' : 'Record Payment', body, submit: pay ? 'Save Payment' : 'Record Payment',
+    onOpen: f => {
+      let touched = !!pay;
+      f.elements.amount.addEventListener('input', () => { touched = true; });
+      f.elements.jobId.addEventListener('change', () => { const j = get('jobs', f.elements.jobId.value); $('#payCust', f).textContent = custName(jobCustomer(j)); if (!touched) f.elements.amount.value = dueOf(j).toFixed(2); });
+    },
+    onSubmit: v => {
+      const j = get('jobs', v.jobId), amount = Math.round(num(v.amount) * 100) / 100;
+      if (amount <= 0) return { errors: { amount: 'Enter an amount greater than zero' } };
+      if (amount > dueOf(j) + 0.005) return { errors: { amount: 'That is more than the balance due (' + money(dueOf(j)) + ')' } };
+      const patch = { jobId: j.id, customerId: j.customerId, amount, date: v.date, method: v.method, notes: v.notes };
+      if (pay) { upd('payments', pay.id, patch); const old = pay.jobId; if (old !== j.id) syncPaidStatus(old); toast('Payment updated'); } else { add('payments', patch); toast('Payment recorded'); }
+      syncPaidStatus(j.id); render();
+    }
+  });
+}
+
+/* ==========================================================================
+   14. SERVICES
+   ========================================================================== */
+PAGES.services = () => {
+  const list = DB.services.slice().sort((a, b) => a.name.localeCompare(b.name));
+  return `<a class="back" href="#/more">${ic('back', 'sm')} More</a>` + pageHead('Services', 'Your price list. Rates are editable starting points – set what works for your market.', `<button class="btn primary" data-act="newService">${ic('plus')} Add Service</button>`) +
+    (list.length ? `<div class="tbl-wrap"><table class="rt"><thead><tr><th>Service</th><th>Category</th><th>Pricing</th><th class="num">Default rate</th><th>Status</th><th></th></tr></thead><tbody>${list.map(s => `<tr><td class="first" data-label="Service"><b>${esc(s.name)}</b>${s.description ? `<div class="sub">${esc(s.description)}</div>` : ''}</td><td data-label="Category">${esc(s.category)}</td><td data-label="Pricing">${METHODS[s.method]}</td><td class="num" data-label="Default rate"><b>${s.method === 'custom' ? 'Custom' : money(s.rate)}</b>${s.method === 'sqft' || s.method === 'linft' || s.method === 'hourly' ? `<span class="muted"> / ${UNITS[s.method] === 'hours' ? 'hr' : UNITS[s.method]}</span>` : ''}</td><td data-label="Status">${badge(s.active ? 'active' : 'inactive', s.active ? 'Active' : 'Inactive')}</td><td class="acts"><div class="btn-row" style="justify-content:flex-end"><button class="btn sm" data-act="toggleService" data-id="${s.id}">${s.active ? 'Deactivate' : 'Activate'}</button><button class="btn sm" data-act="editService" data-id="${s.id}" aria-label="Edit">${ic('edit', 'sm')}</button><button class="btn sm danger" data-act="delService" data-id="${s.id}" aria-label="Delete">${ic('trash', 'sm')}</button></div></td></tr>`).join('')}</tbody></table></div>` : emptyState({ title: 'No services yet', text: 'Add the services you offer and their default rates.', btn: 'Add Service', act: 'newService' })) +
+    `<p class="muted" style="margin-top:12px;font-size:13px">Demo rates are editable examples only – they are not industry-standard prices.</p>`;
+};
+function openServiceForm(id) {
+  const s = id ? get('services', id) : { name: '', category: CATEGORIES[0], method: 'sqft', rate: '', description: '', active: true };
+  const body = `<div class="fgrid">${fld('Service name', 'name', s.name, { required: true, full: true })}${fld('Category', 'category', s.category, { type: 'select', options: CATEGORIES })}${fld('Pricing method', 'method', s.method, { type: 'select', options: Object.keys(METHODS).map(k => [k, METHODS[k]]) })}${fld('Default rate / price', 'rate', s.rate, { type: 'number', min: 0, placeholder: '0.00', hint: 'Per unit for sq ft / linear ft / hourly; total for flat rate. Leave blank for custom.' })}
+    ${fld('Description', 'description', s.description, { type: 'textarea', full: true, rows: 2 })}
+    <div class="fld full"><label class="check"><input type="checkbox" name="active" ${s.active ? 'checked' : ''}><span>Active (shows in quotes)</span></label></div></div>`;
+  formModal({
+    title: id ? 'Edit Service' : 'New Service', body, submit: id ? 'Save Service' : 'Add Service', onSubmit: v => {
+      if (v.method !== 'custom' && v.rate === '') return { errors: { rate: 'Enter a rate (or choose Custom Price)' } };
+      const patch = { name: v.name, category: v.category, method: v.method, rate: num(v.rate), description: v.description, active: !!v.active };
+      if (id) { upd('services', id, patch); toast('Service updated'); } else { add('services', patch); toast('Service added'); }
+      render();
+    }
+  });
+}
+
+/* ==========================================================================
+   15. REPORTS
+   ========================================================================== */
+PAGES.reports = () => {
+  const t = todayStr(), month = t.slice(0, 7);
+  const revMonth = sum(DB.payments.filter(p => p.date.startsWith(month)), p => p.amount);
+  const done = DB.jobs.filter(doneJob), doneMonth = done.filter(j => j.date.startsWith(month));
+  const avg = done.length ? sum(done, j => j.amount) / done.length : 0;
+  const nonDraft = DB.quotes.filter(q => q.status !== 'draft'), won = DB.quotes.filter(q => q.status === 'approved');
+  const conv = nonDraft.length ? Math.round(won.length / nonDraft.length * 100) : 0;
+  const repeat = DB.customers.filter(c => DB.jobs.filter(j => j.customerId === c.id && doneJob(j)).length >= 2).length;
+  const months = []; for (let i = 5; i >= 0; i--) { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i); months.push({ key: d.getFullYear() + '-' + pad(d.getMonth() + 1), label: d.toLocaleDateString(undefined, { month: 'short' }) }); }
+  months.forEach(m => { m.v = sum(DB.payments.filter(p => p.date.startsWith(m.key)), p => p.amount); });
+  const max = Math.max(1, ...months.map(m => m.v));
+  const svcCount = {}; done.forEach(j => (j.services || []).forEach(n => { svcCount[n] = (svcCount[n] || 0) + 1; }));
+  const svcRows = Object.entries(svcCount).sort((a, b) => b[1] - a[1]).slice(0, 6), smax = Math.max(1, ...svcRows.map(x => x[1]));
+  const qrows = Object.keys(QUOTE_STATUS).map(k => [QUOTE_STATUS[k], DB.quotes.filter(q => q.status === k).length]), qmax = Math.max(1, ...qrows.map(x => x[1]));
+  const bar = (rows, mx) => rows.map(([l, n]) => `<div class="hbar"><span>${esc(l)}</span><div class="tr"><div class="fl" style="width:${n / mx * 100}%"></div></div><b>${n}</b></div>`).join('');
+  return `<a class="back" href="#/more">${ic('back', 'sm')} More</a>` + pageHead('Reports', 'A quick pulse on the business – not an accounting system.') +
+    `<div class="rstats">
+      <div class="rs"><div class="v">${money(revMonth)}</div><div class="l">Revenue this month</div><div class="s">payments collected</div></div>
+      <div class="rs"><div class="v">${doneMonth.length}</div><div class="l">Completed jobs</div><div class="s">this month · ${done.length} all-time</div></div>
+      <div class="rs"><div class="v">${money(avg)}</div><div class="l">Average job value</div><div class="s">across completed jobs</div></div>
+      <div class="rs"><div class="v">${money(totalOutstanding())}</div><div class="l">Outstanding payments</div><div class="s">${billingFor('unpaid').length + billingFor('partial').length} jobs unpaid</div></div>
+      <div class="rs"><div class="v">${won.length}</div><div class="l">Quotes won</div><div class="s">of ${DB.quotes.length} quotes</div></div>
+      <div class="rs"><div class="v">${conv}%</div><div class="l">Quote conversion</div><div class="s">approved of sent quotes</div></div>
+      <div class="rs"><div class="v">${repeat}</div><div class="l">Repeat customers</div><div class="s">of ${DB.customers.length} customers</div></div>
+      <div class="rs"><div class="v">${DB.properties.length}</div><div class="l">Properties serviced</div><div class="s">on file</div></div></div>
+    <div class="cols"><div class="card"><h3 class="t">${ic('chart', 'line')} Revenue – last 6 months</h3><div class="bars">${months.map((m, i) => `<div class="col ${i === months.length - 1 ? 'cur' : ''}"><div class="val">${m.v ? moneyShort(m.v) : ''}</div><div class="bar" style="height:${Math.max(2, m.v / max * 78)}%"></div><div class="lab">${m.label}</div></div>`).join('')}</div></div>
+    <div class="card"><h3 class="t">${ic('drop')} Most-booked services</h3>${svcRows.length ? bar(svcRows, smax) : '<p class="muted">Complete jobs to see your most popular services.</p>'}<h3 class="t" style="margin-top:20px">${ic('quotes', 'line')} Quotes by status</h3>${bar(qrows, qmax)}</div></div>`;
+};
+
+/* ==========================================================================
+   16. MORE + SETTINGS
+   ========================================================================== */
+PAGES.more = () => pageHead('More', 'Everything else in your toolbox.') +
+  `<div class="menu-list">
+    <a href="#/services"><span class="ico">${ic('tool')}</span><span>Services<small>Your price list and default rates</small></span></a>
+    <a href="#/payments"><span class="ico">${ic('dollar')}</span><span>Payments<small>Who has paid, who still owes</small></span></a>
+    <a href="#/reports"><span class="ico">${ic('chart')}</span><span>Reports<small>Revenue, quotes won, repeat customers</small></span></a>
+    <a href="#/settings"><span class="ico">${ic('settings')}</span><span>Settings<small>Business profile, pricing, backup &amp; data</small></span></a></div>
+  <p class="muted" style="margin-top:16px;font-size:13px">${S().lastBackup ? 'Last backup: ' + fmtDate(S().lastBackup) : 'You haven’t exported a backup yet – do it from Settings → Backup.'}</p>`;
+
+PAGES.settings = () => {
+  const b = S().business;
+  const sec = (id, title, inner) => `<div class="card" id="${id}"><h3 class="t">${ic('drop')} ${title}</h3>${inner}</div>`;
+  return `<a class="back" href="#/more">${ic('back', 'sm')} More</a>` + pageHead('Settings', 'Make PressureWashFlow yours.') +
+    `<div class="chips" style="margin-bottom:14px">${[['business', 'Business'], ['pricing', 'Pricing'], ['servicesS', 'Services'], ['jobsS', 'Jobs'], ['backup', 'Backup'], ['data', 'Data']].map(([k, l]) => `<a class="chip" href="#/settings" data-scroll="${k}">${l}</a>`).join('')}</div>
+    ${sec('business', 'Business profile', `<form data-form="business" novalidate><div class="fgrid">${fld('Business name', 'name', b.name, { required: true })}${fld('Phone', 'phone', b.phone, { type: 'tel' })}${fld('Email', 'email', b.email, { type: 'email' })}${fld('Address', 'address', b.address)}</div>
+      <div class="fld" style="margin:14px 0"><span class="lbl">Logo</span><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">${b.logo ? `<img src="${b.logo}" alt="Logo" style="width:56px;height:56px;object-fit:contain;border:1px solid var(--line);border-radius:10px;padding:3px">` : '<span class="muted">No logo yet</span>'}<label class="btn sm">${ic('upload', 'sm')} Upload logo<input class="sr" type="file" accept="image/*" data-logo></label>${b.logo ? `<button type="button" class="btn sm danger" data-act="removeLogo">Remove</button>` : ''}</div><span class="hint">Shown on quotes, invoices and job summaries.</span></div>
+      <button class="btn primary" type="submit">Save business profile</button></form>`)}
+    ${sec('pricing', 'Pricing', `<form data-form="pricing" novalidate><div class="fgrid">${fld('Currency', 'currency', S().currency, { type: 'select', options: CURRENCIES })}${fld('Sales tax / VAT (%)', 'taxRate', S().taxRate, { type: 'number', min: 0, hint: 'Added to new quotes. Leave 0 if you don’t charge tax.' })}${fld('Quote valid for (days)', 'quoteValidDays', S().quoteValidDays, { type: 'number', min: 1, step: 1 })}</div><button class="btn primary" type="submit" style="margin-top:14px">Save pricing</button></form>
+      <h3 class="t" style="margin-top:22px">Add-on presets</h3><p class="muted" style="margin-bottom:8px;font-size:13.5px">Quick extras you can tick on any quote. Prices are editable examples.</p>
+      ${S().addons.map(a => `<div class="mini"><div class="a">${esc(a.name)}</div><div class="btn-row" style="align-items:center"><b>+${money(a.price)}</b><button class="btn sm" data-act="editAddon" data-id="${a.id}" aria-label="Edit add-on">${ic('edit', 'sm')}</button><button class="btn sm danger" data-act="delAddon" data-id="${a.id}" aria-label="Delete add-on">${ic('trash', 'sm')}</button></div></div>`).join('') || '<p class="muted">No add-ons yet.</p>'}
+      <button class="btn sm" style="margin-top:10px" data-act="newAddon">${ic('plus', 'sm')} Add add-on</button>`)}
+    ${sec('servicesS', 'Services', `<p class="muted" style="margin-bottom:12px">${DB.services.length} services · ${DB.services.filter(s => s.active).length} active. Set each service’s pricing method and default rate.</p><a class="btn" href="#/services">${ic('tool', 'sm')} Manage services</a>`)}
+    ${sec('jobsS', 'Job settings', `<form data-form="jobs" novalidate><div class="fgrid">${fld('Default job duration (hours)', 'defaultDuration', S().defaultDuration, { type: 'number', step: '0.25', min: 0.25 })}${fld('Default follow-up period', 'followUpDays', String(S().followUpDays), { type: 'select', options: [['30', '30 days'], ['60', '60 days'], ['90', '90 days'], ['180', '6 months']] })}${fld('Crew names', 'crews', S().crews, { full: true, hint: 'Comma-separated, e.g. Crew A, Crew B, Mike' })}${fld('Invoice footer note', 'invoiceNote', S().invoiceNote, { type: 'textarea', full: true, rows: 2 })}</div><button class="btn primary" type="submit" style="margin-top:14px">Save job settings</button></form>`)}
+    ${sec('backup', 'Backup', `<p class="muted" style="margin-bottom:12px">Your data lives only in this browser. Export a backup file regularly (it includes photos) and keep it somewhere safe. ${S().lastBackup ? 'Last backup: <b>' + fmtDate(S().lastBackup) + '</b>.' : ''}</p><div class="btn-row"><button class="btn primary" data-act="exportBackup">${ic('download', 'sm')} Export Backup</button><button class="btn" data-act="importBackup">${ic('upload', 'sm')} Import Backup</button></div>`)}
+    ${sec('data', 'Data', `<p class="muted" style="margin-bottom:12px">Load fictional sample customers, jobs and photos – or wipe everything and start fresh with your own business.</p><div class="btn-row"><button class="btn" data-act="loadDemo">${ic('repeat', 'sm')} Reset Demo Data</button><button class="btn danger" data-act="eraseAll">${ic('trash', 'sm')} Erase All Data</button></div>`)}
+    <p class="muted" style="margin:18px 0 0;font-size:12.5px;text-align:center">PressureWashFlow · works offline · data saved in this browser</p>`;
+};
+const FORMS = {
+  business: v => { S().business = Object.assign(S().business, { name: v.name, phone: v.phone, email: v.email, address: v.address }); save(); toast('Business profile saved'); renderShell(); render(); },
+  pricing: v => { Object.assign(S(), { currency: v.currency, taxRate: num(v.taxRate), quoteValidDays: Math.max(1, Math.round(num(v.quoteValidDays)) || 14) }); save(); toast('Pricing saved'); render(); },
+  jobs: v => { Object.assign(S(), { defaultDuration: num(v.defaultDuration) || 2, followUpDays: num(v.followUpDays) || 90, crews: v.crews, invoiceNote: v.invoiceNote }); save(); toast('Job settings saved'); render(); }
+};
+function openAddonForm(id) {
+  const a = id ? S().addons.find(x => x.id === id) : { name: '', price: '' };
+  formModal({
+    title: id ? 'Edit add-on' : 'New add-on', cls: 'sm', submit: 'Save', body: `<div class="fgrid">${fld('Add-on name', 'name', a.name, { required: true, full: true })}${fld('Price', 'price', a.price, { type: 'number', required: true, min: 0, full: true })}</div>`,
+    onSubmit: v => { if (id) { Object.assign(a, { name: v.name, price: num(v.price) }); } else S().addons.push({ id: uid('ao'), name: v.name, price: num(v.price) }); save(); toast('Add-on saved'); render(); }
+  });
+}
+
+/* ==========================================================================
+   17. BACKUP / RESTORE / DEMO
+   ========================================================================== */
+async function exportBackup() {
+  try {
+    const photos = [];
+    for (const p of PHOTOS) photos.push({ id: p.id, ownerType: p.ownerType, ownerId: p.ownerId, kind: p.kind, createdAt: p.createdAt, updatedAt: p.updatedAt, dataUrl: await blobToDataURL(p.blob) });
+    const payload = { app: 'PressureWashFlow', version: 1, exportedAt: nowISO(), data: DB, photos };
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'PressureWashFlow-backup-' + todayStr() + '.json';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    S().lastBackup = todayStr(); save(); toast('Backup exported (' + photos.length + ' photos)'); if (route().name === 'settings') render();
+  } catch (e) { console.error(e); toast('Backup failed', 'err'); }
+}
+async function clearPhotos() { await IDBX.clear(); Object.keys(PHOTO_URL).forEach(id => URL.revokeObjectURL(PHOTO_URL[id])); for (const k in PHOTO_URL) delete PHOTO_URL[k]; PHOTOS = []; }
+async function importBackup(file) {
+  let payload;
+  try { payload = JSON.parse(await file.text()); } catch (e) { toast('That file is not a valid backup', 'err'); return; }
+  if (!payload || payload.app !== 'PressureWashFlow' || !payload.data || !Array.isArray(payload.data.jobs)) { toast('That file is not a PressureWashFlow backup', 'err'); return; }
+  const d = payload.data;
+  const ok = await confirmBox(`Restore this backup? It contains ${(d.customers || []).length} customers, ${(d.jobs || []).length} jobs and ${(payload.photos || []).length} photos. Your current data will be replaced.`, { ok: 'Restore backup', title: 'Restore backup', danger: false });
+  if (!ok) return;
+  try {
+    await clearPhotos(); DB = normalizeDB(d); save();
+    for (const p of payload.photos || []) { if (!p.dataUrl) continue; const rec = { id: p.id, ownerType: p.ownerType, ownerId: p.ownerId, kind: p.kind, createdAt: p.createdAt, updatedAt: p.updatedAt, blob: dataURLToBlob(p.dataUrl) }; await IDBX.put(rec); registerPhoto(rec); }
+    expireQuotes(); Q = null; renderShell(); toast('Backup restored'); location.hash = '#/today'; render();
+  } catch (e) { console.error(e); toast('Restore failed – ' + e.message, 'err'); }
+}
+async function loadDemo() {
+  const ok = await confirmBox('Replace everything with fresh sample data? Your current customers, jobs and photos will be removed.', { ok: 'Reset demo data', title: 'Reset demo data', danger: false });
+  if (!ok) return;
+  await clearPhotos(); DB = buildDemo(); save(); await buildDemoPhotos(); Q = null; renderShell(); toast('Demo data loaded'); location.hash = '#/today'; render();
+}
+async function eraseAll() {
+  const ok = await confirmBox('Erase ALL customers, properties, quotes, jobs, payments and photos? Settings return to defaults. Export a backup first if you might need this data.', { ok: 'Erase everything', title: 'Erase all data' });
+  if (!ok) return;
+  await clearPhotos(); DB = emptyDB(); save(); Q = null; renderShell(); toast('All data erased'); location.hash = '#/today'; render();
+}
+
+/* ==========================================================================
+   18. DEMO DATA  (fictional – dates are relative to today)
+   ========================================================================== */
+function buildDemo() {
+  const prev = DB; const db = emptyDB(); DB = db;
+  try {
+    const T = todayStr(), D = n => addDays(T, n);
+    const iso = (n, h = 9) => { const d = parseDate(D(n)); d.setHours(h, 0, 0, 0); return d.toISOString(); };
+    const mk = (coll, id, obj, n = 0) => { const t = iso(n); const rec = Object.assign({ id, createdAt: t, updatedAt: t }, obj); db[coll].push(rec); return rec; };
+    db.settings.business = { name: 'Crystal Clear Pressure Washing', phone: '(864) 555-0100', email: 'hello@crystalclearpw.example', address: '48 Harbor Lane, Greenville, SC 29601', logo: '' };
+    db.settings.demo = true;
+    const svcDefs = [
+      ['svc_house', 'House Washing', 'House & Siding', 'sqft', 0.15, 'Low-pressure soft wash of siding, trim and soffits.'],
+      ['svc_drive', 'Driveway Cleaning', 'Flatwork (Concrete)', 'sqft', 0.20, 'Surface-cleaner wash of concrete or pavers.'],
+      ['svc_side', 'Sidewalk Cleaning', 'Flatwork (Concrete)', 'linft', 1.25, 'Walkways and curbs.'],
+      ['svc_patio', 'Patio Cleaning', 'Flatwork (Concrete)', 'sqft', 0.25, 'Patio and pool-deck cleaning.'],
+      ['svc_deck', 'Deck Cleaning', 'Wood & Fences', 'sqft', 0.30, 'Gentle wash for wood and composite decking.'],
+      ['svc_fence', 'Fence Cleaning', 'Wood & Fences', 'linft', 1.50, 'Wood, vinyl and metal fencing.'],
+      ['svc_roof', 'Roof Soft Wash', 'Roof & Gutters', 'sqft', 0.40, 'Soft wash to remove algae and black streaks.'],
+      ['svc_gutter', 'Gutter Cleaning', 'Roof & Gutters', 'flat', 140, 'Clear debris and flush downspouts.'],
+      ['svc_comm', 'Commercial Exterior', 'Commercial', 'hourly', 85, 'Storefronts, dumpster pads and parking areas.'],
+      ['svc_other', 'Other', 'Other', 'custom', 0, 'Anything that does not fit above.']
+    ];
+    const SV = {}; svcDefs.forEach(s => { SV[s[0]] = mk('services', s[0], { name: s[1], category: s[2], method: s[3], rate: s[4], description: s[5], active: true }, -200); });
+    const addonPrice = {}; db.settings.addons.forEach(a => { addonPrice[a.name] = a.price; });
+
+    const custs = [
+      ['cus_mike', 'Mike', 'Johnson', '(864) 555-0142', 'mike.johnson@example.com', 'Prefers text messages. Dog in the backyard – call from the driveway.'],
+      ['cus_sarah', 'Sarah', 'Williams', '(864) 555-0177', 'sarah.williams@example.com', 'Repeat customer – books a patio clean every spring and fall.'],
+      ['cus_robert', 'Robert', 'Davis', '(864) 555-0120', 'rdavis@example.com', 'Pays by check. Likes a text when the crew is 20 minutes away.'],
+      ['cus_emily', 'Emily', 'Carter', '(864) 555-0166', 'emily.carter@example.com', 'HOA requires before/after photos.'],
+      ['cus_linda', 'Linda', 'Martinez', '(864) 555-0133', 'linda.martinez@example.com', 'Landlord – turns over rentals every few months.'],
+      ['cus_priya', 'Priya', 'Patel', '(864) 555-0188', 'priya@oaklinedental.example', 'Office manager. Work must finish before 8:30 AM.'],
+      ['cus_tom', 'Tom', 'Nguyen', '(864) 555-0159', 'tom.nguyen@example.com', '']
+    ];
+    custs.forEach((c, i) => mk('customers', c[0], { firstName: c[1], lastName: c[2], phone: c[3], email: c[4], notes: c[5] }, -210 + i));
+    const P = (id, cid, name, address, city, state, zip, type, o) => mk('properties', id, Object.assign({ customerId: cid, name, address, city, state, zip, type, notes: '', sqft: '', drivewaySqft: '', surfaces: '', roofType: '', fence: '', deck: '', patio: '', access: '', water: '', gate: '' }, o), -200);
+    P('p_johnson', 'cus_mike', 'Johnson Residence', '123 Maple Street', 'Greenville', 'SC', '29607', 'Residential', { sqft: 2000, drivewaySqft: 1800, surfaces: 'Vinyl siding, brick foundation, concrete driveway', roofType: 'Asphalt shingle', fence: 'Wood privacy fence (backyard)', patio: 'Concrete patio ~350 sq ft', access: 'Park on the street – driveway gets washed.', water: 'Outdoor spigot on left side of garage', gate: 'Side gate unlocked' });
+    P('p_johnson2', 'cus_mike', 'Johnson Rental Duplex', '410 Elm Court', 'Greenville', 'SC', '29605', 'Rental', { sqft: 2600, drivewaySqft: 1200, surfaces: 'Brick and hardie board', roofType: 'Architectural shingle', access: 'Tenants home weekdays after 5 PM.', water: 'Spigot at rear of unit B' });
+    P('p_williams', 'cus_sarah', 'Williams Home', '88 Lakeview Drive', 'Taylors', 'SC', '29687', 'Residential', { sqft: 1900, drivewaySqft: 1500, surfaces: 'Stucco, concrete patio', patio: 'Covered concrete patio ~420 sq ft', water: 'Front hose bib – pressure is strong', access: 'Please close the patio screen door when finished.' });
+    P('p_williams2', 'cus_sarah', 'Williams Lake Cottage', '12 Cove Road', 'Lake Lure', 'NC', '28746', 'Residential', { sqft: 1400, deck: 'Wood deck ~320 sq ft over the water', surfaces: 'Cedar siding', access: 'Gravel drive – bring the small trailer.', notes: 'Seasonal home. Text before arriving.' });
+    P('p_davis', 'cus_robert', 'Davis Property', '2150 Ridgeline Road', 'Greer', 'SC', '29650', 'Residential', { sqft: 3200, drivewaySqft: 2200, surfaces: 'Brick, concrete driveway, wood fence', roofType: 'Architectural shingle (steep 8/12)', fence: 'Wood privacy fence ~220 ft', gate: 'Gate code 4471# – call on arrival.', water: 'Two spigots, front and rear', access: 'Two dogs inside – keep the side gate closed.' });
+    P('p_carter', 'cus_emily', 'Carter Residence', '57 Willow Bend', 'Simpsonville', 'SC', '29681', 'HOA', { sqft: 1700, drivewaySqft: 1500, surfaces: 'Hardie board, concrete driveway', deck: 'Wood deck ~380 sq ft', fence: 'Cedar fence ~160 ft', notes: 'HOA community – no washing before 8 AM.', water: 'Rear spigot near AC unit' });
+    P('p_martinez', 'cus_linda', 'Martinez Rental', '19 Pine Hollow', 'Greenville', 'SC', '29615', 'Rental', { sqft: 1600, drivewaySqft: 900, patio: 'Small patio ~300 sq ft', access: 'Lockbox on the back door – code 2020.', water: 'Spigot beside the garage' });
+    P('p_oakline', 'cus_priya', 'Oakline Dental Office', '900 Commerce Parkway', 'Mauldin', 'SC', '29662', 'Commercial', { sqft: 4800, surfaces: 'Brick, glass storefront, concrete walkways', access: 'Rear lot parking. Finish before 8:30 AM.', water: 'Building spigot at back dock', notes: 'Dumpster pad cleaned on every visit.' });
+    P('p_nguyen', 'cus_tom', 'Nguyen Residence', '305 Birch Lane', 'Greenville', 'SC', '29609', 'Residential', { sqft: 1500, drivewaySqft: 1400, surfaces: 'Vinyl siding, concrete driveway' });
+
+    const qlike = (lines, addons, disc) => ({
+      lines: lines.map(([sid, qty]) => { const s = SV[sid]; const fixed = s.method === 'flat' || s.method === 'custom'; return { id: uid('ln'), serviceId: sid, name: s.name, method: s.method, qty: fixed ? 0 : qty, rate: fixed ? (qty || s.rate) : s.rate }; }),
+      addons: (addons || []).map(n => ({ name: n, price: addonPrice[n] })), discountType: 'amount', discountValue: disc || 0, taxRate: 0
+    });
+    let invCounter = 1001;
+    const J = (id, cust, prop, lines, addons, off, time, status, crew, dur, extra = {}) => {
+      const ql = qlike(lines, addons, 0), calc = quoteCalc(ql);
+      const done = status === 'completed' || status === 'paid';
+      const job = mk('jobs', id, Object.assign({
+        customerId: cust, propertyId: prop, quoteId: '', services: ql.lines.map(l => l.name), items: quoteItems(ql), amount: calc.total, status, date: D(off), time, crew, duration: dur,
+        techNotes: '', conditions: [], conditionOther: '', followUp: null, invoiceNo: '', invoiceDate: '',
+        startedAt: (done || status === 'in_progress') ? iso(off, 8) : '', completedAt: done ? iso(off, 12) : ''
+      }, extra), off - 1);
+      if (done && off < 0 && !job.invoiceNo) { job.invoiceNo = 'INV-' + (invCounter++); job.invoiceDate = D(off); }
+      return job;
+    };
+    const pay = (jobId, off, method, notes, amount) => { const j = db.jobs.find(x => x.id === jobId); mk('payments', uid('pay'), { jobId, customerId: j.customerId, amount: amount != null ? amount : j.amount, date: D(off), method, notes: notes || '' }, off); };
+    const fu = (days, off) => ({ days, dueDate: D(off + days), done: false });
+
+    // ---- history (oldest first)
+    J('j_p14', 'cus_mike', 'p_johnson', [['svc_house', 2000], ['svc_drive', 1800]], [], -165, '09:00', 'paid', 'Crew A', 3, { conditions: ['Mildew', 'Heavy Dirt'] }); pay('j_p14', -165, 'Check', 'Check #1188');
+    J('j_p13', 'cus_emily', 'p_carter', [['svc_drive', 1500]], [], -150, '10:00', 'paid', 'Crew B', 2, { conditions: ['Tire Marks'] }); pay('j_p13', -150, 'Card', '');
+    J('j_p12', 'cus_robert', 'p_davis', [['svc_roof', 2000]], [], -120, '08:30', 'paid', 'Crew A', 5, { conditions: ['Algae', 'Green Growth'], techNotes: 'Black streaks on north slope – two passes needed.' }); pay('j_p12', -120, 'Check', 'Check #2041');
+    J('j_p11', 'cus_sarah', 'p_williams', [['svc_house', 1900]], [], -110, '09:30', 'paid', 'Crew B', 2, { conditions: ['Mildew'] }); pay('j_p11', -110, 'Card', '');
+    J('j_p10', 'cus_mike', 'p_johnson2', [['svc_house', 2600], ['svc_drive', 1200]], [], -90, '09:00', 'paid', 'Crew A', 4, { conditions: ['Heavy Dirt', 'Oil Stains'], followUp: fu(90, -90) }); pay('j_p10', -88, 'Cash', 'Paid at the door');
+    J('j_p9', 'cus_sarah', 'p_williams2', [['svc_deck', 320], ['svc_house', 1400]], [], -66, '10:00', 'paid', 'Crew B', 3, { conditions: ['Green Growth', 'Customer Request'], followUp: fu(60, -66) }); pay('j_p9', -66, 'Card', '');
+    J('j_p8', 'cus_robert', 'p_davis', [['svc_fence', 220]], [], -48, '13:00', 'paid', 'Crew A', 3, { conditions: ['Mildew'] }); pay('j_p8', -47, 'Check', 'Check #2077');
+    J('j_p7', 'cus_emily', 'p_carter', [['svc_deck', 380]], ['Mildew Treatment'], -35, '09:00', 'paid', 'Crew B', 3, { conditions: ['Mildew', 'Algae'], followUp: fu(180, -35) }); pay('j_p7', -35, 'Card', '');
+    J('j_p6', 'cus_tom', 'p_nguyen', [['svc_drive', 1400]], [], -22, '11:00', 'completed', 'Crew A', 2, { conditions: ['Tire Marks', 'Heavy Dirt'], techNotes: 'Customer will pay by bank transfer this week.' });
+    J('j_p5', 'cus_priya', 'p_oakline', [['svc_comm', 5]], [], -15, '06:00', 'completed', 'Crew A', 5, { conditions: ['Heavy Dirt'], techNotes: 'Storefront, walkways and dumpster pad. Finished by 8:15 AM.' }); pay('j_p5', -15, 'Bank Transfer', 'Deposit – balance due on invoice', 200);
+    J('j_p4', 'cus_sarah', 'p_williams', [['svc_house', 1900]], [], -12, '09:30', 'paid', 'Crew B', 2, { conditions: ['Mildew'] }); pay('j_p4', -12, 'Card', '');
+    J('j_p3', 'cus_linda', 'p_martinez', [['svc_patio', 300], ['svc_side', 60]], [], -9, '14:00', 'paid', 'Crew B', 2, { conditions: ['Green Growth'] }); pay('j_p3', -9, 'Cash', '');
+    J('j_p2', 'cus_robert', 'p_davis', [['svc_drive', 2200]], ['Oil Stain Treatment'], -7, '09:00', 'paid', 'Crew A', 3, { conditions: ['Oil Stains', 'Heavy Dirt'], techNotes: 'Heavy oil spot by garage – pre-treated twice.', followUp: fu(180, -7) }); pay('j_p2', -7, 'Check', 'Check #2102');
+    J('j_p1', 'cus_emily', 'p_carter', [['svc_house', 1700]], ['Gutter Cleaning'], -4, '08:30', 'paid', 'Crew A', 3, { conditions: ['Mildew', 'Algae'], techNotes: 'Soft washed siding, cleared gutters.' }); pay('j_p1', -4, 'Card', '');
+    J('j_cx', 'cus_tom', 'p_nguyen', [['svc_house', 1500]], [], -3, '10:00', 'cancelled', 'Crew B', 2, { techNotes: 'Customer cancelled – rain forecast. Wants to reschedule.' });
+
+    // ---- today
+    J('j_t1', 'cus_sarah', 'p_williams', [['svc_patio', 420], ['svc_side', 40]], ['Mildew Treatment'], 0, '08:00', 'completed', 'Crew A', 2, { conditions: ['Mildew', 'Green Growth'], techNotes: 'Heavy algae on the north side of the patio. Surface cleaner + soft wash.', followUp: fu(90, 0), completedAt: iso(0, 10) });
+    J('j_t2', 'cus_mike', 'p_johnson', [['svc_house', 2000], ['svc_drive', 1800]], [], 0, '10:30', 'in_progress', 'Crew A', 3, { conditions: ['Mildew', 'Oil Stains'], techNotes: 'Oil stain near the garage – pre-treat first. Customer wants gutters looked at.', quoteId: 'q_t2' });
+    J('j_t3', 'cus_robert', 'p_davis', [['svc_roof', 2400]], ['Gutter Cleaning'], 0, '13:00', 'scheduled', 'Crew B', 5, { techNotes: 'Gate code 4471#. Bring roof harness and the extension ladder.', quoteId: 'q_t3' });
+    J('j_t4', 'cus_emily', 'p_carter', [['svc_deck', 380], ['svc_fence', 160]], [], 0, '15:30', 'scheduled', 'Crew A', 3, { techNotes: 'Customer wants before/after photos for the HOA.', quoteId: 'q_t4' });
+    pay('j_t2', 0, 'Card', 'Deposit', 200);
+    // ---- upcoming
+    J('j_u1', 'cus_linda', 'p_martinez', [['svc_house', 1600], ['svc_drive', 900]], [], 1, '09:00', 'scheduled', 'Crew B', 3, { techNotes: 'Lockbox code 2020. Tenant moves in Friday.' });
+    J('j_u2', 'cus_priya', 'p_oakline', [['svc_comm', 4]], [], 2, '06:30', 'scheduled', 'Crew A', 4, { techNotes: 'Before opening hours – park in the rear lot.' });
+    J('j_u3', 'cus_tom', 'p_nguyen', [['svc_house', 1500], ['svc_drive', 1400]], [], 3, '10:00', 'scheduled', 'Crew B', 3, { techNotes: 'Rescheduled from last week.' });
+
+    // ---- quotes
+    const Qt = (id, num, cust, prop, lines, addons, off, status, o = {}) => { const ql = qlike(lines, addons, o.disc || 0); return mk('quotes', id, Object.assign({ number: 'Q-' + num, customerId: cust, propertyId: prop, lines: ql.lines, addons: ql.addons, discountType: 'amount', discountValue: o.disc || 0, taxRate: 0, notes: o.notes || '', status, validUntil: D(off + 14), jobId: o.jobId || '' }, o.extra), off); };
+    Qt('q_p2', 1001, 'cus_robert', 'p_davis', [['svc_drive', 2200]], ['Oil Stain Treatment'], -14, 'approved', { jobId: 'j_p2', notes: 'Includes pre-treatment of oil stains.' });
+    Qt('q_p1', 1002, 'cus_emily', 'p_carter', [['svc_house', 1700]], ['Gutter Cleaning'], -9, 'approved', { jobId: 'j_p1' });
+    Qt('q_t2', 1003, 'cus_mike', 'p_johnson', [['svc_house', 2000], ['svc_drive', 1800]], [], -8, 'approved', { jobId: 'j_t2', notes: 'Soft wash siding and surface-clean driveway.' });
+    Qt('q_t3', 1004, 'cus_robert', 'p_davis', [['svc_roof', 2400]], ['Gutter Cleaning'], -6, 'approved', { jobId: 'j_t3', notes: 'Roof soft wash with gutter flush.' });
+    Qt('q_t4', 1005, 'cus_emily', 'p_carter', [['svc_deck', 380], ['svc_fence', 160]], [], -5, 'approved', { jobId: 'j_t4' });
+    Qt('q_8', 1006, 'cus_tom', 'p_nguyen', [['svc_house', 1500]], [], -6, 'declined', { notes: 'Customer went with a cheaper quote.' });
+    Qt('q_9', 1007, 'cus_priya', 'p_oakline', [['svc_comm', 6]], ['Mildew Treatment'], -2, 'sent', { notes: 'Quarterly exterior wash including dumpster pad.' });
+    Qt('q_10', 1008, 'cus_linda', 'p_martinez', [['svc_roof', 1800]], ['Gutter Cleaning'], -1, 'sent', { notes: 'Roof soft wash – removes black streaks.', disc: 40 });
+    Qt('q_11', 1009, 'cus_robert', 'p_davis', [['svc_deck', 450]], [], 0, 'draft');
+    Qt('q_12', 1010, 'cus_mike', 'p_johnson2', [['svc_roof', 2600]], [], -30, 'expired');
+    db.quotes.find(q => q.id === 'q_12').validUntil = D(-16);
+    db.settings.nextQuote = 1011; db.settings.nextInvoice = invCounter;
+  } finally { DB = prev; }
+  return db;
+}
+
+/* ---- Procedurally drawn demo photos (so screenshots look alive offline) ---- */
+function rng(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function drawScene(ctx, w, h, kind, dirty, seed) {
+  const R = rng(seed);
+  const sky = ctx.createLinearGradient(0, 0, 0, h * .5); sky.addColorStop(0, '#78c0ea'); sky.addColorStop(1, '#d4ecf8'); ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#4c8a4a'; for (let i = 0; i < 10; i++) { ctx.beginPath(); ctx.arc(i * w / 9, h * .2, 50 + R() * 30, 0, 7); ctx.fill(); }
+  const house = kind === 'house';
+  const wallTop = h * .16, wallBot = house ? h * .9 : h * .5;
+  ctx.fillStyle = '#4a4f57'; ctx.beginPath(); ctx.moveTo(0, wallTop); ctx.lineTo(w * .5, h * .02); ctx.lineTo(w, wallTop); ctx.fill();
+  ctx.fillStyle = dirty ? '#c4c0ac' : '#f2efe4'; ctx.fillRect(0, wallTop, w, wallBot - wallTop);
+  ctx.strokeStyle = dirty ? 'rgba(80,70,50,.25)' : 'rgba(0,0,0,.08)'; ctx.lineWidth = 2;
+  for (let y = wallTop + 18; y < wallBot; y += 18) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+  const win = (x, y, ww, hh) => { ctx.fillStyle = dirty ? '#7f9aa8' : '#9fd0ea'; ctx.fillRect(x, y, ww, hh); ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.strokeRect(x, y, ww, hh); ctx.beginPath(); ctx.moveTo(x + ww / 2, y); ctx.lineTo(x + ww / 2, y + hh); ctx.moveTo(x, y + hh / 2); ctx.lineTo(x + ww, y + hh / 2); ctx.lineWidth = 3; ctx.stroke(); };
+  win(w * .1, wallTop + 30, w * .18, h * .16); win(w * .62, wallTop + 30, w * .18, h * .16);
+  if (house) { win(w * .1, wallTop + h * .34, w * .18, h * .16); win(w * .62, wallTop + h * .34, w * .18, h * .16); ctx.fillStyle = '#2f5d7c'; ctx.fillRect(w * .38, wallTop + h * .3, w * .16, h * .44); }
+  else { ctx.fillStyle = '#2f5d7c'; ctx.fillRect(w * .38, wallTop + 22, w * .14, wallBot - wallTop - 22); }
+  const sTop = house ? h * .9 : h * .5;
+  if (house) { ctx.fillStyle = '#5f9b52'; ctx.fillRect(0, sTop, w, h - sTop); }
+  else if (kind === 'deck') {
+    ctx.fillStyle = dirty ? '#857766' : '#c9a06a'; ctx.fillRect(0, sTop, w, h - sTop);
+    ctx.strokeStyle = dirty ? 'rgba(30,25,20,.45)' : 'rgba(90,55,20,.45)'; ctx.lineWidth = 3;
+    for (let y = sTop; y < h; y += 34) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+    for (let y = sTop; y < h; y += 34) { for (let x = R() * 200; x < w; x += 220 + R() * 160) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 34); ctx.stroke(); } }
+  } else {
+    ctx.fillStyle = dirty ? '#8f8e86' : '#d4d4cf'; ctx.fillRect(0, sTop, w, h - sTop);
+    ctx.strokeStyle = dirty ? 'rgba(20,20,20,.35)' : 'rgba(90,90,90,.3)'; ctx.lineWidth = 3;
+    const gx = kind === 'driveway' ? 220 : 160;
+    for (let x = 0; x < w; x += gx) { ctx.beginPath(); ctx.moveTo(x, sTop); ctx.lineTo(x - 60, h); ctx.stroke(); }
+    for (let y = sTop + 70; y < h; y += 90) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+  }
+  const blot = (x, y, r, rgb, a) => { const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); };
+  if (dirty) {
+    for (let i = 0; i < 70; i++) blot(R() * w, sTop + R() * (h - sTop), 18 + R() * 70, R() > .5 ? '62,86,40' : '48,38,28', .22 + R() * .25);
+    for (let i = 0; i < 26; i++) blot(R() * w, wallTop + R() * (wallBot - wallTop), 14 + R() * 50, '70,92,52', .16 + R() * .16);
+    for (let i = 0; i < 700; i++) { ctx.fillStyle = `rgba(30,28,20,${.1 + R() * .2})`; ctx.fillRect(R() * w, sTop + R() * (h - sTop), 2, 2); }
+    if (kind === 'driveway') blot(w * .42, h * .78, 55, '20,18,16', .6);
+  } else {
+    ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 16;
+    for (let x = -h; x < w; x += 70) { ctx.beginPath(); ctx.moveTo(x, h); ctx.lineTo(x + h * .6, sTop); ctx.stroke(); }
+  }
+  const vg = ctx.createRadialGradient(w / 2, h / 2, h * .4, w / 2, h / 2, h * .95); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.18)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
+}
+function sceneBlob(kind, dirty, seed) {
+  return new Promise(res => { const c = document.createElement('canvas'); c.width = 960; c.height = 640; drawScene(c.getContext('2d'), 960, 640, kind, dirty, seed); c.toBlob(b => res(b), 'image/jpeg', .82); });
+}
+async function buildDemoPhotos() {
+  const specs = [['job', 'j_t1', 'before', 'patio', true, 11], ['job', 'j_t1', 'after', 'patio', false, 11], ['job', 'j_p2', 'before', 'driveway', true, 21], ['job', 'j_p2', 'after', 'driveway', false, 21], ['job', 'j_p1', 'before', 'house', true, 31], ['job', 'j_p1', 'after', 'house', false, 31], ['property', 'p_johnson', 'property', 'house', false, 41], ['property', 'p_davis', 'property', 'house', false, 52], ['property', 'p_carter', 'property', 'deck', false, 61]];
+  for (const [t, id, k, kind, dirty, seed] of specs) { try { await storePhoto(await sceneBlob(kind, dirty, seed), { ownerType: t, ownerId: id, kind: k }); } catch (e) { console.error(e); } }
+}
+
+/* ==========================================================================
+   19. ACTIONS + EVENT WIRING
+   ========================================================================== */
+const ACT = {
+  quickMenu() {
+    const items = [['newQuote', 'quotes', 'New Quote', 'Price a job for a customer'], ['newJob', 'jobs', 'New Job', 'Book a pressure washing job'], ['newCustomer', 'customers', 'Add Customer', 'Name, phone and email'], ['newProperty', 'properties', 'Add Property', 'An address you service'], ['recordPayment', 'dollar', 'Record Payment', 'Mark a job as paid']];
+    const m = openModal({ title: 'Quick add', cls: 'sm', dismiss: true, html: `<div class="modal-b"><div class="menu-list">${items.map(([a, i, l, s]) => `<button type="button" data-qm="${a}"><span class="ico">${ic(i)}</span><span>${l}<small>${s}</small></span></button>`).join('')}</div></div>` });
+    m.el.addEventListener('click', e => { const b = e.target.closest('[data-qm]'); if (b) { closeModal(m); ACT[b.dataset.qm]({ dataset: {} }); } });
+  },
+  hideDemo() { S().demo = false; save(); renderShell(); },
+  tab(el) { UI.tab[el.dataset.page] = el.dataset.val; render(); },
+  newQuote(el) { const q = new URLSearchParams(); if (el.dataset.customer) q.set('customer', el.dataset.customer); if (el.dataset.property) q.set('property', el.dataset.property); const s = q.toString(); const h = '#/quote/new' + (s ? '?' + s : ''); if (location.hash === h) { Q = null; render(); } else location.hash = h; },
+  newJob(el) { const pre = {}; if (el.dataset.customer) pre.customerId = el.dataset.customer; if (el.dataset.property) { pre.propertyId = el.dataset.property; const p = get('properties', pre.propertyId); if (p) pre.customerId = p.customerId; } openJobForm(null, pre); },
+  editJob(el) { openJobForm(el.dataset.id); },
+  async delJob(el) { if (!await confirmBox('Delete this job along with its payments and photos? This cannot be undone.', { ok: 'Delete job' })) return; purgeJob(el.dataset.id); toast('Job deleted'); location.hash = '#/jobs'; render(); },
+  startJob(el) { startJob(el.dataset.id); },
+  completeJob(el) { completeJob(el.dataset.id); },
+  printJob(el) { const j = get('jobs', el.dataset.id); if (j) openDoc('Job summary', jobSummaryDoc(j)); },
+  invoice(el) {
+    const j = get('jobs', el.dataset.id); if (!j) return;
+    if (!j.invoiceNo) { upd('jobs', j.id, { invoiceNo: newInvoiceNumber(), invoiceDate: todayStr() }); toast('Invoice ' + get('jobs', j.id).invoiceNo + ' created'); render(); }
+    openDoc('Invoice ' + get('jobs', j.id).invoiceNo, invoiceDoc(get('jobs', j.id)));
+  },
+  recordPayment(el) { openPaymentForm(null, { jobId: el.dataset.id || '' }); },
+  editPayment(el) { openPaymentForm(el.dataset.id); },
+  async delPayment(el) { const p = get('payments', el.dataset.id); if (!p) return; if (!await confirmBox(`Delete this ${money(p.amount)} payment?`, { ok: 'Delete payment' })) return; del('payments', p.id); syncPaidStatus(p.jobId); toast('Payment deleted'); render(); },
+  newCustomer() { openCustomerForm(null); },
+  editCustomer(el) { openCustomerForm(el.dataset.id); },
+  delCustomer(el) { deleteCustomer(el.dataset.id); },
+  newProperty(el) { openPropertyForm(null, { customerId: el.dataset.customer || '' }); },
+  editProperty(el) { openPropertyForm(el.dataset.id); },
+  delProperty(el) { deleteProperty(el.dataset.id); },
+  followupQuote(el) { location.hash = '#/quote/new?from=' + el.dataset.id; },
+  dismissFollowup(el) { const j = get('jobs', el.dataset.id); if (j && j.followUp) { upd('jobs', j.id, { followUp: Object.assign({}, j.followUp, { done: true }) }); toast('Follow-up dismissed'); render(); } },
+  photo(el) {
+    const ph = PHOTOS.find(p => p.id === el.dataset.id); if (!ph) return;
+    const label = ph.kind === 'before' ? 'Before photo' : ph.kind === 'after' ? 'After photo' : 'Photo';
+    const m = openModal({ title: label, cls: 'wide lightbox', dismiss: true, html: `<div class="modal-b"><img src="${PHOTO_URL[ph.id]}" alt="${label}"></div><div class="modal-f"><button type="button" class="btn danger" data-rm>${ic('trash', 'sm')} Remove photo</button><button type="button" class="btn" data-modal-close>Close</button></div>` });
+    $('[data-rm]', m.el).addEventListener('click', async () => { if (await confirmBox('Remove this photo?', { ok: 'Remove' })) { await removePhoto(ph.id); closeModal(m); toast('Photo removed'); render(); } });
+  },
+  // quote builder
+  qNewCustomer() { openCustomerForm(null, c => { Q.customerId = c.id; Q.propertyId = ''; Q._err = {}; render(); }); },
+  qNewProperty() { if (!Q.customerId) { Q._err.customerId = 'Choose a customer first'; render(); return; } openPropertyForm(null, { customerId: Q.customerId, onSaved: p => { Q.propertyId = p.id; Q._err = {}; render(); } }); },
+  addLine() { Q.lines.push(newLine()); render(); },
+  delLine(el) { Q.lines = Q.lines.filter(l => l.id !== el.dataset.id); if (!Q.lines.length) Q.lines.push(newLine()); render(); },
+  customAddon() {
+    formModal({ title: 'Custom add-on', cls: 'sm', submit: 'Add', body: `<div class="fgrid">${fld('Add-on name', 'name', '', { required: true, full: true, placeholder: 'e.g. Mailbox wash' })}${fld('Price', 'price', '', { type: 'number', required: true, min: 0, full: true })}</div>`, onSubmit: v => { Q.addons.push({ name: v.name, price: num(v.price) }); render(); } });
+  },
+  delCustomAddon(el) { Q.addons = Q.addons.filter(a => a.name !== el.dataset.name); render(); },
+  saveQuote() { saveQuote(); },
+  convertQuote() { convertQuote(); },
+  printQuote() { if (!Q.customerId) { toast('Choose a customer first', 'err'); return; } openDoc('Quote preview', quoteDoc(Q)); },
+  async delQuote(el) { if (!await confirmBox('Delete this quote? This cannot be undone.', { ok: 'Delete quote' })) return; del('quotes', el.dataset.id); Q = null; toast('Quote deleted'); location.hash = '#/quotes'; },
+  // services / add-ons
+  newService() { openServiceForm(null); },
+  editService(el) { openServiceForm(el.dataset.id); },
+  toggleService(el) { const s = get('services', el.dataset.id); upd('services', s.id, { active: !s.active }); toast(s.name + (s.active ? ' activated' : ' deactivated')); render(); },
+  async delService(el) { const s = get('services', el.dataset.id); if (!await confirmBox(`Delete the service "${s.name}"? Existing quotes and jobs keep their wording.`, { ok: 'Delete service' })) return; del('services', s.id); toast('Service deleted'); render(); },
+  newAddon() { openAddonForm(null); },
+  editAddon(el) { openAddonForm(el.dataset.id); },
+  async delAddon(el) { const a = S().addons.find(x => x.id === el.dataset.id); if (!await confirmBox(`Delete the add-on "${a.name}"?`, { ok: 'Delete add-on' })) return; S().addons = S().addons.filter(x => x.id !== a.id); save(); toast('Add-on deleted'); render(); },
+  removeLogo() { S().business.logo = ''; save(); renderShell(); render(); toast('Logo removed'); },
+  exportBackup() { exportBackup(); },
+  importBackup() { const f = $('#importFile'); f.value = ''; f.click(); },
+  loadDemo() { loadDemo(); },
+  eraseAll() { eraseAll(); }
+};
+const CHG = {
+  setStatus(el) { setJobStatus(el.dataset.id, el.value); },
+  techNotes(el) { upd('jobs', el.dataset.id, { techNotes: el.value }); toast('Notes saved'); },
+  condOther(el) { upd('jobs', el.dataset.id, { conditionOther: el.value }); },
+  condition(el) { const j = get('jobs', el.dataset.id); const set = new Set(j.conditions || []); el.checked ? set.add(el.value) : set.delete(el.value); upd('jobs', j.id, { conditions: Array.from(set) }); render(); }
+};
+
+document.addEventListener('click', e => {
+  const sc = e.target.closest('[data-scroll]');
+  if (sc) { e.preventDefault(); const t = document.getElementById(sc.dataset.scroll); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+  const a = e.target.closest('[data-act]');
+  if (a && ACT[a.dataset.act]) { if (a.tagName === 'A' && !a.getAttribute('href')) e.preventDefault(); ACT[a.dataset.act](a, e); return; }
+  const row = e.target.closest('[data-href]');
+  if (row && !e.target.closest('a,button,input,select,label,textarea')) location.hash = row.dataset.href;
+});
+document.addEventListener('change', async e => {
+  const t = e.target;
+  if (t.dataset.chg && CHG[t.dataset.chg]) { CHG[t.dataset.chg](t); return; }
+  if (t.hasAttribute('data-photo-input')) {
+    const files = Array.from(t.files); t.value = ''; if (!files.length) return;
+    await addPhotoFiles(files, { ownerType: t.dataset.type, ownerId: t.dataset.owner, kind: t.dataset.kind }); render(); return;
+  }
+  if (t.hasAttribute('data-logo')) {
+    const f = t.files[0]; if (!f) return;
+    try { const { blob } = await resizeImage(f, 240, 0.92, 'image/png'); S().business.logo = await blobToDataURL(blob); save(); renderShell(); render(); toast('Logo updated'); } catch (err) { toast('Could not read that image', 'err'); }
+    return;
+  }
+  if (t.id === 'importFile') { const f = t.files[0]; if (f) importBackup(f); return; }
+  if (!Q) return;
+  if (t.hasAttribute('data-qa')) {
+    const a = S().addons.find(x => x.id === t.dataset.qa); if (!a) return;
+    Q.addons = Q.addons.filter(x => x.name !== a.name); if (t.checked) Q.addons.push({ name: a.name, price: a.price });
+    updateQuoteSummary(); return;
+  }
+  if (t.tagName === 'SELECT' && t.dataset.q) {
+    const k = t.dataset.q; Q[k] = t.value;
+    if (k === 'customerId') { const ps = DB.properties.filter(p => p.customerId === t.value); Q.propertyId = ps.length === 1 ? ps[0].id : ''; Q._err = {}; render(); }
+    else if (k === 'propertyId') { const p = get('properties', t.value); Q.lines.forEach(l => { if (!num(l.qty) && l.method === 'sqft') l.qty = areaFor(l.name, p) || 0; }); delete Q._err.propertyId; render(); }
+    else updateQuoteSummary();
+    return;
+  }
+  if (t.tagName === 'SELECT' && t.dataset.ql) {
+    const [id, f] = t.dataset.ql.split(':'); const l = Q.lines.find(x => x.id === id); if (!l) return;
+    if (f === 'serviceId') { applyService(l, t.value); delete Q._err['s' + id]; } else if (f === 'method') { l[f] = t.value; if (t.value === 'flat' || t.value === 'custom') l.qty = 0; }
+    render();
+  }
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.live) { UI.q[t.dataset.live] = t.value; const lb = $('#listbody'); if (lb && LIVE[t.dataset.live]) lb.innerHTML = LIVE[t.dataset.live](); return; }
+  if (!Q || t.tagName === 'SELECT') return;
+  if (t.dataset.q) { Q[t.dataset.q] = t.type === 'number' ? num(t.value) : t.value; updateQuoteSummary(); }
+  else if (t.dataset.ql) { const [id, f] = t.dataset.ql.split(':'); const l = Q.lines.find(x => x.id === id); if (l) { l[f] = (f === 'qty' || f === 'rate') ? num(t.value) : t.value; if (f === 'qty') delete Q._err['q' + id]; updateQuoteSummary(); } }
+});
+document.addEventListener('submit', e => {
+  const f = e.target.closest('form[data-form]'); if (!f) return; e.preventDefault();
+  const errs = checkRequired(f); if (Object.keys(errs).length) { showErrors(f, errs); return; }
+  FORMS[f.dataset.form](formData(f));
+});
+window.addEventListener('hashchange', () => { if (route().name !== 'quote') Q = null; if (modals.length) modals.slice().forEach(closeModal); render(); });
+
+/* ==========================================================================
+   20. START
+   ========================================================================== */
+async function init() {
+  await IDBX.open();
+  if (IDBX.ok) { try { (await IDBX.all()).forEach(registerPhoto); } catch (e) { console.error(e); } }
+  const saved = loadDB();
+  if (saved) DB = saved;
+  else { await clearPhotos(); DB = buildDemo(); save(); await buildDemoPhotos(); }
+  expireQuotes(); renderShell(); render();
+  if (!IDBX.ok) toast('Photo storage is unavailable in this browser mode', 'err');
+}
+init();
+window.__pwf = { get db() { return DB; } };
+})();
+</script>
+</body>
+</html>
