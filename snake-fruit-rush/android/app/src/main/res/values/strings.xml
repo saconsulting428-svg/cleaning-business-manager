@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Snake Fruit Rush</string>
+    <string name="title_activity_main">Snake Fruit Rush</string>
+    <string name="package_name">com.saconsulting.snakefruitrush</string>
+    <string name="custom_url_scheme">com.saconsulting.snakefruitrush</string>
+</resources>

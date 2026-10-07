@@ -1,0 +1,10 @@
+{
+  "appId": "com.saconsulting.snakefruitrush",
+  "appName": "Snake Fruit Rush",
+  "webDir": "www",
+  "backgroundColor": "#06202e",
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  }
+}
