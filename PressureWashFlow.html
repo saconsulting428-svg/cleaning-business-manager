@@ -1510,7 +1510,7 @@ PAGES.quote = r => {
       <label class="fld"><span class="lbl">Valid until</span><input type="date" data-q="validUntil" value="${esc(Q.validUntil)}"></label>
       <label class="fld full"><span class="lbl">Notes for the customer</span><textarea data-q="notes" rows="3" placeholder="Scope, products used, scheduling notes…">${esc(Q.notes)}</textarea></label></div>`)}
   </div>
-  <aside class="live-wrap"><div class="live"><div class="live-h"><span>Live quote</span><em>${Q._new ? 'DRAFT' : esc(Q.number)} · ${QUOTE_STATUS[Q.status].toUpperCase()}</em></div><div id="qsum">${quoteSummaryHTML()}</div>
+  <aside class="live-wrap"><div class="live"><div class="live-h"><span>Live quote</span><em>${Q._new ? 'NEW QUOTE' : esc(Q.number)} · ${QUOTE_STATUS[Q.status].toUpperCase()}</em></div><div id="qsum">${quoteSummaryHTML()}</div>
     <div class="live-act"><button class="btn primary" data-act="saveQuote">${ic('check', 'sm')} Save Quote</button>
     ${converted ? `<a class="btn good" href="#/job/${Q.jobId}">${ic('jobs', 'sm')} View Job</a>` : `<button class="btn good" data-act="convertQuote">${ic('jobs', 'sm')} Convert to Job</button>`}
     <button class="btn" data-act="printQuote">${ic('print', 'sm')} Print Quote</button>
