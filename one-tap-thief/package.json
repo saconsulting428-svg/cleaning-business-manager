@@ -1,0 +1,26 @@
+{
+  "name": "one-tap-thief",
+  "version": "1.0.0",
+  "private": true,
+  "description": "One Tap Thief — offline-first portrait stealth game (HTML5 + Capacitor Android).",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "validate": "node scripts/validate-levels.mjs",
+    "solve": "node scripts/solve.mjs",
+    "test": "node scripts/validate-levels.mjs && node scripts/solve.mjs",
+    "android:add": "npm run build && npx cap add android && node scripts/patch-android.mjs",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "android:aab": "npm run android:sync && cd android && ./gradlew bundleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">One Tap Thief</string>
+    <string name="title_activity_main">One Tap Thief</string>
+    <string name="package_name">com.onetapthief.game</string>
+    <string name="custom_url_scheme">com.onetapthief.game</string>
+</resources>

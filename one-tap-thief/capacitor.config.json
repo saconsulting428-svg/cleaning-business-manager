@@ -1,0 +1,8 @@
+{
+  "appId": "com.onetapthief.game",
+  "appName": "One Tap Thief",
+  "webDir": "www",
+  "backgroundColor": "#0b1020",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false }
+}
