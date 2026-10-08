@@ -15,7 +15,7 @@ export function makeGuard(def, id, difficulty = 1) {
     route, ri: 0, dir: 1, mode: def.mode || 'loop',
     speed: def.speed ?? CFG.guard.speed, range: def.range ?? CFG.guard.range, fov: def.fov ?? CFG.guard.fov,
     fill: (def.fillTime ?? CFG.fillTime) * (1.15 - 0.03 * difficulty),
-    sweep: def.sweep || null, path: [], wait: 0, t: 0, meter: 0, state: 'patrol',
+    sweep: def.sweep || null, path: [], wait: def.startDelay ?? 0, t: 0, meter: 0, state: 'patrol',
     inv: null, invId: -1, look: null, spawn: { x: route[0].x + 0.5, y: route[0].y + 0.5, face },
   };
 }
@@ -84,6 +84,7 @@ export function updateGuard(ctx, state, g, dt, hooks) {
   } else g.meter = Math.max(0, g.meter - dt * CFG.decayRate);
   if (g.meter > CFG.spottedAt) state.spotted = true;
   if (prev < CFG.suspiciousAt && g.meter >= CFG.suspiciousAt) hooks.emit('alert', { id: g.id });
+  if (prev < CFG.criticalAt && g.meter >= CFG.criticalAt) hooks.emit('critical', { id: g.id });
   if (g.meter >= 1) { hooks.caught(g); return; }
   if (state.invuln <= 0 && Math.hypot(p.x - g.x, p.y - g.y) < CFG.bumpDistance) { hooks.caught(g); return; }
 

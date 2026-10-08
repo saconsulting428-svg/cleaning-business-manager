@@ -22,6 +22,10 @@ Tap/click a tile to move. Keyboard (optional): arrow keys / WASD. Use Chrome dev
   The level starts on your first tap. Paths never cross the exit by accident.
 - **Guards** patrol configurable routes with a vision cone (range + FOV, blocked by walls/furniture). Being seen
   fills a warning meter (`?` → `!`); it drains if you break line of sight; full = **Caught**. Touching a guard = caught.
+- **Detection feedback** (every guard and camera): the cone and meter ring go **yellow** (suspicious, `?`) →
+  **orange** (actively detecting, `!`) → **red** (critical, `!!`, shock rings, body shake, screen shake). A heartbeat
+  speeds up and gets louder as the meter fills, the screen edge glows red in time with it, and a stinger plays when you
+  hit critical. Cameras show a `REC` lock-on ring and beep faster (higher pitch) as they close in.
 - **CCTV cameras** sweep a cone; if one fills its meter it sounds the **alarm**. **Alarm zones** (red tiles) and
   **blinking lasers** trigger it too. During an alarm guards run to the spot, move faster and see further.
 - **Hiding spots** (wardrobes) make the thief invisible to cones. **Keys** open **locked doors** (one key per door).
@@ -74,16 +78,60 @@ Append an object to `src/levels/levels.js`:
 `summarize(def)` (in `levels.js`) derives the compact `{level, world, guards, cameras, loot, keys, difficulty}`
 form. Then run `npm test` — it checks the level is well-formed and **lets a search bot play it**.
 
+## Difficulty progression (Levels 1–10)
+
+Difficulty comes from level design — patrol placement, overlapping cones, risky loot, timing, limited safe routes —
+**not** from faster enemies (guard speed stays 1.0–1.5 tiles/s; the thief runs at 4.4).
+
+| Lvl | Name | What it introduces | Signature tension |
+|---|---|---|---|
+| 1 | First Night | Tutorial, **no guard** | Learn tap-to-move, loot, exit |
+| 2 | Night Watch | One **slow** guard (1.0 t/s), visible cone | Loot sits in notches beside his lane — dip in only when he is far; cross his lane on a gap |
+| 3 | Long Way Round | **Faster** guard on a long loop that even enters the middle room; one wardrobe | Corner loot where he lingers (1.6 s); gem in the room he patrols; hide to let him pass |
+| 4 | Crossfire | **Two guards**, crossing lanes | Band between lanes is covered by both cones; the middle wardrobe is the only refuge |
+| 5 | Vault Room | Two patrols + a **sweeping** guard | Rare gem (+50) inside a vault the sweeper watches; hide, learn the rhythm, strike |
+| 6 | Eyes on the Wall | **CCTV** + guard | Every route crosses a doorway the camera pans over; beep + REC ring build up before the alarm |
+| 7 | Locked In | **Key + locked door** + two guards | Key in the corner a guard lingers at (2 s); door opens onto a second guard's sweep |
+| 8 | Tripwire | **Alarm tiles** + two guards | Alarm bands force a zig-zag between lanes — the safe route has to be planned |
+| 9 | Inside Job | CCTV + guards + locked door | Camera over the key room, sweeper by the door, patrol looping past both |
+| 10 | The Big Score | Everything: 3 guards, CCTV, alarm tiles, **laser**, gems | Perfect Heist needs timing on all of them; gems (+50 ×2) sit behind the laser and a vault sweeper |
+
+How each level was checked (all automated, `npm test`):
+
+| Lvl | Perfect-route extra time vs. no security | Tiles watched >30 % of the time | Careless player (straight to loot) |
+|---|---|---|---|
+| 1 | +0.0 s | 0 % | wins |
+| 2 | +1.7 s | 18 % | spotted |
+| 3 | +3.4 s | 3 % | caught after 1.9 s |
+| 4 | +7.2 s | 46 % | caught after 2.4 s |
+| 5 | +6.6 s | 35 % | caught after 1.3 s |
+| 6 | +2.5 s | 56 % | spotted |
+| 7 | +5.6 s | 33 % | caught after 2.6 s |
+| 8 | +6.3 s | 38 % | alarm + caught |
+| 9 | +11.0 s | 32 % | caught after 1.0 s |
+| 10 | +16.0 s | 50 % | caught after 1.5 s |
+
+*Perfect-route extra time* = how much longer a perfect-information bot needs for a 3★ Perfect Heist than with all
+security removed (waiting for gaps, detours, hiding). A person will take longer. Level 6 is deliberately gentle on this
+measure — cameras only raise the alarm, they never end the run.
+
+**Fairness rules enforced by the tests:** a Perfect Heist (3★) route exists on every level; it *still* exists when
+every guard/camera is made harsher (detects 20 % faster, +0.4 tiles range, +8° cone); standing still at the start
+for 3 s never gets you caught or spotted; no guard waypoint is blocked; no guard lane crosses a hiding spot.
+
 ## Testing
 
 ```bash
 npm test             # = validate-levels + solve
 npm run validate     # map parses; loot/keys/exit reachable; keys ≥ doors; guard waypoints walkable
-npm run solve        # beam-search bot plays every level in the real simulation; reports whether a 3★ Perfect Heist exists
+npm run solve        # beam-search bot plays every level in the real simulation; reports whether a 3★ Perfect Heist exists,
+                     # whether it survives harsher guards, and how much waiting/detouring the security forces
+node scripts/heatmap.mjs 7   # design aid: % of time each tile is watched (ASCII heatmap)
+node scripts/tune.mjs 7 '{"range":5.4,"fov":74}'   # design aid: try parameter overrides on a level
 node scripts/naive.mjs   # sanity: a careless straight-line player should get caught on guarded levels
 ```
 
-Current result: all 10 levels are solvable as a 3★ Perfect Heist.
+Current result: all 10 levels are solvable as a 3★ Perfect Heist, including under the harsher-guards probe.
 
 ## Android (Capacitor)
 

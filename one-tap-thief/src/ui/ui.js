@@ -234,7 +234,7 @@ function startLevel(n) {
   requestAnimationFrame(() => {
     const hud = $('#hud').getBoundingClientRect();
     const obj = $('#objective').getBoundingClientRect();
-    game.insets = { top: hud.bottom + 6, bottom: Math.max(48, window.innerHeight - obj.top + 4) };
+    game.insets = { top: hud.bottom + 6, bottom: Math.max(48, window.innerHeight - obj.top + 4) + (window.innerHeight < 700 ? 36 : 84) }; // room for the start card
     game.load(n);
     game.start();
   });

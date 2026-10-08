@@ -43,7 +43,10 @@ const SFX = {
   key: (t) => { tone(660, t, 0.1, 'triangle', 0.25); tone(880, t + 0.08, 0.2, 'triangle', 0.25); },
   door: (t) => tone(220, t, 0.25, 'sawtooth', 0.18, sfxGain, 90),
   locked: (t) => { tone(140, t, 0.12, 'square', 0.2); tone(120, t + 0.12, 0.14, 'square', 0.2); },
-  beep: (t) => tone(1500, t, 0.07, 'square', 0.12),
+  beep: (t, lv = 0) => { const f = 1100 + 1300 * lv; tone(f, t, 0.09, 'square', 0.22 + 0.15 * lv); if (lv > 0.5) tone(f * 1.5, t + 0.1, 0.07, 'square', 0.18); },
+  heartbeat: (t, d = 0.3) => { const v = 0.35 + 0.65 * d; tone(70, t, 0.14, 'sine', v, sfxGain, 38); tone(58, t + 0.17, 0.16, 'sine', v * 0.8, sfxGain, 34); },
+  critical: (t) => { tone(300, t, 0.3, 'sawtooth', 0.22, sfxGain, 1000); tone(1000, t + 0.3, 0.12, 'square', 0.18); },
+  camwarn: (t) => { tone(1800, t, 0.06, 'square', 0.2); tone(1800, t + 0.1, 0.06, 'square', 0.2); },
   alert: (t) => tone(500, t, 0.18, 'sawtooth', 0.2, sfxGain, 900),
   alarm: (t) => { for (let i = 0; i < 4; i++) tone(i % 2 ? 640 : 960, t + i * 0.22, 0.2, 'square', 0.2); },
   caught: (t) => { tone(440, t, 0.5, 'sawtooth', 0.28, sfxGain, 90); tone(330, t + 0.1, 0.5, 'square', 0.15, sfxGain, 60); },
@@ -54,10 +57,10 @@ const SFX = {
   tap: (t) => tone(420, t, 0.06, 'sine', 0.12, sfxGain, 600),
 };
 
-export function play(name) {
+export function play(name, arg) {
   if (!ac || !state.sound || !SFX[name]) return;
   if (ac.state === 'suspended') ac.resume();
-  SFX[name](ac.currentTime + 0.005);
+  SFX[name](ac.currentTime + 0.005, arg);
 }
 
 // --- background music: a quiet looping stealth groove ---

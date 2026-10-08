@@ -23,12 +23,14 @@ export function updateCamera(ctx, state, c, dt, hooks) {
   c.angle = cameraAngle(c);
   if (c.cool > 0) { c.cool -= dt; c.meter = 0; return; }
   const d = seesPlayer(ctx, state, c.x, c.y, c.angle, c.range, c.fov, 0.6);
+  const prev = c.meter;
   if (d >= 0) c.meter += (dt / c.fill) * (1 + (1 - d / c.range) * 0.5);
   else c.meter = Math.max(0, c.meter - dt * CFG.decayRate);
   if (c.meter > CFG.spottedAt) state.spotted = true;
+  if (prev < CFG.suspiciousAt && c.meter >= CFG.suspiciousAt) hooks.emit('camwarn', { id: c.id });
   if (c.meter > 0) {
     c.beep -= dt;
-    if (c.beep <= 0) { hooks.emit('beep', { level: c.meter }); c.beep = 0.55 - 0.4 * Math.min(1, c.meter); }
+    if (c.beep <= 0) { hooks.emit('beep', { level: Math.min(1, c.meter) }); c.beep = 0.5 - 0.36 * Math.min(1, c.meter); }
   }
   if (c.meter >= 1) {
     c.meter = 0;

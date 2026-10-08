@@ -31,6 +31,7 @@ export class Game {
     this.ctx = createLevel(def, WORLDS[def.world]);
     this.state = createState(this.ctx);
     this.fx.texts.length = 0; this.fx.rings.length = 0;
+    this.hb = 0; this.beat = 0;
     this.continueUsed = false; this.finishing = false; this.paused = false; this.waiting = true; this.hudKey = '';
     this.resize();
     this.pushHud();
@@ -71,14 +72,26 @@ export class Game {
       while (this.acc >= CFG.fixedStep && n++ < 6) { stepSim(this.ctx, this.state, CFG.fixedStep); this.acc -= CFG.fixedStep; }
       this.handleEvents();
       this.pushHud();
+      this.heartbeat(dt);
     }
+    this.beat = Math.max(0, this.beat - dt * 3);
     for (const list of [this.fx.texts, this.fx.rings]) {
       for (const f of list) f.age += dt;
       for (let i = list.length - 1; i >= 0; i--) if (list[i].age >= list[i].life) list.splice(i, 1);
     }
     const s = save.get();
     this.g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    render(this.g, this.ctx, this.state, this.view, this.fx, { t: this.clock, character: s.character, variant: s.variant, showPath: s.showPath });
+    render(this.g, this.ctx, this.state, this.view, this.fx, { t: this.clock, character: s.character, variant: s.variant, showPath: s.showPath, beat: this.beat });
+  }
+
+  /** Heartbeat quickens and grows louder as detection builds (also a low pulse during an alarm). */
+  heartbeat(dt) {
+    const st = this.state;
+    if (st.status !== 'playing') return;
+    const d = Math.min(1, Math.max(st.danger, st.alarm.t > 0 ? 0.45 : 0));
+    if (d < 0.04) { this.hb = 0; return; }
+    this.hb -= dt;
+    if (this.hb <= 0) { audio.play('heartbeat', d); this.beat = 1; this.hb = 1.05 - 0.78 * d; }
   }
 
   handleEvents() {
@@ -92,7 +105,9 @@ export class Game {
         case 'locked': this.hooks.onToast('Locked — find the key first'); audio.play('locked'); break;
         case 'alarm': audio.play('alarm'); this.hooks.onToast(e.source === 'camera' ? 'Camera spotted you — ALARM!' : 'ALARM!'); break;
         case 'laser': this.hooks.onToast('Laser tripped!'); break;
-        case 'beep': audio.play('beep'); break;
+        case 'beep': audio.play('beep', e.level); break;
+        case 'camwarn': audio.play('camwarn'); this.hooks.onToast('CCTV is locking on to you!'); break;
+        case 'critical': audio.play('critical'); break;
         case 'alert': audio.play('alert'); break;
         case 'caught': audio.play('caught'); setTimeout(() => this.hooks.onCaught(), 650); break;
         case 'win': this.finish(); break;

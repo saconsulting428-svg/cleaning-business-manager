@@ -2,7 +2,8 @@
 import { LEVELS } from '../src/levels/levels.js';
 import { WORLDS } from '../src/levels/worlds.js';
 import { createLevel, createState } from '../src/game/sim.js';
-import { bfs, moveBlocked } from '../src/game/grid.js';
+import { K, bfs, findPath, moveBlocked, tileKind } from '../src/game/grid.js';
+import { stepSim } from '../src/game/sim.js';
 
 let bad = 0;
 for (const def of LEVELS) {
@@ -19,6 +20,21 @@ for (const def of LEVELS) {
   const noDoor = bfs(ctx, st, ctx.start.x, ctx.start.y, false, true);
   if (keys && !ctx.items.some((i) => i.type === 'key' && noDoor.dist[i.y * ctx.w + i.x] >= 0)) fail('no key reachable before the first door');
   for (const g of def.guards || []) for (const [x, y] of g.patrol) if (moveBlocked(ctx, st, x, y, false)) fail(`guard waypoint ${x},${y} is blocked`);
+  // a guard must never walk over a hiding spot (he would bump into the hidden thief)
+  for (const g of def.guards || []) {
+    const pts = g.patrol;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      if (pts.length < 2) break;
+      const path = findPath(ctx, st, a[0], a[1], b[0], b[1]) || [];
+      if (!path.length && (a[0] !== b[0] || a[1] !== b[1])) fail(`guard cannot walk ${a} -> ${b}`);
+      for (const t of path) if (tileKind(ctx, t.x, t.y) === K.HIDE) fail(`guard route ${a} -> ${b} crosses hiding spot ${t.x},${t.y}`);
+    }
+  }
+  // fair start: standing still for 3 s at the start must never get you caught or even spotted
+  const idle = createState(ctx);
+  for (let i = 0; i < 180 && idle.status === 'playing'; i++) stepSim(ctx, idle);
+  if (idle.status !== 'playing' || idle.spotted) fail('start is unsafe: caught/spotted within 3s of standing still');
   console.log(`  L${def.level} ${def.name.padEnd(18)} ${ctx.w}x${ctx.h} guards=${(def.guards || []).length} cams=${(def.cameras || []).length} loot=${ctx.lootCount} keys=${keys}`);
 }
 console.log(bad ? `${bad} problem(s)` : 'all levels valid');

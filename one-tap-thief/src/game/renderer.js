@@ -13,6 +13,15 @@ export function screenToTile(view, px, py) {
   return { x: Math.floor((px - view.ox) / view.ts), y: Math.floor((py - view.oy) / view.ts) };
 }
 
+// Detection stages: calm -> yellow (suspicious) -> orange (detecting) -> red (critical)
+export function stageOf(m, alarm = false) {
+  if (alarm || m >= 0.7) return 3;
+  if (m >= 0.35) return 2;
+  if (m >= 0.04) return 1;
+  return 0;
+}
+const STAGE_RGB = ['', '255,214,50', '255,138,26', '255,45,60'];
+
 function rr(g, x, y, w, h, r) {
   g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
   g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
@@ -25,6 +34,9 @@ export function render(g, ctx, state, view, fx, opts) {
   const X = (x) => ox + x * ts;
   const Y = (y) => oy + y * ts;
   g.clearRect(0, 0, W, H);
+  const critical = state.danger >= 0.7 && state.status === 'playing';
+  g.save();
+  if (critical) g.translate(Math.sin(t * 61) * 1.6 * (state.danger - 0.6), Math.cos(t * 53) * 1.6 * (state.danger - 0.6));
 
   // ---- floors ----
   for (let y = 0; y < ctx.h; y++) for (let x = 0; x < ctx.w; x++) {
@@ -51,18 +63,20 @@ export function render(g, ctx, state, view, fx, opts) {
   // ---- vision cones ----
   const alarmOn = state.alarm.t > 0;
   const cones = [];
-  for (const gd of state.guards) cones.push({ x: gd.x, y: gd.y, face: gd.face, range: effectiveRange(gd, state), fov: gd.fov, skip: 0.2, meter: gd.meter, alert: alarmOn || gd.state === 'suspicious' });
-  for (const c of state.cameras) cones.push({ x: c.x, y: c.y, face: c.angle, range: c.range, fov: c.fov, skip: 0.6, meter: c.meter, alert: c.cool > 0 || alarmOn, camera: true });
+  for (const gd of state.guards) cones.push({ x: gd.x, y: gd.y, face: gd.face, range: effectiveRange(gd, state), fov: gd.fov, skip: 0.2, meter: gd.meter, alarm: alarmOn });
+  for (const c of state.cameras) cones.push({ x: c.x, y: c.y, face: c.angle, range: c.range, fov: c.fov, skip: 0.6, meter: c.meter, alarm: c.cool > 0 || alarmOn, camera: true });
   for (const c of cones) {
     const pts = conePolygon(ctx, state, c.x, c.y, c.face, c.range, c.fov, c.skip);
-    const danger = Math.min(1, c.meter * 1.4);
-    const rgb = c.alert || danger > 0.1 ? '255,70,85' : c.camera ? '120,200,255' : '255,225,110';
+    const stg = stageOf(c.meter, c.alarm);
+    const rgb = stg ? STAGE_RGB[stg] : c.camera ? '110,190,255' : '215,235,255';
+    const k = Math.min(1, c.meter);
+    const flash = stg === 3 ? 0.12 * Math.sin(t * 18) : 0;
     const grad = g.createRadialGradient(X(c.x), Y(c.y), 2, X(c.x), Y(c.y), c.range * ts);
-    grad.addColorStop(0, `rgba(${rgb},${0.46 + danger * 0.2})`);
-    grad.addColorStop(1, `rgba(${rgb},${0.07 + danger * 0.12})`);
+    grad.addColorStop(0, `rgba(${rgb},${0.34 + k * 0.32 + flash})`);
+    grad.addColorStop(1, `rgba(${rgb},${0.06 + k * 0.2})`);
     g.fillStyle = grad;
     g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(X(p.x), Y(p.y)) : g.moveTo(X(p.x), Y(p.y)))); g.closePath(); g.fill();
-    g.strokeStyle = `rgba(${rgb},.45)`; g.lineWidth = 1; g.stroke();
+    g.strokeStyle = `rgba(${rgb},${0.4 + k * 0.5})`; g.lineWidth = stg >= 2 ? 2 : 1; g.stroke();
   }
 
   // ---- lasers ----
@@ -107,12 +121,20 @@ export function render(g, ctx, state, view, fx, opts) {
 
   // ---- cameras ----
   for (const c of state.cameras) {
+    const stg = stageOf(c.meter, c.cool > 0);
+    const col = stg ? `rgb(${STAGE_RGB[stg]})` : '#60a5fa';
     g.save(); g.translate(X(c.x), Y(c.y)); g.rotate(c.angle);
     g.fillStyle = '#2a2f45'; rr(g, -ts * 0.3, -ts * 0.22, ts * 0.6, ts * 0.44, 5); g.fill();
-    g.fillStyle = c.meter > 0.1 || c.cool > 0 ? '#ff3b52' : '#60a5fa';
-    g.shadowColor = g.fillStyle; g.shadowBlur = 8;
+    const blink = stg ? (Math.floor(t * (6 + stg * 5)) % 2 ? 1 : 0.35) : 1;
+    g.globalAlpha = blink; g.fillStyle = col; g.shadowColor = col; g.shadowBlur = 8 + stg * 5;
     g.beginPath(); g.arc(ts * 0.22, 0, ts * 0.11, 0, 7); g.fill();
     g.restore();
+    if (c.meter > 0.02) { // visible lock-on buildup
+      g.strokeStyle = col; g.lineWidth = 4; g.lineCap = 'round';
+      g.beginPath(); g.arc(X(c.x), Y(c.y), ts * 0.5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, c.meter)); g.stroke(); g.lineCap = 'butt';
+      g.fillStyle = col; g.font = `900 ${ts * 0.3}px system-ui`; g.textAlign = 'center';
+      g.fillText('REC', X(c.x), Y(c.y) + ts * 0.9);
+    }
   }
 
   // ---- guards ----
@@ -131,6 +153,11 @@ export function render(g, ctx, state, view, fx, opts) {
   }
 
   // ---- player ----
+  if (state.danger > 0.3 && state.status === 'playing') {
+    const pr = ts * (0.5 + 0.12 * Math.sin(t * (10 + state.danger * 14)));
+    g.strokeStyle = `rgba(255,${state.danger > 0.7 ? 45 : 140},${state.danger > 0.7 ? 60 : 26},${0.35 + state.danger * 0.5})`;
+    g.lineWidth = 3; g.beginPath(); g.arc(X(state.player.x), Y(state.player.y), pr, 0, 7); g.stroke();
+  }
   const blink = state.invuln > 0 && Math.floor(t * 10) % 2 === 0;
   drawThief(g, X(p.x), Y(p.y), ts * 0.36, opts.character, opts.variant, p.face, { alpha: (p.hidden ? 0.5 : 1) * (blink ? 0.45 : 1), moving: p.moving, t });
   if (p.hidden) { g.fillStyle = 'rgba(255,255,255,.8)'; g.font = `700 ${ts * 0.26}px system-ui`; g.textAlign = 'center'; g.fillText('hidden', X(p.x), Y(p.y) - ts * 0.55); }
@@ -148,33 +175,54 @@ export function render(g, ctx, state, view, fx, opts) {
     g.globalAlpha = 1;
   }
 
-  // ---- danger vignette ----
-  const danger = Math.max(state.danger, alarmOn ? 0.55 + 0.15 * Math.sin(t * 10) : 0);
-  if (danger > 0.05) {
-    const v = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
-    v.addColorStop(0, 'rgba(255,0,40,0)'); v.addColorStop(1, `rgba(255,20,50,${Math.min(0.55, danger * 0.6)})`);
+  g.restore();
+
+  // ---- screen-edge danger vignette (pulses with the heartbeat) ----
+  const beat = opts.beat || 0;
+  const danger = Math.max(state.danger, alarmOn ? 0.5 + 0.1 * Math.sin(t * 10) : 0);
+  if (danger > 0.03) {
+    const strength = Math.min(0.75, 0.1 + danger * 0.55 + beat * 0.12 * (0.4 + danger));
+    const v = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * (0.55 - danger * 0.2), W / 2, H / 2, Math.max(W, H) * 0.78);
+    const rgb = danger >= 0.7 || alarmOn ? '255,20,45' : danger >= 0.35 ? '255,110,20' : '255,190,30';
+    v.addColorStop(0, `rgba(${rgb},0)`); v.addColorStop(1, `rgba(${rgb},${strength})`);
     g.fillStyle = v; g.fillRect(0, 0, W, H);
   }
 }
 
 function drawGuard(g, gd, x, y, ts, t, alarmOn) {
   const r = ts * 0.34;
-  g.save(); g.translate(x, y);
+  const stg = stageOf(gd.meter, false);
+  const col = stg ? `rgb(${STAGE_RGB[stg]})` : '#fff';
+  // critical: expanding shock rings + body shake
+  if (stg === 3) {
+    for (let i = 0; i < 2; i++) {
+      const k = (t * 2.4 + i * 0.5) % 1;
+      g.strokeStyle = `rgba(255,45,60,${0.8 * (1 - k)})`; g.lineWidth = 3;
+      g.beginPath(); g.arc(x, y, r * (1.1 + k * 1.8), 0, 7); g.stroke();
+    }
+  }
+  const pulse = stg ? 1 + 0.08 * stg * Math.sin(t * (9 + stg * 5)) : 1;
+  const jx = stg === 3 ? Math.sin(t * 80) * 1.4 : 0;
+  g.save(); g.translate(x + jx, y); g.scale(pulse, pulse);
   g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(0, r * 0.2, r, r * 0.85, 0, 0, 7); g.fill();
   g.rotate(gd.face);
-  g.fillStyle = alarmOn ? '#c0243a' : '#3b4f8c'; g.strokeStyle = 'rgba(255,255,255,.3)'; g.lineWidth = 1.5;
+  g.fillStyle = alarmOn || stg === 3 ? '#c0243a' : stg === 2 ? '#a5532b' : '#3b4f8c'; g.strokeStyle = stg ? col : 'rgba(255,255,255,.3)'; g.lineWidth = stg ? 2.5 : 1.5;
   g.beginPath(); g.ellipse(-r * 0.05, 0, r * 0.8, r * 0.98, 0, 0, 7); g.fill(); g.stroke();
   g.fillStyle = '#e9bd96'; g.beginPath(); g.arc(r * 0.22, 0, r * 0.58, 0, 7); g.fill();
   g.fillStyle = '#161a2c'; g.beginPath(); g.ellipse(r * 0.05, 0, r * 0.52, r * 0.62, 0, 0, 7); g.fill(); // cap
   g.fillStyle = '#161a2c'; g.fillRect(r * 0.2, -r * 0.62, r * 0.3, r * 1.24);
   g.fillStyle = '#f5c542'; g.beginPath(); g.arc(r * 0.05, 0, r * 0.12, 0, 7); g.fill(); // badge
   g.restore();
-  // detection meter ring + ! / ?
+  // detection ring + bouncing icon:  ? (yellow)  !  (orange)  !! (red)
   if (gd.meter > 0.02) {
-    g.strokeStyle = gd.meter > 0.6 ? '#ff3b52' : '#ffd24a'; g.lineWidth = 3.5;
-    g.beginPath(); g.arc(x, y, r * 1.35, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, gd.meter)); g.stroke();
-    g.fillStyle = '#fff'; g.font = `900 ${ts * 0.42}px system-ui`; g.textAlign = 'center';
-    g.fillText(gd.meter > 0.5 ? '!' : '?', x, y - r * 1.55);
+    g.strokeStyle = col; g.lineWidth = 3.5 + stg; g.lineCap = 'round';
+    g.beginPath(); g.arc(x, y, r * 1.35, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, gd.meter)); g.stroke(); g.lineCap = 'butt';
+    const bounce = Math.abs(Math.sin(t * (6 + stg * 4))) * ts * (0.04 + 0.05 * stg);
+    const size = ts * (0.42 + 0.1 * stg);
+    g.font = `900 ${size}px system-ui`; g.textAlign = 'center';
+    g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,.65)';
+    const txt = stg === 1 ? '?' : stg === 2 ? '!' : '!!';
+    g.strokeText(txt, x, y - r * 1.5 - bounce); g.fillStyle = col; g.fillText(txt, x, y - r * 1.5 - bounce);
   } else if (alarmOn) {
     g.fillStyle = '#ff3b52'; g.font = `900 ${ts * 0.4}px system-ui`; g.textAlign = 'center'; g.fillText('!', x, y - r * 1.4 + Math.sin(t * 12) * 2);
   }
