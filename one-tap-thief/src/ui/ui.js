@@ -60,7 +60,7 @@ const TEMPLATE = `
   <div class="objective" id="objective"></div>
   <div class="alarm-banner" id="alarmBanner" hidden>ALARM</div>
   <div class="toast" id="toast"></div>
-  <div class="ready" id="ready"><div class="ready-card"><h2 id="readyName"></h2><p id="readyHint"></p><div class="tap-hint">Drag &amp; release to start</div></div></div>
+  <div class="ready" id="ready"><div class="ready-card"><h2 id="readyName"></h2><p id="readyHint"></p><div class="tap-hint">Tap to start</div></div></div>
 </section>
 
 <section id="shop" class="screen">
@@ -85,7 +85,7 @@ const TEMPLATE = `
 <section id="howto" class="screen">
   <header class="topbar"><button class="icon-btn" data-action="back" aria-label="Back">‹</button><h2>How to play</h2><div></div></header>
   <div class="scroll list how">
-    <div class="card"><b>👆 Drag to move</b><p>Press, drag and release where you want the thief to go — he finds his own way around walls. Release somewhere else to change your mind.</p></div>
+    <div class="card"><b>👆 Tap to move</b><p>Tap where you want the thief to go — he finds his own way around walls. Tap somewhere else to change your mind. Dragging does nothing.</p></div>
     <div class="card"><b>🟡 Avoid vision cones</b><p>Guards and cameras see in a cone. Walls and furniture block their view. Stay in sight too long and you’re caught.</p></div>
     <div class="card"><b>🫥 Hide &amp; stay back</b><p>Step into a wardrobe to disappear. Guards also sense you when you get close — even behind their back — so give them room. Never touch a guard.</p></div>
     <div class="card"><b>💰 Loot &amp; exit</b><p>Collect coins (+10) and rare gems (+50), then reach the green exit.</p></div>
@@ -233,7 +233,7 @@ function startLevel(n) {
   requestAnimationFrame(() => {
     const hud = $('#hud').getBoundingClientRect();
     const obj = $('#objective').getBoundingClientRect();
-    game.insets = { top: hud.bottom + 6, bottom: Math.max(48, window.innerHeight - obj.top + 4) + (window.innerHeight < 700 ? 36 : 84) }; // room for the start card
+    game.insets = { top: hud.bottom + 6, bottom: Math.max(48, window.innerHeight - obj.top + 4) + (window.innerHeight < 700 ? 28 : 62) }; // room for the start card
     game.load(n);
     game.start();
   });

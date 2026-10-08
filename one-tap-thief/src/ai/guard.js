@@ -1,4 +1,5 @@
-// Guard AI: configurable patrol, vision cone with a warning phase, alarm investigation.
+// Guard AI: PATROL -> SUSPICIOUS -> ALERT (a visible reaction pause) -> CHASE, plus alarm investigation.
+// Caught = detection meter full OR touching the thief.
 import { CFG } from '../config.js';
 import { findPath } from '../game/grid.js';
 import { D2R, nearPlayer, normAngle, seesPlayer } from './vision.js';
@@ -17,6 +18,7 @@ export function makeGuard(def, id, difficulty = 1) {
     fill: (def.fillTime ?? CFG.fillTime) * (1.15 - 0.03 * difficulty),
     prox: def.prox ?? CFG.guard.proximity, near: 0,
     sweep: def.sweep || null, path: [], wait: def.startDelay ?? 0, t: 0, meter: 0, state: 'patrol',
+    chase: false, alertT: 0, chaseT: 0, repath: 0, lastSeen: null,
     inv: null, invId: -1, look: null, spawn: { x: route[0].x + 0.5, y: route[0].y + 0.5, face },
   };
 }
@@ -86,18 +88,51 @@ export function updateGuard(ctx, state, g, dt, hooks) {
   g.near = dn >= 0 ? 1 - dn / R : 0;
   let rate = d >= 0 ? (1 + (1 - d / range)) / g.fill : 0;
   if (dn >= 0) rate = Math.max(rate, (CFG.guard.proximityGain * Math.pow(g.near, 1.2)) / g.fill);
+  const reacting = g.alertT > 0 || g.chase;
+  if (reacting) rate *= CFG.guard.postCriticalGain; // once alerted, the thief gets a moment to break line of sight
   if (rate > 0) {
     g.meter += rate * dt;
     g.look = Math.atan2(p.y - g.y, p.x - g.x);
+    g.lastSeen = { x: p.x, y: p.y };
+    if (reacting) g.meter = Math.min(g.meter, 0.92); // alerted guards must physically reach you: sight alone no longer ends the run
   } else g.meter = Math.max(0, g.meter - dt * CFG.decayRate);
   if (g.meter > CFG.spottedAt) state.spotted = true;
   if (prev < CFG.suspiciousAt && g.meter >= CFG.suspiciousAt) hooks.emit('alert', { id: g.id });
-  if (prev < CFG.criticalAt && g.meter >= CFG.criticalAt) hooks.emit('critical', { id: g.id });
+  if (prev < CFG.criticalAt && g.meter >= CFG.criticalAt && !reacting) { g.alertT = CFG.guard.alertReact; hooks.emit('critical', { id: g.id }); }
   if (g.meter >= 1) { hooks.caught(g); return; }
   if (state.invuln <= 0 && Math.hypot(p.x - g.x, p.y - g.y) < CFG.bumpDistance) { hooks.caught(g); return; }
 
   // --- behaviour ---
   const alarmOn = state.alarm.t > 0;
+  if (g.alertT > 0) { // ALERT: stop dead, snap toward the thief, brace — an unmistakable reaction before the chase
+    g.state = 'alert'; g.path = [];
+    if (g.look !== null) turnToward(g, g.look, dt, CFG.guard.turnRate);
+    g.alertT -= dt;
+    if (g.alertT <= 0) { g.chase = true; g.chaseT = CFG.guard.chaseTime; g.repath = 0; hooks.emit('chase', { id: g.id }); }
+    return;
+  }
+  if (g.chase) { // CHASE: run to where the thief was last seen; give up after a few seconds without contact
+    g.state = 'chase';
+    if (rate > 0) g.chaseT = CFG.guard.chaseTime; else g.chaseT -= dt;
+    g.repath -= dt;
+    if (g.repath <= 0 && g.lastSeen) {
+      g.repath = 0.25;
+      goTo(ctx, state, g, Math.floor(g.lastSeen.x), Math.floor(g.lastSeen.y));
+      if (p.hidden) { // never barge into a hiding spot: stop short and search around it
+        while (g.path.length && Math.hypot(g.path[g.path.length - 1].x + 0.5 - g.lastSeen.x, g.path[g.path.length - 1].y + 0.5 - g.lastSeen.y) < CFG.guard.chaseStopShort) g.path.pop();
+      }
+    }
+    if (g.path.length) moveAlong(g, g.speed * CFG.guard.chaseSpeedMul, dt);
+    else if (!p.hidden && g.lastSeen && Math.hypot(g.lastSeen.x - g.x, g.lastSeen.y - g.y) > 0.15) { // same tile: close in directly
+      const dx = g.lastSeen.x - g.x, dy = g.lastSeen.y - g.y, dd = Math.hypot(dx, dy), stp = Math.min(dd, g.speed * CFG.guard.chaseSpeedMul * dt);
+      g.x += (dx / dd) * stp; g.y += (dy / dd) * stp; g.heading = Math.atan2(dy, dx); turnToward(g, g.heading, dt);
+    } else g.face += 2.0 * dt; // search: sweep the area
+    if (g.chaseT <= 0) { // lost him: back to the route
+      g.chase = false; g.meter = Math.min(g.meter, 0.2);
+      g.ri = nearestRouteIndex(g); goTo(ctx, state, g, g.route[g.ri].x, g.route[g.ri].y); g.wait = 0;
+    }
+    return;
+  }
   if (g.meter > CFG.suspiciousAt && !alarmOn) {
     g.state = 'suspicious';
     if (g.look !== null) turnToward(g, g.look, dt, CFG.guard.suspiciousTurn); // head-turn is slower than a patrol turn
@@ -142,7 +177,7 @@ export function updateGuard(ctx, state, g, dt, hooks) {
 
 /** After a rewarded "continue": guards near the thief are sent back to their spawn so the retry is fair. */
 export function resetGuardNear(g, x, y, radius) {
-  g.meter = 0; g.state = 'patrol'; g.inv = null; g.invId = -1; g.look = null;
+  g.meter = 0; g.state = 'patrol'; g.inv = null; g.invId = -1; g.look = null; g.chase = false; g.alertT = 0; g.chaseT = 0; g.lastSeen = null;
   if (Math.hypot(g.x - x, g.y - y) < radius) {
     g.x = g.spawn.x; g.y = g.spawn.y; g.face = g.spawn.face; g.path = []; g.ri = 0; g.dir = 1; g.wait = 0.5;
   }

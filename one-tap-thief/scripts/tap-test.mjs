@@ -1,4 +1,5 @@
-// End-to-end browser test (needs `npm run dev` on PORT 8099): drag-to-move, no path dots, wall navigation, proximity, hiding, CCTV, alarm, caught, win.
+// End-to-end browser test (needs `npm run dev` on PORT 8099): tap-to-move, dragging does nothing, no path dots,
+// wall navigation, proximity, chase, hiding, CCTV, alarm, caught, win, UI text.
 import { chromium } from '/opt/node-tools/node_modules/playwright/index.mjs';
 const URL = process.env.URL || 'http://localhost:8099/';
 const br = await chromium.launch({ args: ['--no-sandbox'] });
@@ -11,27 +12,42 @@ await pg.evaluate(() => window.__ott.save.set({ unlocked: 10 }));
 const open = async (n) => { await pg.evaluate((n) => window.__ott.startLevel(n), n); await wait(600); };
 const view = () => pg.evaluate(() => ({ ...window.__ott.game.view }));
 const st = () => pg.evaluate(() => { const s = window.__ott.game.state; return { x: s.player.x, y: s.player.y, status: s.status, path: s.player.path.length, hidden: s.player.hidden, keys: s.keys, taken: s.taken.filter(Boolean).length, spotted: s.spotted, alarmed: s.alarmed, alarm: s.alarm.t, danger: s.danger }; });
-const drag = async (fx, fy, tx, ty, steps = 8) => { const v = await view(); const p = (x, y) => [v.ox + x * v.ts, v.oy + y * v.ts];
-  const [ax, ay] = p(fx, fy), [bx, by] = p(tx, ty); await pg.mouse.move(ax, ay); await pg.mouse.down(); for (let i = 1; i <= steps; i++) await pg.mouse.move(ax + ((bx - ax) * i) / steps, ay + ((by - ay) * i) / steps); await pg.mouse.up(); };
+const tile = async (x, y) => { const v = await view(); return [v.ox + x * v.ts, v.oy + y * v.ts]; };
+const tap = async (tx, ty) => { const [x, y] = await tile(tx, ty); await pg.mouse.click(x, y); };
+const drag = async (fx, fy, tx, ty) => tap(tx, ty);                       // legacy helper: old tests now simply tap the destination
+const swipe = async (fx, fy, tx, ty) => { const [ax, ay] = await tile(fx, fy), [bx, by] = await tile(tx, ty); await pg.mouse.move(ax, ay); await pg.mouse.down(); for (let i = 1; i <= 8; i++) await pg.mouse.move(ax + ((bx - ax) * i) / 8, ay + ((by - ay) * i) / 8); await pg.mouse.up(); };
 const idle = () => pg.waitForFunction(() => !window.__ott.game.state.player.path.length || window.__ott.game.state.status !== 'playing', null, { timeout: 20000 });
 
 // ---- L1: drag-to-move + wall navigation
 await open(1);
-await drag(1.5, 1.5, 3.5, 3.5); await wait(80);
+check('start card says "Tap to start"', await pg.evaluate(() => document.querySelector('.tap-hint')?.textContent.trim() === 'Tap to start'));
+check('no "drag" wording anywhere in the UI', !(await pg.evaluate(() => document.body.innerText.toLowerCase().replace('dragging does nothing', '').includes('drag'))));
+const cardH = await pg.evaluate(() => document.querySelector('.ready-card').getBoundingClientRect().height);
+check('instruction card is compact', cardH < 100, `${cardH.toFixed(0)}px tall`);
+await swipe(1.5, 1.5, 6.5, 5.5); await wait(150);
+let s0 = await st();
+check('DRAGGING does nothing (thief stays, no route, level not started)', s0.path === 0 && Math.hypot(s0.x - 1.5, s0.y - 1.5) < 0.01 && await pg.evaluate(() => window.__ott.game.waiting), JSON.stringify({ x: s0.x, y: s0.y, path: s0.path }));
+await tap(3.5, 3.5); await wait(80);
 let s = await st();
-check('drag release starts the level and sets a route', s.path > 0, `path ${s.path}`);
+check('a tap starts the level and sets a route', s.path > 0, `path ${s.path}`);
 await idle(); s = await st();
-check('thief walked to the release point (around walls)', Math.hypot(s.x - 3.5, s.y - 3.5) < 0.15 && s.taken === 1, `at ${s.x.toFixed(2)},${s.y.toFixed(2)} loot ${s.taken}`);
-// release on a wall: should snap, never walk into it
-await drag(3.5, 3.5, 2.5, 3.5); await idle(); s = await st();
-check('releasing on a wall does not break navigation', s.status === 'playing' && !isNaN(s.x));
+check('thief walked to the tapped point (around walls)', Math.hypot(s.x - 3.5, s.y - 3.5) < 0.15 && s.taken === 1, `at ${s.x.toFixed(2)},${s.y.toFixed(2)} loot ${s.taken}`);
+// tapping a wall snaps to the nearest reachable tile, never walks into it
+await tap(2.5, 3.5); await idle(); s = await st();
+check('tapping a wall does not break navigation', s.status === 'playing' && !isNaN(s.x));
+// swipe mid-move: ignored, the current destination is kept
+await tap(7.5, 1.5); await wait(150); const mid = await st(); await swipe(2.5, 6.5, 5.5, 6.5); await wait(100);
+check('a swipe while moving does not change the destination', (await st()).path > 0 && mid.path > 0);
+await tap(3.5, 3.5); await wait(100);
+check('tapping another spot while moving changes the destination', (await pg.evaluate(() => window.__ott.game.state.player.target)).x === 3);
+await idle();
 // cancelled gesture (released outside canvas) does nothing
 const before = await st(); const v = await view();
 await pg.mouse.move(v.ox + 200, v.oy + 50); await pg.mouse.down(); await pg.mouse.move(v.ox + 200, -50, { steps: 4 }); await pg.mouse.up(); await wait(100);
 check('release off-screen cancels', (await st()).path === before.path);
 // no path dots / route line drawn: path exists internally but pixels near the route stay clean
 const dots = await pg.evaluate(() => { const g = window.__ott.game; const s = g.state; return !('showPath' in (g.__proto__ || {})) && typeof g.fx.rings !== 'undefined'; });
-await drag(3.5, 3.5, 7.5, 1.5, 3); await wait(250);
+await tap(7.5, 1.5); await wait(600);
 const pix = await pg.evaluate(() => { const g = window.__ott.game; const c = g.canvas.getContext('2d'); const s = g.state; const v = g.view; // sample the centre of the next 3 path tiles for white dots
   const out = []; for (const n of s.player.path.slice(2, 6)) { const px = (v.ox + (n.x + 0.5) * v.ts) * g.dpr, py = (v.oy + (n.y + 0.5) * v.ts) * g.dpr; const d = c.getImageData(px - 2, py - 2, 4, 4).data; let w = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] > 200 && d[i + 2] > 200) w++; out.push(w); } return out; });
 check('no path dots drawn on route tiles', pix.every((w) => w === 0), JSON.stringify(pix));

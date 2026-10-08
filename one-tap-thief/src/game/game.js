@@ -8,17 +8,20 @@ import { computeLayout, makeAnim, render, screenToTile, updateAnim } from './ren
 import * as audio from '../audio/audio.js';
 import * as save from '../storage/save.js';
 
+const TAP_SLOP = 14; // px: a press that travels further than this is a drag and is ignored
+
 export class Game {
   /** hooks: { onReady(def), onStart(), onHud(hud), onCaught(), onWin(result), onToast(msg) } */
   constructor(canvas, hooks) {
     this.canvas = canvas; this.g = canvas.getContext('2d'); this.hooks = hooks;
     this.insets = { top: 70, bottom: 60 };
-    this.fx = { texts: [], rings: [] };
+    this.fx = { texts: [], rings: [], taps: [] };
     this.level = 0; this.ctx = null; this.state = null; this.view = null;
     this.paused = true; this.waiting = false; this.raf = 0; this.acc = 0; this.last = 0; this.clock = 0;
     this.continueUsed = false; this.finishing = false; this.hudKey = '';
     this.anim = makeAnim(); this.touch = null;
     canvas.addEventListener('pointerdown', (e) => this.onDown(e));
+    canvas.addEventListener('pointermove', (e) => this.onMove(e));
     canvas.addEventListener('pointerup', (e) => this.onUp(e));
     canvas.addEventListener('pointercancel', () => { this.touch = null; });
     canvas.addEventListener('lostpointercapture', () => { this.touch = null; });
@@ -34,7 +37,7 @@ export class Game {
     this.level = n;
     this.ctx = createLevel(def, WORLDS[def.world]);
     this.state = createState(this.ctx);
-    this.fx.texts.length = 0; this.fx.rings.length = 0;
+    this.fx.texts.length = 0; this.fx.rings.length = 0; this.fx.taps.length = 0;
     this.hb = 0; this.beat = 0; this.touch = null; this.anim = makeAnim();
     this.continueUsed = false; this.finishing = false; this.paused = false; this.waiting = true; this.hudKey = '';
     this.resize();
@@ -80,7 +83,7 @@ export class Game {
       updateAnim(this.anim, this.state, dt);
     }
     this.beat = Math.max(0, this.beat - dt * 3);
-    for (const list of [this.fx.texts, this.fx.rings]) {
+    for (const list of [this.fx.texts, this.fx.rings, this.fx.taps]) {
       for (const f of list) f.age += dt;
       for (let i = list.length - 1; i >= 0; i--) if (list[i].age >= list[i].life) list.splice(i, 1);
     }
@@ -113,6 +116,7 @@ export class Game {
         case 'beep': audio.play('beep', e.level); break;
         case 'camwarn': audio.play('camwarn'); this.hooks.onToast('CCTV is locking on to you!'); break;
         case 'critical': audio.play('critical'); break;
+        case 'chase': this.hooks.onToast('A guard is chasing you!'); break;
         case 'alert': audio.play('alert'); break;
         case 'caught': audio.play('caught'); setTimeout(() => this.hooks.onCaught(), 650); break;
         case 'win': this.finish(); break;
@@ -145,14 +149,19 @@ export class Game {
     if (key !== this.hudKey) { this.hudKey = key; this.hooks.onHud(hud); }
   }
 
-  // ---- drag-to-move: press, drag, and release where the thief should go. Nothing is drawn while dragging.
+  // ---- tap-to-move. A tap moves; anything that travels further than TAP_SLOP px (a drag/swipe) does nothing at all.
   onDown(e) {
     if (this.paused || !this.state || this.state.status !== 'playing') return;
-    if (this.touch) { this.touch = null; return; }          // a second finger cancels the gesture (no accidental moves)
+    if (this.touch) { this.touch = null; return; }          // a second finger cancels the gesture
     e.preventDefault();
     audio.init();
     try { this.canvas.setPointerCapture(e.pointerId); } catch (err) { /* not fatal */ }
-    this.touch = { id: e.pointerId, x0: e.clientX, y0: e.clientY };
+    this.touch = { id: e.pointerId, x0: e.clientX, y0: e.clientY, moved: 0 };
+  }
+
+  onMove(e) {
+    const t = this.touch;
+    if (t && t.id === e.pointerId) t.moved = Math.max(t.moved, Math.hypot(e.clientX - t.x0, e.clientY - t.y0));
   }
 
   onUp(e) {
@@ -160,16 +169,21 @@ export class Game {
     this.touch = null;
     if (!tch || tch.id !== e.pointerId || this.paused || !this.state || this.state.status !== 'playing') return;
     e.preventDefault();
+    const moved = Math.max(tch.moved, Math.hypot(e.clientX - tch.x0, e.clientY - tch.y0));
+    if (moved > TAP_SLOP) return;                                              // it was a drag: ignore completely
     const r = this.canvas.getBoundingClientRect();
     const px = e.clientX - r.left, py = e.clientY - r.top;
-    if (px < 0 || py < 0 || px > r.width || py > r.height) return;           // released off-screen: cancel
+    if (px < 0 || py < 0 || px > r.width || py > r.height) return;
     const t = screenToTile(this.view, px, py);
     this.go(t.x, t.y);
   }
 
   go(tx, ty) {
     if (this.waiting) { this.waiting = false; this.hooks.onStart(); }
-    commandMove(this.ctx, this.state, tx, ty);
+    if (commandMove(this.ctx, this.state, tx, ty)) {
+      const t = this.state.player.target;
+      if (t) this.fx.taps.push({ x: t.x + 0.5, y: t.y + 0.5, age: 0, life: 0.28 }); // tiny, brief tap ripple — no trail, no path
+    }
   }
 
   onKey(e) {

@@ -5,6 +5,7 @@ import { conePolygon } from '../ai/vision.js';
 import { effectiveRange } from '../ai/guard.js';
 import { laserActive } from '../entities/laser.js';
 import { drawGuardFigure, drawThief } from './sprites.js';
+import { normAngle } from '../ai/vision.js';
 import { bakeStatic, bakeVignette } from './staticLayer.js';
 import { drawAlarmPlate, drawCamera, drawDoor, drawDoorOpen, drawExit, drawKey, drawLaser, drawLoot, drawWardrobe } from './props.js';
 
@@ -24,9 +25,11 @@ export function stageOf(m, alarm = false) {
   return 0;
 }
 const STAGE_RGB = ['', '255,214,50', '255,138,26', '255,45,60'];
+/** Visual stage of a guard: follows the AI state machine (alert/chase = 3), otherwise the detection meter. */
+export const guardStage = (gd) => (gd.chase || gd.alertT > 0 ? 3 : stageOf(gd.meter));
 
 /** Walk-cycle bookkeeping: phase advances with distance travelled; mv is the smoothed 0..1 stride amount. */
-export function makeAnim() { return { player: { ph: 0, mv: 0, x: null, y: 0 }, guards: {}, t: 0 }; }
+export function makeAnim() { return { player: { ph: 0, mv: 0, x: null, y: 0, face: null }, guards: {}, t: 0 }; }
 export function updateAnim(anim, state, dt) {
   const step = (a, x, y, speed) => {
     if (a.x === null || a.x === undefined) { a.x = x; a.y = y; }
@@ -36,7 +39,11 @@ export function updateAnim(anim, state, dt) {
     a.ph += d * 4.2;
   };
   step(anim.player, state.player.x, state.player.y, 4.4);
-  for (const g of state.guards) step(anim.guards[g.id] || (anim.guards[g.id] = { ph: 0, mv: 0, x: null, y: 0 }), g.x, g.y, 1.6);
+  const pa = anim.player;                                  // smooth turning: the thief swings round instead of snapping
+  if (pa.face === null) pa.face = state.player.face;
+  const df = normAngle(state.player.face - pa.face);
+  pa.face += df * Math.min(1, dt * 14);
+  for (const g of state.guards) step(anim.guards[g.id] || (anim.guards[g.id] = { ph: 0, mv: 0, x: null, y: 0 }), g.x, g.y, g.chase ? 2.3 : 1.6);
 }
 
 export function render(g, ctx, state, view, fx, opts) {
@@ -81,18 +88,21 @@ export function render(g, ctx, state, view, fx, opts) {
   for (const c of state.cameras) cones.push({ x: c.x, y: c.y, face: c.angle, range: c.range, fov: c.fov, skip: 0.6, meter: c.meter, alarm: c.cool > 0 || alarmOn, camera: true });
   g.globalCompositeOperation = 'lighter';
   for (const c of cones) {
-    const pts = conePolygon(ctx, state, c.x, c.y, c.face, c.range, c.fov, c.skip);
     const stg = stageOf(c.meter, c.alarm);
-    const rgb = stg ? STAGE_RGB[stg] : c.camera ? '90,150,255' : '225,238,255';
+    const rgb = stg ? STAGE_RGB[stg] : c.camera ? '90,150,255' : '235,242,255';
     const k = Math.min(1, c.meter);
-    const flash = stg === 3 ? 0.07 * Math.sin(t * 18) : 0;
-    const gr = g.createRadialGradient(X(c.x), Y(c.y), 2, X(c.x), Y(c.y), c.range * ts);
-    gr.addColorStop(0, `rgba(${rgb},${0.36 + k * 0.28 + flash})`);
-    gr.addColorStop(0.55, `rgba(${rgb},${0.12 + k * 0.14})`);
-    gr.addColorStop(1, `rgba(${rgb},${0.02 + k * 0.06})`);
-    g.fillStyle = gr;
-    g.beginPath(); pts.forEach((q, i) => (i ? g.lineTo(X(q.x), Y(q.y)) : g.moveTo(X(q.x), Y(q.y)))); g.closePath(); g.fill();
-    g.strokeStyle = `rgba(${rgb},${0.16 + k * 0.4})`; g.lineWidth = stg >= 2 ? 1.6 : 1; g.stroke();
+    const flash = stg === 3 ? 0.05 * Math.sin(t * 18) : 0;
+    // three nested wedges: bright core fading to a soft edge, with distance falloff — reads as light, not a flat shape
+    for (const [fovK, a0] of [[1, 0.5], [0.72, 0.6], [0.42, 0.7]]) {
+      const pts = conePolygon(ctx, state, c.x, c.y, c.face, c.range, c.fov * fovK, c.skip, fovK === 1 ? 26 : 14);
+      const gr = g.createRadialGradient(X(c.x), Y(c.y), 2, X(c.x), Y(c.y), c.range * ts);
+      const base = (0.2 + k * 0.2 + flash) * a0;
+      gr.addColorStop(0, `rgba(${rgb},${base * 1.5})`);
+      gr.addColorStop(0.5, `rgba(${rgb},${base * 0.8})`);
+      gr.addColorStop(1, `rgba(${rgb},0)`);
+      g.fillStyle = gr;
+      g.beginPath(); pts.forEach((q, i) => (i ? g.lineTo(X(q.x), Y(q.y)) : g.moveTo(X(q.x), Y(q.y)))); g.closePath(); g.fill();
+    }
   }
   g.globalCompositeOperation = 'source-over';
 
@@ -125,15 +135,23 @@ export function render(g, ctx, state, view, fx, opts) {
     if (a.player) {
       const blink = state.invuln > 0 && Math.floor(t * 10) % 2 === 0;
       const pa = anim.player;
-      drawThief(g, X(p.x), Y(p.y), ts * 0.44, opts.character, opts.variant, p.face, { alpha: blink ? 0.45 : 1, ph: pa.ph, mv: pa.mv, t, crouch: state.danger > 0.5 ? 0.35 : 0 });
+      drawThief(g, X(p.x), Y(p.y), ts * 0.44, opts.character, opts.variant, pa.face ?? p.face, { alpha: blink ? 0.45 : 1, ph: pa.ph, mv: pa.mv, t, crouch: state.danger > 0.5 ? 0.35 : 0 });
     } else {
       const gd = a.guard;
-      const stg = stageOf(gd.meter, false);
+      const stg = guardStage(gd);
       const ga = anim.guards[gd.id] || { ph: 0, mv: 0 };
+      const headYaw = stg >= 1 && gd.look !== null && !gd.chase ? Math.max(-1.1, Math.min(1.1, normAngle(gd.look - gd.face))) : 0;
       drawGuardAlertFx(g, gd, X(gd.x), Y(gd.y), ts, t, stg);
-      drawGuardFigure(g, X(gd.x), Y(gd.y), ts * 1.18, gd.face, { ph: ga.ph, mv: ga.mv, t, stage: stg, alarm: alarmOn });
+      drawGuardFigure(g, X(gd.x), Y(gd.y), ts * 1.18, gd.face, { ph: ga.ph, mv: ga.mv, t, stage: stg, alarm: alarmOn, headYaw, chase: gd.chase });
       drawGuardIcon(g, gd, X(gd.x), Y(gd.y), ts, t, stg, alarmOn);
     }
+  }
+
+  // ---- tap ripple: a tiny, very short-lived acknowledgement (no path, no trail)
+  for (const f of fx.taps || []) {
+    const k = f.age / f.life;
+    g.strokeStyle = `rgba(255,255,255,${0.32 * (1 - k)})`; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(X(f.x), Y(f.y), ts * (0.1 + k * 0.22), 0, 7); g.stroke();
   }
 
   // ---- floating pickups text / pulses
@@ -164,6 +182,7 @@ export function render(g, ctx, state, view, fx, opts) {
 }
 
 function drawGuardAlertFx(g, gd, x, y, ts, t, stg) {
+  if (stg === 3 && (gd.chase || gd.alertT > 0)) { /* strongest reaction */ }
   if (stg === 3) { // shock rings radiating from a fully alerted guard
     for (let i = 0; i < 2; i++) {
       const k = (t * 2.4 + i * 0.5) % 1;
@@ -176,7 +195,7 @@ function drawGuardAlertFx(g, gd, x, y, ts, t, stg) {
 function drawGuardIcon(g, gd, x, y, ts, t, stg, alarmOn) {
   const r = ts * 0.34;
   const col = stg ? `rgb(${STAGE_RGB[stg]})` : '#fff';
-  if (gd.meter > 0.02) {
+  if (gd.meter > 0.02 || stg === 3) {
     g.strokeStyle = col; g.lineWidth = 3 + stg; g.lineCap = 'round';
     g.beginPath(); g.arc(x, y, r * 1.45, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, gd.meter)); g.stroke(); g.lineCap = 'butt';
     const bounce = Math.abs(Math.sin(t * (6 + stg * 4))) * ts * (0.04 + 0.05 * stg);
