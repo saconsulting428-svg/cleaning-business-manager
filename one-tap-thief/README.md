@@ -14,12 +14,14 @@ cd one-tap-thief
 npm run dev          # → http://localhost:8080   (zero-dependency static server)
 ```
 
-Tap/click a tile to move. Keyboard (optional): arrow keys / WASD. Use Chrome devtools device mode for portrait.
+Press, drag and release where the thief should go (mouse or touch). Keyboard (optional): arrow keys / WASD. Use Chrome devtools device mode for portrait.
 
 ## How it plays
 
-- **Tap to move** – the thief pathfinds to the tapped tile (blocked taps snap to the nearest reachable tile).
-  The level starts on your first tap. Paths never cross the exit by accident.
+- **Drag to move** – press, drag and **release where the thief should go**; he finds his own way around walls and
+  furniture. No path, dots or markers are ever drawn — you just watch him go. Releasing on a wall snaps to the nearest
+  reachable tile, a second finger or releasing off-screen cancels the gesture, and routes never cross the exit by accident.
+  The level starts on your first release.
 - **Guards** patrol configurable routes with a vision cone (range + FOV, blocked by walls/furniture). Being seen
   fills a warning meter (`?` → `!`); it drains if you break line of sight; full = **Caught**. Touching a guard = caught.
 - **Detection feedback** (every guard and camera): the cone and meter ring go **yellow** (suspicious, `?`) →
@@ -28,6 +30,9 @@ Tap/click a tile to move. Keyboard (optional): arrow keys / WASD. Use Chrome dev
   hit critical. Cameras show a `REC` lock-on ring and beep faster (higher pitch) as they close in.
 - **CCTV cameras** sweep a cone; if one fills its meter it sounds the **alarm**. **Alarm zones** (red tiles) and
   **blinking lasers** trigger it too. During an alarm guards run to the spot, move faster and see further.
+- **Proximity awareness** – guards also sense you at short range (1.4 tiles) from any direction, even behind their
+  back: the closer you are, the faster their meter fills; they stop, slowly turn toward you and the screen/heartbeat
+  tense up. Walls block it and hiding defeats it. Passing right behind a guard is a gamble, not a free pass.
 - **Hiding spots** (wardrobes) make the thief invisible to cones. **Keys** open **locked doors** (one key per door).
 - **Stars**: 1★ reach the exit · 2★ exit + at least half the loot (`minLoot` configurable per level) ·
   3★ **Perfect Heist** = all loot, never detected (meter never passed 35 %), no alarm.
@@ -43,7 +48,9 @@ Tap/click a tile to move. Keyboard (optional): arrow keys / WASD. Use Chrome dev
 index.html                 entry (portrait, safe-area aware)
 src/main.js                bootstrap
 src/config.js              ALL gameplay tuning values (speeds, ranges, coin values, ad frequency…)
-src/game/                  grid.js (map/pathfinding/LOS) · sim.js (pure simulation) · renderer.js · game.js (loop + input)
+src/game/                  grid.js (map/pathfinding/LOS) · sim.js (pure simulation) · game.js (loop + drag input)
+                           renderer.js (frame composer) · staticLayer.js (baked floors/walls/furniture/lighting)
+                           sprites.js (humanoid thief + police, walk cycles) · props.js (doors, loot, CCTV, lasers…)
 src/ai/                    guard.js (patrol/suspicion/alarm AI) · vision.js (cones)
 src/entities/              camera.js · laser.js · thief.js (drawing) · cosmetics.js (catalogue)
 src/levels/                levels.js (DATA) · worlds.js (themes, 5 worlds × 10 levels)
@@ -124,6 +131,9 @@ for 3 s never gets you caught or spotted; no guard waypoint is blocked; no guard
 ```bash
 npm test             # = validate-levels + solve
 npm run validate     # map parses; loot/keys/exit reachable; keys ≥ doors; guard waypoints walkable
+npm run bundle       # dist/OneTapThief.html — the whole game as one standalone file
+node scripts/proximity-test.mjs   # guard proximity-awareness scenarios
+node scripts/drag-test.mjs        # browser E2E: drag-to-move, no path dots, win/caught, hiding, CCTV, alarm (needs `npm run dev`)
 npm run solve        # beam-search bot plays every level in the real simulation; reports whether a 3★ Perfect Heist exists,
                      # whether it survives harsher guards, and how much waiting/detouring the security forces
 node scripts/heatmap.mjs 7   # design aid: % of time each tile is watched (ASCII heatmap)

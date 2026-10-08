@@ -20,7 +20,7 @@ export function createState(ctx) {
     guards: (ctx.def.guards || []).map((g, i) => makeGuard(g, i, d)),
     cameras: (ctx.def.cameras || []).map((c, i) => makeCamera(c, i)),
     alarm: { t: 0, x: 0, y: 0, id: 0 }, laserCool: 0,
-    spotted: false, alarmed: false, invuln: 0, danger: 0, caughtBy: -1,
+    spotted: false, alarmed: false, invuln: 0, danger: 0, tension: 0, caughtBy: -1,
   };
 }
 
@@ -133,6 +133,7 @@ export function stepSim(ctx, state, dt = CFG.fixedStep) {
   for (const g of state.guards) { updateGuard(ctx, state, g, dt, hooks); if (state.status !== 'playing') return; }
   for (const c of state.cameras) updateCamera(ctx, state, c, dt, hooks);
   state.danger = Math.max(0, ...state.guards.map((g) => g.meter), ...state.cameras.map((c) => c.meter));
+  state.tension = Math.max(0, ...state.guards.map((g) => g.near));
 }
 
 export function lootStats(ctx, state) {
@@ -166,7 +167,7 @@ export function continueAfterCaught(ctx, state) {
   state.invuln = CFG.continueInvuln;
   state.alarm.t = 0;
   state.caughtBy = -1;
-  state.danger = 0;
+  state.danger = 0; state.tension = 0;
   state.cameras.forEach((c) => { c.meter = 0; });
   state.guards.forEach((g) => resetGuardNear(g, state.player.x, state.player.y, 3.5));
 }

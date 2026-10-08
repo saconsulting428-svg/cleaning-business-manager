@@ -9,7 +9,7 @@
 // lasers:  { x, y, dir:'h'|'v', len, on, off, phase }
 export const LEVELS = [
   { level: 1, world: 'house', name: 'First Night', difficulty: 1,
-    hint: 'Tap where you want the thief to go. Grab the loot, then reach the green exit.',
+    hint: 'Drag your finger and release where you want the thief to go. Grab the loot, then reach the green exit.',
     map: [
       '#########',
       '#S......#',

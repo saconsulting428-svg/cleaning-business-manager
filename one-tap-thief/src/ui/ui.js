@@ -60,7 +60,7 @@ const TEMPLATE = `
   <div class="objective" id="objective"></div>
   <div class="alarm-banner" id="alarmBanner" hidden>ALARM</div>
   <div class="toast" id="toast"></div>
-  <div class="ready" id="ready"><div class="ready-card"><h2 id="readyName"></h2><p id="readyHint"></p><div class="tap-hint">Tap anywhere to start</div></div></div>
+  <div class="ready" id="ready"><div class="ready-card"><h2 id="readyName"></h2><p id="readyHint"></p><div class="tap-hint">Drag &amp; release to start</div></div></div>
 </section>
 
 <section id="shop" class="screen">
@@ -76,7 +76,6 @@ const TEMPLATE = `
     <label class="toggle"><span>Sound effects</span><input type="checkbox" data-setting="sound"><i></i></label>
     <label class="toggle"><span>Music</span><input type="checkbox" data-setting="music"><i></i></label>
     <label class="toggle"><span>Show level hints</span><input type="checkbox" data-setting="hints"><i></i></label>
-    <label class="toggle"><span>Show tap path</span><input type="checkbox" data-setting="showPath"><i></i></label>
     <button class="btn" data-action="howto">How to play</button>
     <button class="btn danger" data-action="reset">Reset progress</button>
     <p class="note">One Tap Thief v1.0 · Audio is synthesised in-game (placeholder sounds). Ads in this build are placeholders only.</p>
@@ -86,9 +85,9 @@ const TEMPLATE = `
 <section id="howto" class="screen">
   <header class="topbar"><button class="icon-btn" data-action="back" aria-label="Back">‹</button><h2>How to play</h2><div></div></header>
   <div class="scroll list how">
-    <div class="card"><b>👆 Tap to move</b><p>Tap anywhere on the map — the thief finds the route. Tap again to change your mind.</p></div>
+    <div class="card"><b>👆 Drag to move</b><p>Press, drag and release where you want the thief to go — he finds his own way around walls. Release somewhere else to change your mind.</p></div>
     <div class="card"><b>🟡 Avoid vision cones</b><p>Guards and cameras see in a cone. Walls and furniture block their view. Stay in sight too long and you’re caught.</p></div>
-    <div class="card"><b>🫥 Hide</b><p>Step onto a wardrobe to disappear from view. Never walk into a guard.</p></div>
+    <div class="card"><b>🫥 Hide &amp; stay back</b><p>Step into a wardrobe to disappear. Guards also sense you when you get close — even behind their back — so give them room. Never touch a guard.</p></div>
     <div class="card"><b>💰 Loot &amp; exit</b><p>Collect coins (+10) and rare gems (+50), then reach the green exit.</p></div>
     <div class="card"><b>🔑 Keys &amp; doors</b><p>A key opens one locked door. Walking onto a red alarm tile, tripping a laser, or getting spotted by a camera sets off the alarm — guards rush in and see further.</p></div>
     <div class="card"><b>⭐ Stars</b><p>1★ reach the exit · 2★ collect enough loot · 3★ <i>Perfect Heist</i>: all loot, never detected, no alarm (+100 coins).</p></div>
@@ -104,7 +103,7 @@ export function mount(root) {
     onReady: showReady, onStart: hideReady, onHud: updateHud, onCaught: showCaught, onWin: showComplete,
     onToast: toast, onAutoPause: () => { if (currentScreen === 'game' && !game.paused && !game.waiting) openPause(); },
   });
-  window.__ott = { get game() { return game; }, save }; // debug/test handle
+  window.__ott = { get game() { return game; }, save, startLevel }; // debug/test handle
   root.addEventListener('click', onClick);
   root.addEventListener('change', onChange);
   save.onChange(refreshBindings);
@@ -371,7 +370,7 @@ function buildShop() {
   $$('canvas[data-prev]', $('#shopList')).forEach((c) => {
     const [k, id] = c.dataset.prev.split(':');
     const g = c.getContext('2d');
-    drawThief(g, 80, 84, 48, k === 'char' ? id : s.character, k === 'variant' ? id : s.variant, Math.PI / 2);
+    drawThief(g, 80, 84, 40, k === 'char' ? id : s.character, k === 'variant' ? id : s.variant, Math.PI / 2);
   });
 }
 

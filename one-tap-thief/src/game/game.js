@@ -4,7 +4,7 @@ import { WORLDS } from '../levels/worlds.js';
 import { getLevel } from '../levels/levels.js';
 import { commandMove, computeResult, continueAfterCaught, createLevel, createState, currentCoins, lootStats, stepSim } from './sim.js';
 import { moveBlocked } from './grid.js';
-import { computeLayout, render, screenToTile } from './renderer.js';
+import { computeLayout, makeAnim, render, screenToTile, updateAnim } from './renderer.js';
 import * as audio from '../audio/audio.js';
 import * as save from '../storage/save.js';
 
@@ -17,7 +17,11 @@ export class Game {
     this.level = 0; this.ctx = null; this.state = null; this.view = null;
     this.paused = true; this.waiting = false; this.raf = 0; this.acc = 0; this.last = 0; this.clock = 0;
     this.continueUsed = false; this.finishing = false; this.hudKey = '';
-    canvas.addEventListener('pointerdown', (e) => this.onPointer(e));
+    this.anim = makeAnim(); this.touch = null;
+    canvas.addEventListener('pointerdown', (e) => this.onDown(e));
+    canvas.addEventListener('pointerup', (e) => this.onUp(e));
+    canvas.addEventListener('pointercancel', () => { this.touch = null; });
+    canvas.addEventListener('lostpointercapture', () => { this.touch = null; });
     window.addEventListener('resize', () => this.resize());
     window.addEventListener('keydown', (e) => this.onKey(e));
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.active()) this.hooks.onAutoPause(); });
@@ -31,7 +35,7 @@ export class Game {
     this.ctx = createLevel(def, WORLDS[def.world]);
     this.state = createState(this.ctx);
     this.fx.texts.length = 0; this.fx.rings.length = 0;
-    this.hb = 0; this.beat = 0;
+    this.hb = 0; this.beat = 0; this.touch = null; this.anim = makeAnim();
     this.continueUsed = false; this.finishing = false; this.paused = false; this.waiting = true; this.hudKey = '';
     this.resize();
     this.pushHud();
@@ -46,7 +50,7 @@ export class Game {
     const dpr = Math.min(2.5, window.devicePixelRatio || 1);
     this.canvas.width = Math.round(r.width * dpr); this.canvas.height = Math.round(r.height * dpr);
     this.dpr = dpr; this.W = r.width; this.H = r.height;
-    if (this.ctx) this.view = computeLayout(r.width, r.height, this.ctx, this.insets.top, this.insets.bottom);
+    if (this.ctx) this.view = computeLayout(r.width, r.height, this.ctx, this.insets.top, this.insets.bottom); // new view => static layer re-bakes
   }
 
   start() {
@@ -73,6 +77,7 @@ export class Game {
       this.handleEvents();
       this.pushHud();
       this.heartbeat(dt);
+      updateAnim(this.anim, this.state, dt);
     }
     this.beat = Math.max(0, this.beat - dt * 3);
     for (const list of [this.fx.texts, this.fx.rings]) {
@@ -81,14 +86,14 @@ export class Game {
     }
     const s = save.get();
     this.g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    render(this.g, this.ctx, this.state, this.view, this.fx, { t: this.clock, character: s.character, variant: s.variant, showPath: s.showPath, beat: this.beat });
+    render(this.g, this.ctx, this.state, this.view, this.fx, { t: this.clock, character: s.character, variant: s.variant, beat: this.beat, anim: this.anim, dpr: this.dpr });
   }
 
   /** Heartbeat quickens and grows louder as detection builds (also a low pulse during an alarm). */
   heartbeat(dt) {
     const st = this.state;
     if (st.status !== 'playing') return;
-    const d = Math.min(1, Math.max(st.danger, st.alarm.t > 0 ? 0.45 : 0));
+    const d = Math.min(1, Math.max(st.danger, st.tension * 0.55, st.alarm.t > 0 ? 0.45 : 0)); // nervous when close to a guard
     if (d < 0.04) { this.hb = 0; return; }
     this.hb -= dt;
     if (this.hb <= 0) { audio.play('heartbeat', d); this.beat = 1; this.hb = 1.05 - 0.78 * d; }
@@ -140,22 +145,31 @@ export class Game {
     if (key !== this.hudKey) { this.hudKey = key; this.hooks.onHud(hud); }
   }
 
-  onPointer(e) {
+  // ---- drag-to-move: press, drag, and release where the thief should go. Nothing is drawn while dragging.
+  onDown(e) {
     if (this.paused || !this.state || this.state.status !== 'playing') return;
+    if (this.touch) { this.touch = null; return; }          // a second finger cancels the gesture (no accidental moves)
     e.preventDefault();
     audio.init();
+    try { this.canvas.setPointerCapture(e.pointerId); } catch (err) { /* not fatal */ }
+    this.touch = { id: e.pointerId, x0: e.clientX, y0: e.clientY };
+  }
+
+  onUp(e) {
+    const tch = this.touch;
+    this.touch = null;
+    if (!tch || tch.id !== e.pointerId || this.paused || !this.state || this.state.status !== 'playing') return;
+    e.preventDefault();
     const r = this.canvas.getBoundingClientRect();
-    const t = screenToTile(this.view, e.clientX - r.left, e.clientY - r.top);
+    const px = e.clientX - r.left, py = e.clientY - r.top;
+    if (px < 0 || py < 0 || px > r.width || py > r.height) return;           // released off-screen: cancel
+    const t = screenToTile(this.view, px, py);
     this.go(t.x, t.y);
   }
 
   go(tx, ty) {
     if (this.waiting) { this.waiting = false; this.hooks.onStart(); }
-    if (commandMove(this.ctx, this.state, tx, ty)) {
-      const p = this.state.player.target;
-      if (p) this.fx.rings.push({ x: p.x + 0.5, y: p.y + 0.5, age: 0, life: 0.4, rgb: '255,255,255' });
-      audio.play('tap');
-    }
+    commandMove(this.ctx, this.state, tx, ty);
   }
 
   onKey(e) {

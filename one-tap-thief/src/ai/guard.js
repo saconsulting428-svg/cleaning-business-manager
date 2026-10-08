@@ -1,7 +1,7 @@
 // Guard AI: configurable patrol, vision cone with a warning phase, alarm investigation.
 import { CFG } from '../config.js';
 import { findPath } from '../game/grid.js';
-import { D2R, normAngle, seesPlayer } from './vision.js';
+import { D2R, nearPlayer, normAngle, seesPlayer } from './vision.js';
 
 /**
  * `def`: { patrol:[[x,y,wait?],...], mode:'loop'|'pingpong', face(deg), speed, range, fov, fillTime,
@@ -15,6 +15,7 @@ export function makeGuard(def, id, difficulty = 1) {
     route, ri: 0, dir: 1, mode: def.mode || 'loop',
     speed: def.speed ?? CFG.guard.speed, range: def.range ?? CFG.guard.range, fov: def.fov ?? CFG.guard.fov,
     fill: (def.fillTime ?? CFG.fillTime) * (1.15 - 0.03 * difficulty),
+    prox: def.prox ?? CFG.guard.proximity, near: 0,
     sweep: def.sweep || null, path: [], wait: def.startDelay ?? 0, t: 0, meter: 0, state: 'patrol',
     inv: null, invId: -1, look: null, spawn: { x: route[0].x + 0.5, y: route[0].y + 0.5, face },
   };
@@ -22,9 +23,9 @@ export function makeGuard(def, id, difficulty = 1) {
 
 function tileOf(g) { return { x: Math.floor(g.x), y: Math.floor(g.y) }; }
 
-function turnToward(g, target, dt) {
+function turnToward(g, target, dt, rate = CFG.guard.turnRate) {
   const diff = normAngle(target - g.face);
-  const max = CFG.guard.turnRate * D2R * dt;
+  const max = rate * D2R * dt;
   g.face += Math.abs(diff) <= max ? diff : Math.sign(diff) * max;
 }
 
@@ -77,9 +78,16 @@ export function updateGuard(ctx, state, g, dt, hooks) {
   const d = seesPlayer(ctx, state, g.x, g.y, g.face, range, g.fov);
 
   // --- detection meter (warning phase before failure) ---
+  // Two senses: the vision cone (long range, directional) and close-range awareness (any direction, short radius,
+  // blocked by walls, defeated by hiding). Whichever is stronger drives the meter.
   const prev = g.meter;
-  if (d >= 0) {
-    g.meter += (dt / g.fill) * (1 + (1 - d / range));
+  const R = g.prox + (state.alarm.t > 0 ? 0.3 : 0);
+  const dn = nearPlayer(ctx, state, g.x, g.y, R);
+  g.near = dn >= 0 ? 1 - dn / R : 0;
+  let rate = d >= 0 ? (1 + (1 - d / range)) / g.fill : 0;
+  if (dn >= 0) rate = Math.max(rate, (CFG.guard.proximityGain * Math.pow(g.near, 1.2)) / g.fill);
+  if (rate > 0) {
+    g.meter += rate * dt;
     g.look = Math.atan2(p.y - g.y, p.x - g.x);
   } else g.meter = Math.max(0, g.meter - dt * CFG.decayRate);
   if (g.meter > CFG.spottedAt) state.spotted = true;
@@ -92,7 +100,7 @@ export function updateGuard(ctx, state, g, dt, hooks) {
   const alarmOn = state.alarm.t > 0;
   if (g.meter > CFG.suspiciousAt && !alarmOn) {
     g.state = 'suspicious';
-    if (g.look !== null) turnToward(g, g.look, dt);
+    if (g.look !== null) turnToward(g, g.look, dt, CFG.guard.suspiciousTurn); // head-turn is slower than a patrol turn
     return;
   }
   if (alarmOn) {

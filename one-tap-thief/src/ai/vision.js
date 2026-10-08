@@ -37,3 +37,12 @@ export function conePolygon(ctx, state, x, y, face, range, fovDeg, skip = 0.2, r
   }
   return pts;
 }
+
+/** Short-range awareness: distance to the thief if within `radius`, not hidden and not behind a wall; else -1. */
+export function nearPlayer(ctx, state, x, y, radius) {
+  const p = state.player;
+  if (p.hidden || state.invuln > 0) return -1;
+  const d = Math.hypot(p.x - x, p.y - y);
+  if (d > radius) return -1;
+  return lineClear(ctx, state, x, y, p.x, p.y, 0.15) ? d : -1;
+}

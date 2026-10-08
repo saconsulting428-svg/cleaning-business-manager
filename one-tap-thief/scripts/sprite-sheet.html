@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>sprite sheet</title>
+<body style="margin:0;background:#3a2c22"><canvas id="c" width="1200" height="760"></canvas>
+<script type="module">
+import { drawThief, drawGuardFigure } from '../src/game/sprites.js';
+import { CHARACTERS } from '../src/entities/cosmetics.js';
+const c = document.getElementById('c'), g = c.getContext('2d');
+g.fillStyle = '#4a3a2e'; g.fillRect(0, 0, 1200, 760);
+const ts = 90; // pretend tile size for the sprites
+window.draw = (t = 1.0) => {
+  g.fillStyle = '#4a3a2e'; g.fillRect(0, 0, 1200, 760);
+  CHARACTERS.forEach((ch, i) => { // thieves: idle / walking / walking other phase, facing east and south
+    drawThief(g, 90 + i * 190, 90, ts * 0.44, ch.id, 'black', 0, { t, ph: 0, mv: 0 });
+    drawThief(g, 90 + i * 190, 230, ts * 0.44, ch.id, 'black', 0, { t, ph: 1.2, mv: 1 });
+    drawThief(g, 90 + i * 190, 370, ts * 0.44, ch.id, 'black', Math.PI / 2, { t, ph: 2.6, mv: 1 });
+  });
+  const stages = [0, 1, 2, 3];
+  stages.forEach((s, i) => { drawGuardFigure(g, 110 + i * 190, 520, ts * 1.18, 0, { t, ph: 1.0 + i, mv: s === 1 ? 0 : 1, stage: s });
+    drawGuardFigure(g, 110 + i * 190, 660, ts * 1.18, Math.PI / 2, { t, ph: 2 + i, mv: s === 1 ? 0 : 1, stage: s }); });
+  ['red', 'gold', 'neon', 'cyber'].forEach((v, i) => drawThief(g, 900 + i * 70 - 0, 540 + (i % 2) * 120, ts * 0.44, 'classic', v, 0, { t, ph: 1, mv: 1 }));
+};
+draw();
+</script>

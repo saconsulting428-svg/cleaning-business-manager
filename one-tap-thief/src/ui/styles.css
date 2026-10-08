@@ -111,3 +111,19 @@ button:disabled { opacity: .55; cursor: default; }
 .ad-tag { align-self: center; background: #ffd24a; font-weight: 900; font-size: 11px; letter-spacing: 2px; padding: 3px 10px; border-radius: 99px; }
 .ad-count { font-weight: 800; font-size: 18px; } .ad-card .btn.ghost { color: #111; border: 1px solid #ccc; }
 @media (max-height: 640px) { .logo-thief { width: 100px; } .logo { font-size: 32px; } .btn.big { padding: 13px; } }
+
+/* ---- premium polish: glass panels, subtle depth, refined type ---- */
+#app { background: radial-gradient(130% 90% at 50% -10%, #1a2240 0%, #0a0e1c 55%, #05070e 100%); }
+.hud { background: linear-gradient(180deg, rgba(5,8,16,.92), rgba(5,8,16,0)); }
+.icon-btn, .coins, .pill, .hud-stats span {
+  background: linear-gradient(180deg, rgba(40,48,78,.72), rgba(20,26,46,.78));
+  border: 1px solid rgba(255,255,255,.12); box-shadow: 0 6px 18px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.btn { background: linear-gradient(180deg, rgba(38,46,76,.95), rgba(22,28,50,.95)); border: 1px solid rgba(255,255,255,.1); box-shadow: 0 6px 16px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.07); }
+.btn.primary { background: linear-gradient(180deg, #ffe08a, #f0b92e 60%, #d9a21c); box-shadow: 0 8px 26px rgba(245,185,46,.32), inset 0 1px 0 rgba(255,255,255,.55); }
+.card, .sheet { box-shadow: 0 14px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06); }
+.logo { background: linear-gradient(180deg, #ffffff 30%, #c8d0ee 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 4px 18px rgba(245,197,66,.25)); }
+.logo span { background: linear-gradient(180deg, #ffe58f, #e0a41e); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.objective { font-weight: 600; letter-spacing: .3px; }
+.ready-card { background: linear-gradient(180deg, rgba(26,33,62,.94), rgba(14,19,38,.96)); box-shadow: 0 12px 40px rgba(0,0,0,.5); }

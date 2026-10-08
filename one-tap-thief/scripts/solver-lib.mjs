@@ -35,7 +35,7 @@ function commands(ctx, st) {
 // Fairness probe: make every guard/camera harsher; a level with a real safe route should still be solvable.
 export const HARSH = { fill: 0.8, range: 0.4, fov: 8 };
 function harshen(st) {
-  for (const g of st.guards) { g.fill *= HARSH.fill; g.range += HARSH.range; g.fov += HARSH.fov; }
+  for (const g of st.guards) { g.fill *= HARSH.fill; g.range += HARSH.range; g.fov += HARSH.fov; g.prox += 0; }
   for (const c of st.cameras) { c.fill *= HARSH.fill; c.range += HARSH.range; c.fov += HARSH.fov; }
 }
 

@@ -11,7 +11,7 @@ export const CFG = {
   criticalAt: 0.7, // red stage: about to be caught
   spottedAt: 0.35, // meter level that counts as "detected" for the Perfect Heist rule
   continueInvuln: 3,
-  guard: { speed: 1.7, range: 4.5, fov: 70, turnRate: 400, defaultWait: 0.6, alertSpeedMul: 1.5 },
+  guard: { proximity: 1.4, proximityGain: 1.2, speed: 1.7, range: 4.5, fov: 70, turnRate: 400, suspiciousTurn: 210, defaultWait: 0.6, alertSpeedMul: 1.5 },
   camera: { range: 5, fov: 46, arc: 45, speed: 28, fillTime: 1.2, cooldown: 3 },
   alarm: { duration: 9, rangeBonus: 1.5, laserCooldown: 2 },
   laser: { on: 1.3, off: 1.7 },
