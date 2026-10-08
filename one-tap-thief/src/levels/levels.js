@@ -195,7 +195,7 @@ export const LEVELS = [
     guards: [
       { patrol: [[7, 2, 0.8], [1, 2, 0.8]], mode: 'pingpong', speed: 1.4, range: 5.4, fov: 74, startDelay: 2.5 },
       { patrol: [[7, 7, 0.8], [1, 7, 0.8]], mode: 'pingpong', speed: 1.4, range: 5.4, fov: 74 },
-      { patrol: [[4, 11]], face: 270, sweep: { amp: 40, speed: 1.5 }, range: 3.6, fov: 50 },
+      { patrol: [[4, 11]], face: 270, sweep: { amp: 40, speed: 1.5 }, range: 3.6, fov: 50, prox: 1.0 },
     ] },
 ];
 
