@@ -1,0 +1,83 @@
+/* HUSH — level data. Each floor is one string, one character per tile (legend in world.js).
+   creatures: { t: stalker|sentinel|listener, f: floor, a: tile, b: tile (patrol ends), dir: 1|-1, turn: seconds (sentinel look-around) } */
+(function (root) {
+  'use strict';
+  var CHAPTERS = [
+    { name: 'Abandoned Laboratory', line: 'Find a way out of the facility.' },
+    { name: 'Underground Research', line: 'The machines still run. So does it.' },
+    { name: 'Containment Zone', line: 'It was never the only one.' }
+  ];
+  var LEVELS = [
+    /* ───────── CHAPTER 1 — ABANDONED LABORATORY ───────── */
+    { name: 'First Contact', hint: 'Hold the arrows to move. Open doors with the action button. Reach the exit.', sonar: 3, par: 3,
+      floors: ['P.......D.........D.......E'], creatures: [] },
+    { name: 'Echo', hint: 'A dead end? Use SONAR to see what the dark is hiding.', sonar: 3, par: 1, tutorial: 'sonar',
+      floors: ['P.......u.....#.....u.......E'], creatures: [] },
+    { name: 'Stay Low', hint: 'It is watching the corridor. CROUCH: it sees a crouching survivor only from close up.', sonar: 3, par: 1, tutorial: 'crouch',
+      floors: ['P.................E..'], creatures: [{ t: 'sentinel', f: 0, a: 21, dir: -1 }] },
+    { name: 'Broken Glass', hint: 'Debris is loud. Crouch over it, or something upstairs will come down.', sonar: 3, par: 1,
+      floors: ['P.........~~~~1~~~~.......E', '....L.........1..........'], creatures: [{ t: 'sentinel', f: 1, a: 16, dir: 1 }] },
+    { name: 'Hold Your Breath', hint: 'Hide in a locker and let it walk past. Never walk right behind it.', sonar: 3, par: 1, tutorial: 'hide',
+      floors: ['P...L..........L..........L....E'], creatures: [{ t: 'stalker', f: 0, a: 8, b: 27 }] },
+    { name: 'Keycard', hint: 'The exit door is locked. The keycard is somewhere behind you.', sonar: 3, par: 1,
+      floors: ['K....L.......P......L.......X...E'], creatures: [{ t: 'stalker', f: 0, a: 3, b: 26 }] },
+    { name: 'The Long Way Round', hint: 'It guards the corridor. Stairs lead over its head, but upstairs is not empty.', sonar: 3, par: 1,
+      floors: ['P.......1..............2.....E', '........1......L.......2...'], creatures: [{ t: 'sentinel', f: 0, a: 15, dir: -1 }, { t: 'stalker', f: 1, a: 11, b: 21 }] },
+    { name: 'Bait', hint: 'It will not leave its post. Unless it hears something.', sonar: 2, par: 1, tutorial: 'bait',
+      floors: ['P..............L..................E'], creatures: [{ t: 'sentinel', f: 0, a: 30, dir: -1 }] },
+    { name: 'Crawlspace', hint: 'Vents are too small for it. Sonar finds the hidden ones.', sonar: 3, par: 1,
+      floors: ['P....u...............u....L....E...'], creatures: [{ t: 'stalker', f: 0, a: 9, b: 18 }, { t: 'sentinel', f: 0, a: 34, dir: 1, turn: 3 }] },
+    { name: 'Run', hint: 'It has seen you. RUN. Find the vent.', sonar: 1, par: 1, chase: true, parTime: 16,
+      floors: ['......P............1....#....u..E', '..........u........1.....'], creatures: [{ t: 'stalker', f: 0, a: 0, wake: 'hunt' }] },
+    /* ───────── CHAPTER 2 — UNDERGROUND RESEARCH ───────── */
+    { name: 'Static', hint: 'The intercom still works. Its speaker is a long way from here.', sonar: 3, par: 1, tutorial: 'radio',
+      floors: ['S...P.....R....L................E...'], creatures: [{ t: 'sentinel', f: 0, a: 28, dir: -1 }] },
+    { name: 'Power Down', hint: 'The exit has no power. The generator is loud.', sonar: 3, par: 1, tutorial: 'gen',
+      floors: ['P.....L......G..........L..........e'], creatures: [{ t: 'stalker', f: 0, a: 19, b: 32 }] },
+    { name: 'Thin Walls', hint: 'This one is nearly blind. It hears everything. Crouch near it.', sonar: 3, par: 1, tutorial: 'listener',
+      floors: ['P....L.............L..........L.....E'], creatures: [{ t: 'listener', f: 0, a: 8, b: 32 }] },
+    { name: 'Service Tunnels', hint: 'Doors are loud when they open. Know where it is first.', sonar: 3, par: 1,
+      floors: ['P.....D......L......K.......L....X.....E'], creatures: [{ t: 'stalker', f: 0, a: 9, b: 31 }] },
+    { name: 'Descent', hint: 'Three levels down. Each one has its own sounds.', sonar: 3, par: 1,
+      floors: ['P.........1...........', '.....L....1.....~~~.......2....', 'E..............L..........2...'],
+      creatures: [{ t: 'stalker', f: 1, a: 13, b: 24 }, { t: 'stalker', f: 2, a: 4, b: 20 }] },
+    { name: 'Feedback', hint: 'It stands over the keycard. Give it a reason to leave.', sonar: 2, par: 1,
+      floors: ['S.....P...R....L.....1......K..#', '.....................1.......X....E'], creatures: [{ t: 'sentinel', f: 0, a: 26, dir: -1 }] },
+    { name: 'Generator Room', hint: 'Start the generator upstairs, then be somewhere else.', sonar: 3, par: 1,
+      floors: ['P.....1.....L...........2...W........E', '......1..........L....G.2..'], creatures: [{ t: 'stalker', f: 0, a: 14, b: 23 }] },
+    { name: 'Glass Garden', hint: 'Shattered tanks everywhere. Even crouching, glass whispers.', sonar: 3, par: 1,
+      floors: ['P...~~...a......~~~~.....L.....a...~~~.....E'], creatures: [{ t: 'listener', f: 0, a: 37, b: 14, dir: -1 }] },
+    { name: 'Blackout', hint: 'One sonar charge. Make it count.', sonar: 1, par: 1,
+      floors: ['P....u..........X.....v......#', 'K...L.....u.........L...v...L......E'], creatures: [{ t: 'stalker', f: 1, a: 2, b: 18 }, { t: 'stalker', f: 1, a: 22, b: 33 }] },
+    { name: 'Meltdown', hint: 'Start the generator. Then run for the exit.', sonar: 1, par: 1, chase: true, parTime: 28,
+      floors: ['.....P...........1......#..u..e', '.................1...G......2...', '..........u.................2...'], creatures: [{ t: 'stalker', f: 0, a: 0, wake: 'hunt' }] },
+
+    /* ───────── CHAPTER 3 — CONTAINMENT ZONE ───────── */
+    { name: 'Two of Them', hint: 'Two patrols, one corridor. Count their steps.', sonar: 3, par: 1,
+      floors: ['P....L..........L...........L..........L.....E'], creatures: [{ t: 'stalker', f: 0, a: 8, b: 22 }, { t: 'stalker', f: 0, a: 25, b: 41, dir: 1 }] },
+    { name: 'Blind Spot', hint: 'The guard looks one way, then the other. Take the keycard when its back is turned.', sonar: 3, par: 1,
+      floors: ['E...X...L...P.....L.........K..'], creatures: [{ t: 'sentinel', f: 0, a: 30, dir: -1, turn: 3.2 }, { t: 'stalker', f: 0, a: 5, b: 16 }] },
+    { name: 'Above and Below', hint: 'A hunter upstairs, a listener down here. Sound travels by the stairs.', sonar: 3, par: 1,
+      floors: ['P......1.....~~~.....L......2.....X...E', '.......1.....L.......K......2....'], creatures: [{ t: 'listener', f: 0, a: 11, b: 26 }, { t: 'stalker', f: 1, a: 10, b: 25 }] },
+    { name: 'Cell Block', hint: 'Two locks, two keycards, and the cells are not all empty.', sonar: 3, par: 2,
+      floors: ['K....L......X..P....1......L......X....E', '..........K....L....1.........'], creatures: [{ t: 'stalker', f: 0, a: 2, b: 10 }, { t: 'stalker', f: 0, a: 32, b: 16, dir: -1 }, { t: 'listener', f: 1, a: 2, b: 16 }] },
+    { name: 'Decoy', hint: 'Two guards. One intercom. One generator.', sonar: 2, par: 1,
+      floors: ['P...R.....S..L..........1..........G2.....e', '........................1..........2..'], creatures: [{ t: 'sentinel', f: 0, a: 20, dir: -1 }, { t: 'sentinel', f: 0, a: 39, dir: -1 }] },
+    { name: 'Dead Air', hint: 'The sonar is dead. Listen.', sonar: 0, par: 0,
+      floors: ['P.....L.........1.........L.......E', '....L...........1.....a.........a..'], creatures: [{ t: 'stalker', f: 0, a: 9, b: 30 }, { t: 'listener', f: 1, a: 3, b: 14 }] },
+    { name: 'The Shaft', hint: 'Four levels. The keycard is at the bottom, the exit at the top.', sonar: 3, par: 2,
+      floors: ['E....X.....1........', '...L..P....1......2.....', '......3...........2...L....', 'K.....3........L........'],
+      creatures: [{ t: 'stalker', f: 1, a: 16, b: 4, dir: -1 }, { t: 'listener', f: 2, a: 9, b: 24 }, { t: 'stalker', f: 3, a: 2, b: 14 }] },
+    { name: 'The Hive', hint: 'They cannot see you. They can hear your heart.', sonar: 2, par: 1,
+      floors: ['P...~~....a.....~~~....L....a...~~......L....~~~....L....E'], creatures: [{ t: 'listener', f: 0, a: 26, b: 13, dir: -1 }, { t: 'listener', f: 0, a: 54, b: 31, dir: -1 }] },
+    { name: 'Last Light', hint: 'Keycard, power, and a hidden way out. Everything you know.', sonar: 2, par: 1,
+      floors: ['P....L.....1..............#..u...X....e', '...K.......1.....L......G..u.'],
+      creatures: [{ t: 'stalker', f: 0, a: 5, b: 18 }, { t: 'listener', f: 1, a: 22, b: 14, dir: -1 }] },
+    { name: 'Extraction', hint: 'They all know you are here. Do not stop.', sonar: 2, par: 2, chase: true, parTime: 29,
+      floors: ['......P..........1.....#.........u.X...E', '....2.....K......1.....', '....2.....~~....u.....L...'],
+      creatures: [{ t: 'stalker', f: 0, a: 0, wake: 'hunt' }, { t: 'listener', f: 2, a: 24, b: 19, dir: -1 }] }
+  ];
+  var api = { LEVELS: LEVELS, CHAPTERS: CHAPTERS, PER: 10 };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  root.HushLevels = api;
+})(typeof window !== 'undefined' ? window : globalThis);

@@ -1,0 +1,160 @@
+[
+ {
+  "name": "boot: home screen active, loading overlay gone",
+  "pass": true
+ },
+ {
+  "name": "boot: Play label for new save",
+  "pass": true
+ },
+ {
+  "name": "play: game screen active, HUD says Level 1-1",
+  "pass": true
+ },
+ {
+  "name": "play: tutorial card shown on first level and game paused behind it",
+  "pass": true
+ },
+ {
+  "name": "tutorial: dismissed, simulation running",
+  "pass": true
+ },
+ {
+  "name": "keyboard: ArrowRight moves the survivor",
+  "pass": true,
+  "info": [
+   0.5,
+   2.420000000000001
+  ]
+ },
+ {
+  "name": "touch/mouse drag: hold-and-drag right moves, release stops",
+  "pass": true,
+  "info": [
+   2.420000000000001,
+   4.740000000000003,
+   true
+  ]
+ },
+ {
+  "name": "drag left moves left",
+  "pass": true,
+  "info": [
+   4.740000000000003,
+   2.660000000000001
+  ]
+ },
+ {
+  "name": "sonar button: uses a charge and counts it",
+  "pass": true
+ },
+ {
+  "name": "crouch button: toggles crouch",
+  "pass": true
+ },
+ {
+  "name": "crouch button: toggles back",
+  "pass": true
+ },
+ {
+  "name": "USE button: lights up with OPEN near a door",
+  "pass": true
+ },
+ {
+  "name": "USE button: opens the door (door bit set in state)",
+  "pass": true
+ },
+ {
+  "name": "pause: overlay shown and sim frozen",
+  "pass": true
+ },
+ {
+  "name": "pause: time does not advance",
+  "pass": true
+ },
+ {
+  "name": "resume: sim runs again",
+  "pass": true
+ },
+ {
+  "name": "restart: level state is fresh (t≈0, sonar full, door closed, at start)",
+  "pass": true
+ },
+ {
+  "name": "visibility hidden: game auto-pauses",
+  "pass": true
+ },
+ {
+  "name": "win: Level Complete card with stars",
+  "pass": true
+ },
+ {
+  "name": "win: stars saved (level 1 >= 1 star) before anything else",
+  "pass": true
+ },
+ {
+  "name": "save persists across reload (Continue shown, star total on home)",
+  "pass": true
+ },
+ {
+  "name": "level select: level 2 unlocked after finishing level 1, level 3 locked",
+  "pass": true
+ },
+ {
+  "name": "chapters: chapter 2 and 3 locked",
+  "pass": true
+ },
+ {
+  "name": "level select: tapping level 2 loads it",
+  "pass": true
+ },
+ {
+  "name": "death: caught state, caught overlay not yet blocking input immediately",
+  "pass": true
+ },
+ {
+  "name": "death: Game Over card shown (\"You were caught\") with Retry",
+  "pass": true
+ },
+ {
+  "name": "death: input ignored while dead",
+  "pass": true
+ },
+ {
+  "name": "retry: level restarted alive with no overlay",
+  "pass": true
+ },
+ {
+  "name": "caught: Main Menu returns home",
+  "pass": true
+ },
+ {
+  "name": "settings: sound toggle persists to save",
+  "pass": true
+ },
+ {
+  "name": "settings: graphics Low applied and saved",
+  "pass": true
+ },
+ {
+  "name": "reset progress: stars cleared, back to home",
+  "pass": true
+ },
+ {
+  "name": "landscape: scene scales to the window (PM based on height)",
+  "pass": true,
+  "info": {
+   "PM": 150,
+   "FY": 577,
+   "Wpx": 1688,
+   "Hpx": 780,
+   "dpr": 2,
+   "quality": 1
+  }
+ },
+ {
+  "name": "no console errors or warnings during the whole run",
+  "pass": true,
+  "info": []
+ }
+]

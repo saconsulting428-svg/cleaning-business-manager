@@ -1,0 +1,238 @@
+[
+ {
+  "level": 1,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 11.7,
+  "su": 0
+ },
+ {
+  "level": 2,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 8.1,
+  "su": 1
+ },
+ {
+  "level": 3,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 7.5,
+  "su": 0
+ },
+ {
+  "level": 4,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 11.2,
+  "su": 0
+ },
+ {
+  "level": 5,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 13.8,
+  "su": 0
+ },
+ {
+  "level": 6,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 34.8,
+  "su": 1
+ },
+ {
+  "level": 7,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 14,
+  "su": 1
+ },
+ {
+  "level": 8,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 22.7,
+  "su": 1
+ },
+ {
+  "level": 9,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 7.8,
+  "su": 1
+ },
+ {
+  "level": 10,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 12.5,
+  "su": 1
+ },
+ {
+  "level": 11,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 18.7,
+  "su": 1
+ },
+ {
+  "level": 12,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 16.6,
+  "su": 1
+ },
+ {
+  "level": 13,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 15.9,
+  "su": 1
+ },
+ {
+  "level": 14,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 18.9,
+  "su": 1
+ },
+ {
+  "level": 15,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 28.2,
+  "su": 1
+ },
+ {
+  "level": 16,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 23,
+  "su": 1
+ },
+ {
+  "level": 17,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 17.3,
+  "su": 0
+ },
+ {
+  "level": 18,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 10.6,
+  "su": 1
+ },
+ {
+  "level": 19,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 35.7,
+  "su": 1
+ },
+ {
+  "level": 20,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 21.3,
+  "su": 1
+ },
+ {
+  "level": 21,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 32.7,
+  "su": 1
+ },
+ {
+  "level": 22,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 24,
+  "su": 1
+ },
+ {
+  "level": 23,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 18.5,
+  "su": 1
+ },
+ {
+  "level": 24,
+  "solved": false
+ },
+ {
+  "level": 25,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 21.4,
+  "su": 1
+ },
+ {
+  "level": 26,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 16.4,
+  "su": 0
+ },
+ {
+  "level": 27,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 44.4,
+  "su": 2
+ },
+ {
+  "level": 28,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 18.5,
+  "su": 1
+ },
+ {
+  "level": 29,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 59,
+  "su": 1
+ },
+ {
+  "level": 30,
+  "won": true,
+  "stars": 3,
+  "saved": 3,
+  "t": 28.5,
+  "su": 1
+ }
+]

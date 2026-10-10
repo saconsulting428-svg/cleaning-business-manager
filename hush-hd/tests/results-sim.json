@@ -1,0 +1,291 @@
+[
+ {
+  "name": "footstep (radius 3): sentinel 5.5 tiles away does not react",
+  "pass": true
+ },
+ {
+  "name": "footstep (radius 3): sentinel 2.6 tiles away investigates",
+  "pass": true,
+  "info": 1
+ },
+ {
+  "name": "crouched footstep makes no noise",
+  "pass": true
+ },
+ {
+  "name": "walking on glass (radius 8) is heard from 7 tiles",
+  "pass": true,
+  "info": 1
+ },
+ {
+  "name": "crouching on glass (radius 2.5) is not heard from 7 tiles",
+  "pass": true
+ },
+ {
+  "name": "sonar pulse within 14 tiles is heard (investigate), target = ping position",
+  "pass": true
+ },
+ {
+  "name": "sonar does not teleport the creature (moved at most one step)",
+  "pass": true,
+  "info": [
+   12.5,
+   12.43
+  ]
+ },
+ {
+  "name": "sonar charge is spent and cooldown starts",
+  "pass": true
+ },
+ {
+  "name": "second ping is refused during the cooldown",
+  "pass": true
+ },
+ {
+  "name": "sonar is not heard beyond 14 tiles",
+  "pass": true
+ },
+ {
+  "name": "listener hears sonar from 21.5 tiles (14 x 1.7)",
+  "pass": true
+ },
+ {
+  "name": "no charges: ping does nothing (Dead Air rule)",
+  "pass": true
+ },
+ {
+  "name": "guard cycle: roam? -> investigate -> search -> return -> roam",
+  "pass": true,
+  "info": [
+   "investigate",
+   "search",
+   "return",
+   "roam"
+  ]
+ },
+ {
+  "name": "guard returns to its post and original facing",
+  "pass": true,
+  "info": [
+   18.45666666666656,
+   -1
+  ]
+ },
+ {
+  "name": "stalker patrols between its two points",
+  "pass": true,
+  "info": [
+   8.543333333333333,
+   20.45999999999991
+  ]
+ },
+ {
+  "name": "seen from 3 tiles: hunts after the 0.55 s notice delay",
+  "pass": true,
+  "info": 0.5666666666666667
+ },
+ {
+  "name": "crouched at 5 tiles (crouch sight 2.5): not seen",
+  "pass": true
+ },
+ {
+  "name": "behind a guard that faces away: not seen",
+  "pass": true
+ },
+ {
+  "name": "a closed door blocks sight",
+  "pass": true
+ },
+ {
+  "name": "walking into it is always fatal (catch distance 0.6)",
+  "pass": true
+ },
+ {
+  "name": "locker: hide succeeds when nothing is hunting",
+  "pass": true
+ },
+ {
+  "name": "hunter that lost sight does not find a hidden survivor",
+  "pass": true
+ },
+ {
+  "name": "hiding while a hunter is watching is compromised",
+  "pass": true
+ },
+ {
+  "name": "compromised hide ends in capture",
+  "pass": true
+ },
+ {
+  "name": "USE leaves the locker",
+  "pass": true
+ },
+ {
+  "name": "plain door: target is open",
+  "pass": true
+ },
+ {
+  "name": "plain door opens and blocks no more",
+  "pass": true
+ },
+ {
+  "name": "locked door without a keycard: denied",
+  "pass": true
+ },
+ {
+  "name": "locked door stays shut",
+  "pass": true
+ },
+ {
+  "name": "locked door with a keycard: unlock",
+  "pass": true
+ },
+ {
+  "name": "unlock consumes the card and opens the door",
+  "pass": true
+ },
+ {
+  "name": "powered door without power: no power",
+  "pass": true
+ },
+ {
+  "name": "closed door stops the survivor",
+  "pass": true,
+  "info": 3.05
+ },
+ {
+  "name": "wall blocks forever and cannot be opened",
+  "pass": true,
+  "info": 4.05
+ },
+ {
+  "name": "walking over a keycard picks it up",
+  "pass": true
+ },
+ {
+  "name": "powered exit does nothing before the generator",
+  "pass": true
+ },
+ {
+  "name": "generator starts and gives power (first pulse fires on the same tick)",
+  "pass": true
+ },
+ {
+  "name": "generator emits 8 noise pulses (radius 10, 1 per second)",
+  "pass": true,
+  "info": 8
+ },
+ {
+  "name": "radio: switch pressed, call is delayed",
+  "pass": true
+ },
+ {
+  "name": "radio: after ~1.5 s the speaker plays and the guard investigates the speaker",
+  "pass": true,
+  "info": [
+   1,
+   0.5
+  ]
+ },
+ {
+  "name": "radio: only 5 pulses (then the switch can be used again)",
+  "pass": true
+ },
+ {
+  "name": "stairs: target is climb",
+  "pass": true
+ },
+ {
+  "name": "stairs: busy for 0.5 s then you arrive on the other floor",
+  "pass": true
+ },
+ {
+  "name": "stairs: arrived on floor 2 at the other landing",
+  "pass": true,
+  "info": [
+   1,
+   2.5
+  ]
+ },
+ {
+  "name": "ORIGINAL BEHAVIOUR kept: a hunter that sees you take the stairs does not follow (its sight update overrides follow()); it searches at the stairs",
+  "pass": true,
+  "info": [
+   0,
+   "roam"
+  ]
+ },
+ {
+  "name": "creature coming down onto a landing: the survivor can be caught on stairs",
+  "pass": true
+ },
+ {
+  "name": "hidden vent: not usable before sonar",
+  "pass": true
+ },
+ {
+  "name": "hidden vent: revealed by sonar within 9 tiles",
+  "pass": true
+ },
+ {
+  "name": "vent: crawling takes 1.4 s and comes out at the linked vent",
+  "pass": true
+ },
+ {
+  "name": "vent: arrived at the far end, no longer crawling",
+  "pass": true,
+  "info": 11.5
+ },
+ {
+  "name": "sonar does not reveal vents farther than 9 tiles",
+  "pass": true,
+  "info": 0
+ },
+ {
+  "name": "visible vent can be entered even with a hunter beside you? (use sets crawl)",
+  "pass": true
+ },
+ {
+  "name": "uncatchable while crawling through a vent",
+  "pass": true
+ },
+ {
+  "name": "chase levels: creature starts in HUNT",
+  "pass": true
+ },
+ {
+  "name": "reaching the exit wins",
+  "pass": true
+ },
+ {
+  "name": "stars: finish=1, par sonar=+1, undetected=+1 -> 3",
+  "pass": true
+ },
+ {
+  "name": "stars: too much sonar costs a star",
+  "pass": true
+ },
+ {
+  "name": "stars: being detected costs a star",
+  "pass": true
+ },
+ {
+  "name": "determinism: identical inputs give identical state (level 15)",
+  "pass": true
+ },
+ {
+  "name": "creature cannot pass a locked door while investigating",
+  "pass": true,
+  "info": 15.459999999999983
+ },
+ {
+  "name": "...and gives up and searches / returns instead of freezing",
+  "pass": true,
+  "info": "roam"
+ },
+ {
+  "name": "creature opens plain doors and reaches the noise",
+  "pass": true,
+  "info": 3.0966666666666365
+ }
+]
