@@ -1,6 +1,6 @@
 # HUSH HD - build report
 
-File: `HUSH-HD.html`, **4.74 MB** (4,742,365 bytes), single self-contained file (fonts, sprites, code inline). No network access needed.
+File: `HUSH-HD.html`, **5.16 MB**, single self-contained file (fonts, sprites, code inline). No network access needed.
 
 ## What is implemented
 - New engine, written from scratch: fixed 30 Hz deterministic simulation + interpolated rAF rendering; baked tile/sprite caches; no per-frame resampling.
@@ -25,7 +25,9 @@ File: `HUSH-HD.html`, **4.74 MB** (4,742,365 bytes), single self-contained file 
 **Level 24 (Cell Block) was NOT proven playable**: my automated search found no solution for it (also true on the original code; inconclusive, not proof it is impossible). It loads and renders fine. So 29 of 30 levels have been played to completion by the automated player; level 24 needs a human playtest. The solver plays only the stars-optimal "quiet" line, so difficulty/fairness is not assessed by these tests.
 
 ## NOT delivered / differences from the brief
-1. **Pngs.zip was never received** (only the HTML was uploaded). The sprites in this build are the ones embedded in the original HTML (already transparent, 500-800 px per frame), cleaned by `tools/clean_sprites.py`: halos removed, transparency holes in eyes/flashlight lenses/chest highlights filled, the extra panel in Y3 removed. They were inspected on magenta/white. I did NOT use the true source frames, so the "highest-resolution source" requirement is **not met yet**. `tools/build_sprites_from_zip.py` is written for the real zip (white-key, de-fringe, W6/outlier scale normalisation, baseline registration, anchor measurement). It was tested only on a synthetic zip made from the current art (registration OK on all 8 sheets, bright fringe pixels reduced ~8x, a 1.38x oversized W6 normalised); it has never run on the real files, so expect a review pass when you send the zip.
+1. **Pngs.zip itself was not received; the 45 frames were sent as images in chat instead** (all 45: Run, S1-S9, C1-C6, W1-W6, Y1-Y4, X1-X4, U1-U8, A1-A4, R1-R3). They arrived unnamed, 1024x1536 (W frames 1536x1024 / 1672x941) JPEG-like RGB with a white background, so `tools/identify_frames.py` named them by silhouette matching against the previous art (45/45 matched, every score >= 0.94, none ambiguous) and `tools/build_sprites_from_zip.py` rebuilt all 8 atlases from them. The game now uses these frames. Pipeline: white keyed out from the border (+ big enclosed gaps), edge matted against white to remove halos, Y3 side panel removed, W6 length normalised (x0.919), stray fragments dropped, feet registered on one baseline, lens/eye anchors re-measured (checked visually).
+   - **Running-size bug fixed**: the first atlas normalised every frame to the same silhouette area, so wide poses (running, crawling) shrank. Each animation now uses one uniform scale; the run loop is gently balanced (a runner is shorter than an idle man) so height stays within about +-3%.
+   - Caveat: the frames are 1024 px tall JPEG-like images with some compression noise; the pipeline cannot add detail that is not there. A true PNG zip would be cleaner (alpha, no JPEG noise).
 2. Not tested on real phones/GPUs. Headless Chromium on software GL drew ~15-18 ms/frame at 390x780@2x; that is not a mobile measurement. Adaptive quality exists but its thresholds are untuned. Audio was measured offline, not listened to.
 3. Original behaviours kept as they are (found while testing; changing them would alter gameplay):
    - radio/intercom cannot reach the only guard in L11 and L16 (speaker 28/26 tiles away, radio reaches 12); L3's sentinel stands 0.5 tile outside the floor; both are original data.

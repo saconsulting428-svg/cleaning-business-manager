@@ -5,7 +5,7 @@
 const Renderer = (function () {
   'use strict';
   const G = Gfx, TAU = Math.PI * 2, Sim_ = Sim;
-  const K_SURV = 0.002697, K_MON = 0.002875;                   // metres per source pixel (survivor 1.9 m, monster 2.3 m)
+  let K_SURV = 0.002736, K_MON = 0.002904;                         // metres per atlas pixel (idle survivor 1.8 m, idle monster 2.3 m); overwritten from atlas.json when it loads
   const CYCLE = { run: 2.1, crouch: 1.3, monster: 2.6 };       // metres travelled per full animation loop
   const KIND_SCALE = { stalker: 1, sentinel: 1.12, listener: 0.92 };
   const clamp = G.clamp, hash = G.hash;
@@ -322,9 +322,8 @@ const Renderer = (function () {
       const a1 = G.SP.Survivor_Run && G.SP.Survivor_Run.m.pt, a2 = G.SP.Survivor_CrouchWalk && G.SP.Survivor_CrouchWalk.m.pt;
       return { name: 'Survivor_Run', fr: mv > 0.5 ? runF : 9, crFr: mv > 0.5 ? crF : 1, cr };
     }
-    const USE_PT = [[50, -283], [7, -290], [45, -342], [-8, -299]];                  // flashlight lens in Y1..Y4, source pixels from the anchor
     function handPoint(f, info, px) {
-      if (info.useFr !== undefined) { const q = USE_PT[info.useFr], fc = an.face >= 0 ? 1 : -1; return { x: px + fc * q[0] * K_SURV * PM, y: FY + q[1] * K_SURV * PM }; }
+      if (info.useFr !== undefined) { const q = G.SP.Survivor_Use.m.pt[info.useFr], kk = G.SP.Survivor_Use.m.k, fc = an.face >= 0 ? 1 : -1; return { x: px + fc * q[0] * kk * PM, y: FY + q[1] * kk * PM }; }
       if (info.name === 'Survivor_Caught') return { x: px, y: FY - PM * 1.1 };
       const face = an.face >= 0 ? 1 : -1, SR = G.SP.Survivor_Run, SC = G.SP.Survivor_CrouchWalk; const k = K_SURV;
       if (!SR || !SR.ok) return { x: px + face * 0.5 * PM, y: FY - 1.1 * PM };

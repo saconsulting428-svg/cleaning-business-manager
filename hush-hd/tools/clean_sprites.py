@@ -20,18 +20,19 @@ def lum(rgb):
 
 def drop_panel(c, stats):
     """Y3 carries a sliver of the surface the hand pushes on (a thin blue-grey vertical panel at the fingertips).
-    It is removed by colour (bluish, unlike skin) within the right-most columns of the figure."""
+    Everything to the right of the last skin-coloured pixel (the fingertips) is removed, then any bluish remains next to the hand."""
     a = c[..., 3] > 0
-    xs = np.where(a.any(axis=0))[0]
-    x1 = xs.max(); lo = max(0, x1 - 20)
     r = c[..., 0].astype(int); g = c[..., 1].astype(int); b = c[..., 2].astype(int)
-    m = np.zeros(a.shape, bool)
-    m[:, lo:] = ((b > r + 8) | ((b >= r) & (r < 70) & (g < 70))) [:, lo:] & a[:, lo:]
-    # remove whole thin vertical runs at the very edge as well
-    m[:, x1 - 3:] |= a[:, x1 - 3:]
-    c[..., 3][m] = 0; stats['panel_px'] = stats.get('panel_px', 0) + int(m.sum())
+    skin = a & (r > g + 14) & (r > b + 24) & (c[..., 3] > 200)
+    ys, xs = np.where(skin)
+    n0 = int((c[..., 3] > 0).sum())
+    if len(xs) > 40:
+        xh = int(np.percentile(xs, 99.5)); c[:, xh + 4:, 3] = 0
+    xs2 = np.where((c[..., 3] > 0).any(axis=0))[0]; x1 = xs2.max(); lo = max(0, x1 - 20)
+    m = np.zeros(a.shape, bool); m[:, lo:] = (((b > r + 8) | ((b >= r) & (r < 70) & (g < 70))) & (c[..., 3] > 0))[:, lo:]
+    c[..., 3][m] = 0; stats['panel_px'] = stats.get('panel_px', 0) + n0 - int((c[..., 3] > 0).sum())
 
-def clean_cell(c, stats):
+def clean_cell(c, stats, hole_max=6000):
     a = c[..., 3].astype(np.int32)
     solid = a > 128
     # 1. stray fragments
@@ -66,7 +67,7 @@ def clean_cell(c, stats):
     if hn:
         hs = ndi.sum(np.ones_like(hl), hl, index=np.arange(1, hn + 1))
         for i, s in enumerate(hs, 1):
-            if s <= 6000:
+            if s <= hole_max:
                 m = hl == i
                 c[..., 3][m] = 255
                 stats['holes_px'] += int(s)

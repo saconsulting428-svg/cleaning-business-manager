@@ -27,7 +27,7 @@ Source: `src/levels.js` (original data, verbatim), `sim.js` (rules/AI), `gfx.js`
 ## Using the artist PNGs (Pngs.zip)
 `tools/build_sprites_from_zip.py Pngs.zip` converts the individual frames (Run,S1-S9,C1-C6,W1-W6,Y1-Y4,X1-X4,U1-U8,A1-A4,R1-R3) into the atlases the game reads
 (white background removal, de-fringe, fragment/panel removal, scale normalisation, foot-baseline registration), then run `tools/build.py`.
-**This build was made from the sprites embedded in the original HTML, because Pngs.zip was not received.** See REPORT.md.
+This build uses the 45 frames sent in chat (named by `tools/identify_frames.py`). See REPORT.md.
 
 ## Tests (`tests/`)
 `diff-sim.js`, `regression-sim.js`, `verify-original.js` (Node); `regression-ui.js`, `playthrough.js`, `levels-load.js`, `audio-offline.js` (Chromium via Playwright). Results are in REPORT.md.
