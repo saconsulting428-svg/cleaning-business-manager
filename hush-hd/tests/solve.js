@@ -2,7 +2,7 @@
 // through the game's own input path in a real browser (tests/playthrough.js) and on the ORIGINAL simulation (tests/verify-original.js).
 const N = require('./load-new.js'), Sim = N.Sim, fs = require('fs'), path = require('path');
 const ACTS = [{ mx: 1 }, { mx: -1 }, { mx: 1, crouch: true }, { mx: -1, crouch: true }, {}, { crouch: true }, { use: true }, { ping: true }];
-const NT = 12;
+const NT = 12, J = +process.env.ROBUST || 0;      // ROBUST=j: a move only counts if it also survives being held j ticks shorter or longer
 function key(S) {
   const r = v => Math.round(v * 20);
   const k = [S.f, r(S.x), S.crouch | 0, S.hid, S.busy > 0 ? 1 : 0, S.vent | 0, S.keys, S.took, S.power | 0, S.open, S.rev, S.sl, S.scd > 0 ? 1 : 0, S.su, S.det | 0, S.genN > 0 ? 1 : 0, S.radN > 0 || S.radT >= 0 ? 1 : 0];
@@ -42,6 +42,7 @@ function solve(li, K, maxMacro) {
       const S = Sim.clone(S0);
       for (let t = 0; t < NT && !S.won && !S.dead; t++) { Sim.step(W, S, { mx: A.mx || 0, crouch: !!A.crouch, use: t === 0 && !!A.use, ping: t === 0 && !!A.ping }); S.ev.length = 0; }
       if (S.dead) continue;
+      if (J && !S.won) { let bad = false; for (const d of [-J, J]) { const V = Sim.clone(S0); for (let t = 0; t < NT + d && !V.won && !V.dead; t++) { Sim.step(W, V, { mx: A.mx || 0, crouch: !!A.crouch, use: t === 0 && !!A.use, ping: t === 0 && !!A.ping }); V.ev.length = 0; } if (V.dead) { bad = true; break; } } if (bad) continue; }
       const np = { a, prev: node.p };
       if (S.won) { const st = Sim.stars(W, S); if (!best || st > best.stars) { const acts = []; for (let q = np; q; q = q.prev) acts.push(q.a); best = { stars: st, t: +S.t.toFixed(1), su: S.su, det: S.det, path: acts.reverse() }; } continue; }
       const k = key(S), sc = h(W, S) + (S.det ? 15 : 0) + (S.su > W.par ? 8 * (S.su - W.par) : 0) + S.t * 0.05, o = cand.get(k);
@@ -53,7 +54,7 @@ function solve(li, K, maxMacro) {
   }
   return best;
 }
-const levels = process.argv[2].split(',').map(Number), outFile = path.join(__dirname, 'solutions', 'L' + levels.join('_') + '.json');
+const levels = process.argv[2].split(',').map(Number), outFile = path.join(__dirname, 'solutions', (J ? 'robust_' : '') + 'L' + levels.join('_') + '.json');
 fs.mkdirSync(path.join(__dirname, 'solutions'), { recursive: true });
 const res = {};
 for (const L of levels) {

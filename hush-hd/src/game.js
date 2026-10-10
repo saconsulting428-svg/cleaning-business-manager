@@ -5,7 +5,7 @@
   const SAVE_KEY = 'hush.save.v1', PER = PER_CHAPTER, DT = Sim.DT;
   const TEST = /[?&]test=1\b/.test(location.search);
   const icon = function (n) { return '<svg><use href="#i-' + n + '"/></svg>'; };
-  const CYC = { run: 1.9, crouch: 1.0, monster: 2.6 }, MIN_CADENCE = 0.6;      // metres per loop (a little short, so the loop never looks like slow motion); monsters keep at least MIN_CADENCE loops/s while moving
+  const CYC = { run: 2.2, crouch: 1.0, monster: 3.2 }, MIN_CADENCE = 0.6;      // metres per loop (a little short, so the loop never looks like slow motion); monsters keep at least MIN_CADENCE loops/s while moving
   const frac = function (v) { return v - Math.floor(v); };
   /* how many of the `steps` frames (foot landings) were passed while a loop at n frames advanced from phase a to b */
   function landed(a, b, n, steps) { let c = 0; const ka = Math.floor(a * n + 1e-9), kb = Math.floor(b * n + 1e-9); for (let k = ka + 1; k <= kb; k++) if (steps.indexOf(((k % n) + n) % n) >= 0) c++; return c; }
@@ -381,7 +381,7 @@
       fr.phase = G.pphase + (G.phase - G.pphase) * a + G.po; fr.phaseC = G.pphaseC + (G.phaseC - G.pphaseC) * a + G.poC;
       if (!fr.crPhase || fr.crPhase.length !== S.cr.length) fr.crPhase = new Array(S.cr.length);
       for (let i = 0; i < S.cr.length; i++) fr.crPhase[i] = G.pcrPhase[i] + (G.crPhase[i] - G.pcrPhase[i]) * a + G.cpo[i];
-      view.draw(fr);
+      try { view.draw(fr); } catch (e) { if (!G.drawErr) { G.drawErr = String(e && e.stack || e); if (window.console) console.error('draw failed: ' + G.drawErr); } }    // a rendering fault must never stop the simulation or the UI
       if (isOpen('tutorial') && t - artT > 0.07) { artT = t; tutArt(t); }
     } else if (current === 'home' && !isOpen('loading') && t - artT > 0.08) { artT = t; homeArt(t); }
     if (t - sceneT > 0.25) { sceneT = t; if (current !== 'game' || G.paused || G.over) soundScene(); if (current !== 'game' || G.paused) Sound.tick(0.25, 0, current !== 'game'); }
@@ -427,6 +427,16 @@
     };
     /* runs one frame of the main loop with an exact time step, without scheduling the next one (deterministic animation tests) */
     const advance = function (dt) { const raf = window.requestAnimationFrame; window.requestAnimationFrame = function () { return 0; }; try { frame((lastT + dt) * 1000); } finally { window.requestAnimationFrame = raf; } };
-    window.HUSH_TEST = { advance, G, view, fr, run, tick, begin, pause, show, save, persist, loadLevel, renderLevels, Sim, Sound, overlay, isOpen, current: function () { return current; }, nextLevel, unlockAll: function () { G.devUnlock = true; } };
+    /* like run(), but through the real frame loop at exact steps, so every frame is also RENDERED (hide, vents, stairs, death... all draw paths) */
+    const runRender = function (i, path) {
+      G.devUnlock = true; G.auto = true; loadLevel(i, true); overlay('tutorial', false); G.paused = false; G.auto = false; G.drawErr = null;
+      for (let k = 0; k < path.length && !G.over; k++) {
+        const a = ACTS[path[k]];
+        for (let n = 0; n < 12 && !G.over; n++) { G.in.kr = a.mx === 1; G.in.kl = a.mx === -1; G.in.crouch = !!a.crouch; G.in.use = n === 0 && !!a.use; G.in.ping = n === 0 && !!a.ping; advance(DT + 1e-9); }
+      }
+      G.in.kr = G.in.kl = G.in.crouch = false; const S = G.S;
+      return { level: i + 1, won: S.won, dead: S.dead, t: S.t, su: S.su, stars: S.won ? Sim.stars(G.W, S) : 0, drawErr: G.drawErr };
+    };
+    window.HUSH_TEST = { runRender, advance, G, view, fr, run, tick, begin, pause, show, save, persist, loadLevel, renderLevels, Sim, Sound, overlay, isOpen, current: function () { return current; }, nextLevel, unlockAll: function () { G.devUnlock = true; } };
   }
 })();

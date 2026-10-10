@@ -15,6 +15,12 @@ const Renderer = (function () {
   const approach = function (v, target, step) { return v < target ? Math.min(target, v + step) : Math.max(target, v - step); };
   /* a walk loop played at `phase` cycles: the current frame, and how far the next frame is blended in (only over the last part of each
      frame, so poses stay crisp and the motion between frames reads as continuous instead of stepping) */
+  /* The sprite frames carry the height of the body above the floor (flight phase), but they change in steps. This shifts the drawn figure so its height
+     follows a smooth curve through those samples, which removes the stepping from the vertical motion. Returns a screen-pixel offset (down is positive). */
+  function bob(name, g, mul, PM) {
+    const e = G.SP[name]; if (!e || !e.ok || !e.m.gaps) return 0; const m = e.m, gi = m.gaps[g.i], gj = m.gaps[g.j], target = gi + (gj - gi) * ease(g.t), baked = gi * (1 - g.b) + gj * g.b;
+    return -(target - baked) * m.k * PM * (mul || 1);
+  }
   function gait(n, phase) { const fp = frac(phase) * n, i = Math.floor(fp) % n, t = fp - Math.floor(fp); return { i, j: (i + 1) % n, b: t < 0.5 ? 0 : ease((t - 0.5) / 0.5), t }; }
 
   /* ---------- sprite blit (1:1 from a cached, pre-scaled sheet; whole device pixels) ---------- */
@@ -201,7 +207,7 @@ const Renderer = (function () {
     let dpr = 1, cssW = 1, cssH = 1, Wpx = 1, Hpx = 1, PM = 48, FY = 300, dk = 0.5, bright = 0;
     let W = null, theme = 0, T = G.THEMES[0], E = null, seed = 1, level = 0;
     let quality = 0, dprCap = 3, slow = 0, lastWall = 0, qHold = 0;
-    const an = { last: 0, layout: null, camX: 0, camF: -1, cr: 0, mv: 0, face: 1, cf: [], cm: [], door: {}, deadT: undefined, openCache: -1, lampT: 0, parts: [] };
+    const an = { lead: 0, last: 0, layout: null, camX: 0, camF: -1, cr: 0, mv: 0, face: 1, cf: [], cm: [], door: {}, deadT: undefined, openCache: -1, lampT: 0, parts: [] };
     const QUAL = [{ cap: 3, dk: 0.5, fog: 2, parts: 26, grain: 1 }, { cap: 2, dk: 0.4, fog: 1, parts: 10, grain: 0 }, { cap: 1.5, dk: 0.33, fog: 0, parts: 0, grain: 0 }];
     for (let i = 0; i < 28; i++) an.parts.push({ x: Math.random() * 8 - 4, y: Math.random() * 3.2, s: 0.4 + Math.random() * 0.8, p: Math.random() * 6.28 });
 
@@ -216,16 +222,18 @@ const Renderer = (function () {
       an.vig = null;
     }
     function setLevel(Wd, chapter, idx) { W = Wd; theme = chapter; T = G.THEMES[theme]; seed = 17 + idx * 31; level = idx; E = G.env(theme, PM); reset(); }
-    function reset() { an.camF = -1; an.cr = 0; an.mv = 0; an.face = 1; an.cf = []; an.cm = []; an.door = {}; an.deadT = undefined; an.camX = W ? W.start.x : 0; an.lampT = 0; an.layout = null; an.hid = 0; an.last = 0; }
+    function reset() { an.camF = -1; an.cr = 0; an.mv = 0; an.face = 1; an.cf = []; an.cm = []; an.door = {}; an.deadT = undefined; an.camX = W ? W.start.x : 0; an.lampT = 0; an.layout = null; an.hid = 0; an.last = 0; an.lead = 0; }
     function setBright(v) { bright = v ? 1 : 0; }
     function warm(f) { E = G.env(theme, PM); G.scaledSheet('Survivor_Run', K_SURV * PM); G.scaledSheet('Survivor_CrouchWalk', K_SURV * PM); if (W.cdefs.length) { G.scaledSheet('Monster_Run', K_MON * PM); G.scaledSheet('Monster_Roar', K_MON * PM); G.scaledSheet('Monster_Attack', K_MON * PM); } }
 
     /* camera: follows the survivor, leads a little in the facing direction, never shows more than a metre beyond the ends */
     function camera(f, dt) {
-      const half = Wpx / PM / 2, fw = W.floors[f.S.f].w, lead = f.S.dir * 0.9;
-      let tx = f.px + lead; const lo = half - 1.0, hi = fw - half + 1.0;
+      const half = Wpx / PM / 2, fw = W.floors[f.S.f].w;
+      an.lead += ((f.S.moving ? f.S.dir * 0.8 : an.lead) - an.lead) * Math.min(1, dt * 3.5);          // looks ahead only while moving; no jump when you stop or turn
+      let tx = f.px + an.lead; const lo = half - 1.0, hi = fw - half + 1.0;
       tx = lo > hi ? fw / 2 : clamp(tx, lo, hi);
-      if (an.camF !== f.S.f) { an.camX = tx; an.camF = f.S.f; } else an.camX += (tx - an.camX) * Math.min(1, dt * 4.2);
+      if (an.camF !== f.S.f) { an.camX = tx; an.camF = f.S.f; } else an.camX += (tx - an.camX) * (1 - Math.exp(-dt * 9));      // frame-rate independent, stiff enough that you never feel it trailing
+      an.camX = Math.round(an.camX * PM) / PM;                                                          // whole device pixels: world and sprites move together, no shimmer
     }
     const sx_ = function (x) { return Math.round((x - an.camX) * PM + Wpx / 2); };
 
@@ -283,7 +291,7 @@ const Renderer = (function () {
     function creatureView(i, c, x, f, now, dt) {
       const d = W.cdefs[i], S = f.S, mul = KIND_SCALE[d.t] || 1, moving = f.crMv[i];
       const mvA = an.cm[i] = approach(an.cm[i] || 0, moving ? 1 : 0, dt / (moving ? 0.08 : 0.1)), mE = ease(mvA);
-      const dirA = an.cf[i] === undefined ? c.dir : an.cf[i]; an.cf[i] = dirA + (c.dir - dirA) * Math.min(1, dt * 11);
+      an.cf[i] = c.dir;
       const fdir = an.cf[i] >= 0 ? 1 : -1, sx = Math.max(0.64, Math.abs(an.cf[i]));
       const dist = Math.abs(f.px - x), hunting = c.st === Sim_.HUNT, dead = S.dead;
       let name = 'Monster_Roar', fr = 0; const layers = [];
@@ -292,7 +300,7 @@ const Renderer = (function () {
       else {
         const idleFr = (c.st === Sim_.SEARCH || (hunting && !moving)) ? (Math.sin(now * 1.7 + i * 2) > 0.1 ? 1 : 0) : 0, g = gait(8, f.crPhase[i]);
         if (mE < 0.995) layers.push({ n: 'Monster_Roar', f: idleFr, a: 1 - mE });
-        if (mE > 0.005) { layers.push({ n: 'Monster_Run', f: g.i, a: mE * (1 - g.b) }); if (g.b > 0.02) layers.push({ n: 'Monster_Run', f: g.j, a: mE * g.b }); }
+        if (mE > 0.005) { const dy = bob('Monster_Run', g, mul, PM); layers.push({ n: 'Monster_Run', f: g.i, a: mE * (1 - g.b), dy }); if (g.b > 0.02) layers.push({ n: 'Monster_Run', f: g.j, a: mE * g.b, dy }); }
         if (mE > 0.5) { name = 'Monster_Run'; fr = g.i; } else { name = 'Monster_Roar'; fr = idleFr; }
       }
       return { name, fr, layers, x, mul, fdir, sx, mv: mvA, hunting, c, d, i, dist, dead };
@@ -301,7 +309,7 @@ const Renderer = (function () {
       ctx.save();
       const px = sx_(v.x);
       if (!v.dead) { ctx.globalAlpha = 0.5 * alphaMul; ctx.drawImage(G.glowSprite('#000000'), px - PM * 1.1 * v.mul, FY - PM * 0.15, PM * 2.2 * v.mul, PM * 0.3); ctx.globalAlpha = 1; }
-      for (let k = 0; k < v.layers.length; k++) { const L = v.layers[k]; blit(ctx, L.n, L.f, px, FY, v.fdir, alphaMul * L.a, PM, v.mul, v.sx); }
+      for (let k = 0; k < v.layers.length; k++) { const L = v.layers[k]; blit(ctx, L.n, L.f, px, FY + (L.dy || 0), v.fdir, alphaMul * L.a, PM, v.mul, v.sx); }
       ctx.restore();
     }
 
@@ -317,7 +325,7 @@ const Renderer = (function () {
       const layer = function (name, g, idle, a0) {                                  // one pose family: idle frame <-> blended walk frames
         if (a0 < 0.01) return;
         if (mv < 0.995) blit(ctx, name, idle, px, fy, face, a0 * (1 - mv), PM, mul, sq);
-        if (mv > 0.005) { blit(ctx, name, g.i, px, fy, face, a0 * mv * (1 - g.b), PM, mul, sq); if (g.b > 0.02) blit(ctx, name, g.j, px, fy, face, a0 * mv * g.b, PM, mul, sq); }
+        if (mv > 0.005) { const dy = bob(name, g, mul, PM); blit(ctx, name, g.i, px, fy + dy, face, a0 * mv * (1 - g.b), PM, mul, sq); if (g.b > 0.02) blit(ctx, name, g.j, px, fy + dy, face, a0 * mv * g.b, PM, mul, sq); }
       };
       layer('Survivor_Run', gs, 9, alpha * (1 - cr));
       layer('Survivor_CrouchWalk', gc, idleC, alpha * cr);
@@ -372,7 +380,7 @@ const Renderer = (function () {
       adapt();
       /* smoothed animation state */
       an.cr = approach(an.cr, S.crouch ? 1 : 0, dt / 0.16); an.mv = approach(an.mv, S.moving ? 1 : 0, dt / (S.moving ? 0.06 : 0.07));   // time-based, so a dissolve always takes the same short time
-      an.face += (S.dir - an.face) * Math.min(1, dt * 16);
+      an.face = S.dir;                                                                       // turning is an instant flip: the squash-turn made a ghosted, glitchy frame
       if (S.dead) { if (an.deadT === undefined) an.deadT = now; an.deadP = Math.min(0.999, (now - an.deadT) / 0.8); } else { an.deadT = undefined; an.deadP = -1; }
       /* the vent is its own little scene */
       if (S.vent && S.busy > 0) { drawVent(f, now); finish(f, now, S.busy / Sim_.C.VENT_T, true); return; }
@@ -411,7 +419,7 @@ const Renderer = (function () {
         if (Math.abs(x - f.px) < 7.5 || v.hunting) f.vis.push(v);
       }
       /* survivor */
-      let info = { fr: 9 }, handPt, alpha = 1, ox = 0, oy = 0, scl = 1;
+      let info = { name: 'Survivor_Run', gs: { i: 9, j: 9, b: 0 }, gc: { i: 1, j: 1, b: 0 }, mv: 0, cr: 0, idleC: 1 }, handPt, alpha = 1, ox = 0, oy = 0, scl = 1;     // used while hidden or fading: nothing is drawn but the beam origin must still exist
       const px = sx_(f.px);
       const stairsOut = S.busy > 0 && !S.vent && S.bf >= 0;
       if (stairsOut) { const p = 1 - S.busy / Sim_.C.STAIR_T, up = S.bf < S.f; alpha = 1 - p; oy = (up ? -1 : 1) * p * 0.35 * PM; scl = 1 - p * 0.12; ox = S.dir * p * 0.3 * PM; }

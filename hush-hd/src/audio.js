@@ -139,8 +139,8 @@ const Sound = (function () {
     const bus = function (dest, v) { const g = a.createGain(); g.gain.value = v; g.connect(dest); return g; };
     /* ventilation bed: broad low noise with a slow breathing swell */
     const n1 = src(), f1 = a.createBiquadFilter(), f2 = a.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 170; f1.Q.value = 0.5; f2.type = 'lowpass'; f2.frequency.value = 420;
-    L.vent = bus(mus, 0.0); n1.connect(f1); f1.connect(f2); f2.connect(L.vent); n1.start(0, 0.3);
-    const sw = a.createOscillator(), sg = a.createGain(); sw.frequency.value = 0.045; sg.gain.value = 0.35; sw.connect(sg); sg.connect(L.vent.gain); sw.start();
+    L.vent = bus(mus, 0.0); const swell = a.createGain(); swell.gain.value = 1; n1.connect(f1); f1.connect(f2); f2.connect(swell); swell.connect(L.vent); n1.start(0, 0.3);
+    const sw = a.createOscillator(), sg = a.createGain(); sw.frequency.value = 0.045; sg.gain.value = 0.3; sw.connect(sg); sg.connect(swell.gain); sw.start();       // the swell modulates its own stage (1 +- 0.3), never the level control
     /* electrical mains hum: 50 Hz and its harmonics, a touch of beating */
     L.hum = bus(mus, 0.0); [[50, 'sine', 0.55], [100.4, 'triangle', 0.25], [150.2, 'sine', 0.12], [250, 'sine', 0.04]].forEach(function (h) { const o = a.createOscillator(), g = a.createGain(); o.type = h[1]; o.frequency.value = h[0]; g.gain.value = h[2]; o.connect(g); g.connect(L.hum); o.start(); });
     /* deep room tone */
@@ -164,7 +164,7 @@ const Sound = (function () {
     target(L.vent.gain, (inGame ? 0.05 + 0.01 * chap : 0.025) * k); target(L.hum.gain, (inGame ? 0.032 + 0.008 * chap : 0.02) * k); target(L.drone.gain, (inGame ? 0.07 + 0.015 * chap : 0.05) * k);
     const th = Math.max(0, Math.min(1, o.threat || 0)), tg = (o.hunted ? 0.11 : 0.1 * th * th) * k;
     target(L.tens.gain, inGame ? tg : 0, 0.4); target(L.tensF.frequency, 160 + 420 * (o.hunted ? 1 : th), 0.5); if (L.tensLfo) target(L.tensLfo.frequency, o.hunted ? 2.4 : 0.3 + th * 1.2, 0.5);
-    target(L.gen.gain, inGame ? (o.gen || 0) * 0.34 * k : 0, 0.3); if (L.genPan) target(L.genPan.pan, o.genPan || 0, 0.2);
+    target(L.gen.gain, inGame ? (o.gen || 0) * 0.2 * k : 0, 0.3); if (L.genPan) target(L.genPan.pan, o.genPan || 0, 0.2);
   }
   /* distant sounds of the facility that make the dark feel inhabited; chapter 3 is the worst */
   const ambT = {};
@@ -184,6 +184,6 @@ const Sound = (function () {
     duck: function () { if (!ac) return; const g = mus.gain, t = ac.currentTime, v = st.music ? st.mvol * 0.55 : 0; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(v * 0.45, t + 0.04); g.linearRampToValueAtTime(v, t + 1.1); },
     suspend: function () { if (ac && real && ac.state === 'running') ac.suspend(); }, resume: function () { if (ac && real && ac.state !== 'running') { try { ac.resume(); } catch (e) { /* ok */ } } },
     useContext: function (a) { real = false; ac = null; voices = 0; started = false; loops = null; for (const k in lastAt) delete lastAt[k]; for (const k in ambT) delete ambT[k]; build(a); },
-    _cues: Object.keys(S)
+    _loops: function () { return loops; }, _cues: Object.keys(S)
   };
 })();

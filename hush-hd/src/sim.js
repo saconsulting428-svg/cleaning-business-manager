@@ -9,7 +9,7 @@ const Sim = (function () {
   /* ---------- tuning (original values) ---------- */
   const C = {
     WALK: 2.4, CROUCH: 1.2, STEP_T: 0.45,
-    N_STEP: 3, N_GLASS: 8, N_GLASS_CROUCH: 2.5, N_DOOR: 6, N_LOCK: 4, N_GEN: 10, N_RADIO: 12, N_SONAR: 14,    // noise radii (tiles)
+    N_STEP: 3, N_GLASS: 8, N_GLASS_CROUCH: 2.5, N_DOOR: 6, N_LOCK: 4, N_GEN: 10, N_RADIO: 28, N_SONAR: 14,    // noise radii (tiles)
     SONAR_CD: 2.5, SONAR_R: 9, REACH: 0.75, PICK: 0.6, STAIR_T: 0.5, VENT_T: 1.4,
     GEN_PULSES: 8, RADIO_DELAY: 1.5, RADIO_PULSES: 5
   };

@@ -19,7 +19,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright');
   // continuity: while running, consecutive frame index must advance by 0 or 1 (mod 9), never jump
   const run = r.filter(x => x.phase === 'run' && x.mv === 1); let jumps = 0, maxStall = 0, stall = 0;
   for (let i = 1; i < run.length; i++) { const d = (run[i].run - run[i - 1].run + 9) % 9; if (d > 1) jumps++; if (d === 0) { stall++; maxStall = Math.max(maxStall, stall); } else stall = 0; }
-  console.log('footsteps fired:', out.steps.length, 'at frames', out.steps.map(s => s.f).join(','));
+  console.log(errs[0] || ''); console.log('footsteps fired:', out.steps.length, 'at frames', out.steps.map(s => s.f).join(','));
   console.log('while running at 60Hz: frame-index jumps >1:', jumps, ' longest same-frame hold (60Hz ticks):', maxStall, ' errors:', errs.length);
   await b.close();
 })();
