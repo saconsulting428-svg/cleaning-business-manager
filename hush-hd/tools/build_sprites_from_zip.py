@@ -134,7 +134,7 @@ def main(zip_path, out_dir='assets/clean'):
     if missing: sys.exit('missing frames: ' + ', '.join(missing))
     print('found all %d frames' % len(need))
     stats = dict(fragments=0, slivers=0, holes_px=0, bright_edge_before=0, bright_edge_faded=0)
-    proc = {}
+    proc = {}; srcbot = {}; scl = {}
     for fid in need:
         im = frames[fid]; print('  %-4s source %dx%d' % (fid, *im.size), end='')
         a = key_out_white(im)
@@ -150,7 +150,7 @@ def main(zip_path, out_dir='assets/clean'):
                 else: a[:, :min(cut, Wd), 3] = 0
         if fid == 'Y3': cs.drop_panel(a, stats)
         a = decontaminate_and_clean(a, stats)
-        x0, y0, x1, y1 = bbox(a); a = a[y0:y1, x0:x1]
+        x0, y0, x1, y1 = bbox(a); srcbot[fid] = y1; scl[fid] = 1.0; a = a[y0:y1, x0:x1]
         proc[fid] = a; print('  -> content %dx%d' % (a.shape[1], a.shape[0]))
     # ---- scale policy -------------------------------------------------------------------------------------------------
     # Every frame of one animation gets the SAME scale. (The first atlas normalised each frame to a constant silhouette area, which
@@ -160,7 +160,7 @@ def main(zip_path, out_dir='assets/clean'):
                    'Monster_Run': 0.69, 'Monster_Attack': 0.675, 'Monster_Roar': 0.58}
     def rescale(i, f):
         if abs(f - 1) < 0.004: return
-        im = Image.fromarray(proc[i], 'RGBA'); w, h = im.size
+        im = Image.fromarray(proc[i], 'RGBA'); w, h = im.size; scl[i] *= f
         proc[i] = np.array(im.resize((max(1, round(w * f)), max(1, round(h * f))), Image.LANCZOS))
     for sheet, (ids, *_r) in SHEETS.items():
         base = SHEET_SCALE[sheet]
@@ -189,20 +189,40 @@ def main(zip_path, out_dir='assets/clean'):
         for i in ids:
             a = proc[i]; w = (a[..., 3] > 128).astype(np.float32); ys, xs = np.where(w > 0); cm.append(float(xs.mean()))
         left = max(cm[j] for j in range(len(ids))); right = max(proc[i].shape[1] - cm[j] for j, i in enumerate(ids))
-        cw = int(np.ceil(left + right)) + 2 * PAD; ch = max(proc[i].shape[0] for i in ids) + 2 * PAD
+        # Flight phase: in the supplied frames a running figure is higher on the canvas while airborne. Keeping that height (instead of gluing
+        # every frame's lowest pixel to the floor) is what gives the run its bounce. Only run cycles use it: the other sheets' canvases drift
+        # by small random amounts, which must not become hovering.
+        lift = [0] * len(ids)
+        if sheet in ('Survivor_Run', 'Monster_Run'):
+            loop_ = [i for i in ids if i != 'S9']; G_src = max(srcbot[i] for i in loop_); noise_src = 28           # canvas px: below this the frame is simply standing on the ground
+            for j, i in enumerate(ids):
+                if i in srcbot and i in loop_ and G_src - srcbot[i] > noise_src: lift[j] = int(round((G_src - srcbot[i]) * scl[i]))
+            print('  %s flight lift (atlas px): %s' % (sheet, dict(zip(ids, lift))))
+        cw = int(np.ceil(left + right)) + 2 * PAD; ch = max(proc[i].shape[0] + lift[j] for j, i in enumerate(ids)) + 2 * PAD
         ax = int(round(left)) + PAD; base = ch - PAD
-        atlas = np.zeros((((len(ids) + cols - 1) // cols) * ch, cols * cw, 4), np.uint8); pts = []
+        atlas = np.zeros((((len(ids) + cols - 1) // cols) * ch, cols * cw, 4), np.uint8); pts = []; gaps = []; widths = []
         for j, i in enumerate(ids):
-            a = proc[i]; ox = ax - int(round(cm[j])); oy = base - a.shape[0]
+            a = proc[i]; ox = ax - int(round(cm[j])); oy = base - a.shape[0] - lift[j]
             cx, cy = (j % cols) * cw, (j // cols) * ch
             atlas[cy + oy: cy + oy + a.shape[0], cx + ox: cx + ox + a.shape[1]] = a
             cell = atlas[cy: cy + ch, cx: cx + cw]
+            rows = np.where((cell[..., 3] > 128).any(axis=1))[0]; gaps.append(int(base - (rows.max() + 1)))
+            cols_ = np.where((cell[..., 3] > 128).any(axis=0))[0]; widths.append(int(cols_.max() - cols_.min()))
             pt = measure_lens(cell, ax, base) if sheet.startswith('Survivor') else None
             if pt is None: pt = measure_point('survivor' if sheet.startswith('Survivor') else 'monster', cell, ax, base)
             pts.append([round(v, 1) for v in pt])
         fn = sheet + '.webp'
         Image.fromarray(atlas, 'RGBA').save(os.path.join(out_dir, fn), 'WEBP', quality=92, alpha_quality=100, method=6)
-        meta[sheet] = dict(src=fn, w=cw, h=ch, ax=ax, base=base, n=len(ids), cols=cols, k=round(k, 6), pt=pts)
+        # gait metadata: `steps` = frames where a foot lands (the lowest point goes from airborne to on the ground), used to fire footstep
+        # sounds exactly when the boot touches down; `neutral` = the loop frame with the narrowest stance (closest to standing), where a walk
+        # cycle should begin and end so that idle <-> moving transitions do not jump.
+        loop = [j for j, i in enumerate(ids) if i != 'S9']; thr_air, thr_gnd = max(20, int(0.06 * ch)), max(6, int(0.04 * ch))
+        steps = [j for j in loop if gaps[j] <= thr_gnd and gaps[loop[(loop.index(j) - 1) % len(loop)]] >= thr_air]
+        if sheet in ('Survivor_CrouchWalk', 'Survivor_Crawl'): steps = [loop[0], loop[len(loop) // 2]]    # no airborne phase: plant every half cycle
+        if not steps: steps = [loop[0], loop[len(loop) // 2]]
+        neutral = min(loop, key=lambda j: widths[j])
+        meta[sheet] = dict(src=fn, w=cw, h=ch, ax=ax, base=base, n=len(ids), cols=cols, k=round(k, 6), pt=pts, steps=steps, neutral=neutral, gaps=gaps)
+        print('  %-20s landing frames %s  neutral frame %s  ground gaps %s' % (sheet, steps, ids[neutral], gaps))
         print('  %-20s %d frames, cell %dx%d, anchor (%d,%d), %d KB' % (sheet, len(ids), cw, ch, ax, base, os.path.getsize(os.path.join(out_dir, fn)) // 1024))
     json.dump(meta, open(os.path.join(out_dir, 'atlas.json'), 'w'), indent=1)
     print('cleanup stats:', stats)

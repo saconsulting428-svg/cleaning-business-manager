@@ -5,7 +5,11 @@
   const SAVE_KEY = 'hush.save.v1', PER = PER_CHAPTER, DT = Sim.DT;
   const TEST = /[?&]test=1\b/.test(location.search);
   const icon = function (n) { return '<svg><use href="#i-' + n + '"/></svg>'; };
-  const CYC = { run: 2.1, crouch: 1.3, monster: 2.6 };
+  const CYC = { run: 1.9, crouch: 1.0, monster: 2.6 }, MIN_CADENCE = 0.6;      // metres per loop (a little short, so the loop never looks like slow motion); monsters keep at least MIN_CADENCE loops/s while moving
+  const frac = function (v) { return v - Math.floor(v); };
+  /* how many of the `steps` frames (foot landings) were passed while a loop at n frames advanced from phase a to b */
+  function landed(a, b, n, steps) { let c = 0; const ka = Math.floor(a * n + 1e-9), kb = Math.floor(b * n + 1e-9); for (let k = ka + 1; k <= kb; k++) if (steps.indexOf(((k % n) + n) % n) >= 0) c++; return c; }
+  const meta = function (k) { const e = Gfx.SP[k]; return e && e.ok ? e.m : null; };
   const parsed = LEVELS.map(function (d) { return Sim.parse(d); });
   const view = Renderer.create($('view'), function () { /* quality stepped down automatically */ });
   const fr = view.newFrame();
@@ -28,7 +32,7 @@
 
   /* ---------- state ---------- */
   const G = { idx: 0, W: null, S: null, paused: false, over: false, acc: 0, gt: 0, auto: false, devUnlock: false,
-    px: 0, ppx: 0, crx: [], pcrx: [], phase: 0, pphase: 0, phaseC: 0, pphaseC: 0, crPhase: [], pcrPhase: [], crMv: [], crStep: [], cv: [],
+    px: 0, ppx: 0, crx: [], pcrx: [], phase: 0, pphase: 0, phaseC: 0, pphaseC: 0, crPhase: [], pcrPhase: [], crMv: [], crStep: [], cv: [], po: 0, poC: 0, cpo: [], lastStep: [], wasMoving: false, lastLand: -9,
     pings: [], ripples: [], threat: 0, heartT: 0, hunted: false, heardT: -9, fade: 0, reachT: -9, arrive: null, trans: null, hintT: 0, tut: null, result: null, label: '', labelNo: false,
     in: { l: false, r: false, kl: false, kr: false, crouch: false, ck: false, use: false, ping: false }, drag: null, ready: false };
   const TUT = {
@@ -55,7 +59,7 @@
   function begin() {
     const W = G.W, S = G.S = Sim.init(W);
     G.over = false; G.paused = false; G.acc = 0; G.px = G.ppx = S.x; G.crx = S.cr.map(function (c) { return c.x; }); G.pcrx = G.crx.slice();
-    G.crPhase = S.cr.map(function () { return 0; }); G.pcrPhase = G.crPhase.slice(); G.crMv = S.cr.map(function () { return false; }); G.crStep = S.cr.map(function () { return 0; });
+    G.crPhase = S.cr.map(function () { return 0; }); G.pcrPhase = G.crPhase.slice(); G.crMv = S.cr.map(function () { return false; }); G.crStep = S.cr.map(function () { return 0; }); G.cpo = S.cr.map(function () { return 0; }); G.lastStep = S.cr.map(function () { return 0; }); G.po = G.poC = 0; G.wasMoving = false;
     G.cv = S.cr.map(function (c) { return { st: c.st, seen: 0, t: 5 + Math.random() * 6 }; });
     G.phase = G.pphase = G.phaseC = G.pphaseC = 0; G.reachT = -9; G.arrive = null; G.trans = null; G.pings = []; G.ripples = []; G.threat = 0; G.hunted = false; G.heardT = -9; G.fade = 1;
     view.reset(); dragEnd();
@@ -75,7 +79,7 @@
     G.in.use = G.in.ping = false; G.gt += DT;
     if (S.f !== pf) { G.ppx = S.x; G.pphase = G.phase; }
     for (let i = 0; i < S.cr.length; i++) if (S.cr[i].f !== cf[i]) G.pcrx[i] = S.cr[i].x;
-    if (S.moving) { const d = Math.abs(S.x - G.ppx); G.phase += d / CYC.run; G.phaseC += d / CYC.crouch; }                     // stride is locked to distance: no foot sliding
+    survivorGait(S, W);
     for (let i = 0; i < S.ev.length; i++) onEvent(S.ev[i]);
     S.ev.length = 0;
     /* creatures: footsteps are the main way to track one without sonar; voices tell its mood */
@@ -84,17 +88,51 @@
       const c = S.cr[i], d = Sim.route(W, c.f, c.x, S.f, S.x).d;
       if (c.st === Sim.HUNT) hunted = true;
       if (c.f === S.f && c.busy <= 0) near = Math.min(near, d);
-      G.crPhase[i] = c.step / CYC.monster; G.crMv[i] = c.busy <= 0 && Math.abs(c.x - G.pcrx[i]) > 1e-5;
-      const n = Math.floor(c.step / (CYC.monster / 2));
-      if (n !== G.crStep[i]) { G.crStep[i] = n; const v = Math.max(0, 1 - d / 13) * (c.f === S.f ? 1 : 0.45); if (v > 0.03) Sound.play('cstep', { v, pan: c.f === S.f ? Math.max(-1, Math.min(1, (c.x - S.x) / 6)) : 0 }); }
+      creatureGait(i, c, d, S);
       creatureVoice(i, c, d);
     }
     G.hunted = hunted;
     const th = Math.max(0, Math.min(1, (9 - near) / 7)); G.threat += (th - G.threat) * 0.08;
     if (G.threat > 0.12 || hunted) { G.heartT -= DT; if (G.heartT <= 0) { G.heartT = hunted ? 0.45 : 1.15 - 0.6 * G.threat; Sound.play('heart', { v: hunted ? 1 : 0.35 + G.threat * 0.65 }); } }
-    Sound.tick(DT);
+    Sound.tick(DT, Math.floor(G.idx / PER), false); soundScene();
     if (S.dead && !G.over) lose(); else if (S.won && !G.over) win();
     hud(false);
+  }
+  /* The survivor's stride is locked to distance travelled (no foot sliding). A walk starts on the frame closest to standing, so the
+     idle -> moving change does not jump, and a footstep sound is fired the moment a boot lands in the drawn animation. */
+  function survivorGait(S, W) {
+    const sm = meta('Survivor_Run'), cm = meta('Survivor_CrouchWalk');
+    if (S.moving) {
+      const d = Math.abs(S.x - G.ppx);
+      if (!G.wasMoving) { if (sm) G.po = sm.neutral / 9 - frac(G.phase); if (cm) G.poC = cm.neutral / 6 - frac(G.phaseC); G.pphase = G.phase; G.pphaseC = G.phaseC; }
+      G.phase += d / CYC.run; G.phaseC += d / CYC.crouch;
+      const m = S.crouch ? cm : sm;
+      if (m && landed((S.crouch ? G.pphaseC + G.poC : G.pphase + G.po), (S.crouch ? G.phaseC + G.poC : G.phase + G.po), S.crouch ? 6 : 9, m.steps)) {
+        const glass = W.floors[S.f].noisy[Math.floor(S.x)]; G.foot = !G.foot;
+        Sound.play(glass ? 'glass' : 'step', { crouch: S.crouch, v: G.foot ? 1 : 0.88, run: !S.crouch });
+      }
+    }
+    G.wasMoving = S.moving;
+  }
+  /* creatures: cadence never drops below MIN_CADENCE while moving (a slow prowl would otherwise play at 4 frames a second); thuds follow the drawn landings */
+  function creatureGait(i, c, d, S) {
+    const mvNow = c.busy <= 0 && Math.abs(c.x - G.pcrx[i]) > 1e-5, mm = meta('Monster_Run');
+    const ds = c.step - G.lastStep[i]; G.lastStep[i] = c.step;
+    if (mvNow && !G.crMv[i] && mm) G.cpo[i] = mm.neutral / 8 - frac(G.crPhase[i]);
+    const prev = G.crPhase[i];
+    if (mvNow) G.crPhase[i] += Math.max(ds / CYC.monster, MIN_CADENCE * DT);
+    G.crMv[i] = mvNow;
+    if (mvNow && mm && landed(prev + G.cpo[i], G.crPhase[i] + G.cpo[i], 8, mm.steps)) {
+      const v = Math.max(0, 1 - d / 13) * (c.f === S.f ? 1 : 0.45);
+      if (v > 0.03) Sound.play('cstep', { v: v * (G.crStep[i]++ % 2 ? 0.85 : 1), pan: c.f === S.f ? Math.max(-1, Math.min(1, (c.x - S.x) / 6)) : 0, kind: G.W.cdefs[i].t });
+    }
+  }
+  /* the continuous layers: ventilation, hum, room tone, tension (follows danger), and the generator while it runs (louder close by, panned) */
+  function soundScene() {
+    if (current !== 'game' || !G.S) { Sound.scene({ menu: true }); return; }
+    const S = G.S, W = G.W; let gen = 0, pan = 0;
+    if (S.power && W.gen) { const d = Sim.route(W, W.gen.f, W.gen.x, S.f, S.x).d; gen = Math.max(0, 1 - d / 15) * (S.genN > 0 ? 1 : 0.5); pan = W.gen.f === S.f ? Math.max(-1, Math.min(1, (W.gen.x - S.x) / 7)) : 0; }
+    Sound.scene({ chapter: Math.floor(G.idx / PER), threat: G.threat, hunted: G.hunted && !S.won, gen, genPan: pan, paused: G.paused || G.over });
   }
   /* positional creature voices: a growl when it begins to suspect you, a roar when it hunts, low breathing now and then */
   function voice(i, kind, scale) {
@@ -113,20 +151,20 @@
     if (c.seen > 0.05 && cv.seen <= 0.05 && c.st !== Sim.HUNT) voice(i, 'growl', 1);
     cv.seen = c.seen;
     cv.t -= DT;
-    if (cv.t <= 0) { cv.t = 7 + Math.random() * 8; if (c.st === Sim.SEARCH || c.st === Sim.ROAM) { if (d < 11) voice(i, 'growl', c.st === Sim.SEARCH ? 0.7 : 0.45); } }
+    if (cv.t <= 0) { cv.t = 5 + Math.random() * 7; if (c.st === Sim.SEARCH || c.st === Sim.ROAM) { if (d < 11) voice(i, Math.random() < 0.55 ? 'breath' : 'growl', c.st === Sim.SEARCH ? 0.8 : 0.55); } }
   }
   const ripple = function (e, col, kind) { if (e.f === G.S.f) { G.ripples.push({ f: e.f, x: e.x, r: e.r, t0: G.gt, col, kind }); if (G.ripples.length > 14) G.ripples.shift(); } };
   const vol = function (f, x) { return Math.max(0.12, 1 - Sim.route(G.W, f, x, G.S.f, G.S.x).d / 18); };
   function onEvent(e) {
     const S = G.S;
     switch (e.e) {
-      case 'step': Sound.play(e.glass ? 'glass' : 'step', { crouch: e.crouch }); break;
+      case 'step': break;                                                       // the sound comes from the boot landing in the animation (survivorGait); the sim step is the noise
       case 'noise':
         if (e.kind === 'step') ripple(e, '#cfe6ff', 'step'); else if (e.kind === 'glass') ripple(e, '#ffc93a', 'glass'); else if (e.kind === 'door') ripple(e, '#9df3ff', 'door');
         else if (e.kind === 'gen') { ripple(e, '#ffc93a', 'gen'); Sound.play('genPulse', { v: vol(e.f, e.x) }); }
         else if (e.kind === 'radio') { ripple(e, '#ffc93a', 'radio'); Sound.play('radioPulse', { v: vol(e.f, e.x), pan: e.f === S.f ? Math.sign(e.x - S.x) : 0 }); }
         break;
-      case 'ping': Sound.play('ping'); G.pings.push({ f: e.f, x: e.x, t0: G.gt, cr: S.cr.map(function (c, i) { return { i, f: c.f, x: c.x, dir: c.dir, ph: G.crPhase[i] }; }) }); if (G.pings.length > 3) G.pings.shift(); break;
+      case 'ping': Sound.play('ping'); Sound.duck(); G.pings.push({ f: e.f, x: e.x, t0: G.gt, cr: S.cr.map(function (c, i) { return { i, f: c.f, x: c.x, dir: c.dir, ph: G.crPhase[i] + G.cpo[i] }; }) }); if (G.pings.length > 3) G.pings.shift(); break;
       case 'key': Sound.play('key'); toast('Keycard acquired'); G.reachT = G.gt; break;
       case 'door': Sound.play('door'); G.reachT = G.gt; break;
       case 'unlock': Sound.play('unlock'); toast('Door unlocked'); G.reachT = G.gt; break;
@@ -246,7 +284,7 @@
   }
 
   /* ---------- wiring ---------- */
-  const on = function (id, fn) { $(id).addEventListener('click', function (e) { Sound.unlock(); Sound.play('ui'); fn(e); }); };
+  const on = function (id, fn) { $(id).addEventListener('click', function (e) { Sound.unlock(); Sound.play('ui'); fn(e); soundScene(); }); };
   on('btn-play', function () { loadLevel(nextLevel()); });
   on('btn-select', function () { show('chapters'); });
   on('btn-settings', function () { settingsFrom = 'home'; show('settings'); });
@@ -328,7 +366,7 @@
   document.addEventListener('backbutton', back, false);
 
   /* ---------- main loop ---------- */
-  let lastT = 0, artT = 0, homeT = -1;
+  let lastT = 0, artT = 0, homeT = -1, sceneT = 0;
   function frame(ts) {
     const t = ts / 1000, dt = Math.min(0.1, t - lastT); lastT = t;
     if (current === 'game' && G.S && !isOpen('loading')) {
@@ -340,12 +378,13 @@
       const rt = G.gt + (G.over || G.paused || G.auto ? 0 : G.acc), rc = (rt - G.reachT) / 0.55;
       fr.W = G.W; fr.S = S; fr.px = G.px; fr.crx = G.crx; fr.crMv = G.crMv; fr.now = rt; fr.pings = G.pings; fr.ripples = G.ripples; fr.threat = G.threat; fr.hunted = G.hunted && !S.won;
       fr.target = Sim.target(G.W, S); fr.label = G.label; fr.labelNo = G.labelNo; fr.arrive = G.arrive; fr.fade = G.fade; fr.useP = rc >= 0 && rc < 1 ? rc : -1;
-      fr.phase = G.pphase + (G.phase - G.pphase) * a; fr.phaseC = G.pphaseC + (G.phaseC - G.pphaseC) * a;
+      fr.phase = G.pphase + (G.phase - G.pphase) * a + G.po; fr.phaseC = G.pphaseC + (G.phaseC - G.pphaseC) * a + G.poC;
       if (!fr.crPhase || fr.crPhase.length !== S.cr.length) fr.crPhase = new Array(S.cr.length);
-      for (let i = 0; i < S.cr.length; i++) fr.crPhase[i] = G.pcrPhase[i] + (G.crPhase[i] - G.pcrPhase[i]) * a;
+      for (let i = 0; i < S.cr.length; i++) fr.crPhase[i] = G.pcrPhase[i] + (G.crPhase[i] - G.pcrPhase[i]) * a + G.cpo[i];
       view.draw(fr);
       if (isOpen('tutorial') && t - artT > 0.07) { artT = t; tutArt(t); }
     } else if (current === 'home' && !isOpen('loading') && t - artT > 0.08) { artT = t; homeArt(t); }
+    if (t - sceneT > 0.25) { sceneT = t; if (current !== 'game' || G.paused || G.over) soundScene(); if (current !== 'game' || G.paused) Sound.tick(0.25, 0, current !== 'game'); }
     requestAnimationFrame(frame);
   }
   function tutArt(t) {
@@ -386,6 +425,8 @@
       G.in.kr = G.in.kl = G.in.crouch = false; G.auto = false; const S = G.S;
       return { level: i + 1, won: S.won, dead: S.dead, t: S.t, su: S.su, det: S.det, stars: S.won ? Sim.stars(G.W, S) : 0, saved: save.stars[i] };
     };
-    window.HUSH_TEST = { G, view, fr, run, tick, begin, pause, show, save, persist, loadLevel, renderLevels, Sim, Sound, overlay, isOpen, current: function () { return current; }, nextLevel, unlockAll: function () { G.devUnlock = true; } };
+    /* runs one frame of the main loop with an exact time step, without scheduling the next one (deterministic animation tests) */
+    const advance = function (dt) { const raf = window.requestAnimationFrame; window.requestAnimationFrame = function () { return 0; }; try { frame((lastT + dt) * 1000); } finally { window.requestAnimationFrame = raf; } };
+    window.HUSH_TEST = { advance, G, view, fr, run, tick, begin, pause, show, save, persist, loadLevel, renderLevels, Sim, Sound, overlay, isOpen, current: function () { return current; }, nextLevel, unlockAll: function () { G.devUnlock = true; } };
   }
 })();

@@ -12,6 +12,10 @@ const Renderer = (function () {
   const seq = function (n, p) { return Math.max(0, Math.min(n - 1, Math.floor(p * n))); };
   const frac = function (v) { return v - Math.floor(v); };
   const ease = function (t) { return t * t * (3 - 2 * t); };
+  const approach = function (v, target, step) { return v < target ? Math.min(target, v + step) : Math.max(target, v - step); };
+  /* a walk loop played at `phase` cycles: the current frame, and how far the next frame is blended in (only over the last part of each
+     frame, so poses stay crisp and the motion between frames reads as continuous instead of stepping) */
+  function gait(n, phase) { const fp = frac(phase) * n, i = Math.floor(fp) % n, t = fp - Math.floor(fp); return { i, j: (i + 1) % n, b: t < 0.5 ? 0 : ease((t - 0.5) / 0.5), t }; }
 
   /* ---------- sprite blit (1:1 from a cached, pre-scaled sheet; whole device pixels) ---------- */
   function blit(c, name, fr, x, fy, dir, alpha, PM, mul, sx) {
@@ -278,26 +282,26 @@ const Renderer = (function () {
     /* ---------- creatures ---------- */
     function creatureView(i, c, x, f, now, dt) {
       const d = W.cdefs[i], S = f.S, mul = KIND_SCALE[d.t] || 1, moving = f.crMv[i];
-      const mvA = an.cm[i] = (an.cm[i] || 0) + ((moving ? 1 : 0) - (an.cm[i] || 0)) * Math.min(1, dt * 5);
+      const mvA = an.cm[i] = approach(an.cm[i] || 0, moving ? 1 : 0, dt / (moving ? 0.08 : 0.1)), mE = ease(mvA);
       const dirA = an.cf[i] === undefined ? c.dir : an.cf[i]; an.cf[i] = dirA + (c.dir - dirA) * Math.min(1, dt * 11);
       const fdir = an.cf[i] >= 0 ? 1 : -1, sx = Math.max(0.64, Math.abs(an.cf[i]));
       const dist = Math.abs(f.px - x), hunting = c.st === Sim_.HUNT, dead = S.dead;
-      let name = 'Monster_Roar', fr = 0, ov = null, ova = 0;
-      if (dead && hunting && dist < 1.8 && c.f === S.f) { name = 'Monster_Attack'; fr = seq(4, an.deadP); }
-      else if (c.st === Sim_.ROAM && c.seen > 0.02 && !hunting) { name = 'Monster_Roar'; fr = seq(3, c.seen * 0.999); }          // it stops and stares: R1 -> R3 as it makes up its mind
+      let name = 'Monster_Roar', fr = 0; const layers = [];
+      if (dead && hunting && dist < 1.8 && c.f === S.f) { name = 'Monster_Attack'; fr = seq(4, an.deadP); layers.push({ n: name, f: fr, a: 1 }); }
+      else if (c.st === Sim_.ROAM && c.seen > 0.02 && !hunting) { name = 'Monster_Roar'; fr = seq(3, c.seen * 0.999); layers.push({ n: name, f: fr, a: 1 }); }          // it stops and stares: R1 -> R3 as it makes up its mind
       else {
-        const run = Math.floor(frac(f.crPhase[i]) * 8) % 8;
-        if (mvA > 0.5) { name = 'Monster_Run'; fr = run; }
-        else { name = 'Monster_Roar'; fr = (c.st === Sim_.SEARCH || (hunting && !moving)) ? (Math.sin(now * 1.7 + i * 2) > 0.1 ? 1 : 0) : 0; }
+        const idleFr = (c.st === Sim_.SEARCH || (hunting && !moving)) ? (Math.sin(now * 1.7 + i * 2) > 0.1 ? 1 : 0) : 0, g = gait(8, f.crPhase[i]);
+        if (mE < 0.995) layers.push({ n: 'Monster_Roar', f: idleFr, a: 1 - mE });
+        if (mE > 0.005) { layers.push({ n: 'Monster_Run', f: g.i, a: mE * (1 - g.b) }); if (g.b > 0.02) layers.push({ n: 'Monster_Run', f: g.j, a: mE * g.b }); }
+        if (mE > 0.5) { name = 'Monster_Run'; fr = g.i; } else { name = 'Monster_Roar'; fr = idleFr; }
       }
-      return { name, fr, x, mul, fdir, sx, mv: mvA, hunting, c, d, i, dist, dead };
+      return { name, fr, layers, x, mul, fdir, sx, mv: mvA, hunting, c, d, i, dist, dead };
     }
     function drawCreature(v, alphaMul, now) {
       ctx.save();
       const px = sx_(v.x);
       if (!v.dead) { ctx.globalAlpha = 0.5 * alphaMul; ctx.drawImage(G.glowSprite('#000000'), px - PM * 1.1 * v.mul, FY - PM * 0.15, PM * 2.2 * v.mul, PM * 0.3); ctx.globalAlpha = 1; }
-      ctx.globalAlpha = alphaMul;
-      blit(ctx, v.name, v.fr, px, FY, v.fdir, 1, PM, v.mul, v.sx);
+      for (let k = 0; k < v.layers.length; k++) { const L = v.layers[k]; blit(ctx, L.n, L.f, px, FY, v.fdir, alphaMul * L.a, PM, v.mul, v.sx); }
       ctx.restore();
     }
 
@@ -306,29 +310,29 @@ const Renderer = (function () {
       const S = f.S, px = sx_(f.px) + (ox || 0), fy = FY + (oy || 0), face = an.face >= 0 ? 1 : -1, sq = Math.max(0.66, Math.abs(an.face)), mul = scl || 1;
       let used = null;
       if (S.dead && an.deadP >= 0 && G.ready('Survivor_Caught')) { blit(ctx, 'Survivor_Caught', seq(4, an.deadP), px, fy, face, alpha, PM, mul, sq); return { name: 'Survivor_Caught', fr: 0 }; }
-      const cr = ease(clamp(an.cr, 0, 1)), mv = an.mv;
-      const using = f.useP >= 0 && mv < 0.3 && cr < 0.35 && G.ready('Survivor_Use');
+      const cr = ease(clamp(an.cr, 0, 1)), mv = ease(clamp(an.mv, 0, 1));
+      const using = f.useP >= 0 && an.mv < 0.3 && cr < 0.35 && G.ready('Survivor_Use');
       if (using) { const fr = seq(4, f.useP); blit(ctx, 'Survivor_Use', fr, px, fy, face, alpha, PM, mul, sq); return { name: 'Survivor_Use', fr, useFr: fr }; }
-      const runF = Math.floor(frac(f.phase) * 9) % 9, crF = Math.floor(frac(f.phaseC) * 6) % 6;
-      /* a crouched figure and a standing one cross-fade; the moving frame fades over the planted one */
-      if (cr < 0.995) {
-        if (mv < 0.97) blit(ctx, 'Survivor_Run', 9, px, fy, face, alpha, PM, mul, sq);
-        if (mv > 0.02) blit(ctx, 'Survivor_Run', runF, px, fy, face, alpha * mv, PM, mul, sq);
-      }
-      if (cr > 0.005) {
-        if (mv < 0.97) blit(ctx, 'Survivor_CrouchWalk', 1, px, fy, face, alpha * cr, PM, mul, sq);
-        if (mv > 0.02) blit(ctx, 'Survivor_CrouchWalk', crF, px, fy, face, alpha * cr * mv, PM, mul, sq);
-      }
-      const a1 = G.SP.Survivor_Run && G.SP.Survivor_Run.m.pt, a2 = G.SP.Survivor_CrouchWalk && G.SP.Survivor_CrouchWalk.m.pt;
-      return { name: 'Survivor_Run', fr: mv > 0.5 ? runF : 9, crFr: mv > 0.5 ? crF : 1, cr };
+      const gs = gait(9, f.phase), gc = gait(6, f.phaseC), mC = G.SP.Survivor_CrouchWalk && G.SP.Survivor_CrouchWalk.m, idleC = mC ? mC.neutral : 1;
+      const layer = function (name, g, idle, a0) {                                  // one pose family: idle frame <-> blended walk frames
+        if (a0 < 0.01) return;
+        if (mv < 0.995) blit(ctx, name, idle, px, fy, face, a0 * (1 - mv), PM, mul, sq);
+        if (mv > 0.005) { blit(ctx, name, g.i, px, fy, face, a0 * mv * (1 - g.b), PM, mul, sq); if (g.b > 0.02) blit(ctx, name, g.j, px, fy, face, a0 * mv * g.b, PM, mul, sq); }
+      };
+      layer('Survivor_Run', gs, 9, alpha * (1 - cr));
+      layer('Survivor_CrouchWalk', gc, idleC, alpha * cr);
+      an.dbg = { mv: +mv.toFixed(2), run: gs.i, next: gs.j, b: +gs.b.toFixed(2), cr: +cr.toFixed(2) };
+      return { name: 'Survivor_Run', gs, gc, mv, cr, idleC };
     }
     function handPoint(f, info, px) {
       if (info.useFr !== undefined) { const q = G.SP.Survivor_Use.m.pt[info.useFr], kk = G.SP.Survivor_Use.m.k, fc = an.face >= 0 ? 1 : -1; return { x: px + fc * q[0] * kk * PM, y: FY + q[1] * kk * PM }; }
       if (info.name === 'Survivor_Caught') return { x: px, y: FY - PM * 1.1 };
-      const face = an.face >= 0 ? 1 : -1, SR = G.SP.Survivor_Run, SC = G.SP.Survivor_CrouchWalk; const k = K_SURV;
-      if (!SR || !SR.ok) return { x: px + face * 0.5 * PM, y: FY - 1.1 * PM };
-      const a = SR.m.pt[info.fr === undefined ? 9 : Math.min(info.fr, 9)], b = SC.m.pt[Math.min(info.crFr === undefined ? 1 : info.crFr, 5)], cr = info.cr || 0;
-      return { x: px + face * (a[0] * (1 - cr) + b[0] * cr) * k * PM, y: FY + (a[1] * (1 - cr) + b[1] * cr) * k * PM };
+      const face = an.face >= 0 ? 1 : -1, SR = G.SP.Survivor_Run, SC = G.SP.Survivor_CrouchWalk;
+      if (!SR || !SR.ok || !SC || !SC.ok) return { x: px + face * 0.5 * PM, y: FY - 1.1 * PM };
+      const mix = function (p, q, t) { return [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]; };
+      const walk = function (m, g, idle) { const w = mix(m.pt[g.i], m.pt[g.j], g.b); return mix(m.pt[idle], w, info.mv); };
+      const a = walk(SR.m, info.gs, 9), b = walk(SC.m, info.gc, info.idleC), p = mix(a, b, info.cr), k = SR.m.k;
+      return { x: px + face * p[0] * k * PM, y: FY + p[1] * k * PM };
     }
     /* procedural fallback if the sprites never load: a plain readable silhouette, so the game stays playable */
     function fallbackFigure(x, fy, dir, col, h, w) { ctx.fillStyle = col; ctx.fillRect(x - w / 2, fy - h, w, h); ctx.beginPath(); ctx.arc(x, fy - h - w * 0.35, w * 0.4, 0, TAU); ctx.fill(); }
@@ -367,7 +371,7 @@ const Renderer = (function () {
       const S = f.S, fl = W.floors[S.f];
       adapt();
       /* smoothed animation state */
-      an.cr += ((S.crouch ? 1 : 0) - an.cr) * Math.min(1, dt * 7); an.mv += ((S.moving ? 1 : 0) - an.mv) * Math.min(1, dt * 12);
+      an.cr = approach(an.cr, S.crouch ? 1 : 0, dt / 0.16); an.mv = approach(an.mv, S.moving ? 1 : 0, dt / (S.moving ? 0.06 : 0.07));   // time-based, so a dissolve always takes the same short time
       an.face += (S.dir - an.face) * Math.min(1, dt * 16);
       if (S.dead) { if (an.deadT === undefined) an.deadT = now; an.deadP = Math.min(0.999, (now - an.deadT) / 0.8); } else { an.deadT = undefined; an.deadP = -1; }
       /* the vent is its own little scene */
@@ -400,7 +404,7 @@ const Renderer = (function () {
       for (let i = 0; i < S.cr.length; i++) {
         const c = S.cr[i];
         if (c.busy > 0) { const cb = an['cb' + i] = Math.max(an['cb' + i] || 0, c.busy), cp = 1 - c.busy / cb, here = c.f === S.f && cp < 0.5, there = c.bf === S.f && cp >= 0.5;
-          if (here || there) { const v = creatureView(i, c, here ? c.x : c.bx, f, now, dt); v.mv = 1; v.name = 'Monster_Run'; v.fr = Math.floor(frac(now * 1.2) * 8); drawCreature(v, here ? 1 - cp * 2 : (cp - 0.5) * 2, now); } continue; }
+          if (here || there) { const v = creatureView(i, c, here ? c.x : c.bx, f, now, dt); v.mv = 1; v.layers = [{ n: 'Monster_Run', f: Math.floor(frac(now * 1.2) * 8), a: 1 }]; drawCreature(v, here ? 1 - cp * 2 : (cp - 0.5) * 2, now); } continue; }
         an['cb' + i] = 0; if (c.f !== S.f) continue;
         const x = f.crx[i]; if (Math.abs(x - an.camX) > half + 3) continue;
         const v = creatureView(i, c, x, f, now, dt); drawCreature(v, 1, now); seenList.push(v);
@@ -535,7 +539,7 @@ const Renderer = (function () {
       const t = performance.now(), d = t - lastWall; lastWall = t;
       if (d > 0 && d < 250) { slow = d > 26 ? slow + d : Math.max(0, slow - d * 1.5); if (slow > 2400 && quality < QUAL.length - 1 && t > qHold) { quality++; slow = 0; qHold = t + 3000; resize(); if (onQuality) onQuality(quality); } }
     }
-    return { resize, setLevel, reset, setBright, warm, draw, get quality() { return quality; }, set quality(q) { quality = clamp(q, 0, QUAL.length - 1); resize(); }, metrics() { return { PM, FY, Wpx, Hpx, dpr, quality }; },
+    return { resize, setLevel, reset, setBright, warm, draw, get quality() { return quality; }, set quality(q) { quality = clamp(q, 0, QUAL.length - 1); resize(); }, metrics() { return { PM, FY, Wpx, Hpx, dpr, quality }; }, debug: an,
       newFrame: function () { return { near: [], vis: [], cacheFloor: null }; } };
   }
 
