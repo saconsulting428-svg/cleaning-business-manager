@@ -208,7 +208,7 @@ const Renderer = (function () {
     let W = null, theme = 0, T = G.THEMES[0], E = null, seed = 1, level = 0;
     let quality = 0, dprCap = 3, slow = 0, lastWall = 0, qHold = 0;
     const an = { lead: 0, last: 0, layout: null, camX: 0, camF: -1, cr: 0, mv: 0, face: 1, cf: [], cm: [], door: {}, deadT: undefined, openCache: -1, lampT: 0, parts: [] };
-    const QUAL = [{ cap: 3, dk: 0.5, fog: 2, parts: 26, grain: 1 }, { cap: 2, dk: 0.4, fog: 1, parts: 10, grain: 0 }, { cap: 1.5, dk: 0.33, fog: 0, parts: 0, grain: 0 }];
+    const QUAL = [{ cap: 2.25, dk: 0.5, fog: 2, parts: 26, grain: 1 }, { cap: 2, dk: 0.4, fog: 1, parts: 10, grain: 0 }, { cap: 1.5, dk: 0.33, fog: 0, parts: 0, grain: 0 }];
     for (let i = 0; i < 28; i++) an.parts.push({ x: Math.random() * 8 - 4, y: Math.random() * 3.2, s: 0.4 + Math.random() * 0.8, p: Math.random() * 6.28 });
 
     function resize() {
@@ -222,7 +222,7 @@ const Renderer = (function () {
       an.vig = null;
     }
     function setLevel(Wd, chapter, idx) { W = Wd; theme = chapter; T = G.THEMES[theme]; seed = 17 + idx * 31; level = idx; E = G.env(theme, PM); reset(); }
-    function reset() { an.camF = -1; an.cr = 0; an.mv = 0; an.face = 1; an.cf = []; an.cm = []; an.door = {}; an.deadT = undefined; an.camX = W ? W.start.x : 0; an.lampT = 0; an.layout = null; an.hid = 0; an.last = 0; an.lead = 0; }
+    function reset() { an.camF = -1; an.cr = 0; an.mv = 0; an.face = 1; an.cf = []; an.cm = []; an.ch = []; an.mvHold = 0; an.door = {}; an.deadT = undefined; an.camX = W ? W.start.x : 0; an.lampT = 0; an.layout = null; an.hid = 0; an.last = 0; an.lead = 0; }
     function setBright(v) { bright = v ? 1 : 0; }
     function warm(f) { E = G.env(theme, PM); G.scaledSheet('Survivor_Run', K_SURV * PM); G.scaledSheet('Survivor_CrouchWalk', K_SURV * PM); if (W.cdefs.length) { G.scaledSheet('Monster_Run', K_MON * PM); G.scaledSheet('Monster_Roar', K_MON * PM); G.scaledSheet('Monster_Attack', K_MON * PM); } }
 
@@ -290,7 +290,8 @@ const Renderer = (function () {
     /* ---------- creatures ---------- */
     function creatureView(i, c, x, f, now, dt) {
       const d = W.cdefs[i], S = f.S, mul = KIND_SCALE[d.t] || 1, moving = f.crMv[i];
-      const mvA = an.cm[i] = approach(an.cm[i] || 0, moving ? 1 : 0, dt / (moving ? 0.08 : 0.1)), mE = ease(mvA);
+      an.ch = an.ch || []; an.ch[i] = moving ? 0.2 : Math.max(0, (an.ch[i] || 0) - dt); const mOn = moving || an.ch[i] > 0;
+      const mvA = an.cm[i] = approach(an.cm[i] || 0, mOn ? 1 : 0, dt / (mOn ? 0.07 : 0.09)), mE = ease(mvA);
       an.cf[i] = c.dir;
       const fdir = an.cf[i] >= 0 ? 1 : -1, sx = Math.max(0.64, Math.abs(an.cf[i]));
       const dist = Math.abs(f.px - x), hunting = c.st === Sim_.HUNT, dead = S.dead;
@@ -379,7 +380,8 @@ const Renderer = (function () {
       const S = f.S, fl = W.floors[S.f];
       adapt();
       /* smoothed animation state */
-      an.cr = approach(an.cr, S.crouch ? 1 : 0, dt / 0.16); an.mv = approach(an.mv, S.moving ? 1 : 0, dt / (S.moving ? 0.06 : 0.07));   // time-based, so a dissolve always takes the same short time
+      an.cr = approach(an.cr, S.crouch ? 1 : 0, dt / 0.16); an.mvHold = S.moving ? 0.12 : Math.max(0, (an.mvHold || 0) - dt); const mvOn = S.moving || an.mvHold > 0;      // a one-tick pause (direction change, touch dead-zone) must not start a stop/start dissolve
+      an.mv = approach(an.mv, mvOn ? 1 : 0, dt / (mvOn ? 0.06 : 0.07));   // time-based, so a dissolve always takes the same short time
       an.face = S.dir;                                                                       // turning is an instant flip: the squash-turn made a ghosted, glitchy frame
       if (S.dead) { if (an.deadT === undefined) an.deadT = now; an.deadP = Math.min(0.999, (now - an.deadT) / 0.8); } else { an.deadT = undefined; an.deadP = -1; }
       /* the vent is its own little scene */

@@ -19,8 +19,8 @@ function bot(level, plan, trials) {
 }
 const R = { mx: 1 }, Lf = { mx: -1 }, cR = { mx: 1, crouch: true };
 const plans = {
-  /* 8 Bait: ping from the right of the first locker, run to the far locker, let it walk past, leave behind it, creep away, then run */
-  8: c => { c.until(() => c.S.x >= 17.1, R); c.react(); c.tap('ping'); c.react(); c.until(() => Math.abs(c.S.x - 22.5) < 0.5, R); c.tap('use'); c.until(() => c.c().x < 19.5 && c.c().st !== 0 || c.S.dead, {}, 900); c.react(); c.tap('use'); c.hold(cR, 30); c.until(() => c.S.won, R, 400); },
+  /* 8 Bait: ping from the left of the locker, step into the locker, let the guard walk past to the sound, leave behind it, creep, run */
+  8: c => { c.until(() => c.S.x >= 11.0, R); c.react(); c.tap('ping'); c.react(); c.until(() => Math.abs(c.S.x - 15.5) < 0.5, R); c.tap('use'); c.until(() => c.c().x < 13 || c.S.dead, {}, 1200); c.react(); c.tap('use'); c.hold(cR, 24); c.until(() => c.S.won, R, 600); },
   /* 11 Static: press the intercom, step into the locker, let the guard go to the speaker, leave, run for the exit */
   11: c => { c.until(() => c.S.x >= 10.4, R); c.react(); c.tap('use'); c.until(() => Math.abs(c.S.x - 15.5) < 0.5, R); c.tap('use'); c.until(() => c.c().x < 13 || c.S.dead, {}, 900); c.react(); c.tap('use'); c.hold(cR, 24); c.until(() => c.S.won, R, 900); },
   /* 16 Feedback: intercom, locker, guard leaves its post; fetch the card, up the stairs, unlock, out */

@@ -16,11 +16,15 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright');
       let jump = 0; for (let i = 0; i < diff.length; i++) { const a = Math.abs(diff[i]); if (a > jump) jump = a; }
       return { rmsdB: +(20 * Math.log10(Math.sqrt(ss / n) + 1e-12)).toFixed(1), peakdB: +(20 * Math.log10(pk + 1e-12)).toFixed(1), spikes, windows: rms.length, ratio: +(mx / med).toFixed(1), jumpOverRms: +(jump / (Math.sqrt(ss / n) + 1e-9)).toFixed(1) };
     };
-    const render = async (setup, secs) => { const off = new OfflineAudioContext(1, SR * secs, SR); Sound.useContext(off); Sound.set('sound', true); Sound.set('music', true); Sound.set('vol', 0.8); Sound.set('mvol', 0.6); Sound.unlock(); setup(Sound._loops()); const buf = await off.startRendering(); return analyse(buf.getChannelData(0).slice(SR * 1)); };
+    const render = async (setup, secs, lightMode) => { const off = new OfflineAudioContext(1, SR * secs, SR); Sound.useContext(off, lightMode); Sound.set('sound', true); Sound.set('music', true); Sound.set('vol', 0.8); Sound.set('mvol', 0.6); Sound.unlock(); setup(Sound._loops()); const buf = await off.startRendering(); return analyse(buf.getChannelData(0).slice(SR * 1)); };
     out.silence = await render(() => {}, 4);
-    for (const k of ['vent', 'hum', 'drone', 'tens', 'gen']) out[k] = await render(L => { L[k].gain.value = k === 'gen' ? 0.34 : k === 'tens' ? 0.1 : 0.05; if (k === 'tens') L.tensF.frequency.value = 400; }, 8);
-    out.scene_calm = await render(() => scene({ chapter: 0, threat: 0 }), 10);
-    out.scene_hunted = await render(() => scene({ chapter: 1, threat: 1, hunted: true, gen: 0.5 }), 10);
+    for (const lm of [false, true]) {
+      const tag = lm ? 'light' : 'full';
+      out[tag + ' calm'] = await render(() => scene({ chapter: 0, threat: 0 }), 10, lm);
+      out[tag + ' near'] = await render(() => scene({ chapter: 1, threat: 0.8 }), 10, lm);
+      out[tag + ' hunted+gen'] = await render(() => scene({ chapter: 2, threat: 1, hunted: true, gen: 0.8, genPan: 0.3 }), 10, lm);
+      out[tag + ' menu'] = await render(() => scene({ menu: true }), 6, lm);
+    }
     return out;
   });
   for (const [k, v] of Object.entries(res)) console.log(k.padEnd(14), JSON.stringify(v));

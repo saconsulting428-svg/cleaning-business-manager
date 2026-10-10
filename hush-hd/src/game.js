@@ -15,7 +15,7 @@
   const fr = view.newFrame();
 
   /* ---------- save data (same key and shape as the original game, so progress carries over) ---------- */
-  const save = { v: 1, stars: [], best: [], seen: {}, sound: true, music: true, vibe: true, vol: 80, mvol: 60, bright: 0, gfx: 'auto' };
+  const save = { v: 1, stars: [], best: [], seen: {}, sound: true, music: true, vibe: true, vol: 80, mvol: 60, bright: 0, gfx: 'auto', aq: 'auto' };
   (function () {
     try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s && s.v === 1) for (const k in s) save[k] = s[k]; } catch (e) { /* fresh save */ }
     for (let i = 0; i < parsed.length; i++) { save.stars[i] = save.stars[i] || 0; save.best[i] = save.best[i] || null; }
@@ -40,7 +40,7 @@
     sonar:    { title: 'Use sonar wisely', kind: 'sonar', text: 'Sonar reveals your surroundings — but the creature can hear it.' },
     crouch:   { title: 'Stay low', kind: 'card', crouch: 1, text: 'Crouching is silent and makes you much harder to see. It is also slow.' },
     hide:     { title: 'Hide', kind: 'card', text: 'Step into a locker and it will walk straight past. It does not work if it is already chasing you.' },
-    bait:     { title: 'Bait', kind: 'sonar', text: 'Every sound draws it to where the sound was made. That includes your sonar. Be somewhere else when it arrives.' },
+    bait:     { title: 'Bait', kind: 'sonar', text: 'Every sound draws it to where the sound was made. That includes your sonar. Ping from a spot BEHIND a locker, then hide in the locker: it walks past you to the sound, and the way out is open.' },
     radio:    { title: 'Intercom', kind: 'card', text: 'The switch plays a loud call from a speaker somewhere else. It will go and look.' },
     gen:      { title: 'Generator', kind: 'card', text: 'Powered doors and exits need the generator. It roars for several seconds when it starts.' },
     listener: { title: 'The Listener', kind: 'card', mk: 'listener', text: 'It is almost blind but hears ordinary footsteps from far away. Crouch whenever it is near.' }
@@ -257,7 +257,7 @@
     if (name !== 'game') hideOverlays();
     if (name === 'home') { const t = total(); $('btn-play').lastElementChild.textContent = t ? 'Continue' : 'Play'; $('home-foot').textContent = t ? t + ' / ' + parsed.length * 3 + ' STARS' : 'SOME NOISES SHOULDN\'T BE MADE...'; muteIcon(); homeT = -1; }
     if (name === 'chapters') renderChapters();
-    if (name === 'settings') { setBright(save.bright || 0, true); setGfxUi(); $('set-sound').checked = save.sound; $('set-music').checked = save.music; $('set-vibe').checked = save.vibe; $('set-vol').value = save.vol; $('set-mvol').value = save.mvol; }
+    if (name === 'settings') { setBright(save.bright || 0, true); setGfxUi(); setAqUi(); $('set-sound').checked = save.sound; $('set-music').checked = save.music; $('set-vibe').checked = save.vibe; $('set-vol').value = save.vol; $('set-mvol').value = save.mvol; }
   }
   const overlay = function (n, on) { $('ov-' + n).classList.toggle('show', on); };
   const hideOverlays = function () { ['tutorial', 'pause', 'complete', 'caught', 'confirm', 'loading'].forEach(function (n) { overlay(n, false); }); };
@@ -294,9 +294,11 @@
   $('level-grid').addEventListener('click', function (e) { const b = e.target.closest('.lvl'); if (!b) return; Sound.unlock(); if (b.classList.contains('locked')) { Sound.play('denied'); return; } Sound.play('ui'); loadLevel(+b.getAttribute('data-l')); });
   function setOpt(k, v) { save[k] = v; persist(); applyAudio(); }
   function setBright(v, quiet) { save.bright = v; view.setBright(v); Array.prototype.forEach.call($('set-bright').children, function (b) { b.classList.toggle('on', +b.getAttribute('data-v') === v); }); if (!quiet) persist(); }
+  function setAqUi() { Array.prototype.forEach.call($('set-aq').children, function (b) { b.classList.toggle('on', b.getAttribute('data-v') === String(save.aq || 'auto')); }); }
   function setGfxUi() { Array.prototype.forEach.call($('set-gfx').children, function (b) { b.classList.toggle('on', b.getAttribute('data-v') === String(save.gfx)); }); }
   $('set-bright').addEventListener('click', function (e) { const v = e.target.getAttribute('data-v'); if (v !== null) { Sound.play('ui'); setBright(+v); } });
   $('set-gfx').addEventListener('click', function (e) { const v = e.target.getAttribute('data-v'); if (v !== null) { Sound.play('ui'); save.gfx = v === 'auto' ? 'auto' : +v; persist(); applyGfx(); setGfxUi(); } });
+  $('set-aq').addEventListener('click', function (e) { const v = e.target.getAttribute('data-v'); if (v !== null) { save.aq = v; persist(); setAqUi(); Sound.setQuality(v); Sound.unlock(); applyAudio(); Sound.play('ui'); } });
   $('set-sound').addEventListener('change', function (e) { setOpt('sound', e.target.checked); Sound.play('ui'); });
   $('set-music').addEventListener('change', function (e) { Sound.unlock(); setOpt('music', e.target.checked); });
   $('set-vibe').addEventListener('change', function (e) { setOpt('vibe', e.target.checked); if (e.target.checked) Sound.buzz(30); });
@@ -399,7 +401,7 @@
   function boot() {
     show('home'); overlay('loading', true); $('load-bar').style.width = '10%';
     const finish = function () {
-      $('load-bar').style.width = '100%'; G.ready = true; applyAudio(); applyGfx(); view.setBright(save.bright || 0);
+      $('load-bar').style.width = '100%'; G.ready = true; Sound.setQuality(save.aq || 'auto'); applyAudio(); applyGfx(); view.setBright(save.bright || 0);
       Renderer.poster($('load-art'), { chapter: 0, pm: $('load-art').getBoundingClientRect().height / 6, fy: 0.62, creature: false, sx: -0.5, seed: 14, dark: 0.82, fadeBottom: 0.4 });
       requestAnimationFrame(function () { requestAnimationFrame(function () { overlay('loading', false); }); });
     };

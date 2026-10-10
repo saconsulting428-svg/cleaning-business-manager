@@ -7,27 +7,33 @@ const Sound = (function () {
   'use strict';
   let ac = null, sfx = null, mus = null, revIn = null, nbuf = null, voices = 0, loops = null, started = false, real = true;
   const st = { sound: true, music: true, vibe: true, vol: 0.8, mvol: 0.6 };
-  const MAX_VOICES = 34;
+  let MAX_VOICES = 30, light = false, qualityPref = 'auto';
+  /* 'light' (phones and weak devices): no convolution reverb, fewer oscillators, a high-pass above the range small speakers can reproduce (below it they only rattle and distort) */
+  function decideLight() { if (qualityPref === 'light') return true; if (qualityPref === 'full') return false; try { const ua = navigator.userAgent || ''; return /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (navigator.hardwareConcurrency || 8) <= 4; } catch (e) { return false; } }
   const amb = { drip: 2, creak: 7, knock: 14, thump: 20, groan: 11, breath: 6 };
 
   /* ---------- graph ---------- */
-  function build(a) {
-    ac = a; sfx = ac.createGain(); mus = ac.createGain(); revIn = ac.createGain(); revIn.gain.value = 1;
-    const lp = ac.createBiquadFilter(), cmp = ac.createDynamicsCompressor(), clip = ac.createWaveShaper(), out = ac.createGain(), rev = ac.createConvolver(), revOut = ac.createGain();
-    lp.type = 'lowpass'; lp.frequency.value = 9000; lp.Q.value = 0.5;
+  function build(a, forceLight) {
+    light = forceLight === undefined ? decideLight() : forceLight; MAX_VOICES = light ? 16 : 30;
+    ac = a; sfx = ac.createGain(); mus = ac.createGain(); revIn = null;
+    const lp = ac.createBiquadFilter(), hp = ac.createBiquadFilter(), cmp = ac.createDynamicsCompressor(), clip = ac.createWaveShaper(), out = ac.createGain();
+    lp.type = 'lowpass'; lp.frequency.value = light ? 7500 : 9000; lp.Q.value = 0.5; hp.type = 'highpass'; hp.frequency.value = light ? 95 : 48; hp.Q.value = 0.6;
     cmp.threshold.value = -18; cmp.knee.value = 20; cmp.ratio.value = 6; cmp.attack.value = 0.003; cmp.release.value = 0.2;
     const N = 2048, curve = new Float32Array(N); for (let i = 0; i < N; i++) { const x = i / (N - 1) * 2 - 1; curve[i] = Math.tanh(x * 1.6) / Math.tanh(1.6); }
-    clip.curve = curve; clip.oversample = '2x'; out.gain.value = 0.86;
+    clip.curve = curve; clip.oversample = light ? 'none' : '2x'; out.gain.value = light ? 0.74 : 0.82;
     let seed = 777; const rnd = function () { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-    const len = Math.floor(ac.sampleRate * 2.6), ir = ac.createBuffer(2, len, ac.sampleRate);               // concrete hall: dense decaying noise, darker as it fades
-    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); let y = 0; for (let i = 0; i < len; i++) { const t = i / len, k = 0.55 - 0.42 * t; y += ((rnd() * 2 - 1) - y) * k; d[i] = y * Math.pow(1 - t, 2.4) * (i < 400 ? i / 400 : 1); } }
-    rev.buffer = ir; revOut.gain.value = 0.55;
-    sfx.connect(lp); mus.connect(lp); revIn.connect(rev); rev.connect(revOut); revOut.connect(lp); lp.connect(cmp); cmp.connect(clip); clip.connect(out); out.connect(ac.destination);
+    if (!light) {                                                                                       // concrete hall reverb (skipped on light devices)
+      const rev = ac.createConvolver(), revOut = ac.createGain(); revIn = ac.createGain(); revIn.gain.value = 1;
+      const len = Math.floor(ac.sampleRate * 1.8), ir = ac.createBuffer(2, len, ac.sampleRate);
+      for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); let y = 0; for (let i = 0; i < len; i++) { const t = i / len, k = 0.55 - 0.42 * t; y += ((rnd() * 2 - 1) - y) * k; d[i] = y * Math.pow(1 - t, 2.4) * (i < 400 ? i / 400 : 1); } }
+      rev.buffer = ir; revOut.gain.value = 0.55; revIn.connect(rev); rev.connect(revOut); revOut.connect(lp);
+    }
+    sfx.connect(lp); mus.connect(lp); lp.connect(hp); hp.connect(cmp); cmp.connect(clip); clip.connect(out); out.connect(ac.destination);
     nbuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate); const d = nbuf.getChannelData(0); let s2 = 12345; for (let i = 0; i < d.length; i++) { s2 = (s2 * 1664525 + 1013904223) >>> 0; d[i] = s2 / 2147483648 - 1; }
     apply();
   }
   function ctx() {
-    if (!ac) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; try { build(new C()); } catch (e) { return null; } }
+    if (!ac) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; try { let a; try { a = new C({ latencyHint: 0.05 }); } catch (e1) { a = new C(); } build(a); } catch (e) { return null; } }
     if (real && (ac.state === 'suspended' || ac.state === 'interrupted')) { try { ac.resume(); } catch (e) { /* needs a gesture */ } }
     return ac;
   }
@@ -37,7 +43,7 @@ const Sound = (function () {
     let out = g;
     if (o.pan !== undefined && ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, o.pan)); g.connect(p); out = p; }
     out.connect(o.dest || sfx);
-    if (o.wet) { const s = ac.createGain(); s.gain.value = o.wet; out.connect(s); s.connect(revIn); }
+    if (o.wet && revIn) { const s = ac.createGain(); s.gain.value = o.wet; out.connect(s); s.connect(revIn); }
   }
 
   /* ---------- voices ---------- */
@@ -133,43 +139,52 @@ const Sound = (function () {
   };
 
   /* ---------- continuous layers ---------- */
+  /* Each layer ends in its own gain bus. A bus that is silent is disconnected from the output (the browser then stops computing everything
+     feeding it), so quiet layers cost nothing. */
+  const dest = {};
   function startLoops() {
     const a = ctx(); if (!a || started) return; started = true;
-    const L = loops = {}, src = function () { const s = a.createBufferSource(); s.buffer = nbuf; s.loop = true; return s; };
-    const bus = function (dest, v) { const g = a.createGain(); g.gain.value = v; g.connect(dest); return g; };
-    /* ventilation bed: broad low noise with a slow breathing swell */
-    const n1 = src(), f1 = a.createBiquadFilter(), f2 = a.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 170; f1.Q.value = 0.5; f2.type = 'lowpass'; f2.frequency.value = 420;
-    L.vent = bus(mus, 0.0); const swell = a.createGain(); swell.gain.value = 1; n1.connect(f1); f1.connect(f2); f2.connect(swell); swell.connect(L.vent); n1.start(0, 0.3);
-    const sw = a.createOscillator(), sg = a.createGain(); sw.frequency.value = 0.045; sg.gain.value = 0.3; sw.connect(sg); sg.connect(swell.gain); sw.start();       // the swell modulates its own stage (1 +- 0.3), never the level control
-    /* electrical mains hum: 50 Hz and its harmonics, a touch of beating */
-    L.hum = bus(mus, 0.0); [[50, 'sine', 0.55], [100.4, 'triangle', 0.25], [150.2, 'sine', 0.12], [250, 'sine', 0.04]].forEach(function (h) { const o = a.createOscillator(), g = a.createGain(); o.type = h[1]; o.frequency.value = h[0]; g.gain.value = h[2]; o.connect(g); g.connect(L.hum); o.start(); });
+    const L = loops = { on: {}, offAt: {} }, src = function () { const s = a.createBufferSource(); s.buffer = nbuf; s.loop = true; return s; };
+    const bus = function (name, d, v) { const g = a.createGain(); g.gain.value = v; dest[name] = d; L[name] = g; return g; };
+    /* ventilation bed: broad low noise with a slow breathing swell (on its own stage: it must never modulate the level control) */
+    const n1 = src(), f1 = a.createBiquadFilter(), f2 = a.createBiquadFilter(), swell = a.createGain(); f1.type = 'bandpass'; f1.frequency.value = 190; f1.Q.value = 0.5; f2.type = 'lowpass'; f2.frequency.value = 420; swell.gain.value = 1;
+    n1.connect(f1); f1.connect(f2); f2.connect(swell); swell.connect(bus('vent', mus, 0)); n1.start(0, 0.3);
+    const sw = a.createOscillator(), sg = a.createGain(); sw.frequency.value = 0.045; sg.gain.value = 0.3; sw.connect(sg); sg.connect(swell.gain); sw.start();
+    /* electrical mains hum (above the high-pass: 100 Hz and up carry it on small speakers) */
+    const hum = bus('hum', mus, 0); (light ? [[100.4, 'triangle', 0.5], [150.2, 'sine', 0.2]] : [[50, 'sine', 0.55], [100.4, 'triangle', 0.25], [150.2, 'sine', 0.12], [250, 'sine', 0.04]]).forEach(function (h) { const o = a.createOscillator(), g = a.createGain(); o.type = h[1]; o.frequency.value = h[0]; g.gain.value = h[2]; o.connect(g); g.connect(hum); o.start(); });
     /* deep room tone */
-    L.drone = bus(mus, 0.0); const lf = a.createBiquadFilter(); lf.type = 'lowpass'; lf.frequency.value = 150; lf.connect(L.drone); [55, 55.8, 82.6].forEach(function (f, i) { const o = a.createOscillator(), g = a.createGain(); o.type = 'triangle'; o.frequency.value = f; g.gain.value = i < 2 ? 0.5 : 0.18; o.connect(g); g.connect(lf); o.start(); });
-    /* tension: two low saws a tritone apart, brightening and speeding up with danger */
-    L.tens = bus(mus, 0.0); const tf = a.createBiquadFilter(); tf.type = 'lowpass'; tf.frequency.value = 180; tf.Q.value = 3; tf.connect(L.tens); L.tensF = tf;
-    [[46.2, 0], [65.4, 0.6], [92.4, 0.1]].forEach(function (h) { const o = a.createOscillator(), g = a.createGain(); o.type = 'sawtooth'; o.frequency.value = h[0]; g.gain.value = h[1] || 0.5; o.connect(g); g.connect(tf); o.start(); });
+    const drone = bus('drone', mus, 0), lf = a.createBiquadFilter(); lf.type = 'lowpass'; lf.frequency.value = light ? 260 : 150; lf.connect(drone);
+    (light ? [[110, 0.4], [110.9, 0.4]] : [[55, 0.5], [55.8, 0.5], [82.6, 0.18]]).forEach(function (h) { const o = a.createOscillator(), g = a.createGain(); o.type = 'triangle'; o.frequency.value = h[0]; g.gain.value = h[1]; o.connect(g); g.connect(lf); o.start(); });
+    /* tension: low saws a tritone apart, brightening and speeding up with danger */
+    const tens = bus('tens', mus, 0), tf = a.createBiquadFilter(); tf.type = 'lowpass'; tf.frequency.value = 180; tf.Q.value = 2; tf.connect(tens); L.tensF = tf;
+    (light ? [[92.4, 0.5], [130.8, 0.4]] : [[46.2, 0.5], [65.4, 0.6], [92.4, 0.1]]).forEach(function (h) { const o = a.createOscillator(), g = a.createGain(); o.type = 'sawtooth'; o.frequency.value = h[0]; g.gain.value = h[1]; o.connect(g); g.connect(tf); o.start(); });
     const tl = a.createOscillator(), tg = a.createGain(); tl.frequency.value = 0.3; tg.gain.value = 60; tl.connect(tg); tg.connect(tf.frequency); tl.start(); L.tensLfo = tl;
     /* generator running (spatial) */
-    L.gen = bus(sfx, 0.0); L.genPan = a.createStereoPanner ? a.createStereoPanner() : null; const gl = a.createBiquadFilter(); gl.type = 'lowpass'; gl.frequency.value = 220;
-    const go = a.createOscillator(), gg = a.createGain(); go.type = 'sawtooth'; go.frequency.value = 48; gg.gain.value = 0.5; go.connect(gg); gg.connect(gl);
-    const go2 = a.createOscillator(), gg2 = a.createGain(); go2.type = 'square'; go2.frequency.value = 96.5; gg2.gain.value = 0.12; go2.connect(gg2); gg2.connect(gl); go.start(); go2.start();
+    const gen = bus('gen', sfx, 0); L.genPan = a.createStereoPanner ? a.createStereoPanner() : null; const gl = a.createBiquadFilter(); gl.type = 'lowpass'; gl.frequency.value = light ? 320 : 220;
+    const go = a.createOscillator(), gg = a.createGain(); go.type = 'sawtooth'; go.frequency.value = light ? 96 : 48; gg.gain.value = 0.5; go.connect(gg); gg.connect(gl); go.start();
+    if (!light) { const go2 = a.createOscillator(), gg2 = a.createGain(); go2.type = 'square'; go2.frequency.value = 96.5; gg2.gain.value = 0.12; go2.connect(gg2); gg2.connect(gl); go2.start(); }
     const gn = src(), gnf = a.createBiquadFilter(), gng = a.createGain(); gnf.type = 'lowpass'; gnf.frequency.value = 300; gng.gain.value = 0.35; gn.connect(gnf); gnf.connect(gng); gng.connect(gl); gn.start(0, 0.7);
     const gt = a.createOscillator(), gtg = a.createGain(); gt.frequency.value = 11; gtg.gain.value = 0.3; gt.connect(gtg); gtg.connect(gg.gain); gt.start();
-    if (L.genPan) { gl.connect(L.genPan); L.genPan.connect(L.gen); } else gl.connect(L.gen);
+    if (L.genPan) { gl.connect(L.genPan); L.genPan.connect(gen); } else gl.connect(gen);
   }
   const target = function (p, v, tc) { if (p && ac) p.setTargetAtTime(v, ac.currentTime, tc || 0.25); };
+  function layer(name, v, tc) {                                                    // fade a layer to level v; connect it while audible, disconnect it a moment after it has gone silent
+    const L = loops, g = L[name], now = ac.currentTime; target(g.gain, v, tc);
+    if (v > 0.002) { delete L.offAt[name]; if (!L.on[name]) { g.connect(dest[name]); L.on[name] = true; } }
+    else if (L.on[name]) { if (L.offAt[name] === undefined) L.offAt[name] = now + 1.6; else if (now > L.offAt[name]) { g.disconnect(); L.on[name] = false; delete L.offAt[name]; } }
+  }
   /* scene: what the world sounds like right now. Called every tick; everything moves smoothly toward it. */
   function scene(o) {
     if (!ac || !loops) return; const L = loops, chap = o.chapter || 0, inGame = !o.menu, k = o.paused ? 0.35 : 1;
-    target(L.vent.gain, (inGame ? 0.05 + 0.01 * chap : 0.025) * k); target(L.hum.gain, (inGame ? 0.032 + 0.008 * chap : 0.02) * k); target(L.drone.gain, (inGame ? 0.07 + 0.015 * chap : 0.05) * k);
+    layer('vent', (inGame ? 0.05 + 0.01 * chap : 0.025) * k); layer('hum', (inGame ? 0.032 + 0.008 * chap : 0.02) * k); layer('drone', (inGame ? 0.07 + 0.015 * chap : 0.05) * k);
     const th = Math.max(0, Math.min(1, o.threat || 0)), tg = (o.hunted ? 0.11 : 0.1 * th * th) * k;
-    target(L.tens.gain, inGame ? tg : 0, 0.4); target(L.tensF.frequency, 160 + 420 * (o.hunted ? 1 : th), 0.5); if (L.tensLfo) target(L.tensLfo.frequency, o.hunted ? 2.4 : 0.3 + th * 1.2, 0.5);
-    target(L.gen.gain, inGame ? (o.gen || 0) * 0.2 * k : 0, 0.3); if (L.genPan) target(L.genPan.pan, o.genPan || 0, 0.2);
+    layer('tens', inGame ? tg : 0, 0.4); if (L.on.tens) { target(L.tensF.frequency, 160 + 420 * (o.hunted ? 1 : th), 0.5); target(L.tensLfo.frequency, o.hunted ? 2.4 : 0.3 + th * 1.2, 0.5); }
+    layer('gen', inGame ? (o.gen || 0) * 0.2 * k : 0, 0.3); if (L.genPan && L.on.gen) target(L.genPan.pan, o.genPan || 0, 0.2);
   }
   /* distant sounds of the facility that make the dark feel inhabited; chapter 3 is the worst */
   const ambT = {};
   function ambientTick(dt, chapter, quiet) {
-    if (!ac || !st.music || quiet) return; chapter = chapter || 0;
+    if (!ac || !st.music || quiet || voices > 10) return; chapter = chapter || 0;
     for (const k in amb) { if (ambT[k] === undefined) ambT[k] = amb[k] * (0.4 + Math.random()); ambT[k] -= dt; if (ambT[k] > 0) continue;
       const mean = amb[k] * (k === 'drip' ? 1 : k === 'knock' ? 1.6 - 0.3 * chapter : k === 'thump' ? 1.4 - 0.25 * chapter : 1 - 0.1 * chapter); ambT[k] = mean * (0.6 + Math.random() * 0.8);
       if (k === 'knock' && chapter < 1) continue; if (k === 'thump' && chapter < 2) continue; if (k === 'groan' && chapter < 1) continue;
@@ -183,7 +198,10 @@ const Sound = (function () {
     /* the ping briefly pulls the ambience down so the information it carries is heard */
     duck: function () { if (!ac) return; const g = mus.gain, t = ac.currentTime, v = st.music ? st.mvol * 0.55 : 0; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(v * 0.45, t + 0.04); g.linearRampToValueAtTime(v, t + 1.1); },
     suspend: function () { if (ac && real && ac.state === 'running') ac.suspend(); }, resume: function () { if (ac && real && ac.state !== 'running') { try { ac.resume(); } catch (e) { /* ok */ } } },
-    useContext: function (a) { real = false; ac = null; voices = 0; started = false; loops = null; for (const k in lastAt) delete lastAt[k]; for (const k in ambT) delete ambT[k]; build(a); },
+    useContext: function (a, lightMode) { real = false; ac = null; voices = 0; started = false; loops = null; for (const k in lastAt) delete lastAt[k]; for (const k in ambT) delete ambT[k]; build(a, !!lightMode); },
+    /* 'auto' | 'full' | 'light'. Rebuilds the audio graph (a running context is closed). */
+    setQuality: function (q) { qualityPref = q; if (ac && real) { try { ac.close(); } catch (e) { /* ok */ } ac = null; started = false; loops = null; voices = 0; } },
+    isLight: function () { return light; },
     _loops: function () { return loops; }, _cues: Object.keys(S)
   };
 })();
