@@ -22,23 +22,29 @@ const Rig = (function () {
 
   /* ---------- painting helpers ---------- */
   function shade(col, k) { return 'rgb(' + clamp(Math.round(col[0] * k), 0, 255) + ',' + clamp(Math.round(col[1] * k), 0, 255) + ',' + clamp(Math.round(col[2] * k), 0, 255) + ')'; }
-  /* a tapered limb: lit on its upper/front edge, dark on the lower/back edge */
+  /* a tapered limb, lit from above/front: dark core shadow on the underside, soft mid, a bright edge on top, and a few cloth creases */
   function limb(c, x1, y1, x2, y2, w1, w2, col, k) {
-    const dx = x2 - x1, dy = y2 - y1, l = Math.hypot(dx, dy) || 1e-6, nx = -dy / l, ny = dx / l;
-    const g = c.createLinearGradient(x1 + nx * w1, y1 + ny * w1, x1 - nx * w1, y1 - ny * w1);
-    g.addColorStop(0, shade(col, 1.45 * k)); g.addColorStop(0.35, shade(col, 1.05 * k)); g.addColorStop(1, shade(col, 0.45 * k));
+    const dx = x2 - x1, dy = y2 - y1, l = Math.hypot(dx, dy) || 1e-6, nx = -dy / l, ny = dx / l, wm = (w1 + w2) / 2;
+    const g = c.createLinearGradient(x1 + nx * wm, y1 + ny * wm, x1 - nx * wm, y1 - ny * wm);
+    g.addColorStop(0, shade(col, 1.25 * k)); g.addColorStop(0.18, shade(col, 1.0 * k)); g.addColorStop(0.62, shade(col, 0.55 * k)); g.addColorStop(1, shade(col, 0.22 * k));
     c.fillStyle = g; c.beginPath(); c.moveTo(x1 + nx * w1, y1 + ny * w1); c.lineTo(x2 + nx * w2, y2 + ny * w2); c.lineTo(x2 - nx * w2, y2 - ny * w2); c.lineTo(x1 - nx * w1, y1 - ny * w1); c.closePath(); c.fill();
     c.beginPath(); c.arc(x1, y1, w1, 0, TAU); c.arc(x2, y2, w2, 0, TAU); c.fill();
+    /* creases */
+    c.strokeStyle = 'rgba(0,0,0,0.28)'; c.lineWidth = Math.max(0.006, wm * 0.09); c.lineCap = 'round';
+    for (let i = 1; i < 4; i++) { const u = 0.18 + i * 0.2, cx = x1 + dx * u, cy = y1 + dy * u, w = lerp(w1, w2, u); c.beginPath(); c.moveTo(cx - nx * w * 0.2, cy - ny * w * 0.2); c.lineTo(cx - nx * w * 0.95 + dx * 0.04, cy - ny * w * 0.95 + dy * 0.04); c.stroke(); }
   }
   function blob(c, x, y, rx, ry, rot, col, k) {
-    const g = c.createRadialGradient(x - rx * 0.3, y + ry * 0.35, 0, x, y, Math.max(rx, ry) * 1.1); g.addColorStop(0, shade(col, 1.5 * k)); g.addColorStop(0.6, shade(col, 0.95 * k)); g.addColorStop(1, shade(col, 0.4 * k));
+    const g = c.createRadialGradient(x - rx * 0.3, y + ry * 0.4, 0, x, y, Math.max(rx, ry) * 1.15); g.addColorStop(0, shade(col, 1.3 * k)); g.addColorStop(0.5, shade(col, 0.8 * k)); g.addColorStop(1, shade(col, 0.2 * k));
     c.fillStyle = g; c.beginPath(); c.ellipse(x, y, rx, ry, rot, 0, TAU); c.fill();
   }
   /* seeded random for stable hair, spikes, wear */
   function rnd(seed) { let s = seed >>> 0; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  /* a speckled, semi-transparent grit texture (dark and light flecks), so it adds surface detail without greying the colours */
   let GRAIN = null;
   function grain() {
-    if (GRAIN) return GRAIN; const T = Gfx.textures(); GRAIN = T.concrete; return GRAIN;
+    if (GRAIN) return GRAIN; const n = 160, c = Gfx.mk(n, n), x = c.getContext('2d'), im = x.createImageData(n, n), d = im.data, R = rnd(99);
+    for (let i = 0; i < n * n; i++) { const r = R(), o = i * 4, dark = r < 0.5, a = Math.pow(R(), 3) * 150; d[o] = d[o + 1] = d[o + 2] = dark ? 0 : 255; d[o + 3] = a * (dark ? 1 : 0.45); }
+    x.putImageData(im, 0, 0); GRAIN = c; return c;
   }
   /* cached off-screen surface per figure; painted in metres, then fabric/skin grain is laid over it and it is blitted */
   function surface(owner, w, h, PM) {
@@ -47,10 +53,19 @@ const Rig = (function () {
     const c = owner.cx; c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; c.clearRect(0, 0, W, H);
     c.setTransform(PM, 0, 0, -PM, W / 2, H - 0.05 * PM); return { c, W, H };
   }
-  function finish(owner, surf, ctx, px, fy, dir, alpha, PM, grainAmt) {
+  /* lighting pass on the painted figure: darkening toward the ground, an edge (rim) light from the given colour on the lit side, then grit, then blit */
+  function finish(owner, surf, ctx, px, fy, dir, alpha, PM, grainAmt, rim) {
     const c = surf.c; c.setTransform(1, 0, 0, 1, 0, 0);
-    c.globalCompositeOperation = 'source-atop'; c.globalAlpha = grainAmt; const k = PM / 70, pat = c.createPattern(grain(), 'repeat');
-    c.save(); c.scale(k, k); c.fillStyle = pat; c.globalCompositeOperation = 'source-atop'; c.fillRect(0, 0, surf.W / k, surf.H / k); c.restore(); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+    c.globalCompositeOperation = 'source-atop';
+    let g = c.createLinearGradient(0, 0, 0, surf.H); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.55, 'rgba(0,0,0,0.12)'); g.addColorStop(1, 'rgba(0,0,0,0.5)'); c.fillStyle = g; c.fillRect(0, 0, surf.W, surf.H);
+    const k = PM / 70, pat = c.createPattern(grain(), 'repeat'); c.save(); c.scale(k, k); c.globalAlpha = grainAmt; c.fillStyle = pat; c.fillRect(0, 0, surf.W / k, surf.H / k); c.restore(); c.globalAlpha = 1;
+    if (rim) {                                                           // edge band = silhouette minus itself shifted toward the light
+      if (!owner.tmp || owner.tmp.width !== surf.W || owner.tmp.height !== surf.H) { owner.tmp = Gfx.mk(surf.W, surf.H); owner.tx = owner.tmp.getContext('2d'); }
+      const t = owner.tx, off = Math.max(1, Math.round(PM * 0.016)); t.setTransform(1, 0, 0, 1, 0, 0); t.globalCompositeOperation = 'source-over'; t.clearRect(0, 0, surf.W, surf.H);
+      t.drawImage(owner.cv, 0, 0); t.globalCompositeOperation = 'destination-out'; t.drawImage(owner.cv, -off * rim.sx, off * rim.sy); t.globalCompositeOperation = 'source-in'; t.fillStyle = rim.col; t.fillRect(0, 0, surf.W, surf.H);
+      c.globalCompositeOperation = 'source-over'; c.globalAlpha = rim.a; c.drawImage(owner.tmp, 0, 0); c.globalAlpha = 1;
+    }
+    c.globalCompositeOperation = 'source-over';
     ctx.save(); ctx.globalAlpha *= alpha; const ox = Math.round(px), oy = Math.round(fy - surf.H + 0.05 * PM);
     if (dir < 0) { ctx.translate(ox, 0); ctx.scale(-1, 1); ctx.drawImage(owner.cv, -Math.round(surf.W / 2), oy); } else ctx.drawImage(owner.cv, ox - Math.round(surf.W / 2), oy);
     ctx.restore();
@@ -95,7 +110,7 @@ const Rig = (function () {
     J.neck = neck; J.headA = headA; J.head = [neck[0] + Math.sin(headA) * 0.12, neck[1] + Math.cos(headA) * 0.12];
     /* arms */
     const bobT = -0.03 * Math.abs(Math.cos(cyc)) * w, swayT = Math.sin(cyc) * 0.02 * w;
-    let nearT = [J.sh[0] + lerp(0.40, 0.46, w) + swayT, J.sh[1] - lerp(0.33, 0.27, w) + bobT];
+    let nearT = [J.sh[0] + lerp(0.27, 0.34, w) + swayT, J.sh[1] - lerp(0.30, 0.24, w) + bobT];
     J.armN = ik(J.sh[0], J.sh[1], nearT[0], nearT[1], SL.upper, SL.fore, -1);
     const swing = Math.sin(cyc + PI) * 0.9 * w * lerp(1, 0.55, c), rest = lerp(0.1, 0.3, c);
     let a1 = rest + swing, a2 = a1 + lerp(0.2, 0.55, w) + 0.45 * w * (0.5 + 0.5 * Math.sin(cyc + PI + 1.3));
@@ -145,8 +160,8 @@ const Rig = (function () {
     const k = o.light === undefined ? 1 : o.light, hip = J.hip, sh = J.sh, lean = J.lean, ar = J.feet;
     const leg = function (f, far) {
       const kk = far ? 0.6 : 1; const hc = [hip[0], hip[1]];
-      limb(c, hc[0], hc[1], f.knee[0], f.knee[1], 0.100, 0.072, SK.pants, kk * k);
-      limb(c, f.knee[0], f.knee[1], f.ank[0], f.ank[1], 0.070, 0.056, SK.pants, kk * k);
+      limb(c, hc[0], hc[1], f.knee[0], f.knee[1], 0.115, 0.082, SK.pants, kk * k);
+      limb(c, f.knee[0], f.knee[1], f.ank[0], f.ank[1], 0.080, 0.062, SK.pants, kk * k);
       /* boot */
       const fa = f.pitch, cx = f.ank[0], cy = f.ank[1], cs = Math.cos(fa), sn = Math.sin(fa);
       const P = function (x, y) { return [cx + x * cs - y * sn, cy + x * sn + y * cs]; };
@@ -158,7 +173,7 @@ const Rig = (function () {
     };
     const arm = function (a, far, torch) {
       const kk = far ? 0.62 : 1;
-      limb(c, sh[0], sh[1] - 0.02, a.mx, a.my, 0.058, 0.048, SK.jacket, kk * k); limb(c, a.mx, a.my, a.ex, a.ey, 0.048, 0.038, SK.jacket, kk * k);
+      limb(c, sh[0], sh[1] - 0.02, a.mx, a.my, 0.075, 0.062, SK.jacket, kk * k); limb(c, a.mx, a.my, a.ex, a.ey, 0.062, 0.05, SK.jacket, kk * k);
       c.fillStyle = shade(SK.strap, kk); const dx = a.ex - a.mx, dy = a.ey - a.my, l = Math.hypot(dx, dy) || 1; c.beginPath(); c.arc(a.ex - dx / l * 0.03, a.ey - dy / l * 0.03, 0.044, 0, TAU); c.fill();    // cuff
       blob(c, a.ex + dx / l * 0.03, a.ey + dy / l * 0.03, 0.04, 0.045, 0, SK.skin, 0.8 * kk * k);
     };
@@ -173,13 +188,13 @@ const Rig = (function () {
     c.restore();
     /* torso: jacket from hip to shoulder, with a hood at the back of the neck and a belt */
     const nx = Math.cos(lean), ny = -Math.sin(lean);            // perpendicular, points to the front of the body
-    const wH = 0.12, wS = 0.15, tg = c.createLinearGradient(hip[0] - nx * 0.15, hip[1] - ny * 0.15, hip[0] + nx * 0.15, hip[1] + ny * 0.15); tg.addColorStop(0, shade(SK.jacket, 0.5 * k)); tg.addColorStop(0.55, shade(SK.jacket, 1.1 * k)); tg.addColorStop(1, shade(SK.jacket, 1.5 * k));
+    const wH = 0.14, wS = 0.18, tg = c.createLinearGradient(hip[0] - nx * 0.15, hip[1] - ny * 0.15, hip[0] + nx * 0.15, hip[1] + ny * 0.15); tg.addColorStop(0, shade(SK.jacket, 0.5 * k)); tg.addColorStop(0.55, shade(SK.jacket, 1.1 * k)); tg.addColorStop(1, shade(SK.jacket, 1.5 * k));
     c.fillStyle = tg; c.beginPath(); c.moveTo(hip[0] - nx * wH, hip[1] - ny * wH - 0.05); c.lineTo(hip[0] + nx * (wH + 0.01), hip[1] + ny * (wH + 0.01) - 0.03); c.quadraticCurveTo(sh[0] + nx * 0.2, sh[1] + ny * 0.2 - 0.08, sh[0] + nx * wS, sh[1] + ny * wS + 0.02); c.lineTo(sh[0] - nx * wS, sh[1] - ny * wS + 0.02); c.closePath(); c.fill();
     c.fillStyle = shade([22, 24, 22], k); const b0 = [hip[0] + Math.sin(lean) * 0.13, hip[1] + Math.cos(lean) * 0.13]; c.save(); c.translate(b0[0], b0[1]); c.rotate(-lean); c.fillRect(-wH - 0.01, -0.03, 2 * wH + 0.03, 0.06); c.fillStyle = shade(SK.metal, 0.6 * k); c.fillRect(0.0, -0.025, 0.05, 0.05); c.restore();
     c.strokeStyle = shade(SK.strap, 1.4 * k); c.lineWidth = 0.02; c.beginPath(); c.moveTo(sh[0] + nx * 0.02, sh[1] + ny * 0.02 + 0.01); c.lineTo(hip[0] + Math.sin(lean) * 0.2 - nx * 0.05, hip[1] + Math.cos(lean) * 0.2 - ny * 0.05); c.stroke();     // shoulder strap
     c.fillStyle = shade(SK.jacket, 0.7 * k); c.beginPath(); c.ellipse(J.neck[0] - 0.07 - Math.sin(lean) * 0.01, J.neck[1] - 0.02, 0.11, 0.09, -lean, 0, TAU); c.fill();      // hood
     /* head */
-    c.save(); c.translate(J.head[0], J.head[1]); c.rotate(-J.headA);
+    c.save(); c.translate(J.head[0], J.head[1]); c.rotate(-J.headA); c.scale(1.15, 1.15);
     const hg = c.createRadialGradient(0.03, 0.03, 0, 0, 0, 0.14); hg.addColorStop(0, shade(SK.skin, 1.35 * k)); hg.addColorStop(1, shade(SK.skin, 0.55 * k)); c.fillStyle = hg;
     c.beginPath(); c.ellipse(0.015, 0, 0.098, 0.115, 0, 0, TAU); c.fill();
     c.beginPath(); c.moveTo(0.1, 0.0); c.lineTo(0.14, -0.04); c.lineTo(0.095, -0.05); c.closePath(); c.fill();                                     // nose
@@ -206,14 +221,14 @@ const Rig = (function () {
     mul = mul || 1; const surf = surface(S, 3.4, 2.6, PM / 1); const c = surf.c;
     let J; if (P.vent) J = poseCrawl(S, P.ph, P.t); else if (P.dead >= 0) J = poseCaught(S, P.dead); else J = pose(S, P);
     paintSurvivor(c, J, S, { light: 1 });
-    finish(S, surf, ctx, px, fy, dir, alpha, PM, 0.35);
+    finish(S, surf, ctx, px, fy, dir, alpha, PM, 0.5, { sx: -1, sy: 1, col: 'rgb(150,190,215)', a: 0.55 });
     const a = survivorAnchors(J); return { lens: [a.x, a.y], ang: a.a, head: J.head, J };
   }
 
   /* =====================================================================================================================================
      CREATURE (stalker / sentinel / listener share the rig; scale and tint differ)
      ===================================================================================================================================== */
-  const MC = { hide: [30, 24, 28], flesh: [78, 54, 58], spike: [22, 16, 20], glow: '#ff2a2a' };
+  const MC = { hide: [46, 30, 34], flesh: [96, 62, 66], spike: [22, 16, 20], glow: '#ff2a2a' };
   const ML = { thigh: 0.62, shin: 0.6, upper: 0.5, fore: 0.55 };
   function newCreature(seed) { return { cv: null, cx: null, seed: seed || 1, lastLean: 0, lean: 0.5, head: 0, jaw: 0, mane: 0 }; }
 
@@ -263,7 +278,7 @@ const Rig = (function () {
     const claws = function (x, y, ang, n, len, a) { c.fillStyle = shade([120, 22, 28], 1); c.strokeStyle = 'rgba(255,60,60,0.5)'; c.lineWidth = 0.006; for (let i = 0; i < n; i++) { const aa = ang + (i - (n - 1) / 2) * 0.28, ox = x + Math.cos(aa) * 0.04, oy = y + Math.sin(aa) * 0.04; c.beginPath(); c.moveTo(ox - Math.sin(aa) * 0.025, oy + Math.cos(aa) * 0.025); c.quadraticCurveTo(ox + Math.cos(aa) * len * 0.6, oy + Math.sin(aa) * len * 0.6 - 0.02, ox + Math.cos(aa) * len, oy + Math.sin(aa) * len - 0.04); c.quadraticCurveTo(ox + Math.cos(aa) * len * 0.5, oy + Math.sin(aa) * len * 0.5 + 0.03, ox + Math.sin(aa) * 0.025, oy - Math.cos(aa) * 0.025); c.closePath(); c.fill(); c.stroke(); } };
     const leg = function (f, far) {
       const kk = (far ? 0.6 : 1) * k, ankle = f.ank;
-      limb(c, hip[0] - 0.05, hip[1], f.knee[0], f.knee[1], 0.2, 0.12, MC.hide, kk); limb(c, f.knee[0], f.knee[1], ankle[0], ankle[1], 0.12, 0.075, MC.hide, kk);
+      limb(c, hip[0] - 0.05, hip[1], f.knee[0], f.knee[1], 0.15, 0.085, MC.hide, kk); limb(c, f.knee[0], f.knee[1], ankle[0], ankle[1], 0.085, 0.05, MC.hide, kk);
       if (!far) veins([[hip[0] - 0.02, hip[1] - 0.05], [f.knee[0] + 0.02, f.knee[1] + 0.05], [ankle[0], ankle[1] + 0.05]], 1);
       /* foot: heel behind the ankle, long toes in front */
       const cx = ankle[0], cy = ankle[1], fa = f.pitch, cs = Math.cos(fa), sn = Math.sin(fa), P = function (x, y) { return [cx + x * cs - y * sn, cy + x * sn + y * cs]; };
@@ -272,7 +287,7 @@ const Rig = (function () {
     };
     const arm = function (a, far) {
       const kk = (far ? 0.6 : 1) * k;
-      limb(c, sh[0] - 0.02, sh[1] - 0.06, a.mx, a.my, 0.17, 0.11, MC.hide, kk); limb(c, a.mx, a.my, a.ex, a.ey, 0.11, 0.075, MC.hide, kk);
+      limb(c, sh[0] - 0.02, sh[1] - 0.06, a.mx, a.my, 0.12, 0.07, MC.hide, kk); limb(c, a.mx, a.my, a.ex, a.ey, 0.07, 0.045, MC.hide, kk);
       if (!far) veins([[sh[0], sh[1] - 0.12], [a.mx, a.my], [a.ex, a.ey]], 1);
       blob(c, a.ex, a.ey, 0.1, 0.085, a.a, MC.hide, kk); claws(a.ex + 0.06, a.ey, a.a - 1.35, 4, 0.22, 1);
     };
@@ -288,7 +303,7 @@ const Rig = (function () {
     const nx = Math.cos(lean), ny = -Math.sin(lean), tg = c.createLinearGradient(hip[0] - nx * 0.3, hip[1] - ny * 0.3, hip[0] + nx * 0.34, hip[1] + ny * 0.34); tg.addColorStop(0, shade(MC.hide, 0.4 * k)); tg.addColorStop(0.6, shade(MC.flesh, 1.0 * k)); tg.addColorStop(1, shade(MC.flesh, 1.55 * k));
     c.fillStyle = tg; c.beginPath(); c.moveTo(hip[0] - nx * 0.2, hip[1] - ny * 0.2 - 0.08); c.quadraticCurveTo(hip[0] + nx * 0.34, hip[1] + ny * 0.34 - 0.04, sh[0] + nx * 0.34, sh[1] + ny * 0.34 - 0.03);
     c.quadraticCurveTo(sh[0] + nx * 0.1 + Math.sin(lean) * 0.2, sh[1] + 0.3, sh[0] - nx * 0.3, sh[1] - ny * 0.3 + 0.04); c.quadraticCurveTo(hip[0] - nx * 0.34, hip[1] - ny * 0.34, hip[0] - nx * 0.2, hip[1] - ny * 0.2 - 0.08); c.fill();
-    blob(c, sh[0] + nx * 0.06 + Math.sin(lean) * 0.05, sh[1] - 0.08, 0.26, 0.2, -lean, MC.flesh, 1.15 * k);                      // shoulder mass
+    blob(c, sh[0] + nx * 0.06 + Math.sin(lean) * 0.05, sh[1] - 0.08, 0.2, 0.15, -lean, MC.flesh, 1.15 * k);                      // shoulder mass
     c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = 0.012; for (let i = 1; i < 5; i++) { const u = i / 5; c.beginPath(); c.moveTo(lerp(hip[0], sh[0], u) - nx * 0.05, lerp(hip[1], sh[1], u) - ny * 0.05); c.lineTo(lerp(hip[0], sh[0], u) + nx * 0.3, lerp(hip[1], sh[1], u) + ny * 0.3); c.stroke(); }
     veins([[hip[0] + nx * 0.1, hip[1] + ny * 0.1 + 0.05], [lerp(hip[0], sh[0], 0.5) + nx * 0.18, lerp(hip[1], sh[1], 0.5) + ny * 0.18], [sh[0] + nx * 0.1, sh[1] + ny * 0.1 - 0.05], [J.neck[0] + 0.05, J.neck[1] - 0.02]], 1);
     /* head: skull, snout, open jaw with teeth, ears, glowing eye */
@@ -309,7 +324,7 @@ const Rig = (function () {
     const surf = surface(M, 5.2, 3.6, PM); const c = surf.c; const J = cpose(M, P);
     paintCreature(c, J, M, { light: 1, t: P.t });
     if (tint) { c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'source-atop'; c.globalAlpha = 0.9; c.fillStyle = tint; c.fillRect(0, 0, surf.W, surf.H); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
-    finish(M, surf, ctx, px, fy, dir, alpha, PM, 0.3);
+    finish(M, surf, ctx, px, fy, dir, alpha, PM, 0.5, { sx: 1, sy: 1, col: 'rgb(255,70,60)', a: 0.5 });
     const eyeA = J.headA; const e = [J.head[0] + Math.cos(eyeA) * 0.2 + Math.sin(eyeA) * 0.105, J.head[1] - Math.sin(eyeA) * 0.2 + Math.cos(eyeA) * 0.105];   // rotated eye position (matches the head transform)
     return { eye: e, head: J.head, J };
   }
