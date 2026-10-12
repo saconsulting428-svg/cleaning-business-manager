@@ -68,8 +68,14 @@ export class Gfx {
   }
   render(dt) {
     const t = this.clock.elapsedTime; this.arena.update(t, dt); this.fx.update(dt);
+    if (this.studioOn) { const c = this.camera.position, L = this.studioLights, h = Math.hypot(c.x, c.z) || 1, dx = c.x / h, dz = c.z / h;
+      L.sk.position.set(dx * 3.2 - dz * 1.6, 3.2, dz * 3.2 + dx * 1.6); L.sb.position.set(dx * 3 + dz * 2.2, 1.6, dz * 3 - dx * 2.2); L.sa.position.set(-dx * 2.8 + dz * 1.2, 2.6, -dz * 2.8 - dx * 1.2); this.key.position.set(dx * 4, 7, dz * 4); }
     this.grade.uniforms.time.value = t % 10; this.grade.uniforms.chroma.value *= .88; this.grade.uniforms.flash.value *= .8;
     this.bloom.strength = (.55 + this.fx.bloomKick) * this.q.bloom; this.composer.render(dt);
+  }
+  setStudio(on) {
+    this.studioOn = on; this.arenaGroup.visible = !on; this.arena.rain.visible = !on; this.arena.hold = on; this.scene.fog.density = on ? .0006 : .0055; this.scene.background = new THREE.Color(on ? 0x0a0a0f : 0x07030f); this.studio.visible = on;
+    this.arena.fires.forEach(f => { f.l.intensity = on ? 0 : 12; f.fm.visible = !on; }); this.arena.flick.forEach(l => l.visible = !on);
   }
   kick(chroma = .006) { this.grade.uniforms.chroma.value = Math.max(this.grade.uniforms.chroma.value, chroma); }
   flash(a, col) { this.grade.uniforms.flash.value = a; if (col) this.grade.uniforms.flashCol.value.set(col); }
@@ -78,7 +84,7 @@ export class Gfx {
   buildArena() {
     const S = this.scene, rn = mulberry(2024), q = this.q;
     S.fog = new THREE.FogExp2(0x22103a, .0055); S.background = new THREE.Color(0x07030f);
-    const A = this.arena = { update: () => {}, parts: [] }, grp = new THREE.Group(); S.add(grp);
+    const A = this.arena = { update: () => {}, parts: [] }, grp = new THREE.Group(); S.add(grp); this.arenaGroup = grp;
     // ---- sky dome
     const sky = cv(4, 512), sg = sky.getContext('2d'), gr = sg.createLinearGradient(0, 0, 0, 512);
     gr.addColorStop(0, '#04020c'); gr.addColorStop(.45, '#14072e'); gr.addColorStop(.7, '#4a1458'); gr.addColorStop(.86, '#a8307a'); gr.addColorStop(1, '#ff7a8a'); sg.fillStyle = gr; sg.fillRect(0, 0, 4, 512);
@@ -173,6 +179,7 @@ export class Gfx {
     const N = 1800, rp = new Float32Array(N * 6); this.rainN = N; for (let i = 0; i < N; i++) { const x = rnd(-14, 14), y = rnd(0, 14), z = rnd(-9, 9); rp.set([x, y, z, x - .03, y - .5, z], i * 6); }
     const rg2 = new THREE.BufferGeometry(); rg2.setAttribute('position', new THREE.BufferAttribute(rp, 3)); A.rain = new THREE.LineSegments(rg2, new THREE.LineBasicMaterial({ color: 0xaab8ff, transparent: true, opacity: .28, fog: false })); S.add(A.rain);
     A.update = (t, dt) => {
+      if (A.hold) return;
       A.rain.visible = true; const p = rg2.attributes.position, a = p.array; for (let i = 0; i < N; i++) { const o = i * 6, v = (20 + (i % 7)) * dt; a[o + 1] -= v; a[o + 4] -= v; if (a[o + 1] < 0) { const x = rnd(-14, 14), z = rnd(-9, 9), y = 14; a[o] = x; a[o + 1] = y; a[o + 2] = z; a[o + 3] = x - .03; a[o + 4] = y - .5; a[o + 5] = z; } } p.needsUpdate = true;
       A.fans.forEach((f, i) => f.rotation.y += dt * (3 + i)); A.beacon.visible = (t % 1.6) < .25;
       A.flick[0].intensity = 55 + Math.sin(t * 9) * 3 + (Math.random() < .02 ? -20 : 0); A.flick[1].intensity = 55 + Math.sin(t * 7 + 1) * 3;
@@ -181,6 +188,14 @@ export class Gfx {
       this.clouds[0].position.x += dt * .6; this.clouds[1].position.x -= dt * .4; if (this.clouds[0].position.x > 120) this.clouds[0].position.x = -120; if (this.clouds[1].position.x < -120) this.clouds[1].position.x = 120;
       A.boards.forEach((b, i) => { b.material.color.setScalar(2 + Math.sin(t * 3 + i * 2) * .25 + (Math.random() < .004 ? -1.2 : 0)); });
     };
+    // studio (character viewer): turntable + coloured rim lights
+    const st = this.studio = new THREE.Group(); st.visible = false; S.add(st);
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(14, 64), new THREE.MeshStandardMaterial({ color: 0x0c0c12, roughness: .5, metalness: .4 })); disc.rotation.x = -Math.PI / 2; disc.receiveShadow = true; st.add(disc);
+    const tt = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.4, .05, 64), new THREE.MeshStandardMaterial({ color: 0x15151c, roughness: .22, metalness: .7 })); tt.position.y = -.026; tt.receiveShadow = true; st.add(tt);
+    const rg3 = new THREE.Mesh(new THREE.RingGeometry(1.38, 1.42, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ff3b2f').multiplyScalar(2.4), toneMapped: false })); rg3.rotation.x = -Math.PI / 2; rg3.position.y = .002; st.add(rg3);
+    const sa = new THREE.SpotLight(0xff9a50, 34, 14, .7, .7, 1.6), sb = new THREE.SpotLight(0x5a8aff, 20, 14, .8, .8, 1.6), sk = new THREE.SpotLight(0xfff0dd, 24, 16, .6, .8, 1.5), hemi = new THREE.HemisphereLight(0x9aa6ff, 0x2a1a22, .55);
+    for (const l of [sa, sb, sk]) { l.target.position.set(0, 1.1, 0); st.add(l, l.target); } st.add(hemi); this.studioLights = { sa, sb, sk };
+    const backdrop = new THREE.Mesh(new THREE.SphereGeometry(16, 32, 16), new THREE.MeshBasicMaterial({ color: 0x14141e, side: THREE.BackSide, fog: false })); st.add(backdrop);
     // image-based lighting from the arena itself (neon reflections on skin, leather, metal)
     const pm = new THREE.PMREMGenerator(this.renderer); const envScene = new THREE.Scene(); envScene.background = new THREE.Color(0x120a22);
     const eg = grp.clone(true); envScene.add(eg); const el = [[0xff2fa0, -6, 3, -4], [0x22d4ff, 6, 3, -4], [0xfff0e0, 0, 8, 3]]; for (const [c, x, y, z] of el) { const l = new THREE.Mesh(new THREE.SphereGeometry(1.4), new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(6) })); l.position.set(x, y, z); envScene.add(l); }
@@ -209,8 +224,9 @@ export class CamRig {
     } else if (this.mode === 'win') {
       const f = this.focus || a, ang = this.t * .28 + .6, D = 2.6 + this.t * .08; tp.set(f.pos.x + Math.sin(ang) * D * (f.facingYaw > 1.5 || f.facingYaw < -1.5 ? -1 : 1), 1.1 + Math.sin(this.t * .5) * .1, f.pos.z + Math.cos(ang) * D); tl.set(f.pos.x, 1.45, f.pos.z); fov = 32;
     } else if (this.mode === 'menu') { tp.set(2.6 + Math.sin(this.t * .15) * .9, 1.35, 6.6); tl.set(.9, 1.15, 0); fov = 32; }
+    else if (this.mode === 'viewer') { const V = this.view || { az: 0, el: .05, dist: 4.4, ty: 1.0 }; const ce = Math.cos(V.el); tp.set(Math.cos(V.az) * V.dist * ce, V.ty + Math.sin(V.el) * V.dist, Math.sin(V.az) * V.dist * ce); tl.set(0, V.ty, 0); fov = V.fov || 28; }
     else if (this.mode === 'select') { const f = this.focus; tp.set((f ? f.pos.x : 0) + .6, 1.3, (f ? f.pos.z : 0) + 5.3); tl.set((f ? f.pos.x : 0) - 1.15, 1.0, f ? f.pos.z : 0); fov = 30; }
-    const kk = this.mode === 'intro' || this.mode === 'win' || this.mode === 'select' ? 1 - Math.exp(-dt * 3.5) : k;
+    const kk = this.mode === 'viewer' ? 1 - Math.exp(-dt * 9) : this.mode === 'intro' || this.mode === 'win' || this.mode === 'select' ? 1 - Math.exp(-dt * 3.5) : k;
     this.pos.lerp(tp, kk); this.look.lerp(tl, kk); this.fovT += (fov - this.fovT) * k;
     this.shakeA *= Math.exp(-dt * 9); const s = this.shakeA;
     this.cam.position.copy(this.pos).add(new V3(rnd(-s, s), rnd(-s, s), rnd(-s, s)) .multiplyScalar(.5)); this.cam.lookAt(this.look);

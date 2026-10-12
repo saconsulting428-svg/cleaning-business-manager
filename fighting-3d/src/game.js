@@ -1,9 +1,11 @@
 /* Game flow: menus, select, match/round manager, tournament (arcade), versus, training, settings, HUD. */
 import * as THREE from 'three';
 import { Fighter, AI, DIFFICULTY } from './fight.js';
-import { ROSTER } from './moves.js';
+import { ROSTER, POSE } from './moves.js';
 import { Controller, getBindings, setBinding, resetBindings, onKey, isDown, touchState } from './input.js';
 import { initAudio, sfx, setVolume, setMusic, setIntensity } from './audio.js';
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+import { EXPR } from './char.js';
 
 const FPS = 60, DT = 1 / FPS, ROUNDS_TO_WIN = 2, ROUND_TIME = 60;
 const $ = (s, r = document) => r.querySelector(s);
@@ -36,6 +38,7 @@ export class Game {
     if (!f) { f = new Fighter(idx, ROSTER[id], this); this.fighterCache[key] = f; f.rig.root.visible = false; this.scene.add(f.rig.root); }
     return f;
   }
+  getHero(id) { const key = 'hero:' + id; let f = this.fighterCache[key]; if (!f) { f = new Fighter(9, ROSTER[id], this, { lod: 'hero' }); this.fighterCache[key] = f; f.rig.root.visible = false; this.scene.add(f.rig.root); } return f; }
   setFighters(id1, id2) {
     for (const f of this.F) f.rig.root.visible = false;
     this.F = [this.getFighter(0, id1), this.getFighter(1, id2)];
@@ -76,7 +79,7 @@ export class Game {
   }
   afterKO() {
     const w = this.roundWinner; this.phase = 'roundEnd'; this.phaseT = 0; this.timeScale = 1;
-    if (w) { w.winPose = true; sfx('win'); this.ui.banner(w.spec.name + ' WINS', 'win'); this.gfx.cam.setMode('win', w); this.camMode = 'win'; }
+    if (w) { w.winPose = true; w.winVariant = (Math.random() * 3) | 0; sfx('win'); this.ui.banner(w.spec.name + ' WINS', 'win'); this.gfx.cam.setMode('win', w); this.camMode = 'win'; }
     else this.ui.banner('DRAW', '');
   }
   nextRoundOrEnd() {
@@ -95,7 +98,7 @@ export class Game {
   }
   toMenu() { this.phase = 'none'; this.canFight = false; this.timeScale = 1; this.paused = false; this.ui.pause(false); this.hideAll(); this.menuScene(); this.show('menu'); this.ui.setHud(false); this.gfx.cam.setMode('menu'); this.camMode = 'menu'; setIntensity(0); $('#banner').classList.remove('show'); }
   menuScene() { // idle stand-off behind the main menu
-    this.previewFighter && (this.previewFighter.rig.root.visible = false); this.setFighters('kairo', 'draven'); this.placeFighters(); this.F[0].reset(.2, .5); this.F[1].reset(2.0, -.3); this.F[0].face.set(1, 0, -.2).normalize(); this.F[1].face.set(-1, 0, .1).normalize(); this.screen = 'menu';
+    this.previewFighter && (this.previewFighter.rig.root.visible = false); this.setFighters('kai', 'draven'); this.placeFighters(); this.F[0].reset(.2, .5); this.F[1].reset(2.0, -.3); this.F[0].face.set(1, 0, -.2).normalize(); this.F[1].face.set(-1, 0, .1).normalize(); this.screen = 'menu';
   }
 
   /* ---------------- tournament ---------------- */
@@ -113,13 +116,15 @@ export class Game {
   update(dt) {
     this.gfx.cam.t += 0; const F = this.F;
     if ((this.screen === 'menu' || this.screen === 'settings') && F.length && !this.paused) { F[0].input = F[1].input = {}; F[0].update(F[1]); F[1].update(F[0]); F[0].computePose(); F[1].computePose(); }
+    if (this.screen === 'viewer') this.viewerTick(dt);
     if (this.screen === 'select' && this.previewFighter) { const f = this.previewFighter; f.t++; f.input = {}; f.walkPh += .02; f.computePose(); }
     if (this.screen === 'game' && !this.paused) {
       this.acc += Math.min(dt, .1) * this.timeScale;
       while (this.acc >= DT) { this.acc -= DT; this.step(); }
       for (const f of F) { if (f.rig && this.phase) { /* keep pose fresh while interpolating */ } }
     }
-    const camF = this.camMode === 'select' && this.previewFighter ? [this.previewFighter, this.previewFighter] : (F.length ? F : [{ pos: new THREE.Vector3(-1, 0, 0), y: 0 }, { pos: new THREE.Vector3(1, 0, 0), y: 0 }]);
+    if (this.screen === 'viewer') { this.gfx.cam.view = this.v.view; }
+    const camF = this.camMode === 'select' || this.screen === 'viewer' && this.previewFighter ? [this.previewFighter || this.v.f, this.previewFighter || this.v.f] : (F.length ? F : [{ pos: new THREE.Vector3(-1, 0, 0), y: 0 }, { pos: new THREE.Vector3(1, 0, 0), y: 0 }]);
     this.gfx.cam.update(dt, camF, this.gfx.aspect);
     if (this.screen === 'game') {
       this.ui.updateHud(); for (const f of F) { for (const [k, c] of [['handL', '#ffffff'], ['handR', '#ffffff'], ['footL', '#ffdca0'], ['footR', '#ffdca0']]) { const act = f.state === 'attack' && f.mv && f.mf >= f.mv.su - 4 && f.mf <= f.mv.su + f.mv.ac + 3 && (f.mv.hit.limb === k || f.mv.hit.limb === 'both' || f.mv.hit.limb === 'either'); this.fx.trail(f.idx + k, f.world[k], act, f.spec.color); } }
@@ -160,6 +165,43 @@ export class Game {
     else if (this.phase === 'match') { /* UI-driven */ }
   }
 
+  /* ---------------- character viewer ---------------- */
+  openViewer(id = 'kai') {
+    initAudio(); this.F.forEach(f => f.rig.root.visible = false); this.previewFighter && (this.previewFighter.rig.root.visible = false); this.previewFighter = null;
+    const f = this.getHero(id); f.reset(0, 0); f.face.set(1, 0, 0); f.rig.root.visible = true; f.exprLock = false;
+    const W = {}; for (const k of ['head', 'hip', 'neck', 'kneeL', 'kneeR', 'ankleL', 'ankleR', 'hipL', 'hipR', 'handL', 'handR', 'footL', 'footR']) W[k] = new THREE.Vector3(99, 99, 99);
+    f.forcePose = POSE.relaxed; this.v = { f, id, anim: 'stand', t: 0, acc: 0, expr: null, spin: false, view: { az: .6, el: .05, dist: 4.8, ty: .95, fov: 28 }, dummy: { pos: new THREE.Vector3(3, 0, 0), y: 0, state: 'down', invul: 0, ko: true, world: W, rig: { sc: 1 }, input: {}, crouch: 0 } };
+    this.hideAll(); this.ui.showViewer(id); this.gfx.setStudio(true); this.camMode = 'viewer'; this.gfx.cam.setMode('viewer'); this.ui.setHud(false); this.screen = 'viewer'; this.canFight = false;
+  }
+  closeViewer() { this.gfx.setStudio(false); this.v.f.rig.root.visible = false; this.v.f.exprLock = false; this.toMenu(); }
+  viewerPlay(anim) { const v = this.v, f = v.f; v.anim = anim; v.t = 0; f.forcePose = anim === 'stand' ? POSE.relaxed : null; f.reset(0, 0); f.face.set(1, 0, 0); f.winPose = false; f.walking = 0; f.blocking = false; f.mv = null; f.state = 'idle'; f.crouch = 0; f.rig.setExpression(v.expr || 'focused', true); this.ui.markViewer(); }
+  viewerExpr(name) { const v = this.v; v.expr = name === 'auto' ? null : name; v.f.exprLock = !!v.expr; if (v.expr) v.f.rig.setExpression(v.expr); this.ui.markViewer(); }
+  viewerView(name) { const V = this.v.view, m = { front: [0, .05, 4.8, .95, 28], right: [Math.PI / 2, .05, 4.8, .95, 28], back: [Math.PI, .05, 4.8, .95, 28], left: [-Math.PI / 2, .05, 4.8, .95, 28], three: [.65, .08, 4.8, .95, 28], face: [0, 0, 1.0, 1.66, 22], closeup: [.5, .06, 2.0, 1.4, 26] }[name]; this.v.spin = name === 'spin'; if (m) { V.az = m[0]; V.el = m[1]; V.dist = m[2]; V.ty = m[3]; V.fov = m[4]; } }
+  viewerTick(dt) {
+    const v = this.v; if (!v) return; v.acc += Math.min(dt, .1); const f = v.f;
+    if (v.spin) v.view.az += dt * .6;
+    while (v.acc >= DT) { v.acc -= DT; v.t++; const a = v.anim, loop = n => v.t % n === 1;
+      const moves = { jab: 'jab', cross: 'cross', lkick: 'lkick', hkick: 'hkick', sweep: 'sweep', upper: 'upper', special1: f.spec.specials.df_hp, special2: f.spec.specials.df_hk };
+      if (moves[a]) { if (f.state === 'idle' && v.t % 110 === 1) { f.pos.set(0, 0, 0); f.startMove(moves[a]); } }
+      else if (a === 'walkF' || a === 'walkB') { f.walking = a === 'walkF' ? 1 : -1; f.walkPh += (a === 'walkF' ? 1 : -1) * .08; }
+      else if (a === 'hit') { if (loop(80)) { f.pos.set(0, 0, 0); f.state = 'hit'; f.launched = false; f.st = 34; f.hitPose = [POSE.hitHigh, POSE.hitMid, POSE.hitLow][(v.t / 80 | 0) % 3]; f.hitBlend = 1; f.vel.set(-1.6, 0, 0); } }
+      else if (a === 'jump') { if (loop(90)) { f.pos.set(0, 0, 0); f.state = 'jump'; f.vy = 6.9; f.y = .001; f.airAtk = true; } }
+      else if (a === 'dodge') { if (loop(100)) { f.pos.set(0, 0, 0); f.startDodge((v.t / 100 | 0) % 2 ? 1 : -1); } }
+      else if (a === 'knockdown') { if (loop(260)) { f.pos.set(0, 0, 0); f.state = 'hit'; f.launched = true; f.vy = 5.2; f.y = .02; f.vel.set(-2.4, 0, 0); f.st = 999; f.ko = false; } }
+      else if (a === 'victory') { f.winPose = true; if (loop(180)) f.winVariant = (f.winVariant + 1) % 3; }
+      else if (a === 'defeat') { if (loop(300)) { f.pos.set(0, 0, 0); f.ko = true; f.state = 'hit'; f.launched = true; f.vy = 5.5; f.y = .02; f.vel.set(-2.2, 0, 0); f.st = 999; } }
+      f.input = {}; f.update(v.dummy); f.canAct = false;
+      if (a === 'block') f.blocking = true; if (a === 'crouch') f.crouch = 1; if (a === 'crouchBlock') { f.blocking = true; f.crouchBlock = true; f.crouch = 1; }
+      if (f.pos.x > 1.6 || f.pos.x < -1.6) f.pos.x = 0; f.pos.z = 0;
+      f.computePose(); this.fx.dust && 0;
+    }
+  }
+  exportGLB() {
+    const f = this.v ? this.v.f : this.getHero('kai'); f.rig.root.updateMatrixWorld(true);
+    return new Promise((res, rej) => new GLTFExporter().parse(f.rig.root, r => res(r), rej, { binary: true, onlyVisible: false, maxTextureSize: 1024 }));
+  }
+  async downloadGLB() { const buf = await this.exportGLB(), a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buf], { type: 'model/gltf-binary' })); a.download = this.v.id + '.glb'; a.click(); }
+
   /* ---------------- keys / navigation ---------------- */
   onKeyDown(code) {
     initAudio();
@@ -170,6 +212,7 @@ export class Game {
     if (this.screen === 'menu') this.menuNav(code);
     else if (this.screen === 'select') this.selectNav(code);
     else if (this.screen === 'settings' && code === 'Escape') this.show('menu');
+    else if (this.screen === 'viewer' && code === 'Escape') this.closeViewer();
     else if (this.screen === 'game' && this.paused) this.pauseNav(code);
     else if (this.screen === 'game' && this.phase === 'match') this.resultNav(code);
   }
@@ -190,7 +233,7 @@ export class Game {
   }
   previewSel() {
     const ids = Object.keys(ROSTER), id = ids[this.sel.idx]; if (this.previewFighter) this.previewFighter.rig.root.visible = false;
-    const f = this.previewFighter = this.getFighter(this.sel.step === 0 ? 0 : 1, id); f.reset(0, 0); f.face.set(1, 0, 0); f.rig.root.visible = true; f.mood = 'idle';
+    const f = this.previewFighter = this.getHero(id); f.reset(0, 0); f.face.set(1, 0, 0); f.rig.root.visible = true; f.mood = 'idle';
     if (this.sel.step === 1) f.face.set(-1, 0, 0);
     this.gfx.cam.focus = f; this.ui.refreshSelect(id);
   }
@@ -228,6 +271,7 @@ export class Game {
     </div>
     <div id="select" class="screen"><div class="selTop"><h2 id="selTitle">SELECT FIGHTER</h2></div>
       <div class="selSide"><div id="selList"></div><div id="selInfo"></div><div class="hint">← → choose &nbsp; ENTER confirm &nbsp; ESC back</div></div></div>
+    <div id="viewer" class="screen"></div>
     <div id="settings" class="screen"><h2>SETTINGS</h2><div id="setBody"></div><div class="hint">ESC back</div></div>
     <div id="hud"><div class="hbar left"><div class="nm"><b id="n0"></b><i id="t0"></i></div><div class="bar"><div class="trail" id="tr0"></div><div class="fill" id="f0"></div></div><div class="pips" id="p0"></div></div>
       <div class="clock"><span id="clock">60</span><small id="rnd">ROUND 1</small></div>
@@ -242,7 +286,7 @@ export class Game {
       items.push({ label: 'ARCADE / TOURNAMENT', sub: 'Fight your way to the championship', fn: () => G.openSelect('arcade') });
       items.push({ label: '2 PLAYER VERSUS', sub: 'Local multiplayer — keyboard or gamepads', fn: () => G.openSelect('versus') });
       items.push({ label: 'TRAINING', sub: 'Practice combos against a dummy', fn: () => G.openSelect('training') });
-      items.push({ label: 'CHARACTER SELECT', sub: 'View the roster', fn: () => G.openSelect('training') });
+      items.push({ label: 'CHARACTER VIEWER', sub: 'KAI — 360° turnaround, expressions, animations, GLB export', fn: () => G.openViewer('kai') });
       items.push({ label: 'SETTINGS', sub: 'Graphics, audio, controls', fn: () => { G.show('settings'); ui.buildSettings(); } });
       items.push({ label: 'EXIT', sub: '', fn: () => { try { window.close(); } catch (e) {} location.reload(); } });
       ui.menuItems = items; if (ui.menuIdx >= items.length) ui.menuIdx = 0;
@@ -311,6 +355,19 @@ export class Game {
       $$('.kb').forEach(b => b.onclick = () => { b.textContent = 'press a key…'; G.remapping = (code) => { if (code === 'Escape') { G.remapping = null; ui.buildSettings(); return; } setBinding(+b.dataset.p, b.dataset.a, code); G.remapping = null; ui.buildSettings(); }; });
     };
     function movesName(k) { return ({ dragonPalm: 'Dragon Palm', risingKick: 'Rising Dragon Kick', shadowFlurry: 'Shadow Flurry', reaperSpin: 'Reaper Spin' })[k] || k; }
+    const ANIMS = [['stand', 'Standing (turnaround)'], ['idle', 'Fighting stance'], ['walkF', 'Walk forward'], ['walkB', 'Walk back'], ['dodge', 'Sidestep / dodge'], ['jab', 'Light punch'], ['cross', 'Heavy punch'], ['lkick', 'Front kick'], ['hkick', 'Heavy kick'], ['upper', 'Uppercut'], ['sweep', 'Low sweep'], ['special1', 'Special 1'], ['special2', 'Special 2'], ['block', 'Block'], ['crouchBlock', 'Crouch block'], ['hit', 'Hit reactions'], ['jump', 'Jump + kick'], ['knockdown', 'Knockdown + get-up'], ['victory', 'Victory'], ['defeat', 'Defeat']];
+    const VIEWS = [['front', 'Front'], ['left', 'Left'], ['back', 'Back'], ['right', 'Right'], ['three', '3/4'], ['face', 'Face'], ['closeup', 'Close-up'], ['spin', 'Turntable']];
+    const EXPRS = [['auto', 'Auto'], ['neutral', 'Neutral'], ['angry', 'Angry'], ['shouting', 'Shouting'], ['focused', 'Focused'], ['smirk', 'Smirk'], ['serious', 'Serious'], ['pain', 'Pain']];
+    ui.showViewer = (id) => { for (const e of $$('.screen')) e.classList.toggle('show', e.id === 'viewer'); const s = ROSTER[id];
+      $('#viewer').innerHTML = `<div class="vp"><h2>${s.name}</h2><small>${s.title} — ${s.style}</small>
+        <div class="vinfo"><span>AGE <b>${s.age || '—'}</b></span><span>HEIGHT <b>${s.height_cm || '—'} cm</b></span><span>WEIGHT <b>${s.weight_kg || '—'} kg</b></span><span>COUNTRY <b>${s.country || '—'}</b></span></div>
+        <h4>VIEWS</h4><div class="vb" id="vViews">${VIEWS.map(v => `<button data-v="${v[0]}">${v[1]}</button>`).join('')}</div>
+        <h4>FACIAL EXPRESSIONS</h4><div class="vb" id="vExpr">${EXPRS.map(v => `<button data-e="${v[0]}">${v[1]}</button>`).join('')}</div>
+        <h4>ANIMATIONS</h4><div class="vb" id="vAnim">${ANIMS.map(v => `<button data-a="${v[0]}">${v[1]}</button>`).join('')}</div>
+        <div class="vb"><button id="vGlb" class="hot">EXPORT GLB</button><button id="vBack">BACK</button></div><p class="hint2">Drag = rotate · Wheel = zoom</p></div>`;
+      $$('#vViews button').forEach(b => b.onclick = () => G.viewerView(b.dataset.v)); $$('#vExpr button').forEach(b => b.onclick = () => G.viewerExpr(b.dataset.e)); $$('#vAnim button').forEach(b => b.onclick = () => G.viewerPlay(b.dataset.a));
+      $('#vGlb').onclick = () => G.downloadGLB(); $('#vBack').onclick = () => G.closeViewer(); ui.markViewer(); };
+    ui.markViewer = () => { const v = G.v; if (!v) return; $$('#vAnim button').forEach(b => b.classList.toggle('on', b.dataset.a === v.anim)); $$('#vExpr button').forEach(b => b.classList.toggle('on', (b.dataset.e === 'auto' && !v.expr) || b.dataset.e === v.expr)); };
     ui.loading = (p, t) => { $('#lbar').style.width = p * 100 + '%'; if (t) $('#ltxt').textContent = t; $('#loading').classList.toggle('hide', p >= 1); };
   }
 }
@@ -330,4 +387,13 @@ export function initTouch(game) {
     ['P', 'lp', 'right:2vw;top:12vh'], ['P+', 'hp', 'right:11vw;top:12vh'], ['K', 'lk', 'right:2vw;top:24vh'], ['K+', 'hk', 'right:11vw;top:24vh'], ['JMP', 'jump', 'right:20vw;top:18vh']];
   for (const [l, a, c] of P2) mk(1, l, a, c);
   const upd = () => { const g = game.screen === 'game' && !game.paused && game.phase !== 'match'; wrap.classList.toggle('show', g); wrap.classList.toggle('vs', game.mode === 'versus'); requestAnimationFrame(upd); }; upd();
+}
+
+/* drag / wheel for the character viewer */
+export function initViewerControls(game, canvas) {
+  let drag = false, lx = 0, ly = 0;
+  canvas.addEventListener('pointerdown', e => { if (game.screen === 'viewer' && e.target === canvas) { drag = true; lx = e.clientX; ly = e.clientY; } });
+  addEventListener('pointerup', () => { drag = false; });
+  addEventListener('pointermove', e => { if (!drag || game.screen !== 'viewer') return; const V = game.v.view; V.az -= (e.clientX - lx) * .008; V.el = Math.max(-.3, Math.min(1.1, V.el + (e.clientY - ly) * .005)); lx = e.clientX; ly = e.clientY; game.v.spin = false; });
+  canvas.addEventListener('wheel', e => { if (game.screen !== 'viewer') return; e.preventDefault(); const V = game.v.view; V.dist = Math.max(.7, Math.min(9, V.dist * (1 + Math.sign(e.deltaY) * .08))); }, { passive: false });
 }

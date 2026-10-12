@@ -1,17 +1,8 @@
 /* Fighter specs (data-driven: adding a fighter = adding an entry), poses and move data. */
 
+import { KAI } from './kai.js';
 export const ROSTER = {
-  kairo: {
-    id: 'kairo', name: 'KAIRO', title: 'DRAGON FIST', style: 'Martial Arts',
-    skin: '#d6a37b', eye: '#2a1810', height: 1.0, bulk: 1.0, shoulders: 1.02, arms: 1.05, legs: 1.0,
-    hair: { style: 'spiky', color: '#0d0b10' }, beard: { type: 'stubble', color: '#1a1412' },
-    top: { type: 'bare' }, wraps: { color: '#b8141c', forearm: true, hands: true },
-    pants: { type: 'gi', color: '#17131a', dragon: '#c8222a' }, belt: '#b8141c', shoes: { type: 'bare' },
-    aura: '#ff4a2a', color: '#ff3b2f',
-    stats: { speed: 1.08, power: 1.0, reach: 1.0, hp: 100, defense: 1.0, quick: 1.0 },
-    specials: { df_hp: 'dragonPalm', df_hk: 'risingKick' },
-    ai: { aggr: 1.1, block: 1.0, combo: 1.0 }
-  },
+  kai: KAI,
   draven: {
     id: 'draven', name: 'DRAVEN', title: 'CRIMSON REAPER', style: 'Kickboxing',
     skin: '#e3bf9f', eye: '#6a7480', height: 1.04, bulk: .98, shoulders: 1.05, arms: .95, legs: 1.0,
@@ -51,6 +42,10 @@ export const POSE = {
   air: mod(G, { hip: [0, .82, .02], pitch: 6, fL: [.12, .38, -.2], fR: [-.1, .24, .2], hL: [.4, 1.35, -.2], hR: [.3, 1.3, .1] }),
   down: mod(G, { lay: 1, hip: [0, .95, 0], pitch: -4, twist: 0, hipTwist: 0, headPitch: 0, headYaw: 0, hL: [.1, .7, -.5], hR: [.1, .7, .5], fL: [.3, 0, -.18], fR: [.25, .05, .2], eye: 0, fLy: 0, fRy: 0 }),
   win: mod(G, { hip: [0, .97, 0], pitch: 0, twist: -10, hipTwist: -4, headPitch: -4, headYaw: 10, hL: [.1, 1.05, -.36], hR: [.18, 2.05, .24], fL: [.12, 0, -.2], fR: [-.14, 0, .2], brow: .1 }),
+  relaxed: mod(G, { hip: [0, .985, 0], pitch: 0, twist: 0, hipTwist: 0, headPitch: 0, headYaw: 0, hL: [.03, .86, -.36], hR: [.03, .86, .36], fL: [0, 0, -.13], fR: [0, 0, .13], fLy: 0, fRy: 0, brow: .12 }),
+  win2: mod(G, { hip: [0, .97, 0], pitch: -4, twist: 0, hipTwist: 0, headPitch: -8, headYaw: 0, hL: [.34, 1.28, -.3], hR: [.34, 1.28, .3], fL: [.1, 0, -.2], fR: [-.1, 0, .2], brow: .3 }),
+  defeat: mod(G, { lay: 1, hip: [0, .95, 0], pitch: -6, twist: 8, hipTwist: 0, headPitch: -10, headYaw: -20, hL: [-.1, .6, -.62], hR: [-.5, .5, .55], fL: [.35, 0, -.28], fR: [.1, .03, .24], eye: 0, fLy: -10, fRy: 10 }),
+  airFall: mod(G, { hip: [0, .86, .02], pitch: 4, fL: [.2, .22, -.2], fR: [-.12, .16, .2], hL: [.42, 1.4, -.2], hR: [.3, 1.34, .1] }),
   taunt: mod(G, { hip: [0, .98, 0], pitch: 0, twist: -8, hL: [.3, 1.0, -.4], hR: [.5, 1.9, .2] })
 };
 

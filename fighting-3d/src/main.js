@@ -1,7 +1,8 @@
 import { Gfx } from './gfx.js';
-import { Game, initTouch } from './game.js';
+import { Game, initTouch, initViewerControls } from './game.js';
 import { Controller } from './input.js';
 import { AI } from './fight.js';
+import { kaiTextures } from './kai.js';
 
 const settings = JSON.parse(localStorage.getItem('sc3d_settings') || '{}');
 const q = new URLSearchParams(location.search).get('q') || settings.quality || 'medium';
@@ -14,11 +15,11 @@ const tick = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)
   ldr(.5, 'Building arena…'); await tick();
   const game = new Game(gfx);
   ldr(.8, 'Preparing fighters…'); await tick();
-  game.getFighter(0, 'kairo'); game.getFighter(1, 'draven'); game.getFighter(1, 'kairo'); game.getFighter(0, 'draven');
+  game.getFighter(0, 'kai'); game.getFighter(1, 'draven'); game.getFighter(1, 'kai'); game.getFighter(0, 'draven');
   await tick(); ldr(1, 'Ready');
   document.getElementById('loading').classList.add('hide');
-  initTouch(game); game.toMenu();
-  window.__sc = { gfx, game, AI };
+  initTouch(game); initViewerControls(game, canvas); game.toMenu();
+  window.__sc = { gfx, game, AI, kaiTextures };
   let last = performance.now();
   function loop(now) {
     const dt = Math.min(.1, (now - last) / 1000); last = now;

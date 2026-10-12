@@ -15,8 +15,8 @@ function segDist2(p, a, b) { // squared distance point -> segment
 }
 
 export class Fighter {
-  constructor(idx, spec, game) {
-    this.idx = idx; this.spec = spec; this.game = game; this.stats = spec.stats; this.rig = new Rig(spec);
+  constructor(idx, spec, game, opts = {}) {
+    this.idx = idx; this.spec = spec; this.game = game; this.stats = spec.stats; this.rig = new Rig(spec, opts); this.exprName = '';
     this.pos = new V3(); this.vel = new V3(); this.y = 0; this.vy = 0; this.face = new V3(1, 0, 0); this.attFace = new V3(1, 0, 0);
     this.cur = clone(guard()); this.tgt = clone(guard()); this.tmp = clone(guard());
     this.buf = { lp: 0, hp: 0, lk: 0, hk: 0, jump: 0 }; this.prevIn = {}; this.lastTap = { f: -99, b: -99 };
@@ -28,7 +28,7 @@ export class Fighter {
     this.pos.set(x, 0, z); this.vel.set(0, 0, 0); this.y = 0; this.vy = 0; this.hp = this.stats.hp; this.shownHp = this.hp; this.state = 'idle'; this.st = 0; this.t = 0;
     this.mv = null; this.mvName = ''; this.mf = 0; this.hitDone = false; this.hitsDone = 0; this.crouch = 0; this.blockT = 0; this.hitBlend = 0; this.hitPose = POSE.hitMid; this.lay = 0;
     this.launched = false; this.comboHits = 0; this.comboDmg = 0; this.ko = false; this.walkPh = 0; this.airAtk = false; this.dodgeT = 0; this.dodgeDir = 0; this.invul = 0;
-    this.cur = clone(guard()); this.mood = 'idle'; this.winPose = false; this.wins = this.wins || 0;
+    this.cur = clone(guard()); this.mood = 'idle'; this.winPose = false; this.wins = this.wins || 0; this.landT = 0; this.winVariant = 0; this.walking = 0; this.forcePose = this.forcePose || null;
   }
   get facingYaw() { return Math.atan2(-this.face.z, this.face.x); }
 
@@ -106,7 +106,7 @@ export class Fighter {
     if (!this.airAtk && (this.buf.lk > 0 || this.buf.hk > 0 || this.buf.lp > 0 || this.buf.hp > 0)) { this.airAtk = true; this.startMove('jkick'); }
   }
   land() {
-    this.game.fx.dust(this.pos, 5); this.game.sfx('land');
+    this.landT = 8; this.game.fx.dust(this.pos, 5); this.game.sfx('land');
     if (this.launched) { this.launched = false; this.state = 'down'; this.st = this.ko ? 9999 : 50; this.vel.multiplyScalar(.4); this.game.shake(.18); this.game.fx.dust(this.pos, 8); this.game.sfx('thud'); }
     else if (this.state === 'jump' || (this.state === 'attack' && this.mv && this.mv.air)) { this.state = 'idle'; this.mv = null; this.vel.set(0, 0, 0); }
   }
@@ -196,16 +196,19 @@ export class Fighter {
       else if (this.walking && st === 'idle') this.walkPose(T);
       if (st === 'dash') { T.pitch += 12; T.hip[0] += .12 * Math.sign(this.dashVel.dot(this.face) || 1); }
     } else if (st === 'block') { lerpPose(T, this.crouchBlock ? POSE.crouchBlock : POSE.block, 1, T); T.pitch += 4; alpha = .5; }
-    else if (st === 'jump') { lerpPose(T, POSE.air, 1, T); alpha = .3; }
+    else if (st === 'jump') { lerpPose(T, POSE.air, 1, T); lerpPose(T, POSE.airFall, clamp(.5 - this.vy / 8, 0, 1), T); alpha = .3; }
     else if (st === 'attack') { this.attackPose(T); alphaOverride = 1; }
     else if (st === 'hit') { const hp = this.hitPose; lerpPose(T, hp, this.launched ? 1 : clamp(.5 + this.hitBlend * .5, 0, 1), T); if (this.launched) { T.hip[1] = .95; } alpha = .55; }
-    else if (st === 'down') { lerpPose(T, POSE.down, 1, T); alpha = .35; }
+    else if (st === 'down') { lerpPose(T, this.ko ? POSE.defeat : POSE.down, 1, T); alpha = .35; }
     else if (st === 'getup') { lerpPose(T, POSE.down, clamp(this.st / 26, 0, 1), T); alpha = .3; }
-    else if (st === 'dodge') { lerpPose(T, mod(guard(), { hip: [0, .78, .02], pitch: 14, hL: [.38, 1.3, -.2], hR: [.3, 1.2, .1], fL: [.3, 0, -.2], fR: [-.3, 0, .24], roll: -this.dodgeDir * 12 }), 1, T); alpha = .3; }
-    if (this.winPose) { lerpPose(T, POSE.win, 1, T); alpha = .1; }
+    else if (st === 'dodge') { const d = this.dodgeDir, k = Math.sin(Math.min(1, this.dodgeT / 14) * Math.PI); lerpPose(T, mod(guard(), { hip: [0, .8, .02 + d * .06], pitch: 14, hL: [.38, 1.3, -.2], hR: [.3, 1.2, .1], fL: [.3, k * .06, -.16 + d * k * .3], fR: [-.3, 0, .24 + d * k * .22], roll: -d * 12 }), 1, T); alpha = .3; }
+    if (this.winPose) { lerpPose(T, [POSE.win, POSE.win2, POSE.taunt][this.winVariant % 3], 1, T); alpha = .1; }
+    if (this.landT > 0 && (st === 'idle')) { const k = this.landT / 8; T.hip[1] -= .14 * k; T.pitch += 8 * k; T.fL[0] += .05 * k; this.landT--; }
+    if (this.forcePose) { lerpPose(T, this.forcePose, 1, T); alpha = .4; alphaOverride = 0; }
     if (this.mood === 'taunt') lerpPose(T, POSE.taunt, 1, T);
     // expression
-    if (st === 'attack') { T.brow = .6; T.eye = 1; } else if (st === 'hit' || st === 'down') { T.eye = 0; T.brow = -.2; }
+    if (!this.exprLock) { let ex = 'focused'; if (st === 'attack') ex = this.mv && this.mv.hit.big ? 'shouting' : 'effort'; else if (st === 'hit') ex = 'pain'; else if (st === 'down') ex = this.ko ? 'ko' : 'pain'; else if (st === 'block' || this.blocking) ex = 'serious'; else if (this.winPose) ex = 'smirk'; else if (st === 'dash' || st === 'dodge') ex = 'angry';
+      if (ex !== this.rig.exprName) this.rig.setExpression(ex); }
     lerpPose(this.cur, T, alphaOverride ? 1 : alpha, this.cur);
     this.rig.apply(this.cur, DT);
     const r = this.rig.root;
@@ -219,7 +222,8 @@ export class Fighter {
   walkPose(T) {
     const ph = this.walkPh, f = this.walking, k = .22;
     T.fL[0] += Math.sin(ph) * k; T.fL[1] = Math.max(0, Math.cos(ph)) * .1; T.fR[0] += -Math.sin(ph) * k; T.fR[1] = Math.max(0, -Math.cos(ph)) * .1;
-    T.hip[1] += Math.abs(Math.sin(ph)) * -.02 - .01; T.pitch += f > 0 ? 3 : -3; T.hL[0] += Math.sin(ph) * .05;
+    T.hip[1] += Math.abs(Math.sin(ph)) * -.02 - .01; T.pitch += f > 0 ? 3 : -3; T.hL[0] += Math.sin(ph) * .05; T.hR[1] += Math.cos(ph * 2) * .015;
+    if (f < 0) { T.hL[1] += .1; T.hR[1] += .1; T.fL[0] -= Math.sin(ph) * .06; T.fR[0] += Math.sin(ph) * .06; }
   }
   attackPose(T) {
     const mv = this.mv, keys = mv.keys; let f = this.mf;
