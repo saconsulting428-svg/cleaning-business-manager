@@ -140,7 +140,7 @@ export class Game {
     const camF = this.camMode === 'select' || this.screen === 'viewer' && this.previewFighter ? [this.previewFighter || this.v.f, this.previewFighter || this.v.f] : (F.length ? F : [{ pos: new THREE.Vector3(-1, 0, 0), y: 0 }, { pos: new THREE.Vector3(1, 0, 0), y: 0 }]);
     this.gfx.cam.update(dt, camF, this.gfx.aspect);
     if (this.screen === 'game') {
-      this.ui.updateHud(); for (const f of F) { for (const [k, c] of [['handL', '#ffffff'], ['handR', '#ffffff'], ['footL', '#ffdca0'], ['footR', '#ffdca0']]) { const act = f.state === 'attack' && f.mv && f.mf >= f.mv.su - 4 && f.mf <= f.mv.su + f.mv.ac + 3 && (f.mv.hit.limb === k || f.mv.hit.limb === 'both' || f.mv.hit.limb === 'either' || (f.mv.hit.limb === 'eitherFoot' && k.startsWith('foot'))); this.fx.trail(f.idx + k, f.world[k], act, f.spec.color); } }
+      this.ui.updateHud(); for (const f of F) { for (const [k, c] of [['handL', '#ffffff'], ['handR', '#ffffff'], ['footL', '#ffdca0'], ['footR', '#ffdca0']]) { const act = f.state === 'attack' && f.mv && f.mf >= f.mv.su - 4 && f.mf <= f.mv.su + f.mv.ac + 3 && (f.mv.hit.limb === k || f.mv.hit.limb === 'both' || f.mv.hit.limb === 'either' || (f.mv.hit.limb === 'eitherFoot' && k.startsWith('foot'))); const big = act && f.mv.hit.big; this.fx.trail(f.idx + k, f.world[k], act, big ? '#ff6a18' : f.spec.color); if (act && (big || k.startsWith('foot') || Math.random() < .5)) this.fx.fire(f.world[k], big ? 3 : 1, .7); } }
     }
   }
   step() {

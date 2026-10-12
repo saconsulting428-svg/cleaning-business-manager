@@ -258,7 +258,7 @@ export class CamRig {
 export class FX {
   constructor(scene, camera) {
     this.scene = scene; this.camera = camera; this.bloomKick = 0;
-    const N = this.N = 700; this.pos = new Float32Array(N * 3); this.col = new Float32Array(N * 3); this.vel = new Float32Array(N * 3); this.life = new Float32Array(N); this.maxLife = new Float32Array(N); this.cursor = 0;
+    const N = this.N = 1300; this.pos = new Float32Array(N * 3); this.col = new Float32Array(N * 3); this.vel = new Float32Array(N * 3); this.life = new Float32Array(N); this.maxLife = new Float32Array(N); this.cursor = 0;
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(this.col, 3));
     const sc = cv(32, 32), sg = sc.getContext('2d'), sgr = sg.createRadialGradient(16, 16, 0, 16, 16, 16); sgr.addColorStop(0, '#fff'); sgr.addColorStop(.4, 'rgba(255,255,255,.6)'); sgr.addColorStop(1, 'transparent'); sg.fillStyle = sgr; sg.fillRect(0, 0, 32, 32);
     this.points = new THREE.Points(g, new THREE.PointsMaterial({ size: .09, map: tex(sc), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); this.points.frustumCulled = false; scene.add(this.points);
@@ -306,7 +306,15 @@ export class FX {
   flare(p, size, color) { const s = this.flares.find(f => !f.visible) || this.flares[0]; s.visible = true; s.userData.life = .12; s.userData.size = size; s.position.copy(p); s.material.color.set(color).multiplyScalar(2.5); }
   hit(p, dir, power, aura) {
     this.burst(p, 22 * power, 4 * power, ['#ffffff', '#ffd27a', '#ff8a3a', aura || '#fff'], dir); this.ringAt(p, .4 * power + .2, '#ffffff'); this.flare(p, .55 * power, '#ffe2a0');
-    this.light.position.copy(p); this.light.color.set(aura || '#ffaa66'); this.light.intensity = 10 * power; this.lightT = .1; this.bloomKick = .12 * power;
+    this.fire(p, 34 * power, power); this.flare(p, .9 * power, '#ff8a2a'); this.light.position.copy(p); this.light.color.set('#ff8a3a'); this.light.intensity = 12 * power; this.lightT = .1; this.bloomKick = .12 * power;
+  }
+  fire(p, n, power = 1) { // flames: orange/yellow/red embers that rise
+    const cols = ['#fff3b0', '#ffc040', '#ff7a1a', '#ff3a10', '#d81c08'];
+    for (let i = 0; i < n; i++) {
+      const k = this.cursor++ % this.N, a = rnd(0, TAU), s = rnd(.4, 1.6) * power, c = new THREE.Color(cols[(Math.random() * cols.length) | 0]);
+      this.pos.set([p.x + rnd(-.06, .06), p.y + rnd(-.05, .05), p.z + rnd(-.06, .06)], k * 3); this.vel.set([Math.cos(a) * s * .9, rnd(1.2, 3.6) * power, Math.sin(a) * s * .9], k * 3);
+      this.col.set([c.r * 3.2, c.g * 3.2, c.b * 3.2], k * 3); this.life[k] = this.maxLife[k] = rnd(.35, .85);
+    }
   }
   block(p, dir) { this.burst(p, 12, 3, ['#8fd8ff', '#ffffff'], dir, .8); this.ringAt(p, .5, '#6fcfff'); this.flare(p, .3, '#8fd8ff'); this.light.position.copy(p); this.light.color.set('#7fd0ff'); this.light.intensity = 6; this.lightT = .08; }
   dust(p, n) { for (let i = 0; i < n; i++) { const s = this.dust_.find(d => !d.visible); if (!s) return; s.visible = true; s.userData.life = .7; s.userData.max = .7; s.userData.v.set(rnd(-1, 1), rnd(.1, .6), rnd(-1, 1)); s.position.set(p.x + rnd(-.2, .2), .08, p.z + rnd(-.2, .2)); s.scale.setScalar(.25); s.material.opacity = .6; } }
