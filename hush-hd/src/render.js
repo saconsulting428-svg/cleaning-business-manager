@@ -376,7 +376,7 @@ const Renderer = (function () {
       if (!hidden && !(S.dead && an.deadP > 0.4)) {
         const face = an.face >= 0 ? 1 : -1, len = 5.0 * PM, flick = S.dead ? 0.5 + 0.5 * Math.sin(now * 40) : 1;
         dctx.save(); dctx.globalAlpha = 0.95 * flick; dctx.translate(hand.x * k, hand.y * k); dctx.scale(face, 1); dctx.drawImage(cone, 0, -len * k, len * k, len * 2 * k); dctx.restore();
-        cut(hole, px + face * PM * 0.1, FY - PM * 0.95, PM * 1.35, 0.55 * flick);
+        cut(hole, px + face * PM * 0.1, FY - PM * 0.95, PM * 1.45, 0.7 * flick); cut(hole, px, FY - PM * 0.4, PM * 1.15, 0.6 * flick);          // body light: the legs must never fall into the dark
       }
       /* sonar: a disc of vision that grows with the wave and then fades */
       for (const p of f.pings) { if (p.f !== S.f) continue; const age = now - p.t0; if (age < 0 || age > 2.6) continue; const r = (1 - Math.pow(1 - clamp(age / 1.1, 0, 1), 2)) * 9.5 * PM; cut(hole, (p.x - an.camX) * PM + Wpx / 2, FY - PM * 1.2, r * 1.05, clamp(1.15 - age / 2.6, 0, 1) * 0.98); }

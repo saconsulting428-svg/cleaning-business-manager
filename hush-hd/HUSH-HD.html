@@ -1090,17 +1090,19 @@ const Puppet = (function () {
   const CFG = {
     surv: { sheet: 'Survivor_Run', frame: 4, K: 0.002736, hip: [318, 365], lean0: 0.26, mark: [517, 288], L: L,
       legs: [{ h: [312, 372], k: [205, 447], a: [72, 497], bAng: 1.5, half: 80 }, { h: [330, 362], k: [455, 400], a: [468, 515], bAng: 0.12, half: 70 }],
-      split: [330, 326], boot: [[[0, 452], [122, 446], [128, 500], [102, 560], [70, 612], [0, 612]], [[428, 503], [557, 498], [557, 562], [500, 604], [440, 612], [422, 560]]],
-      upper: [[0, 0], [557, 0], [557, 322], [405, 326], [338, 338], [150, 336], [0, 336]], below: [[0, 312], [150, 312], [330, 316], [405, 300], [557, 300], [557, 681], [0, 681]], W: 557, H: 681, pose: pose },
+      split: [420, 250], boot: [[[0, 452], [122, 446], [128, 500], [102, 560], [70, 612], [0, 612]], [[428, 503], [557, 498], [557, 562], [500, 604], [440, 612], [422, 560]]],
+      upper: [[0, 0], [557, 0], [557, 322], [405, 326], [398, 382], [335, 404], [255, 400], [208, 362], [150, 336], [0, 336]], below: [[0, 312], [150, 312], [330, 316], [405, 300], [557, 300], [557, 681], [0, 681]], W: 557, H: 681, pose: pose },
     mon: { sheet: 'Monster_Run', frame: 3, K: 0.002904, hip: [360, 388], lean0: 1.05, mark: [655, 215], L: { thigh: 0.5, shin: 0.45, ankle: 0.2 },
       legs: [{ h: [350, 385], k: [190, 447], a: [62, 505], bAng: 1.5, half: 95 }, { h: [410, 402], k: [525, 455], a: [605, 570], bAng: 0.2, half: 85 }],
-      split: [395, 390], boot: [[[0, 480], [135, 478], [125, 560], [70, 625], [0, 625]], [[560, 535], [742, 545], [742, 655], [640, 655], [560, 612]]],
-      upper: [[0, 0], [742, 0], [742, 446], [566, 446], [545, 382], [480, 372], [300, 372], [165, 372], [112, 446], [0, 446]], below: [[0, 446], [112, 446], [150, 352], [480, 352], [545, 360], [566, 446], [742, 446], [742, 753], [0, 753]], W: 742, H: 753, pose: null }
+      split: [480, 300], boot: [[[0, 480], [135, 478], [125, 560], [70, 625], [0, 625]], [[560, 535], [742, 545], [742, 655], [640, 655], [560, 612]]],
+      upper: [[0, 0], [742, 0], [742, 446], [566, 446], [545, 382], [492, 422], [400, 434], [322, 426], [292, 372], [165, 372], [112, 446], [0, 446]], below: [[0, 446], [112, 446], [150, 352], [480, 352], [545, 360], [566, 446], [742, 446], [742, 753], [0, 753]], W: 742, H: 753, pose: null }
   };
   const caches = {};
   function build(cfg, q, fr) {
     const w = fr.width, h = fr.height, polyPath = function (x, poly) { x.beginPath(); poly.forEach(function (p, i) { if (i) x.lineTo(p[0] * q, p[1] * q); else x.moveTo(p[0] * q, p[1] * q); }); x.closePath(); };
-    const piece = function (clips) { const c = Gfx.mk(w, h), x = c.getContext('2d'); x.save(); clips.forEach(function (p) { polyPath(x, p); x.clip(); }); x.drawImage(fr, 0, 0); x.restore(); return c; };
+    const piece = function (clips) { const c = Gfx.mk(w, h), x = c.getContext('2d'); x.save(); clips.forEach(function (p) { if (p.c) { x.beginPath(); x.arc(p.c[0] * q, p.c[1] * q, p.r * q, 0, 6.2832); } else polyPath(x, p); x.clip(); }); x.drawImage(fr, 0, 0); x.restore(); return c; };
+    const union = function (list) { const c = Gfx.mk(w, h), x = c.getContext('2d'); list.forEach(function (clips) { x.drawImage(piece(clips), 0, 0); }); return c; };       // pieces end in round caps, so a bent joint leaves no gap on its outer side
+    const disc = function (c, r) { return { c: c, r: r }; };
     const quad = function (a, b, half, extA, extB) {
       const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy), ux = dx / l, uy = dy / l, nx = -uy, ny = ux, A = [a[0] - ux * extA, a[1] - uy * extA], B = [b[0] + ux * extB, b[1] + uy * extB];
       return [[A[0] + nx * half, A[1] + ny * half], [B[0] + nx * half, B[1] + ny * half], [B[0] - nx * half, B[1] - ny * half], [A[0] - nx * half, A[1] - ny * half]];
@@ -1108,7 +1110,7 @@ const Puppet = (function () {
     const P = { q, upper: piece([cfg.upper]), legs: [] };
     for (let i = 0; i < 2; i++) {
       const g = cfg.legs[i], sp = cfg.split[i], side = i === 0 ? [[0, 0], [sp, 0], [sp, cfg.H], [0, cfg.H]] : [[sp, 0], [cfg.W, 0], [cfg.W, cfg.H], [sp, cfg.H]];
-      P.legs.push({ thigh: piece([quad(g.h, g.k, g.half, 30, 0), side, cfg.below]), shin: piece([quad(g.k, g.a, g.half * 0.85, 22, 0)]), boot: piece([cfg.boot[i]]) });
+      P.legs.push({ thigh: union([[quad(g.h, g.k, g.half, 30, 0), side, cfg.below], [disc(g.k, g.half * 0.9), side, cfg.below], [disc(g.h, g.half * 0.8), side, cfg.below]]), shin: union([[quad(g.k, g.a, g.half * 0.85, 22, 0)], [disc(g.k, g.half * 0.8)], [disc(g.a, g.half * 0.7)]]), boot: piece([cfg.boot[i]]) });
     }
     return P;
   }
@@ -1535,7 +1537,7 @@ const Renderer = (function () {
       if (!hidden && !(S.dead && an.deadP > 0.4)) {
         const face = an.face >= 0 ? 1 : -1, len = 5.0 * PM, flick = S.dead ? 0.5 + 0.5 * Math.sin(now * 40) : 1;
         dctx.save(); dctx.globalAlpha = 0.95 * flick; dctx.translate(hand.x * k, hand.y * k); dctx.scale(face, 1); dctx.drawImage(cone, 0, -len * k, len * k, len * 2 * k); dctx.restore();
-        cut(hole, px + face * PM * 0.1, FY - PM * 0.95, PM * 1.35, 0.55 * flick);
+        cut(hole, px + face * PM * 0.1, FY - PM * 0.95, PM * 1.45, 0.7 * flick); cut(hole, px, FY - PM * 0.4, PM * 1.15, 0.6 * flick);          // body light: the legs must never fall into the dark
       }
       /* sonar: a disc of vision that grows with the wave and then fades */
       for (const p of f.pings) { if (p.f !== S.f) continue; const age = now - p.t0; if (age < 0 || age > 2.6) continue; const r = (1 - Math.pow(1 - clamp(age / 1.1, 0, 1), 2)) * 9.5 * PM; cut(hole, (p.x - an.camX) * PM + Wpx / 2, FY - PM * 1.2, r * 1.05, clamp(1.15 - age / 2.6, 0, 1) * 0.98); }
