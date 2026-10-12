@@ -8,6 +8,7 @@ import { initAudio, sfx, setVolume, setMusic, setIntensity, speak, voice } from 
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { EXPR } from './char.js';
 
+const ARENA_NAMES = { rooftop: 'NEON ROOFTOP', dojo: 'TOURNAMENT DOJO', bunker: 'UNDERGROUND PIT' };
 const FPS = 60, DT = 1 / FPS, ROUNDS_TO_WIN = 2, ROUND_TIME = 60;
 const $ = (s, r = document) => r.querySelector(s);
 const LEVELS = ['easy', 'normal', 'hard', 'expert'];
@@ -18,7 +19,7 @@ export class Game {
   constructor(gfx) {
     this.gfx = gfx; this.fx = gfx.fx; this.scene = gfx.scene; this.F = []; this.fighterCache = {};
     this.screen = 'menu'; this.phase = 'none'; this.mode = 'arcade'; this.canFight = false; this.hitstopF = 0; this.timeScale = 1; this.paused = false;
-    this.settings = Object.assign({ difficulty: 'normal', quality: 'medium', sfx: .8, music: .5, timer: ROUND_TIME, rounds: ROUNDS_TO_WIN }, JSON.parse(localStorage.getItem('sc3d_settings') || '{}'));
+    this.settings = Object.assign({ arena: 'auto', difficulty: 'normal', quality: 'medium', sfx: .8, music: .5, timer: ROUND_TIME, rounds: ROUNDS_TO_WIN }, JSON.parse(localStorage.getItem('sc3d_settings') || '{}'));
     this.acc = 0; this.frame = 0; this.sel = { step: 0, idx: 0, p1: null, p2: null }; this.camMode = 'menu';
     this.ui = {}; this.buildUI(); this.show('menu'); setVolume(this.settings.sfx, this.settings.music);
     onKey((code) => this.onKeyDown(code));
@@ -60,7 +61,7 @@ export class Game {
 
   /* ---------------- match flow ---------------- */
   startMatch(opts) {
-    initAudio(); this.mode = opts.mode; this.opts = opts; this.setFighters(opts.p1, opts.p2);
+    initAudio(); this.mode = opts.mode; this.opts = opts; this.setFighters(opts.p1, opts.p2); this.arenaName = this.pickArena(); this.gfx.setArena(this.arenaName);
     const s = this.settings, solo = this.mode !== 'versus';
     this.ctrl = [new Controller(0, this.mode === 'versus' ? 0 : -1), this.mode === 'versus' ? new Controller(1, 1) : null];
     this.solo = solo;
@@ -69,6 +70,7 @@ export class Game {
     this.round = 1; this.F[0].wins = this.F[1].wins = 0; this.training = this.mode === 'training';
     this.hideAll(); this.beginRound(true);
   }
+  pickArena() { const all = ['rooftop', 'dojo', 'bunker'], a = this.settings.arena || 'auto'; if (this.mode === 'arcade' && this.tour) return all[this.tour.step % 3]; if (a !== 'auto' && all.includes(a)) return a; return all[(Math.random() * 3) | 0]; }
   beginRound(first) {
     this.placeFighters(); this.timer = this.training ? 999 : this.settings.timer; this.timerAcc = 0; this.canFight = false; this.phase = 'intro'; this.phaseT = 0; this.timeScale = 1; this.hitstopF = 0;
     this.ui.setHud(true); this.ui.updateHud(true); this.gfx.cam.setMode(first ? 'intro' : 'fight'); this.camMode = first ? 'intro' : 'fight';
@@ -105,7 +107,7 @@ export class Game {
       else this.ui.result({ title: 'DEFEAT', sub: w.spec.name + ' WINS', winner: w.spec, defeat: true, buttons: [['RETRY', () => this.nextTourFight(true)], ['MENU', () => this.toMenu()]] });
     } else this.ui.result({ title: this.mode === 'versus' ? 'PLAYER ' + (w.idx + 1) + ' WINS' : 'VICTORY', sub: w.spec.name + ' — ' + w.spec.title, winner: w.spec, buttons: [['REMATCH', () => this.startMatch(this.opts)], ['CHARACTER SELECT', () => this.openSelect(this.mode)], ['MENU', () => this.toMenu()]] });
   }
-  toMenu() { this.phase = 'none'; this.canFight = false; this.timeScale = 1; this.paused = false; this.ui.pause(false); this.hideAll(); this.menuScene(); this.show('menu'); this.ui.setHud(false); this.gfx.cam.setMode('menu'); this.camMode = 'menu'; setIntensity(0); $('#banner').classList.remove('show'); }
+  toMenu() { this.gfx.setArena('rooftop'); this.phase = 'none'; this.canFight = false; this.timeScale = 1; this.paused = false; this.ui.pause(false); this.hideAll(); this.menuScene(); this.show('menu'); this.ui.setHud(false); this.gfx.cam.setMode('menu'); this.camMode = 'menu'; setIntensity(0); $('#banner').classList.remove('show'); }
   menuScene() { // idle stand-off behind the main menu
     this.previewFighter && (this.previewFighter.rig.root.visible = false); this.setFighters('kai', 'draven'); this.placeFighters(); this.F[0].reset(.2, .5); this.F[1].reset(2.0, -.3); this.F[0].face.set(1, 0, -.2).normalize(); this.F[1].face.set(-1, 0, .1).normalize(); this.screen = 'menu';
   }
@@ -337,7 +339,7 @@ export class Game {
     let bt = 0;
     ui.banner = (txt, cls) => { const e = $('#banner'); e.className = ''; e.innerHTML = `<span class="${cls}">${txt}</span>`; void e.offsetWidth; e.classList.add('show'); clearTimeout(bt); bt = setTimeout(() => e.classList.remove('show'), cls === 'win' ? 3000 : 1500); };
     ui.intro = (s1, s2, mode, tour) => { const e = $('#intro'); const step = tour ? `FIGHT ${tour.step + 1} / ${tour.queue.length}` : mode === 'versus' ? 'LOCAL VERSUS' : 'TRAINING';
-      e.innerHTML = `<div class="vsStrip"><div class="side l" style="--c:${s1.color}"><small>${s1.style}</small><b>${s1.name}</b><i>${s1.title}</i></div><div class="vs">VS</div><div class="side r" style="--c:${s2.color}"><small>${s2.style}</small><b>${s2.name}</b><i>${s2.title}</i></div></div><div class="stepTxt">${step}</div>`; e.classList.add('show'); };
+      e.innerHTML = `<div class="vsStrip"><div class="side l" style="--c:${s1.color}"><small>${s1.style}</small><b>${s1.name}</b><i>${s1.title}</i></div><div class="vs">VS</div><div class="side r" style="--c:${s2.color}"><small>${s2.style}</small><b>${s2.name}</b><i>${s2.title}</i></div></div><div class="stepTxt">${step}<small style="display:block;font-size:.55em;color:#9fb1ff;letter-spacing:.4em">${ARENA_NAMES[G.arenaName] || ''}</small></div>`; e.classList.add('show'); };
     ui.hideIntro = () => $('#intro').classList.remove('show');
     ui.pause = (on) => { const e = $('#pause'); if (!on) { e.classList.remove('show'); return; } ui.pauseIdx = 0;
       ui.pauseItems = [['RESUME', () => G.togglePause()], ['RESTART MATCH', () => { G.togglePause(); G.startMatch(G.opts); }], ['MOVE LIST', () => { G.ui.moveList(); }], ['QUIT TO MENU', () => { G.togglePause(); G.toMenu(); }]];
@@ -358,14 +360,15 @@ export class Game {
       const s = G.settings, kb = getBindings(), mk = (p) => Object.keys(ACTION_LABEL).map(a => `<div class="krow"><span>${ACTION_LABEL[a]}</span><button class="kb" data-p="${p}" data-a="${a}">${kb[p][a].map(keyName).join(' / ')}</button></div>`).join('');
       $('#setBody').innerHTML = `<div class="cols"><div><h3>GRAPHICS &amp; AUDIO</h3>
         <label>Quality <select id="sq">${['low', 'medium', 'high'].map(q => `<option ${s.quality === q ? 'selected' : ''}>${q}</option>`).join('')}</select></label><small>(applies after reload)</small>
+        <label>Arena <select id="sa">${[['auto', 'Auto'], ['rooftop', 'Neon Rooftop'], ['dojo', 'Tournament Dojo'], ['bunker', 'Underground Pit']].map(q => `<option value="${q[0]}" ${s.arena === q[0] ? 'selected' : ''}>${q[1]}</option>`).join('')}</select></label>
         <label>AI difficulty <select id="sd">${LEVELS.map(q => `<option ${s.difficulty === q ? 'selected' : ''}>${q}</option>`).join('')}</select></label>
         <label>Rounds to win <select id="sr">${[1, 2, 3].map(q => `<option ${s.rounds === q ? 'selected' : ''}>${q}</option>`).join('')}</select></label>
         <label>Round time <select id="st">${[30, 60, 99].map(q => `<option ${s.timer === q ? 'selected' : ''}>${q}</option>`).join('')}</select></label>
         <label>SFX <input id="sv" type="range" min="0" max="1" step=".05" value="${s.sfx}"></label><label>Music <input id="mv" type="range" min="0" max="1" step=".05" value="${s.music}"></label>
         <button id="rst" class="btn">Reset controls</button></div>
         <div><h3>PLAYER 1 CONTROLS</h3>${mk(0)}</div><div><h3>PLAYER 2 CONTROLS</h3>${mk(1)}</div></div><p class="hint">Click a control, then press the new key. Gamepads: stick/D-pad move • X,Y punches • A,B kicks • LB block • RB jump.</p>`;
-      const sv = () => { s.quality = $('#sq').value; s.difficulty = $('#sd').value; s.rounds = +$('#sr').value; s.timer = +$('#st').value; s.sfx = +$('#sv').value; s.music = +$('#mv').value; G.saveSettings(); };
-      ['#sq', '#sd', '#sr', '#st', '#sv', '#mv'].forEach(i => $(i).oninput = sv); $('#rst').onclick = () => { resetBindings(); ui.buildSettings(); };
+      const sv = () => { s.arena = $('#sa').value; s.quality = $('#sq').value; s.difficulty = $('#sd').value; s.rounds = +$('#sr').value; s.timer = +$('#st').value; s.sfx = +$('#sv').value; s.music = +$('#mv').value; G.saveSettings(); };
+      ['#sa', '#sq', '#sd', '#sr', '#st', '#sv', '#mv'].forEach(i => $(i).oninput = sv); $('#rst').onclick = () => { resetBindings(); ui.buildSettings(); };
       $$('.kb').forEach(b => b.onclick = () => { b.textContent = 'press a key…'; G.remapping = (code) => { if (code === 'Escape') { G.remapping = null; ui.buildSettings(); return; } setBinding(+b.dataset.p, b.dataset.a, code); G.remapping = null; ui.buildSettings(); }; });
     };
     function movesName(k) { return (MOVES[k] && MOVES[k].name) || k; }

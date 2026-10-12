@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
+import { buildDojo, buildBunker } from './arenas.js';
 
 const V3 = THREE.Vector3, TAU = Math.PI * 2;
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v, lerp = (a, b, t) => a + (b - a) * t, rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
@@ -67,15 +68,33 @@ export class Gfx {
     if (this.reflector) this.reflector.getRenderTarget().setSize(w * (this.q.reflectRes || .5) * this.renderer.getPixelRatio(), h * (this.q.reflectRes || .5) * this.renderer.getPixelRatio());
   }
   render(dt) {
-    const t = this.clock.elapsedTime; this.arena.update(t, dt); this.fx.update(dt);
+    const t = this.clock.elapsedTime; this.arena.update(t, dt); if (this.curArena !== 'rooftop' && !this.studioOn) this.arenas[this.curArena].update(t, dt); this.fx.update(dt);
     if (this.studioOn) { const c = this.camera.position, L = this.studioLights, h = Math.hypot(c.x, c.z) || 1, dx = c.x / h, dz = c.z / h;
       L.sk.position.set(dx * 3.2 - dz * 1.4, 3.0, dz * 3.2 + dx * 1.4); L.sf.position.set(dx * 3 + dz * 1.8, 1.4, dz * 3 - dx * 1.8); L.sa.position.set(-dx * 2.4 + dz * 1.8, 2.6, -dz * 2.4 - dx * 1.8); L.sb.position.set(-dx * 2.4 - dz * 1.8, 2.4, -dz * 2.4 + dx * 1.8); this.key.position.set(dx * 4, 7, dz * 4); }
     this.grade.uniforms.time.value = t % 10; this.grade.uniforms.chroma.value *= .88; this.grade.uniforms.flash.value *= .8;
     this.bloom.strength = (.55 + this.fx.bloomKick) * this.q.bloom; this.composer.render(dt);
   }
+  makeEnv(lights, bg) {
+    const pm = new THREE.PMREMGenerator(this.renderer), sc = new THREE.Scene(); sc.background = new THREE.Color(bg);
+    for (const [c, x, y, z] of lights) { const l = new THREE.Mesh(new THREE.SphereGeometry(1.6), new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(6) })); l.position.set(x, y, z); sc.add(l); }
+    const t = pm.fromScene(sc, .03).texture; pm.dispose(); return t;
+  }
+  setArena(name) {
+    if (!this.arenas[name]) { const mod = name === 'dojo' ? buildDojo({ q: this.q }) : buildBunker({ q: this.q }); this.arenas[name] = mod; this.scene.add(mod.group); mod.env = this.makeEnv(mod.envLights, mod.preset.bg); }
+    this.curArena = name; this.applyArena();
+  }
+  applyArena() {
+    const S = this.scene, name = this.curArena, A = this.arena, on = !this.studioOn;
+    for (const k in this.arenas) this.arenas[k].group.visible = on && k === name;
+    A.hold = !on || name !== 'rooftop'; A.rain.visible = on && name === 'rooftop'; A.fires.forEach(f => { f.fm.visible = on && name === 'rooftop'; if (name !== 'rooftop' || !on) f.l.intensity = 0; }); A.flick.forEach(l => l.visible = on && name === 'rooftop');
+    if (!on) return;
+    const p = this.arenas[name].preset; S.fog.color.set(p.fog[0]); S.fog.density = p.fog[1]; S.background = new THREE.Color(p.bg); this.key.color.set(p.key[0]); this.key.intensity = p.key[1]; this.key.position.set(...p.key[2]);
+    this.hemiL.color.set(p.hemi[0]); this.hemiL.groundColor.set(p.hemi[1]); this.hemiL.intensity = p.hemi[2]; this.spotL.color.set(p.spot[0]); this.spotL.intensity = p.spot[1]; this.renderer.toneMappingExposure = p.exposure; S.environment = this.arenas[name].env;
+  }
   setStudio(on) {
-    this.studioOn = on; this.arenaGroup.visible = !on; this.arena.rain.visible = !on; this.arena.hold = on; this.scene.fog.density = on ? .0006 : .0055; this.scene.background = new THREE.Color(on ? 0x0a0a0f : 0x07030f); this.studio.visible = on;
-    this.arena.fires.forEach(f => { f.l.intensity = on ? 0 : 12; f.fm.visible = !on; }); this.arena.flick.forEach(l => l.visible = !on);
+    this.studioOn = on; this.studio.visible = on;
+    if (on) { this.applyArena(); this.scene.fog.density = .0006; this.scene.background = new THREE.Color(0x0a0a0f); this.key.color.set(0xbfd0ff); this.key.intensity = 2.1; this.renderer.toneMappingExposure = 1.05; this.scene.environment = this.arenas.rooftop.env; }
+    else this.applyArena();
   }
   kick(chroma = .006) { this.grade.uniforms.chroma.value = Math.max(this.grade.uniforms.chroma.value, chroma); }
   flash(a, col) { this.grade.uniforms.flash.value = a; if (col) this.grade.uniforms.flashCol.value.set(col); }
@@ -100,11 +119,11 @@ export class Gfx {
     this.clouds = [0, 1].map(i => { const m = new THREE.Mesh(new THREE.PlaneGeometry(420, 110), new THREE.MeshBasicMaterial({ map: tex(cc), transparent: true, depthWrite: false, fog: false, color: i ? 0xff6ab0 : 0x7a8cff, blending: THREE.AdditiveBlending, opacity: .55 })); m.position.set(i * 60 - 30, 38 + i * 22, -170 + i * 20); grp.add(m); return m; });
 
     // ---- lighting
-    S.add(new THREE.HemisphereLight(0x5a4ca8, 0x1a0f26, .55));
+    this.hemiL = new THREE.HemisphereLight(0x5a4ca8, 0x1a0f26, .55); S.add(this.hemiL);
     const key = this.key = new THREE.DirectionalLight(0xbfd0ff, 2.1); key.position.set(-3.5, 9, 6); key.castShadow = true; key.shadow.mapSize.set(q.shadow, q.shadow);
     Object.assign(key.shadow.camera, { left: -7, right: 7, top: 5, bottom: -5, near: 1, far: 30 }); key.shadow.bias = -.0004; key.shadow.normalBias = .02; key.shadow.radius = 4; key.target.position.set(0, 1, 0); S.add(key, key.target);
     const rimM = new THREE.PointLight(0xff2fa0, 55, 22, 2); rimM.position.set(-5.5, 2.6, -3.2); const rimC = new THREE.PointLight(0x22d4ff, 55, 22, 2); rimC.position.set(5.5, 2.6, -3.2); S.add(rimM, rimC);
-    const spot = new THREE.SpotLight(0xfff0e0, 160, 18, .55, .6, 1.6); spot.position.set(0, 8.5, 2.5); spot.target.position.set(0, 0, 0); spot.castShadow = q.shadow >= 2048; spot.shadow.mapSize.set(1024, 1024); S.add(spot, spot.target);
+    const spot = new THREE.SpotLight(0xfff0e0, 160, 18, .55, .6, 1.6); spot.position.set(0, 8.5, 2.5); spot.target.position.set(0, 0, 0); spot.castShadow = q.shadow >= 2048; spot.shadow.mapSize.set(1024, 1024); S.add(spot, spot.target); this.spotL = spot;
     A.flick = [rimM, rimC];
 
     // ---- floor
@@ -200,6 +219,7 @@ export class Gfx {
     const pm = new THREE.PMREMGenerator(this.renderer); const envScene = new THREE.Scene(); envScene.background = new THREE.Color(0x120a22);
     const eg = grp.clone(true); envScene.add(eg); const el = [[0xff2fa0, -6, 3, -4], [0x22d4ff, 6, 3, -4], [0xfff0e0, 0, 8, 3]]; for (const [c, x, y, z] of el) { const l = new THREE.Mesh(new THREE.SphereGeometry(1.4), new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(6) })); l.position.set(x, y, z); envScene.add(l); }
     S.environment = pm.fromScene(envScene, .03).texture; pm.dispose();
+    this.arenas = { rooftop: { group: grp, env: S.environment, preset: { fog: [0x22103a, .0055], bg: 0x07030f, key: [0xbfd0ff, 2.1, [-3.5, 9, 6]], hemi: [0x5a4ca8, 0x1a0f26, .55], spot: [0xfff0e0, 160], exposure: 1.05 } } }; this.curArena = 'rooftop';
   }
 }
 
