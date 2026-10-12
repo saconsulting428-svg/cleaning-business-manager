@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HUSH 3D Characters</title>
+<style>
+  :root { --bg:#14161a; --panel:#1d2026; --fg:#e8e8ea; --dim:#8a8f98; --red:#d8322b; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font-family:system-ui,sans-serif; overflow:hidden; }
+  canvas { display:block; }
+  #ui { position:fixed; inset:0; pointer-events:none; display:flex; flex-direction:column; justify-content:space-between; padding:12px 16px; }
+  .row { display:flex; flex-wrap:wrap; gap:6px; pointer-events:auto; }
+  .title { font-size:28px; font-weight:800; letter-spacing:2px; color:var(--red); text-shadow:0 0 12px #5a0f0b; }
+  .title small { display:block; font-size:12px; color:var(--dim); letter-spacing:1px; font-weight:500; text-shadow:none; }
+  button { background:var(--panel); color:var(--fg); border:1px solid #333840; padding:8px 12px; border-radius:6px; font-size:13px; cursor:pointer; }
+  button.on { background:var(--red); border-color:var(--red); }
+  .group { display:flex; gap:6px; flex-wrap:wrap; }
+  .label { color:var(--dim); font-size:11px; letter-spacing:1px; align-self:center; margin-right:2px; }
+  .bottom { display:flex; flex-direction:column; gap:8px; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <div class="row" style="justify-content:space-between;align-items:flex-start">
+    <div class="title">HUSH<small id="subtitle">SURVIVOR · 3D CHARACTER</small></div>
+    <div class="group" id="chars"></div>
+  </div>
+  <div class="bottom">
+    <div class="row"><span class="label">VIEW</span><div class="group" id="views"></div></div>
+    <div class="row"><span class="label">ANIMATION</span><div class="group" id="anims"></div></div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./lib/three.module.js"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from './lib/OrbitControls.js';
+
+// ---------- scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x14161a);
+scene.fog = new THREE.Fog(0x14161a, 7, 16);
+
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 50);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.minDistance = 2; controls.maxDistance = 9;
+controls.maxPolarAngle = Math.PI * 0.52;
+
+scene.add(new THREE.HemisphereLight(0xaabbcc, 0x222228, 1.3));
+const key = new THREE.DirectionalLight(0xffffff, 2.2);
+key.position.set(3, 5, 4); key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+Object.assign(key.shadow.camera, { left:-3, right:3, top:3, bottom:-3 });
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x6688cc, 1.8);
+rim.position.set(-4, 3, -4); scene.add(rim);
+
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(6, 64),
+  new THREE.MeshStandardMaterial({ color:0x1b1d22, roughness:0.9 })
+);
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+scene.add(new THREE.GridHelper(12, 24, 0x2a2e36, 0x22252b));
+
+// ---------- helpers ----------
+const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness:0.8, metalness:0.1, flatShading:true, ...o });
+function mesh(geo, material, x = 0, y = 0, z = 0, parent) {
+  const m = new THREE.Mesh(geo, material);
+  m.position.set(x, y, z); m.castShadow = true;
+  if (parent) parent.add(m);
+  return m;
+}
+const joint = (parent, x, y, z) => { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; };
+const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+const cyl = (rt, rb, h, s = 8) => new THREE.CylinderGeometry(rt, rb, h, s);
+const sph = (r, w = 12, h = 10) => new THREE.SphereGeometry(r, w, h);
+const cone = (r, h, s = 6) => new THREE.ConeGeometry(r, h, s);
+
+/**
+ * Generic humanoid rig. Front is +z. Pose values use natural signs:
+ * hip/shoulder positive = swing forward, knee/elbow positive = bend, spine positive = lean forward.
+ */
+function rig(o) {
+  const root = new THREE.Group();
+  const pelvis = joint(root, 0, o.hipH, 0);
+  mesh(box(o.hipW, 0.2 * o.s, 0.28 * o.s), o.bodyMat, 0, 0, 0, pelvis);
+  const spine = joint(pelvis, 0, 0.05 * o.s, 0);
+  const torso = mesh(cyl(o.chestW * 0.56, o.chestW * 0.4, o.torsoH, 8), o.bodyMat, 0, o.torsoH / 2, 0, spine);
+  torso.scale.z = o.chestD / o.chestW * 1.1;
+  const neck = joint(spine, 0, o.torsoH + 0.02, 0.02 * o.s);
+  const head = joint(neck, 0, 0.1 * o.s, 0);
+  const J = { root, pelvis, spine, neck, head, torso };
+
+  for (const side of [-1, 1]) {
+    const n = side < 0 ? 'L' : 'R';
+    const sh = joint(spine, side * (o.chestW / 2 + 0.06 * o.s), o.torsoH - 0.08 * o.s, 0);
+    mesh(sph(0.1 * o.s), o.bodyMat, 0, 0, 0, sh);
+    mesh(cyl(o.armR, o.armR * 0.85, o.armLen, 7), o.limbMat, 0, -o.armLen / 2, 0, sh);
+    const el = joint(sh, 0, -o.armLen, 0);
+    mesh(sph(o.armR * 0.9), o.limbMat, 0, 0, 0, el);
+    mesh(cyl(o.armR * 0.85, o.armR * 0.65, o.armLen, 7), o.limbMat, 0, -o.armLen / 2, 0, el);
+    const hand = joint(el, 0, -o.armLen, 0);
+    J['sh' + n] = sh; J['el' + n] = el; J['hand' + n] = hand;
+
+    const hip = joint(pelvis, side * o.hipW * 0.28, -0.05 * o.s, 0);
+    mesh(cyl(o.legR, o.legR * 0.8, o.legLen, 7), o.legMat, 0, -o.legLen / 2, 0, hip);
+    const kn = joint(hip, 0, -o.legLen, 0);
+    mesh(sph(o.legR * 0.8), o.legMat, 0, 0, 0, kn);
+    mesh(cyl(o.legR * 0.8, o.legR * 0.6, o.legLen, 7), o.legMat, 0, -o.legLen / 2, 0, kn);
+    const foot = joint(kn, 0, -o.legLen, 0);
+    J['hip' + n] = hip; J['kn' + n] = kn; J['foot' + n] = foot;
+  }
+  return J;
+}
+
+// ---------- SURVIVOR ----------
+function buildSurvivor() {
+  const jacket = mat(0x5a5f58), pants = mat(0x3c3f44), skin = mat(0xb98a6b, { roughness:0.7 });
+  const leather = mat(0x4a3a2a), hair = mat(0x15110e);
+  const s = 1;
+  const J = rig({ s, hipH:0.95, hipW:0.34, chestW:0.46, chestD:0.26, torsoH:0.58,
+    armR:0.055, armLen:0.3, legR:0.085, legLen:0.46,
+    bodyMat:jacket, limbMat:jacket, legMat:pants });
+
+  // jacket hem + hood + belt
+  mesh(box(0.5, 0.18, 0.3), jacket, 0, 0.05, 0, J.spine);
+  mesh(box(0.48, 0.05, 0.28), leather, 0, -0.02, 0, J.spine);
+  mesh(box(0.42, 0.1, 0.22), jacket, 0, 0.62, -0.08, J.spine);           // hood roll
+  mesh(box(0.2, 0.3, 0.02), mat(0x222222), 0, 0.35, 0.135, J.spine);     // shirt under jacket
+
+  // head
+  mesh(sph(0.115, 14, 12), skin, 0, 0.12, 0, J.head);
+  mesh(sph(0.125, 10, 8), hair, 0, 0.17, -0.02, J.head).scale.set(1, 0.7, 1.05);  // curly hair
+  for (let i = 0; i < 9; i++) {
+    const a = i / 9 * Math.PI * 2;
+    mesh(sph(0.04, 6, 5), hair, Math.cos(a) * 0.1, 0.19 + Math.sin(i * 2) * 0.02, Math.sin(a) * 0.1, J.head);
+  }
+  mesh(box(0.15, 0.07, 0.04), hair, 0, 0.05, 0.1, J.head);               // beard
+  mesh(sph(0.012), mat(0x000000), -0.04, 0.14, 0.108, J.head);
+  mesh(sph(0.012), mat(0x000000), 0.04, 0.14, 0.108, J.head);
+
+  // backpack + bedroll
+  mesh(box(0.38, 0.5, 0.2), leather, 0, 0.3, -0.24, J.spine);
+  mesh(box(0.3, 0.16, 0.1), mat(0x333a30), 0, 0.12, -0.38, J.spine);
+  mesh(cyl(0.07, 0.07, 0.4, 10), mat(0x2d3a2d), 0, 0.62, -0.26, J.spine).rotation.z = Math.PI / 2;
+
+  // hands, boots, knee pads
+  for (const n of ['L', 'R']) {
+    mesh(sph(0.055), mat(0x1c1c1c), 0, -0.02, 0, J['hand' + n]);
+    mesh(box(0.14, 0.1, 0.28), mat(0x241d17), 0, -0.04, 0.05, J['foot' + n]);
+    mesh(box(0.13, 0.06, 0.16), mat(0x1a1a1a), 0, 0.04, 0.0, J['kn' + n]);
+  }
+  // thigh pouch + radio on belt
+  mesh(box(0.1, 0.16, 0.12), jacket, 0.17, -0.2, 0, J.pelvis);
+  mesh(box(0.06, 0.14, 0.04), mat(0x222222), -0.2, 0.0, 0.12, J.pelvis);
+  mesh(box(0.02, 0.03, 0.02), mat(0xff7a1a, { emissive:0xff7a1a, emissiveIntensity:1.5 }), -0.2, 0.05, 0.145, J.pelvis);
+
+  // flashlight (right hand)
+  const fl = joint(J.handR, 0, -0.03, 0.05);
+  fl.rotation.x = Math.PI / 2;
+  mesh(cyl(0.03, 0.04, 0.2, 10), mat(0x222428, { metalness:0.6 }), 0, 0, 0, fl);
+  const lens = mesh(cyl(0.05, 0.05, 0.02, 12), mat(0xffffee, { emissive:0xffffcc, emissiveIntensity:2 }), 0, 0.11, 0, fl);
+  const spot = new THREE.SpotLight(0xfff2cc, 40, 9, 0.38, 0.5, 1.5);
+  spot.position.set(0, 0.12, 0); spot.castShadow = false;
+  const tgt = new THREE.Object3D(); tgt.position.set(0, 3, 0);
+  fl.add(spot, tgt); spot.target = tgt;
+  // visible beam cone
+  const beam = new THREE.Mesh(
+    new THREE.ConeGeometry(0.45, 2.6, 24, 1, true),
+    new THREE.MeshBasicMaterial({ color:0xfff2cc, transparent:true, opacity:0.05, side:THREE.DoubleSide, depthWrite:false })
+  );
+  beam.position.set(0, 1.4, 0); beam.rotation.x = Math.PI; fl.add(beam);
+
+  J.root.userData.kind = 'survivor';
+  return J;
+}
+
+// ---------- MONSTER ----------
+function buildMonster() {
+  const flesh = mat(0x3a2f31, { roughness:0.55 }), dark = mat(0x241c1e, { roughness:0.5 });
+  const glow = mat(0xff2a1a, { emissive:0xff1a0a, emissiveIntensity:2.2 });
+  const claw = mat(0xb82a22, { emissive:0x500a06, emissiveIntensity:0.8 });
+  const s = 1.25;
+  const J = rig({ s, hipH:1.15, hipW:0.46, chestW:0.78, chestD:0.42, torsoH:0.72,
+    armR:0.085, armLen:0.62, legR:0.12, legLen:0.58,
+    bodyMat:flesh, limbMat:flesh, legMat:dark });
+
+  // muscle bulk + glowing cracks
+  mesh(sph(0.3, 10, 8), flesh, 0, 0.5, 0.05, J.spine).scale.set(1.3, 0.8, 0.8);
+  for (let i = 0; i < 12; i++) {
+    const c = mesh(box(0.025, 0.14 + (i % 3) * 0.06, 0.02), glow,
+      (i - 5.5) * 0.06, 0.3 + (i % 4) * 0.12, 0.22, J.spine);
+    c.rotation.z = (i % 2 ? 1 : -1) * 0.5; c.castShadow = false;
+  }
+  // back spines
+  for (let i = 0; i < 9; i++) {
+    const sp = mesh(cone(0.07 - (i % 3) * 0.01, 0.4 + (i % 3) * 0.15), dark, (i % 3 - 1) * 0.2, 0.12 + Math.floor(i / 3) * 0.25, -0.25, J.spine);
+    sp.rotation.x = -2.0 + (i % 2) * 0.2;
+  }
+  // head
+  mesh(sph(0.19, 12, 10), flesh, 0, 0.14, 0.03, J.head).scale.set(1, 0.9, 1.15);
+  mesh(box(0.22, 0.09, 0.22), dark, 0, -0.03, 0.17, J.head);              // jaw
+  for (let i = 0; i < 5; i++) {
+    mesh(cone(0.02, 0.07, 4), mat(0xe8ddd0), -0.08 + i * 0.04, -0.0, 0.27, J.head).rotation.x = Math.PI;
+  }
+  for (const sx of [-1, 1]) {
+    mesh(sph(0.035, 8, 6), glow, sx * 0.08, 0.2, 0.17, J.head);
+  }
+  const eyeLight = new THREE.PointLight(0xff2010, 2.2, 3.5);
+  eyeLight.position.set(0, 0.2, 0.3); J.head.add(eyeLight);
+  for (let i = 0; i < 11; i++) {                                          // crest of spikes
+    const a = (i / 10 - 0.5) * 2.2;
+    const sp = mesh(cone(0.045, 0.34 + Math.cos(a) * 0.14), dark, Math.sin(a) * 0.14, 0.3, -0.05 - Math.abs(a) * 0.03, J.head);
+    sp.rotation.set(-0.7 - Math.abs(a) * 0.25, 0, -a * 0.45);
+  }
+  // claws on hands, feet
+  for (const n of ['L', 'R']) {
+    mesh(sph(0.08, 8, 6), flesh, 0, -0.04, 0, J['hand' + n]);
+    for (let i = 0; i < 4; i++) {
+      const c = mesh(cone(0.02, 0.3), claw, (i - 1.5) * 0.04, -0.2, 0.04, J['hand' + n]);
+      c.rotation.x = 0.15; c.rotation.z = (i - 1.5) * 0.08; c.scale.set(1, 1, 1);
+      c.rotation.x += Math.PI;  c.position.y = -0.2; c.rotation.x = Math.PI + 0.15; // point down
+    }
+    mesh(box(0.16, 0.08, 0.34), dark, 0, -0.04, 0.1, J['foot' + n]);
+    for (let i = 0; i < 3; i++) {
+      const c = mesh(cone(0.025, 0.2), claw, (i - 1) * 0.05, -0.04, 0.34, J['foot' + n]);
+      c.rotation.x = Math.PI / 2;
+    }
+    for (let i = 0; i < 3; i++) {                                         // elbow spikes
+      const c = mesh(cone(0.03, 0.18), dark, 0, 0.02, -0.06, J['el' + n]);
+      c.rotation.x = -2.0 + i * 0.4;
+    }
+  }
+  J.root.userData.kind = 'monster';
+  return J;
+}
+
+// ---------- animations (return pose values) ----------
+const P = (o) => Object.assign({ rootY:0, rootRX:0, spine:0, neck:0, shL:0, shR:0, elL:0, elR:0, hipL:0, hipR:0, knL:0, knR:0, rootZ:0 }, o);
+const clamp0 = (v) => Math.max(0, v);
+
+const ANIMS = {
+  survivor: {
+    Idle: (t) => P({ rootY:Math.sin(t * 2) * 0.006, spine:0.04 + Math.sin(t * 2) * 0.01,
+      shL:0.1, shR:0.15, elL:0.25, elR:0.35, hipL:0.03, hipR:-0.03 }),
+    Run: (t) => { const s = Math.sin(t * 10);
+      return P({ rootY:-0.06 + Math.abs(Math.cos(t * 10)) * 0.05, rootRX:0.28, spine:0.1, neck:-0.2,
+        shL:-s * 0.9, shR:0.5 + s * 0.2, elL:1.2, elR:1.0,
+        hipL:s * 1.0, hipR:-s * 1.0, knL:clamp0(-s) * 1.4 + 0.15, knR:clamp0(s) * 1.4 + 0.15 }); },
+    'Crouch Walk': (t) => { const s = Math.sin(t * 4);
+      return P({ rootY:-0.48 + Math.abs(s) * 0.01, rootRX:0.3, spine:0.25, neck:-0.35,
+        shL:0.2 - s * 0.2, shR:0.8, elL:0.9, elR:0.7,
+        hipL:1.0 + s * 0.4, hipR:1.0 - s * 0.4, knL:1.9 - clamp0(s) * 0.5, knR:1.9 - clamp0(-s) * 0.5 }); },
+    Crawl: (t) => { const s = Math.sin(t * 3);
+      return P({ rootY:-0.72, rootRX:1.42, spine:0.1, neck:-1.15,
+        shL:1.35 + s * 0.4, shR:1.35 - s * 0.4, elL:0.35, elR:0.35,
+        hipL:-s * 0.25, hipR:s * 0.25, knL:0.35 + clamp0(s) * 0.3, knR:0.35 + clamp0(-s) * 0.3 }); },
+    'Use / Interact': (t) => P({ rootY:-0.4, rootRX:0.2, spine:0.2, neck:-0.15,
+      shL:0.4, shR:1.4 + Math.sin(t * 3) * 0.05, elL:0.6, elR:1.0,
+      hipL:1.5, hipR:0.2, knL:1.5, knR:2.4 }),
+    'Caught / Fall': (t) => { const k = Math.min(1, (t % 4) / 1.2), e = k * k * (3 - 2 * k);
+      return P({ rootY:-0.7 * e, rootRX:-1.45 * e, spine:-0.2 * e, neck:0.3 * e,
+        shL:-1 * e + Math.sin(t * 8) * 0.1 * e, shR:-2.4 * e, elL:0.5 * e, elR:0.3 * e,
+        hipL:0.3 * e, hipR:-0.2 * e, knL:0.3 * e, knR:0.8 * e }); },
+  },
+  monster: {
+    'Idle / Roar': (t) => { const r = Math.max(0, Math.sin(t * 1.4)) ** 2;
+      return P({ rootY:-0.18 + Math.sin(t * 2.5) * 0.01, rootRX:0.35 - r * 0.2, spine:0.35 - r * 0.25, neck:-0.15 - r * 0.7,
+        shL:0.2 + r * 0.5, shR:0.15 + r * 0.5, elL:0.7, elR:0.7,
+        hipL:0.7, hipR:0.55, knL:1.2, knR:1.1 }); },
+    Run: (t) => { const s = Math.sin(t * 9);
+      return P({ rootY:-0.28 + Math.abs(Math.cos(t * 9)) * 0.08, rootRX:0.65, spine:0.2, neck:-0.5,
+        shL:s * 1.4, shR:-s * 1.4, elL:0.4 + clamp0(-s) * 0.8, elR:0.4 + clamp0(s) * 0.8,
+        hipL:0.5 - s * 1.0, hipR:0.5 + s * 1.0, knL:0.9 + clamp0(s) * 1.0, knR:0.9 + clamp0(-s) * 1.0 }); },
+    Attack: (t) => { const p = (t % 1.6) / 1.6;
+      const w = p < 0.5 ? -p * 2 : (p < 0.65 ? -1 + (p - 0.5) / 0.15 * 2.6 : 1.6 - (p - 0.65) / 0.35 * 1.6);
+      return P({ rootY:-0.25, rootRX:0.45 + w * 0.2, spine:0.35 + w * 0.2, neck:-0.4,
+        shL:-0.4 + w * 1.7, shR:-0.4 + w * 1.5, elL:0.5 - w * 0.2, elR:0.5 - w * 0.2,
+        hipL:0.8, hipR:0.4, knL:1.4, knR:1.2 }); },
+  },
+};
+
+// ---------- apply pose ----------
+const L = THREE.MathUtils.lerp;
+function applyPose(J, pose, base) {
+  J.root.position.y = pose.rootY; J.pelvis.rotation.x = pose.rootRX;
+  J.spine.rotation.x = pose.spine; J.neck.rotation.x = pose.neck;
+  J.shL.rotation.x = -pose.shL; J.shR.rotation.x = -pose.shR;
+  J.elL.rotation.x = -pose.elL; J.elR.rotation.x = -pose.elR;
+  J.hipL.rotation.x = -pose.hipL; J.hipR.rotation.x = -pose.hipR;
+  J.knL.rotation.x = pose.knL; J.knR.rotation.x = pose.knR;
+  // slight arm splay
+  J.shL.rotation.z = -0.08; J.shR.rotation.z = 0.08;
+}
+
+// ---------- characters & UI ----------
+const chars = {
+  survivor: { build:buildSurvivor, sub:'SURVIVOR · 3D CHARACTER', cam:[0, 1.0, 4.2], look:[0, 0.95, 0] },
+  monster:  { build:buildMonster,  sub:'MONSTER · 3D CHARACTER',  cam:[0, 1.2, 5.2], look:[0, 1.05, 0] },
+};
+const state = { char:'survivor', anim:'Idle', J:null, az:null };
+
+function btn(parent, label, on, fn) {
+  const b = document.createElement('button'); b.textContent = label;
+  b.onclick = fn; parent.appendChild(b); return b;
+}
+const charsEl = document.getElementById('chars'), viewsEl = document.getElementById('views'), animsEl = document.getElementById('anims');
+
+function setChar(name) {
+  if (state.J) scene.remove(state.J.root);
+  state.char = name;
+  state.J = chars[name].build();
+  state.J.root.traverse((o) => { if (o.isMesh) o.receiveShadow = false; });
+  scene.add(state.J.root);
+  document.getElementById('subtitle').textContent = chars[name].sub;
+  const [x, y, z] = chars[name].cam, [lx, ly, lz] = chars[name].look;
+  camera.position.set(x, y, z); controls.target.set(lx, ly, lz); controls.update();
+  [...charsEl.children].forEach((b) => b.classList.toggle('on', b.dataset.k === name));
+  animsEl.innerHTML = '';
+  Object.keys(ANIMS[name]).forEach((a) => { const b = btn(animsEl, a, 0, () => setAnim(a)); b.dataset.k = a; });
+  setAnim(Object.keys(ANIMS[name])[0]);
+}
+function setAnim(a) {
+  state.anim = a; state.t0 = clock.elapsedTime;
+  [...animsEl.children].forEach((b) => b.classList.toggle('on', b.dataset.k === a));
+}
+['survivor', 'monster'].forEach((k) => { const b = btn(charsEl, k.toUpperCase(), 0, () => setChar(k)); b.dataset.k = k; });
+
+const VIEWS = { Front:0, Right:Math.PI / 2, Back:Math.PI, Left:-Math.PI / 2 };
+Object.entries(VIEWS).forEach(([n, az]) => btn(viewsEl, n, 0, () => { state.az = az; }));
+
+const clock = new THREE.Clock();
+setChar('survivor');
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+controls.addEventListener('start', () => { state.az = null; });
+
+renderer.setAnimationLoop(() => {
+  const t = clock.elapsedTime - (state.t0 || 0);
+  clock.getDelta();
+  applyPose(state.J, ANIMS[state.char][state.anim](t));
+  // smooth turnaround to preset view
+  if (state.az !== null) {
+    const off = camera.position.clone().sub(controls.target);
+    const r = Math.hypot(off.x, off.z), cur = Math.atan2(off.x, off.z);
+    let d = state.az - cur; d = Math.atan2(Math.sin(d), Math.cos(d));
+    const a = cur + d * 0.12;
+    camera.position.set(controls.target.x + Math.sin(a) * r, camera.position.y, controls.target.z + Math.cos(a) * r);
+    if (Math.abs(d) < 0.003) state.az = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>
