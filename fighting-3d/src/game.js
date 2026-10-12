@@ -4,7 +4,7 @@ import { Fighter, AI, DIFFICULTY } from './fight.js';
 import { ROSTER, POSE, MOVES } from './moves.js';
 import { PORTRAITS } from './portraits.js';
 import { Controller, getBindings, setBinding, resetBindings, onKey, isDown, touchState } from './input.js';
-import { initAudio, sfx, setVolume, setMusic, setIntensity } from './audio.js';
+import { initAudio, sfx, setVolume, setMusic, setIntensity, speak, voice } from './audio.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { EXPR } from './char.js';
 
@@ -26,6 +26,8 @@ export class Game {
   }
   /* ---------------- helpers used by Fighter ---------------- */
   sfx(n) { sfx(n); }
+  voice(f, kind, big) { voice(kind, f.spec.gender === 'f', big); }
+  say(t, o) { speak(t, Object.assign({ vol: this.settings.sfx }, o)); }
   hitstop(f) { this.hitstopF = Math.max(this.hitstopF, f); }
   shake(a) { this.gfx.cam.shake(a); this.gfx.kick(a * .02); if (a > .2) this.gfx.cam.zoomKick = a * 2; }
   onHit(att, def, info) {
@@ -81,12 +83,12 @@ export class Game {
     this.canFight = false; this.phase = 'ko'; this.phaseT = 0; this.roundWinner = w; if (w) w.wins++;
     this.timeScale = why === 'ko' ? .28 : 1; this.gfx.cam.setMode('ko', w ? this.F[1 - w.idx] : this.F[1]); this.camMode = 'ko';
     this.ui.banner(why === 'ko' ? 'K.O.' : 'TIME UP', why === 'ko' ? 'ko' : '');
-    if (why === 'ko') { sfx('ko'); this.gfx.flash(.3, '#ffffff'); this.gfx.kick(.02); }
+    if (why === 'ko') { sfx('ko'); this.gfx.flash(.3, '#ffffff'); this.gfx.kick(.02); this.say('K.O.!', { pitch: .45, rate: .8 }); setTimeout(() => sfx('crowd'), 500); } else { this.say('Time up!'); sfx('bell'); }
     setIntensity(0);
   }
   afterKO() {
     const w = this.roundWinner; this.phase = 'roundEnd'; this.phaseT = 0; this.timeScale = 1;
-    if (w) { w.winPose = true; w.winVariant = (Math.random() * 3) | 0; sfx('win'); this.ui.banner(w.spec.name + ' WINS', 'win'); this.gfx.cam.setMode('win', w); this.camMode = 'win'; }
+    if (w) { w.winPose = true; w.winVariant = (Math.random() * 3) | 0; sfx('win'); sfx('crowd'); voice('win', w.spec.gender === 'f', true); setTimeout(() => this.say(this.mode === 'versus' ? 'Player ' + (w.idx + 1) + ' wins' : w.idx === 0 ? 'You win' : 'You lose', { rate: .85 }), 500); this.ui.banner(w.spec.name + ' WINS', 'win'); this.gfx.cam.setMode('win', w); this.camMode = 'win'; }
     else this.ui.banner('DRAW', '');
   }
   nextRoundOrEnd() {
@@ -96,7 +98,7 @@ export class Game {
   }
   endMatch(w) {
     this.phase = 'match'; this.phaseT = 0; this.matchWinner = w; this.gfx.cam.setMode('win', w); this.camMode = 'win'; this.canFight = false;
-    const humanWon = this.mode === 'versus' || w.idx === 0;
+    const humanWon = this.mode === 'versus' || w.idx === 0; sfx(humanWon ? 'crowdBig' : 'lose'); setTimeout(() => this.say(this.mode === 'versus' ? 'Player ' + (w.idx + 1) + ' is victorious' : humanWon ? 'Victory!' : 'You lose', { rate: .8 }), 900);
     this.ui.setHud(false);
     if (this.mode === 'arcade') {
       if (humanWon) { this.tour.step++; this.saveTour(); if (this.tour.step >= this.tour.queue.length) { this.ui.champion(this.F[0].spec, this.tour); this.clearTour(); } else this.ui.result({ title: 'VICTORY', sub: 'NEXT OPPONENT: ' + ROSTER[this.tour.queue[this.tour.step]].name, winner: w.spec, buttons: [['NEXT FIGHT', () => this.nextTourFight()], ['MENU', () => this.toMenu()]], auto: 4200, autoFn: () => this.nextTourFight() }); }
@@ -144,8 +146,8 @@ export class Game {
     if (this.phase === 'intro') {
       const T = this.phaseT, first = this.introSeq > 0, base = first ? this.introSeq : 0;
       for (const f of F) { f.input = {}; f.t++; f.update(f === a ? b : a); f.computePose(); }
-      if (T >= base && this.announced === 0) { this.announced = 1; this.ui.hideIntro(); this.gfx.cam.setMode('fight'); this.camMode = 'fight'; this.ui.banner('ROUND ' + this.round, 'round'); sfx('round'); }
-      if (T >= base + 1.4 && this.announced === 1) { this.announced = 2; this.ui.banner('FIGHT!', 'fight'); sfx('fight'); this.canFight = true; this.phase = 'fight'; this.phaseT = 0; setIntensity(.7); this.gfx.flash(.25, '#ffd9a0'); }
+      if (T >= base && this.announced === 0) { this.announced = 1; this.ui.hideIntro(); this.gfx.cam.setMode('fight'); this.camMode = 'fight'; { const need = this.settings.rounds, fin = !this.training && this.F[0].wins === need - 1 && this.F[1].wins === need - 1; this.ui.banner(fin ? 'FINAL ROUND' : 'ROUND ' + this.round, 'round'); sfx('round'); this.say(fin ? 'Final round' : this.training ? 'Training' : 'Round ' + ['zero', 'one', 'two', 'three', 'four', 'five'][Math.min(5, this.round)]); } }
+      if (T >= base + 1.4 && this.announced === 1) { this.announced = 2; this.ui.banner('FIGHT!', 'fight'); sfx('fight'); this.say('Fight!', { pitch: .5, rate: .95 }); this.canFight = true; this.phase = 'fight'; this.phaseT = 0; setIntensity(.7); this.gfx.flash(.25, '#ffd9a0'); }
       return;
     }
     if (this.hitstopF > 0) { this.hitstopF--; for (const f of F) f.computePose(); return; }
@@ -161,9 +163,10 @@ export class Game {
     if (d < min && a.y < .5 && b.y < .5 && d > 1e-4 && a.state !== 'down' && b.state !== 'down') { const p = (min - d) / 2, nx = dx / d, nz = dz / d; a.pos.x -= nx * p; a.pos.z -= nz * p; b.pos.x += nx * p; b.pos.z += nz * p; }
     for (const f of F) f.computePose();
     for (const f of F) f.shownHp += (f.hp - f.shownHp) * .08;
+    if (this.phase === 'fight' && this.frame % 70 === 0 && F.some(f => f.hp > 0 && f.hp < 22)) sfx('heartbeat');
     // timer / training regen
     if (this.phase === 'fight') {
-      if (!this.training) { this.timerAcc += DT; if (this.timerAcc >= 1) { this.timerAcc -= 1; this.timer--; if (this.timer <= 0) this.endRound('time'); } }
+      if (!this.training) { this.timerAcc += DT; if (this.timerAcc >= 1) { this.timerAcc -= 1; this.timer--; if (this.timer > 0 && this.timer <= 5) sfx('tick'); if (this.timer <= 0) this.endRound('time'); } }
       else { for (const f of F) if (f.state === 'idle' && this.frame % 120 === 0) f.hp = Math.min(f.stats.hp, f.hp + 15); for (const f of F) if (f.comboHits > 0 && f.state === 'idle') { f.comboHits = 0; } }
       if (a.state === 'idle') a.comboHits = 0; if (b.state === 'idle') b.comboHits = 0;
     } else if (this.phase === 'ko') {
@@ -176,7 +179,7 @@ export class Game {
   /* ---------------- character viewer ---------------- */
   openViewer(id = 'kai') {
     initAudio(); this.F.forEach(f => f.rig.root.visible = false); this.previewFighter && (this.previewFighter.rig.root.visible = false); this.previewFighter = null;
-    const f = this.getHero(id); f.reset(0, 0); f.face.set(1, 0, 0); f.rig.root.visible = true; f.exprLock = false;
+    this.pruneCache(['hero:' + id]); const f = this.getHero(id); f.reset(0, 0); f.face.set(1, 0, 0); f.rig.root.visible = true; f.exprLock = false;
     const W = {}; for (const k of ['head', 'hip', 'neck', 'kneeL', 'kneeR', 'ankleL', 'ankleR', 'hipL', 'hipR', 'handL', 'handR', 'footL', 'footR']) W[k] = new THREE.Vector3(99, 99, 99);
     f.forcePose = POSE.relaxed; this.v = { f, id, anim: 'stand', t: 0, acc: 0, expr: null, spin: false, view: { az: .6, el: .05, dist: 4.8, ty: .95, fov: 28 }, dummy: { pos: new THREE.Vector3(3, 0, 0), y: 0, state: 'down', invul: 0, ko: true, world: W, rig: { sc: 1 }, input: {}, crouch: 0 } };
     this.hideAll(); this.ui.showViewer(id); this.gfx.setStudio(true); this.camMode = 'viewer'; this.gfx.cam.setMode('viewer'); this.ui.setHud(false); this.screen = 'viewer'; this.canFight = false;

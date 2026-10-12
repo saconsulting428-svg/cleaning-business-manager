@@ -13,7 +13,7 @@ const out = path.join(__dirname, '..', 'assets', 'roster'); fs.mkdirSync(out, { 
       try {
         if (count++ % 6 === 5) { await p.close(); p = await mkPage(); }
         await p.evaluate(id => { const g = __sc.game; g.openViewer(id); document.querySelector('#viewer').style.display = 'none'; g.viewerExpr('focused'); const V = g.v.view; V.az = .45; V.el = .02; V.dist = 1.55; V.ty = 1.56; V.fov = 24; }, id);
-        await p.waitForTimeout(1700); await p.screenshot({ path: path.join(out, 'portrait_' + id + '.png'), clip: { x: 340, y: 60, width: 600, height: 600 } });
+        await p.waitForTimeout(2200); await p.screenshot({ path: path.join(out, 'portrait_' + id + '.png'), clip: { x: 340, y: 60, width: 600, height: 600 } }); if (fs.statSync(path.join(out, 'portrait_' + id + '.png')).size < 90000) throw new Error('blank frame');
         await p.evaluate(() => { const V = __sc.game.v.view; V.az = .6; V.el = .05; V.dist = 5.0; V.ty = .95; V.fov = 28; });
         await p.waitForTimeout(1300); await p.screenshot({ path: path.join(out, 'body_' + id + '.png'), clip: { x: 380, y: 0, width: 520, height: 720 } });
         console.log('done', id); break;

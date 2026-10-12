@@ -126,7 +126,7 @@ export class Fighter {
     const mv = MOVES[name]; this.state = 'attack'; this.mvName = name; this.mv = mv; this.mf = 0; this.hitDone = false; this.hitsDone = 0;
     if (!mv.air) this.attFace.copy(this.face); else this.attFace.copy(this.face);
     this.vel.set(0, 0, 0); for (const k in this.buf) this.buf[k] = this.buf[k] > 0 && k !== 'jump' ? 0 : this.buf[k];
-    this.game.sfx(mv.hit.big ? 'whooshH' : 'whoosh');
+    this.game.sfx(mv.hit.big ? 'whooshH' : 'whoosh'); if (mv.hit.big || Math.random() < .5) this.game.voice(this, 'attack', !!mv.hit.big);
   }
   tickAttack(opp) {
     const mv = this.mv, h = mv.hit, sp = this.stats.quick; this.mf++;
@@ -169,7 +169,7 @@ export class Fighter {
     const dir = this.attFace;
     if (blocked) {
       const chip = h.dmg * .1; def.hp = Math.max(1, def.hp - chip); def.state = 'block'; def.st = h.bs; def.vel.copy(dir).multiplyScalar(h.kb * 7); def.mv = null; this.vel.addScaledVector(dir, -1.2);
-      G.hitstop(3); G.fx.block(point, dir); G.sfx('block'); G.shake(.04); G.onHit(this, def, { blocked: true, dmg: chip });
+      G.hitstop(3); G.fx.block(point, dir); G.sfx('block'); if (Math.random() < .5) G.sfx('clang'); G.shake(.04); G.onHit(this, def, { blocked: true, dmg: chip });
       return;
     }
     const dmg = h.dmg * this.stats.power * scale / def.stats.defense;
@@ -181,7 +181,7 @@ export class Fighter {
     if (launch || h.down) {
       def.state = 'hit'; def.launched = true; def.vy = launch || 4.2; def.y = Math.max(def.y, .02); def.vel.copy(dir).multiplyScalar((h.kb + .4) * 6 + (ko ? 2.5 : 0)); def.st = 999;
     } else { def.state = 'hit'; def.launched = false; def.st = h.hs; def.vel.copy(dir).multiplyScalar(h.kb * 7); }
-    G.hitstop(h.big || ko ? 10 : 5); G.fx.hit(point, dir, h.big || ko ? 2 : 1, this.spec.aura); G.sfx(h.sfx || 'punch'); G.shake(h.big || ko ? .35 : .14); G.onHit(this, def, { blocked: false, dmg, part, big: h.big || ko, ko });
+    G.hitstop(h.big || ko ? 10 : 5); G.fx.hit(point, dir, h.big || ko ? 2 : 1, this.spec.aura); G.sfx(h.sfx || 'punch'); if (h.big || ko || part === 'head') G.sfx('crunch'); G.voice(def, ko ? 'ko' : 'hurt', !!(h.big || ko)); G.shake(h.big || ko ? .35 : .14); G.onHit(this, def, { blocked: false, dmg, part, big: h.big || ko, ko });
   }
 
   /* ---- pose + render ---- */
