@@ -7,7 +7,7 @@ export const ROSTER = {
   draven: {
     id: 'draven', name: 'DRAVEN', title: 'CRIMSON REAPER', style: 'Kickboxing',
     skin: '#e3bf9f', eye: '#6a7480', height: 1.04, bulk: .98, shoulders: 1.05, arms: .95, legs: 1.0,
-    hair: { style: 'long', color: '#c9ccd4' }, beard: { type: 'goatee', color: '#b9bcc4' },
+    hair: { style: 'long', color: '#c9ccd4' }, beard: { type: 'goatee', color: '#8d9099' }, face: { real: true, jaw: .5, width: .86, scar: false },
     top: { type: 'coat', color: '#14121a', fabric: 'leather', coatLen: .78, collar: true },
     pants: { type: 'long', color: '#1b1a22' }, belt: '#2a1014', gloves: { color: '#101014' }, shoes: { type: 'boot', color: '#0e0e12' },
     aura: '#7a3dff', color: '#9b5cff',
