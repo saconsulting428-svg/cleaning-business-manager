@@ -19,7 +19,7 @@ function make3D(r) {
   const mapTop = { bare: 'bare', vest: 'vest', tank: 'tank', tee: 'tee', crop: 'crop', jacket: 'jacket', gi: 'gi', armor: 'armor', hoodie: 'hoodie' }[top] || 'bare';
   const spec = {
     id: r.n.toLowerCase(), name: r.n, title: r.t, style: STYLE[r.n] || 'Freestyle', gender: fem ? 'f' : 'm',
-    skin: r.sk, eye: r.eye || (r.n === 'NOVA' ? '#3ad0ff' : r.n === 'OMEGA' ? '#ff2dd2' : '#3a2412'), height: h, bulk: clamp(1.12 + (w - .84) * .55, 1.1, 1.5), shoulders: 1.22 + (w - 1) * .3, arms: 1.2 + (w - 1) * .25, legs: 1.06 + (w - 1) * .1,
+    skin: r.sk, eye: r.eye || (r.n === 'NOVA' ? '#3ad0ff' : r.n === 'OMEGA' ? '#ff2dd2' : '#3a2412'), height: h, bulk: clamp(1.12 + (w - .84) * .55, 1.1, 1.5), shoulders: 1.12 + (w - 1) * .3, arms: 1.06 + (w - 1) * .2, legs: 1.06 + (w - 1) * .1,
     hair: { style: hair, color: r.hc }, face: { real: true, jaw: fem ? 0 : clamp((w - .9) * .8, 0, .7), width: fem ? .82 : clamp(.84 + (w - 1) * .1, .8, .96), scar: r.ac === 'scar', gender: fem ? 'f' : 'm' },
     top: { type: mapTop, color: r.tc || '#444', fabric: (mapTop === 'jacket' || mapTop === 'armor') ? 'leather' : 'cloth' },
     pants: { type: r.pt === 'cargo' ? 'cargo' : r.pt || 'long', color: r.pc || '#333', fabric: r.pt === 'long' && mapTop === 'jacket' ? 'leather' : 'cloth' }, belt: r.bt || '#111',
@@ -35,7 +35,7 @@ function make3D(r) {
   if (r.tat) spec.tattoo = r.tat;
   // heavy brawler outfit: torn sleeveless gi, flame hems, back emblem
   const EMB = { JADE: 'claws', TITAN: 'horns', ZARA: 'star', HAWK: 'wings', SORA: 'claws', VIPER: 'skull', BRUTUS: 'horns', KANE: 'star', IVAN: 'star', AMARA: 'claws', GRIZZ: 'claws', OMEGA: 'skull' };
-  spec.top = { type: 'tank', color: r.tc || '#444', fabric: 'cloth' }; spec.pants = Object.assign({}, spec.pants, { type: 'gi' });
+  spec.muscle = fem ? .45 : clamp(.75 + (w - .9) * 1.6, .75, 1.5); spec.top = { type: 'tank', color: r.tc || '#444', fabric: 'cloth' }; spec.pants = Object.assign({}, spec.pants, { type: 'gi' });
   if (!spec.gloves && !spec.wraps) spec.gloves = { color: '#0d0c0e' };
   spec.shoes = { type: 'boot', color: '#0b0a0c', sole: '#151515' };
   spec.custom = brawlerKit({ emblem: EMB[r.n] || 'wings', color: r.tc || '#9a1218', trim: r.fc || '#ffc040' });
@@ -45,5 +45,5 @@ const KEEP = ['JADE', 'TITAN', 'ZARA', 'HAWK', 'SORA', 'VIPER', 'BRUTUS', 'KANE'
 export const EXTRA_ROSTER = RAW.filter(r => KEEP.includes(r.n)).map(make3D);
 // BLAZE: original heavyweight hero, red flame-hem gi
 const blaze = make3D({ n: 'BLAZE', t: 'FLAME FIST', sk: '#d9a27a', g: 'm', hr: 'spiky', hc: '#b5651d', top: 'tank', tc: '#a3121a', pt: 'gi', pc: '#8e1017', bt: '#0d0c0e', shoe: 'boot', sc: '#0b0a0c', w: 1.18, spd: .95, pow: 1.2, rch: 1.05, tk: 1.1, fc: '#ff8a2a', fh: 'stubble', gl: '#0d0c0e', eye: '#4a78a8', ac: 'scar' });
-blaze.specials = { df_hp: 'hammerFist', df_hk: 'axeKick' }; blaze.height = 1.06; blaze.face.jaw = .65; blaze.face.width = .92;
+blaze.specials = { df_hp: 'hammerFist', df_hk: 'axeKick' }; blaze.height = 1.06; blaze.muscle = 1.35; blaze.face.jaw = .65; blaze.face.width = .92;
 EXTRA_ROSTER.push(blaze);

@@ -81,11 +81,12 @@ function tubeGeo(r0, r1, bulge = .12, at = .35, seg = DET.seg, rs = DET.rs) { //
   pts.push(new THREE.Vector2(0.0001, 1));
   return new THREE.LatheGeometry(pts, rs);
 }
-function torsoGeo(L, bulk, wide, fem) {
+function torsoGeo(L, bulk, wide, fem, m = 0) {
   const T = L.spine, w = wide * bulk, pts = [new THREE.Vector2(0.0001, 0)];
   const prof = fem ? [[0, .145], [.1, .14], [.3, .118], [.5, .13], [.68, .148], [.82, .152], [.92, .14], [.97, .09], [1, .05]]
                    : [[0, .15], [.1, .15], [.3, .13], [.5, .155], [.68, .178], [.82, .192], [.92, .17], [.97, .1], [1, .055]];
-  for (const [t, r] of prof) pts.push(new THREE.Vector2(r * w, t * T));
+  const tp = (t) => 1 + m * (t > .6 && t < .97 ? .17 * Math.sin((t - .6) / .37 * Math.PI * .9 + .2) + .05 : t > .2 && t < .45 ? -.1 : 0); // V-taper: broad chest/lats, narrow waist
+  for (const [t, r] of prof) pts.push(new THREE.Vector2(r * w * tp(t), t * T));
   pts.push(new THREE.Vector2(0.0001, T));
   const g = new THREE.LatheGeometry(pts, Math.round(DET.ss * 1.5)); g.rotateY(-Math.PI / 2); return g;
 }
@@ -217,15 +218,15 @@ export class Rig {
     this.pelvis.scale.set(1, .7, 1.2 * (fem ? 1.1 : 1));
     // --- torso (+ clothing)
     this.torso = new THREE.Group(); body.add(this.torso);
-    const tg = torsoGeo(L, bulk, 1, fem);
-    const torsoMesh = shadow(new THREE.Mesh(tg, mats.skinTorso)); torsoMesh.scale.set(1, 1, .62); this.torso.add(torsoMesh);
+    const MU = spec.muscle || 0, tg = torsoGeo(L, bulk, 1, fem, MU);
+    const torsoMesh = shadow(new THREE.Mesh(tg, mats.skinTorso)); torsoMesh.scale.set(1, 1, .62 + .1 * MU); this.torso.add(torsoMesh);
     const addPec = (s) => { const m = shadow(new THREE.Mesh(new THREE.SphereGeometry(.085 * bulk, 20, 14), mats.skin)); m.scale.set(.8, .75, 1.1); m.position.set(.1, L.spine * .76, s * .085 * bulk * (fem ? .9 : 1.15)); this.torso.add(m); };
     if (top.type === 'bare' || top.type === 'vest') { addPec(-1); addPec(1); }
     this.cloth = {};
     if (top.type !== 'bare') {
       const tm = clothMat(top.color, top.fabric || 'cloth'), tcol = top.type === 'vest' ? 1.03 : 1.045;
-      const jg = torsoGeo(L, bulk * tcol, 1, fem); if (top.length) jg.translate(0, -top.length, 0);
-      const jm = shadow(new THREE.Mesh(jg, tm)); jm.scale.set(1, 1, .66); jm.scale.y = top.type === 'vest' ? .97 : 1.02; this.torso.add(jm);
+      const jg = torsoGeo(L, bulk * tcol, 1, fem, MU); if (top.length) jg.translate(0, -top.length, 0);
+      const jm = shadow(new THREE.Mesh(jg, tm)); jm.scale.set(1, 1, .66 + .1 * MU); jm.scale.y = top.type === 'vest' ? .97 : 1.02; this.torso.add(jm);
       if (top.type === 'vest') { // open front: skin shows through via an inset strip
         const strip = shadow(new THREE.Mesh(new THREE.BoxGeometry(.03, L.spine * .8, .1 * bulk), mats.skinTorso)); strip.position.set(.14 * bulk, L.spine * .5, 0); this.torso.add(strip);
       }
@@ -236,8 +237,9 @@ export class Rig {
     if (spec.belt) { const belt = shadow(new THREE.Mesh(new THREE.CylinderGeometry(.158 * bulk, .158 * bulk, .05, 28, 1, true), clothMat(spec.belt, 'cloth', { side: THREE.DoubleSide }))); belt.scale.z = .74; belt.position.y = .015; this.torso.add(belt);
       const bk = shadow(new THREE.Mesh(new THREE.BoxGeometry(.035, .045, .028), metalMat('#d9c46a', .25))); bk.position.set(.158 * bulk, .015, 0); this.torso.add(bk); }
     // shoulders (deltoids) + neck
-    this.shMesh = [-1, 1].map(() => { const m = shadow(new THREE.Mesh(new THREE.SphereGeometry(.07 * bulk * (spec.shoulderBulk || 1), 20, 14), (top.type === 'bare' || top.type === 'vest' || top.type === 'tank') ? mats.skin : clothMat(top.color, top.fabric || 'cloth'))); S(m); return m; });
-    this.neck = S(shadow(new THREE.Mesh(tubeGeo(.052 * bulk, .05 * bulk, .0), mats.skin)));
+    this.shMesh = [-1, 1].map(() => { const m = shadow(new THREE.Mesh(new THREE.SphereGeometry(.07 * bulk * (spec.shoulderBulk || 1) * (1 + .28 * MU), 20, 14), (top.type === 'bare' || top.type === 'vest' || top.type === 'tank') ? mats.skin : clothMat(top.color, top.fabric || 'cloth'))); S(m); return m; });
+    this.neck = S(shadow(new THREE.Mesh(tubeGeo(.052 * bulk * (1 + .22 * MU), .05 * bulk * (1 + .22 * MU), .0), mats.skin)));
+    if (MU > 0) for (const s of [-1, 1]) { const tr = shadow(new THREE.Mesh(new THREE.SphereGeometry(.07 * bulk * (.8 + .3 * MU), 18, 12), mats.skin)); tr.scale.set(1.1, .6, 1); tr.position.set(-.01, L.spine * .985, s * .085 * bulk); tr.rotation.x = s * .5; this.torso.add(tr); } // trapezius
     // --- head
     const hb = (spec.face && spec.face.real) ? buildRealHead(spec, L.headR, DET) : buildHead(spec, L.headR, mats); this.head = hb.g; this.eyes = hb.eyes; this.hairParts = hb.hairParts; this.face = hb; body.add(this.head);
     // --- limbs
@@ -245,8 +247,8 @@ export class Rig {
     const wrapC = spec.wraps ? clothMat(spec.wraps.color, 'cloth') : null;
     const mk = (r0, r1, bulge, at, mat) => shadow(new THREE.Mesh(tubeGeo(r0, r1, bulge, at), mat));
     const ua = .056 * bulk * (spec.arms || 1), fa = .043 * bulk * (spec.arms || 1);
-    this.upperArm = [0, 1].map(() => S(mk(ua, ua * .82, .22, .3, armMat)));
-    this.foreArm = [0, 1].map(() => S(mk(fa * 1.1, fa * .78, .18, .25, (spec.wraps && spec.wraps.forearm) ? wrapC : (top.type === 'jacket' || top.type === 'coat' || top.type === 'hoodie') ? armMat : mats.skin)));
+    this.upperArm = [0, 1].map(() => S(mk(ua, ua * .82, .22 + .12 * MU, .3, armMat)));
+    this.foreArm = [0, 1].map(() => S(mk(fa * 1.1, fa * .78, .18 + .12 * MU, .25, (spec.wraps && spec.wraps.forearm) ? wrapC : (top.type === 'jacket' || top.type === 'coat' || top.type === 'hoodie') ? armMat : mats.skin)));
     this.elbow = [0, 1].map(() => S(shadow(new THREE.Mesh(new THREE.SphereGeometry(fa * 1.05, 14, 10), armSleeve || (spec.wraps && spec.wraps.forearm) ? armMat : mats.skin))));
     const gloveMat = spec.gloves ? clothMat(spec.gloves.color, 'leather') : (spec.wraps && spec.wraps.hands) ? wrapC : mats.skin;
     this.fist = [0, 1].map(() => { const g = new THREE.Group(); const m = shadow(new THREE.Mesh(new THREE.SphereGeometry(.052 * sc * (spec.gloves ? 1.12 : 1), 18, 14), gloveMat)); m.scale.set(1.0, .9, .82); g.add(m);
@@ -255,9 +257,9 @@ export class Rig {
     const tw = .08 * bulk * (spec.legs || 1), sw = .056 * bulk * (spec.legs || 1);
     const legFab = pants.fabric || 'cloth', pM = clothMat(pants.color, legFab, pants.dragon ? { map: dragonTex(pants.color, pants.dragon) } : {});
     const shortP = pants.type === 'shorts', wide = pants.type === 'gi' ? 1.18 : 1;
-    this.thigh = [0, 1].map(() => S(mk(tw * wide, tw * .72 * wide, .1, .3, pM)));
-    this.shin = [0, 1].map(() => S(mk(sw * 1.15 * wide, sw * .66 * wide, .2, .25, shortP ? mats.skin : pM)));
-    this.knee = [0, 1].map(() => S(shadow(new THREE.Mesh(new THREE.SphereGeometry(sw * 1.2 * wide, 14, 10), shortP ? mats.skin : pM))));
+    this.thigh = [0, 1].map(() => S(mk(tw * wide, tw * .72 * wide, .1 + .1 * MU, .3, pM)));
+    this.shin = [0, 1].map(() => S(mk(sw * 1.15 * wide, sw * .66 * wide, .2 + .12 * MU, .25, shortP ? mats.skin : pM)));
+    this.knee = [0, 1].map(() => S(shadow(new THREE.Mesh(new THREE.SphereGeometry(sw * (MU ? .98 : 1.2) * wide, 14, 10), shortP ? mats.skin : pM))));
     this.hipJ = [0, 1].map(() => S(shadow(new THREE.Mesh(new THREE.SphereGeometry(tw * 1.05 * wide, 14, 10), pM))));
     // feet / shoes
     const shoe = spec.shoes || { type: 'bare' };
