@@ -296,21 +296,26 @@ const Renderer = (function () {
       an.cf[i] = c.dir;
       const fdir = an.cf[i] >= 0 ? 1 : -1, sx = Math.max(0.64, Math.abs(an.cf[i]));
       const dist = Math.abs(f.px - x), hunting = c.st === Sim_.HUNT, dead = S.dead;
-      let name = 'Monster_Roar', fr = 0; const layers = [];
+      let name = 'Monster_Roar', fr = 0, pup = null; const layers = [];
       if (dead && hunting && dist < 1.8 && c.f === S.f) { name = 'Monster_Attack'; fr = seq(4, an.deadP); layers.push({ n: name, f: fr, a: 1 }); }
       else if (c.st === Sim_.ROAM && c.seen > 0.02 && !hunting) { name = 'Monster_Roar'; fr = seq(3, c.seen * 0.999); layers.push({ n: name, f: fr, a: 1 }); }          // it stops and stares: R1 -> R3 as it makes up its mind
+      else if (Puppet.ready()) {
+        an.cru = an.cru || []; an.cru[i] = approach(an.cru[i] || 0, hunting ? 1 : 0, dt / 0.4); an.pm = an.pm || []; const st = an.pm[i] || (an.pm[i] = Puppet.newState());
+        pup = { st, P: { ph: f.crPhase[i], w: mE, run: ease(an.cru[i]), t: now + i * 3.1, dt, mode: c.st === Sim_.INVESTIGATE ? 'inv' : (c.st === Sim_.SEARCH || (hunting && !moving)) ? 'search' : 'idle' } };
+      }
       else {
         const idleFr = (c.st === Sim_.SEARCH || (hunting && !moving)) ? (Math.sin(now * 1.7 + i * 2) > 0.1 ? 1 : 0) : 0, g = gait(8, f.crPhase[i]);
         if (mE < 0.995) layers.push({ n: 'Monster_Roar', f: idleFr, a: 1 });
         if (mE > 0.005) { const dy = bob('Monster_Run', g, mul, PM); layers.push({ n: 'Monster_Run', f: g.i, a: mE, dy }); if (g.b > 0.02) layers.push({ n: 'Monster_Run', f: g.j, a: mE * g.b, dy }); }
         if (mE > 0.5) { name = 'Monster_Run'; fr = g.i; } else { name = 'Monster_Roar'; fr = idleFr; }
       }
-      return { name, fr, layers, x, mul, fdir, sx, mv: mvA, hunting, c, d, i, dist, dead };
+      return { name, fr, layers, pup, x, mul, fdir, sx, mv: mvA, hunting, c, d, i, dist, dead };
     }
     function drawCreature(v, alphaMul, now) {
       ctx.save();
       const px = sx_(v.x);
       if (!v.dead) { ctx.globalAlpha = 0.5 * alphaMul; ctx.drawImage(G.glowSprite('#000000'), px - PM * 1.1 * v.mul, FY - PM * 0.15, PM * 2.2 * v.mul, PM * 0.3); ctx.globalAlpha = 1; }
+      if (v.pup) { const r = Puppet.drawCreature(v.pup.st, ctx, px, FY, v.fdir, PM * v.mul, v.pup.P, alphaMul); if (r) v.eyeXY = r.eye; }
       for (let k = 0; k < v.layers.length; k++) { const L = v.layers[k]; blit(ctx, L.n, L.f, px, FY + (L.dy || 0), v.fdir, alphaMul * L.a, PM, v.mul, v.sx); }
       ctx.restore();
     }
@@ -323,6 +328,11 @@ const Renderer = (function () {
       const cr = ease(clamp(an.cr, 0, 1)), mv = ease(clamp(an.mv, 0, 1));
       const using = f.useP >= 0 && an.mv < 0.3 && cr < 0.35 && G.ready('Survivor_Use');
       if (using) { const fr = seq(4, f.useP); blit(ctx, 'Survivor_Use', fr, px, fy, face, alpha, PM, mul, sq); return { name: 'Survivor_Use', fr, useFr: fr }; }
+      if (Puppet.ready()) {                                                         // the supplied art, moved by a continuous skeleton
+        an.ps = an.ps || Puppet.newState();
+        const r = Puppet.drawSurvivor(an.ps, ctx, px, fy, face, PM * mul, { ph: f.phase, w: mv, c: cr, t: now, dt, acc: 0 }, alpha);
+        if (r) { an.dbg = { mv: +mv.toFixed(2), ph: +frac(f.phase).toFixed(2), cr: +cr.toFixed(2) }; return { name: 'Puppet', lens: r.lens }; }
+      }
       const gs = gait(9, f.phase), gc = gait(6, f.phaseC), mC = G.SP.Survivor_CrouchWalk && G.SP.Survivor_CrouchWalk.m, idleC = mC ? mC.neutral : 1;
       const layer = function (name, g, idle, a0) {                                  // one pose family: idle frame <-> walk frames. The figure is always drawn fully opaque; the next frame is laid over it, never crossfaded (that dimmed the whole body at every frame change)
         if (a0 < 0.01) return;
@@ -337,6 +347,7 @@ const Renderer = (function () {
       return { name: 'Survivor_Run', gs, gc, mv, cr, idleC };
     }
     function handPoint(f, info, px) {
+      if (info.lens) return { x: info.lens.x, y: info.lens.y };
       if (info.useFr !== undefined) { const q = G.SP.Survivor_Use.m.pt[info.useFr], kk = G.SP.Survivor_Use.m.k, fc = an.face >= 0 ? 1 : -1; return { x: px + fc * q[0] * kk * PM, y: FY + q[1] * kk * PM }; }
       if (info.name === 'Survivor_Caught') return { x: px, y: FY - PM * 1.1 };
       const face = an.face >= 0 ? 1 : -1, SR = G.SP.Survivor_Run, SC = G.SP.Survivor_CrouchWalk;
@@ -417,7 +428,7 @@ const Renderer = (function () {
       for (let i = 0; i < S.cr.length; i++) {
         const c = S.cr[i];
         if (c.busy > 0) { const cb = an['cb' + i] = Math.max(an['cb' + i] || 0, c.busy), cp = 1 - c.busy / cb, here = c.f === S.f && cp < 0.5, there = c.bf === S.f && cp >= 0.5;
-          if (here || there) { const v = creatureView(i, c, here ? c.x : c.bx, f, now, dt); v.mv = 1; v.layers = [{ n: 'Monster_Run', f: Math.floor(frac(now * 1.2) * 8), a: 1 }]; drawCreature(v, here ? 1 - cp * 2 : (cp - 0.5) * 2, now); } continue; }
+          if (here || there) { const v = creatureView(i, c, here ? c.x : c.bx, f, now, dt); v.pup = null; v.mv = 1; v.layers = [{ n: 'Monster_Run', f: Math.floor(frac(now * 1.2) * 8), a: 1 }]; drawCreature(v, here ? 1 - cp * 2 : (cp - 0.5) * 2, now); } continue; }
         an['cb' + i] = 0; if (c.f !== S.f) continue;
         const x = f.crx[i]; if (Math.abs(x - an.camX) > half + 3) continue;
         const v = creatureView(i, c, x, f, now, dt); drawCreature(v, 1, now); seenList.push(v);
@@ -474,7 +485,7 @@ const Renderer = (function () {
     }
     function eyes(v, now, f) {
       const c = v.c, S = f.S, a = v.hunting ? 1 : c.st === Sim_.INVESTIGATE ? 0.55 : (Math.abs(v.x - f.px) < 7.5 && (f.px - v.x) * c.dir > 0) ? 0.9 : 0.25; if (a <= 0.05) return;
-      const e = G.SP[v.name]; if (!e || !e.ok) return; const p = anchor(v.name, v.fr, sx_(v.x), FY, v.fdir, PM, v.mul);
+      const e = G.SP[v.name]; if (!v.eyeXY && (!e || !e.ok)) return; const p = v.eyeXY || anchor(v.name, v.fr, sx_(v.x), FY, v.fdir, PM, v.mul);
       ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * (0.85 + 0.15 * Math.sin(now * 6 + v.i)); ctx.drawImage(G.glowSprite('#ff2a2a'), p.x - PM * 0.38, p.y - PM * 0.38, PM * 0.76, PM * 0.76);
       ctx.globalAlpha = a * 0.5; ctx.drawImage(G.glowSprite('#c01418'), sx_(v.x) - PM * 1.4 * v.mul, FY - PM * 2.1 * v.mul, PM * 2.8 * v.mul, PM * 2.2 * v.mul);
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
