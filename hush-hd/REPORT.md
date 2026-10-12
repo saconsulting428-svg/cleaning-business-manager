@@ -59,3 +59,9 @@ Causes found and fixed:
 - Level 24 unverified (above). Hidden-survivor/locker cue is subtle (two faint slit lights).
 - Stair transition is a fade/slide, not a full animation; vents use the duct scene.
 - Some wall decorations repeat on long levels.
+
+
+## Round 6 - procedural characters (the supplied frames are no longer used for the survivor and monsters)
+Why: the 9-pose sprite loop stepped, crossfaded the figure semi-transparent at every frame change and looked like floating leaps. Now both characters are skeletons solved every frame (`src/rig.js`): two-bone IK legs with feet planted while the body moves (gait phase = distance travelled / stride), swinging arms, torch hand that carries the flashlight beam origin, backpack on a spring, breathing, lean into acceleration, crouch, use, caught (knock-back, fall, torch tumbles), vent crawl; monster: digitigrade legs, long arms, spine lean, jaw/teeth, glowing eye, mane, and idle / investigate / search / stare / roar / attack. Footstep sounds fire when the rig plants a foot (phase 0 and 0.5). Sonar silhouettes, menu posters and the vent scene use the same rig.
+Tests: `tests/rig.js` (5 checks: planted feet, no teleporting joints, finite poses), regression-sim 62/62, regression-ui 34/34, diff-sim 0 mismatches, 29/29 solutions replayed with every frame rendered, 30 levels load, hide-freeze OK. The old sprite animation tests were removed.
+Honest limits: the look is stylised painted shapes, not photoreal; I checked pose sheets and in-game screenshots, but not feel on a real phone, not audio by ear, and L24 still needs a human playtest. Per-frame cost on phones is unmeasured (Graphics Low is available).

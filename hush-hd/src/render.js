@@ -291,58 +291,40 @@ const Renderer = (function () {
     function creatureView(i, c, x, f, now, dt) {
       const d = W.cdefs[i], S = f.S, mul = KIND_SCALE[d.t] || 1, moving = f.crMv[i];
       an.ch = an.ch || []; an.ch[i] = moving ? 0.2 : Math.max(0, (an.ch[i] || 0) - dt); const mOn = moving || an.ch[i] > 0;
-      const mvA = an.cm[i] = approach(an.cm[i] || 0, mOn ? 1 : 0, dt / (mOn ? 0.07 : 0.09)), mE = ease(mvA);
+      const mvA = an.cm[i] = approach(an.cm[i] || 0, mOn ? 1 : 0, dt / (mOn ? 0.18 : 0.25)), mE = ease(mvA);
       an.cf[i] = c.dir;
-      const fdir = an.cf[i] >= 0 ? 1 : -1, sx = Math.max(0.64, Math.abs(an.cf[i]));
+      const fdir = an.cf[i] >= 0 ? 1 : -1;
       const dist = Math.abs(f.px - x), hunting = c.st === Sim_.HUNT, dead = S.dead;
-      let name = 'Monster_Roar', fr = 0; const layers = [];
-      if (dead && hunting && dist < 1.8 && c.f === S.f) { name = 'Monster_Attack'; fr = seq(4, an.deadP); layers.push({ n: name, f: fr, a: 1 }); }
-      else if (c.st === Sim_.ROAM && c.seen > 0.02 && !hunting) { name = 'Monster_Roar'; fr = seq(3, c.seen * 0.999); layers.push({ n: name, f: fr, a: 1 }); }          // it stops and stares: R1 -> R3 as it makes up its mind
-      else {
-        const idleFr = (c.st === Sim_.SEARCH || (hunting && !moving)) ? (Math.sin(now * 1.7 + i * 2) > 0.1 ? 1 : 0) : 0, g = gait(8, f.crPhase[i]);
-        if (mE < 0.995) layers.push({ n: 'Monster_Roar', f: idleFr, a: 1 - mE });
-        if (mE > 0.005) { const dy = bob('Monster_Run', g, mul, PM); layers.push({ n: 'Monster_Run', f: g.i, a: mE * (1 - g.b), dy }); if (g.b > 0.02) layers.push({ n: 'Monster_Run', f: g.j, a: mE * g.b, dy }); }
-        if (mE > 0.5) { name = 'Monster_Run'; fr = g.i; } else { name = 'Monster_Roar'; fr = idleFr; }
-      }
-      return { name, fr, layers, x, mul, fdir, sx, mv: mvA, hunting, c, d, i, dist, dead };
+      an.cru = an.cru || []; an.cru[i] = approach(an.cru[i] || 0, hunting ? 1 : 0, dt / 0.4);
+      let mode = 'idle', k = 0;
+      if (dead && hunting && dist < 1.8 && c.f === S.f) { mode = 'attack'; k = an.deadP; }
+      else if (c.st === Sim_.ROAM && c.seen > 0.02 && !hunting) { mode = 'stare'; k = Math.min(1, c.seen); }          // it stops and stares as it makes up its mind
+      else if (c.st === Sim_.INVESTIGATE) mode = 'inv';
+      else if (c.st === Sim_.SEARCH || (hunting && !moving)) mode = 'search';
+      const P = { ph: f.crPhase[i], w: mE, run: ease(an.cru[i]), t: now + i * 3.1, mode, k, dt, acc: 0 };
+      an.rm = an.rm || []; const rm = an.rm[i] || (an.rm[i] = Rig.newCreature(i + 3));
+      return { rm, P, x, mul, fdir, sx: 1, mv: mvA, hunting, c, d, i, dist, dead, eye: null };
     }
     function drawCreature(v, alphaMul, now) {
       ctx.save();
       const px = sx_(v.x);
       if (!v.dead) { ctx.globalAlpha = 0.5 * alphaMul; ctx.drawImage(G.glowSprite('#000000'), px - PM * 1.1 * v.mul, FY - PM * 0.15, PM * 2.2 * v.mul, PM * 0.3); ctx.globalAlpha = 1; }
-      for (let k = 0; k < v.layers.length; k++) { const L = v.layers[k]; blit(ctx, L.n, L.f, px, FY + (L.dy || 0), v.fdir, alphaMul * L.a, PM, v.mul, v.sx); }
+      const r = Rig.drawCreature(v.rm, ctx, px, FY, v.fdir, PM * v.mul, v.P, alphaMul, 1);
+      v.eye = { x: px + v.fdir * r.eye[0] * PM * v.mul, y: FY - r.eye[1] * PM * v.mul };
       ctx.restore();
     }
 
     /* ---------- survivor ---------- */
     function drawSurvivor(f, now, dt, alpha, ox, oy, scl) {
-      const S = f.S, px = sx_(f.px) + (ox || 0), fy = FY + (oy || 0), face = an.face >= 0 ? 1 : -1, sq = Math.max(0.66, Math.abs(an.face)), mul = scl || 1;
-      let used = null;
-      if (S.dead && an.deadP >= 0 && G.ready('Survivor_Caught')) { blit(ctx, 'Survivor_Caught', seq(4, an.deadP), px, fy, face, alpha, PM, mul, sq); return { name: 'Survivor_Caught', fr: 0 }; }
+      const S = f.S, px = sx_(f.px) + (ox || 0), fy = FY + (oy || 0), face = an.face >= 0 ? 1 : -1, mul = scl || 1;
       const cr = ease(clamp(an.cr, 0, 1)), mv = ease(clamp(an.mv, 0, 1));
-      const using = f.useP >= 0 && an.mv < 0.3 && cr < 0.35 && G.ready('Survivor_Use');
-      if (using) { const fr = seq(4, f.useP); blit(ctx, 'Survivor_Use', fr, px, fy, face, alpha, PM, mul, sq); return { name: 'Survivor_Use', fr, useFr: fr }; }
-      const gs = gait(9, f.phase), gc = gait(6, f.phaseC), mC = G.SP.Survivor_CrouchWalk && G.SP.Survivor_CrouchWalk.m, idleC = mC ? mC.neutral : 1;
-      const layer = function (name, g, idle, a0) {                                  // one pose family: idle frame <-> blended walk frames
-        if (a0 < 0.01) return;
-        if (mv < 0.995) blit(ctx, name, idle, px, fy, face, a0 * (1 - mv), PM, mul, sq);
-        if (mv > 0.005) { const dy = bob(name, g, mul, PM); blit(ctx, name, g.i, px, fy + dy, face, a0 * mv * (1 - g.b), PM, mul, sq); if (g.b > 0.02) blit(ctx, name, g.j, px, fy + dy, face, a0 * mv * g.b, PM, mul, sq); }
-      };
-      layer('Survivor_Run', gs, 9, alpha * (1 - cr));
-      layer('Survivor_CrouchWalk', gc, idleC, alpha * cr);
-      an.dbg = { mv: +mv.toFixed(2), run: gs.i, next: gs.j, b: +gs.b.toFixed(2), cr: +cr.toFixed(2) };
-      return { name: 'Survivor_Run', gs, gc, mv, cr, idleC };
+      const P = { ph: f.phase, w: mv, c: cr, t: now, use: f.useP >= 0 && an.mv < 0.3 ? f.useP : -1, dead: S.dead && an.deadP >= 0 ? an.deadP : -1, acc: an.acc || 0, dt };
+      an.rs = an.rs || Rig.newSurvivor();
+      const r = Rig.drawSurvivor(an.rs, ctx, px, fy, face, PM * mul, P, alpha, 1);
+      an.dbg = { mv: +mv.toFixed(2), ph: +frac(f.phase).toFixed(2), cr: +cr.toFixed(2) };
+      return { lens: { x: px + face * r.lens[0] * PM * mul, y: fy - r.lens[1] * PM * mul } };
     }
-    function handPoint(f, info, px) {
-      if (info.useFr !== undefined) { const q = G.SP.Survivor_Use.m.pt[info.useFr], kk = G.SP.Survivor_Use.m.k, fc = an.face >= 0 ? 1 : -1; return { x: px + fc * q[0] * kk * PM, y: FY + q[1] * kk * PM }; }
-      if (info.name === 'Survivor_Caught') return { x: px, y: FY - PM * 1.1 };
-      const face = an.face >= 0 ? 1 : -1, SR = G.SP.Survivor_Run, SC = G.SP.Survivor_CrouchWalk;
-      if (!SR || !SR.ok || !SC || !SC.ok) return { x: px + face * 0.5 * PM, y: FY - 1.1 * PM };
-      const mix = function (p, q, t) { return [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]; };
-      const walk = function (m, g, idle) { const w = mix(m.pt[g.i], m.pt[g.j], g.b); return mix(m.pt[idle], w, info.mv); };
-      const a = walk(SR.m, info.gs, 9), b = walk(SC.m, info.gc, info.idleC), p = mix(a, b, info.cr), k = SR.m.k;
-      return { x: px + face * p[0] * k * PM, y: FY + p[1] * k * PM };
-    }
+    function handPoint(f, info, px) { return info.lens ? { x: info.lens.x, y: info.lens.y } : { x: px + (an.face >= 0 ? 1 : -1) * 0.5 * PM, y: FY - 1.1 * PM }; }
     /* procedural fallback if the sprites never load: a plain readable silhouette, so the game stays playable */
     function fallbackFigure(x, fy, dir, col, h, w) { ctx.fillStyle = col; ctx.fillRect(x - w / 2, fy - h, w, h); ctx.beginPath(); ctx.arc(x, fy - h - w * 0.35, w * 0.4, 0, TAU); ctx.fill(); }
 
@@ -414,24 +396,23 @@ const Renderer = (function () {
       for (let i = 0; i < S.cr.length; i++) {
         const c = S.cr[i];
         if (c.busy > 0) { const cb = an['cb' + i] = Math.max(an['cb' + i] || 0, c.busy), cp = 1 - c.busy / cb, here = c.f === S.f && cp < 0.5, there = c.bf === S.f && cp >= 0.5;
-          if (here || there) { const v = creatureView(i, c, here ? c.x : c.bx, f, now, dt); v.mv = 1; v.layers = [{ n: 'Monster_Run', f: Math.floor(frac(now * 1.2) * 8), a: 1 }]; drawCreature(v, here ? 1 - cp * 2 : (cp - 0.5) * 2, now); } continue; }
+          if (here || there) { const v = creatureView(i, c, here ? c.x : c.bx, f, now, dt); v.P.w = 1; v.P.ph = now * 0.9; v.P.mode = 'idle'; drawCreature(v, here ? 1 - cp * 2 : (cp - 0.5) * 2, now); } continue; }
         an['cb' + i] = 0; if (c.f !== S.f) continue;
         const x = f.crx[i]; if (Math.abs(x - an.camX) > half + 3) continue;
         const v = creatureView(i, c, x, f, now, dt); drawCreature(v, 1, now); seenList.push(v);
         if (Math.abs(x - f.px) < 7.5 || v.hunting) f.vis.push(v);
       }
       /* survivor */
-      let info = { name: 'Survivor_Run', gs: { i: 9, j: 9, b: 0 }, gc: { i: 1, j: 1, b: 0 }, mv: 0, cr: 0, idleC: 1 }, handPt, alpha = 1, ox = 0, oy = 0, scl = 1;     // used while hidden or fading: nothing is drawn but the beam origin must still exist
+      let info = {}, handPt, alpha = 1, ox = 0, oy = 0, scl = 1;     // used while hidden or fading: nothing is drawn but the beam origin must still exist
       const px = sx_(f.px);
       const stairsOut = S.busy > 0 && !S.vent && S.bf >= 0;
       if (stairsOut) { const p = 1 - S.busy / Sim_.C.STAIR_T, up = S.bf < S.f; alpha = 1 - p; oy = (up ? -1 : 1) * p * 0.35 * PM; scl = 1 - p * 0.12; ox = S.dir * p * 0.3 * PM; }
       else if (f.arrive && now - f.arrive.t0 < 0.45) { const p = clamp((now - f.arrive.t0) / 0.45, 0, 1); alpha = p; oy = (f.arrive.up ? 1 : -1) * (1 - p) * 0.3 * PM; }
       if (hid) { const hv = an.hid = (an.hid === undefined ? 0 : an.hid) + (1 - (an.hid || 0)) * Math.min(1, dt * 8); alpha = 1 - hv; } else an.hid = 0;
       if (alpha > 0.01) {
-        if (G.ready('Survivor_Run')) { info = drawSurvivor(f, now, dt, alpha, ox, oy, scl); }
-        else fallbackFigure(px, FY, 1, '#1b2128', 1.8 * PM * (1 - 0.35 * an.cr), 0.5 * PM);
+        info = drawSurvivor(f, now, dt, alpha, ox, oy, scl);
       }
-      handPt = handPoint(f, info, px); handPt.y += oy; handPt.x += ox;
+      handPt = handPoint(f, info, px);
       dust(f, now, dt);
       lighting(f, L, handPt, now, hid || alpha < 0.05);
       /* ---- emissive layer: drawn after the darkness so status lights, eyes and the beam stay readable ---- */
@@ -470,8 +451,8 @@ const Renderer = (function () {
       ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.9; ctx.drawImage(G.glowSprite('#eaf6ff'), hand.x - PM * 0.12, hand.y - PM * 0.12, PM * 0.24, PM * 0.24); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     }
     function eyes(v, now, f) {
-      const c = v.c, S = f.S, a = v.hunting ? 1 : c.st === Sim_.INVESTIGATE ? 0.55 : (Math.abs(v.x - f.px) < 7.5 && (f.px - v.x) * c.dir > 0) ? 0.9 : 0.25; if (a <= 0.05) return;
-      const e = G.SP[v.name]; if (!e || !e.ok) return; const p = anchor(v.name, v.fr, sx_(v.x), FY, v.fdir, PM, v.mul);
+      const c = v.c, S = f.S, a = v.hunting ? 1 : c.st === Sim_.INVESTIGATE ? 0.55 : (Math.abs(v.x - f.px) < 7.5 && (f.px - v.x) * c.dir > 0) ? 0.9 : 0.25; if (a <= 0.05 || !v.eye) return;
+      const p = v.eye;
       ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * (0.85 + 0.15 * Math.sin(now * 6 + v.i)); ctx.drawImage(G.glowSprite('#ff2a2a'), p.x - PM * 0.38, p.y - PM * 0.38, PM * 0.76, PM * 0.76);
       ctx.globalAlpha = a * 0.5; ctx.drawImage(G.glowSprite('#c01418'), sx_(v.x) - PM * 1.4 * v.mul, FY - PM * 2.1 * v.mul, PM * 2.8 * v.mul, PM * 2.2 * v.mul);
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
@@ -497,12 +478,10 @@ const Renderer = (function () {
     }
     function sonarShapes(f, now) {
       for (const p of f.pings) { if (p.f !== f.S.f) continue; const age = now - p.t0; if (age < 0 || age > 2.6) continue; const reach = (1 - Math.pow(1 - clamp(age / 1.1, 0, 1), 2)) * 9.5;
-        for (const s of p.cr) { if (s.f !== f.S.f || Math.abs(s.x - p.x) > reach) continue; const d = W.cdefs[s.i], mul = KIND_SCALE[d.t] || 1, fr = Math.floor(frac(s.ph) * 8) % 8;
-          const sheet = G.SP.Monster_Run && G.SP.Monster_Run.ok ? 'Monster_Run' : null; if (!sheet) continue;
-          const sc = G.scaledSheet('Monster_Run', K_MON * PM * mul), tin = G.tintedFrame('Monster_Run', fr, K_MON * PM * mul, 'rgb(255,70,70)');
-          const m = G.SP.Monster_Run.m, ax = m.ax * sc.q, base = m.base * sc.q, x = sx_(s.x), dir = s.dir;
-          ctx.save(); ctx.globalAlpha = clamp(1.1 - age / 2.6, 0, 1) * 0.7; ctx.globalCompositeOperation = 'lighter';
-          if (dir < 0) { ctx.setTransform(-1, 0, 0, 1, Math.round(x + ax), 0); ctx.drawImage(tin, 0, Math.round(FY - base)); } else ctx.drawImage(tin, Math.round(x - ax), Math.round(FY - base));
+        for (const s of p.cr) { if (s.f !== f.S.f || Math.abs(s.x - p.x) > reach) continue; const d = W.cdefs[s.i], mul = KIND_SCALE[d.t] || 1;
+          an.rmS = an.rmS || []; const rm = an.rmS[s.i] || (an.rmS[s.i] = Rig.newCreature(s.i + 3));
+          ctx.save(); ctx.globalCompositeOperation = 'lighter';
+          Rig.drawCreature(rm, ctx, sx_(s.x), FY, s.dir >= 0 ? 1 : -1, PM * mul, { ph: s.ph, w: 1, run: 0, t: now, mode: 'idle', k: 0, dt: 1, acc: 0 }, clamp(1.1 - age / 2.6, 0, 1) * 0.7, 1, 'rgb(255,70,70)');
           ctx.restore(); } }
     }
     function dust(f, now, dt) {
@@ -529,7 +508,7 @@ const Renderer = (function () {
       const scroll = p * 7 * PM * dir; ctx.fillStyle = 'rgba(0,0,0,0.45)'; for (let x = -((scroll % (PM * 2)) + PM * 2); x < Wpx + PM * 2; x += PM * 2) ctx.fillRect(Math.round(x), y0, Math.max(2, PM * 0.04), th);
       for (let x = -((scroll * 0.6 % (PM * 3.5)) + PM * 3.5); x < Wpx + PM * 3.5; x += PM * 3.5) { const gg = ctx.createLinearGradient(x, 0, x + PM * 0.9, 0); gg.addColorStop(0, 'rgba(120,180,210,0)'); gg.addColorStop(0.5, 'rgba(120,180,210,0.16)'); gg.addColorStop(1, 'rgba(120,180,210,0)'); ctx.fillStyle = gg; ctx.fillRect(x, y0, PM * 0.9, th); }
       const px = Wpx / 2, cf = Math.floor(frac(p * 2.2) * 6) % 6; const sh = G.glowSprite('#000'); ctx.globalAlpha = 0.5; ctx.drawImage(sh, px - PM * 1.2, y0 + th - PM * 0.22, PM * 2.4, PM * 0.3); ctx.globalAlpha = 1;
-      if (G.ready('Survivor_Crawl')) blit(ctx, 'Survivor_Crawl', cf, px, y0 + th - PM * 0.08, dir, 1, PM, 1, 1); else fallbackFigure(px, y0 + th, 1, '#1b2128', 0.5 * PM, 1.2 * PM);
+      an.rs = an.rs || Rig.newSurvivor(); Rig.drawSurvivor(an.rs, ctx, px, y0 + th - PM * 0.08, dir, PM, { vent: true, ph: p * 3.2, t: now, w: 1, c: 0, use: -1, dead: -1, dt: 1 / 60 }, 1, 1);
       ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.12; ctx.drawImage(G.coneSprite(), dir > 0 ? px + PM * 0.9 : px - PM * 0.9 - PM * 4, cy - PM * 1.2, PM * 4, PM * 2.4); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     }
     function finish(f, now, ventBusyP, inVent) {
@@ -571,8 +550,15 @@ const Renderer = (function () {
     const sxp = Math.round(w * (o.sx === undefined ? 0.3 : o.sx)), mxp = Math.round(w * (o.mx === undefined ? 0.78 : o.mx));
     const mk_ = o.mk || 'stalker', mul = KIND_SCALE[mk_] * (o.ms || 1);
     let hand = { x: sxp + PM * 0.5, y: fy - PM * 1.05 };
-    if (o.creature !== false) { const nm = o.pose === 'attack' ? 'Monster_Attack' : 'Monster_Roar', fr = o.pose === 'attack' ? 1 : o.roar === undefined ? 0 : o.roar; blit(c, nm, fr, mxp, fy, -1, 1, PM, mul); }
-    if (o.survivor !== false) { if (o.sPose === 'caught') blit(c, 'Survivor_Caught', o.sFrame || 1, sxp, fy, 1, 1, PM, 1); else if (o.sPose === 'crouch') blit(c, 'Survivor_CrouchWalk', 1, sxp, fy, 1, 1, PM, 1); else if (o.sPose === 'run') blit(c, 'Survivor_Run', Math.floor(frac(t * 1.4) * 9) % 9, sxp, fy, 1, 1, PM, 1); else blit(c, 'Survivor_Run', 9, sxp, fy, 1, 1, PM, 1); }
+    let mEye = null;
+    if (o.creature !== false) {
+      const rm = Rig.newCreature(3), mode = o.pose === 'attack' ? 'attack' : (o.roar || 0) > 0 ? 'roar' : 'idle', k = o.pose === 'attack' ? 0.5 : Math.min(1, (o.roar || 0) / 2);
+      const r = Rig.drawCreature(rm, c, mxp, fy, -1, PM * mul, { ph: 0.12, w: 0, run: o.pose === 'attack' ? 1 : 0, t: t + 1, mode, k, dt: 1, acc: 0 }, 1, 1); mEye = { x: mxp - r.eye[0] * PM * mul, y: fy - r.eye[1] * PM * mul };
+    }
+    if (o.survivor !== false) {
+      const rs = Rig.newSurvivor(), run = o.sPose === 'run', P = { ph: t * 0.75, w: run ? 1 : 0, c: o.sPose === 'crouch' ? 1 : 0, t, use: -1, dead: o.sPose === 'caught' ? 0.55 : -1, acc: 0, dt: 1 };
+      rs.lean = o.sPose === 'crouch' ? 0.5 : 0.1; const r = Rig.drawSurvivor(rs, c, sxp, fy, 1, PM, P, 1, 1); hand = { x: sxp + r.lens[0] * PM, y: fy - r.lens[1] * PM };
+    }
     const cone = G.coneSprite(), len = PM * 5.2;
     let D = poster._D; if (!D) D = poster._D = document.createElement('canvas'); if (D.width !== w || D.height !== h) { D.width = w; D.height = h; } const d = D.getContext('2d'); d.setTransform(1, 0, 0, 1, 0, 0); d.globalCompositeOperation = 'source-over'; d.globalAlpha = 1; d.clearRect(0, 0, w, h); d.fillStyle = G.rgba(T.amb, o.dark === undefined ? 0.86 : o.dark); d.fillRect(0, 0, w, h); d.globalCompositeOperation = 'destination-out';
     const hole = G.holeSprite();
@@ -580,7 +566,7 @@ const Renderer = (function () {
     d.globalAlpha = 0.6; for (let i = 0; i < n; i += 4) d.drawImage(hole, i * PM - PM * 1.4, fy - PM * 4, PM * 2.8, PM * 2.8);
     if (o.creature !== false) { d.globalAlpha = o.bl === undefined ? 0.55 : o.bl; d.drawImage(hole, mxp - PM * 1.5, fy - PM * 3.2, PM * 3, PM * 3.2); }
     c.drawImage(D, 0, 0);
-    if (o.creature !== false) { const nm = o.pose === 'attack' ? 'Monster_Attack' : 'Monster_Roar', fr = o.pose === 'attack' ? 1 : o.roar === undefined ? 0 : o.roar; const p = anchor(nm, fr, mxp, fy, -1, PM, mul); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.9; c.drawImage(G.glowSprite('#ff2a2a'), p.x - PM * 0.4, p.y - PM * 0.4, PM * 0.8, PM * 0.8); c.globalAlpha = 0.35; c.drawImage(G.glowSprite('#c01418'), mxp - PM * 1.6, fy - PM * 2.6, PM * 3.2, PM * 2.8); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
+    if (o.creature !== false) { const nm = o.pose === 'attack' ? 'Monster_Attack' : 'Monster_Roar', fr = o.pose === 'attack' ? 1 : o.roar === undefined ? 0 : o.roar; const p = mEye || { x: mxp, y: fy - PM * 1.6 }; c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.9; c.drawImage(G.glowSprite('#ff2a2a'), p.x - PM * 0.4, p.y - PM * 0.4, PM * 0.8, PM * 0.8); c.globalAlpha = 0.35; c.drawImage(G.glowSprite('#c01418'), mxp - PM * 1.6, fy - PM * 2.6, PM * 3.2, PM * 2.8); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
     c.drawImage(G.vignetteSprite([0, 0, 0], 0.2, 0.7), 0, 0, w, h);
     if (o.fadeBottom) { const gg = c.createLinearGradient(0, h * (1 - o.fadeBottom), 0, h); gg.addColorStop(0, 'rgba(3,5,9,0)'); gg.addColorStop(1, 'rgba(3,5,9,1)'); c.fillStyle = gg; c.fillRect(0, 0, w, h); }
     if (o.fadeLeft) { const gg = c.createLinearGradient(0, 0, w * o.fadeLeft, 0); gg.addColorStop(0, 'rgba(3,5,9,0.92)'); gg.addColorStop(1, 'rgba(3,5,9,0)'); c.fillStyle = gg; c.fillRect(0, 0, w, h); }

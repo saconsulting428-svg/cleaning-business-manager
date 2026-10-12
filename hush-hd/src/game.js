@@ -5,7 +5,7 @@
   const SAVE_KEY = 'hush.save.v1', PER = PER_CHAPTER, DT = Sim.DT;
   const TEST = /[?&]test=1\b/.test(location.search);
   const icon = function (n) { return '<svg><use href="#i-' + n + '"/></svg>'; };
-  const CYC = { run: 2.2, crouch: 1.0, monster: 3.2 }, MIN_CADENCE = 0.6;      // metres per loop (a little short, so the loop never looks like slow motion); monsters keep at least MIN_CADENCE loops/s while moving
+  const RIG_CYC = { run: 1.9, crouch: 1.0, mon0: 1.72, mon1: 4.0 };      // metres per gait loop: feet stay planted because the loop is driven by distance
   const frac = function (v) { return v - Math.floor(v); };
   /* how many of the `steps` frames (foot landings) were passed while a loop at n frames advanced from phase a to b */
   function landed(a, b, n, steps) { let c = 0; const ka = Math.floor(a * n + 1e-9), kb = Math.floor(b * n + 1e-9); for (let k = ka + 1; k <= kb; k++) if (steps.indexOf(((k % n) + n) % n) >= 0) c++; return c; }
@@ -101,13 +101,11 @@
   /* The survivor's stride is locked to distance travelled (no foot sliding). A walk starts on the frame closest to standing, so the
      idle -> moving change does not jump, and a footstep sound is fired the moment a boot lands in the drawn animation. */
   function survivorGait(S, W) {
-    const sm = meta('Survivor_Run'), cm = meta('Survivor_CrouchWalk');
     if (S.moving) {
       const d = Math.abs(S.x - G.ppx);
-      if (!G.wasMoving) { if (sm) G.po = sm.neutral / 9 - frac(G.phase); if (cm) G.poC = cm.neutral / 6 - frac(G.phaseC); G.pphase = G.phase; G.pphaseC = G.phaseC; }
-      G.phase += d / CYC.run; G.phaseC += d / CYC.crouch;
-      const m = S.crouch ? cm : sm;
-      if (m && landed((S.crouch ? G.pphaseC + G.poC : G.pphase + G.po), (S.crouch ? G.phaseC + G.poC : G.phase + G.po), S.crouch ? 6 : 9, m.steps)) {
+      if (!G.wasMoving) G.pphase = G.phase;
+      G.phase += d / (S.crouch ? RIG_CYC.crouch : RIG_CYC.run);
+      if (landed(G.pphase, G.phase, 2, [0, 1])) {                                 // the rig plants a foot at phase 0 and 0.5
         const glass = W.floors[S.f].noisy[Math.floor(S.x)]; G.foot = !G.foot;
         Sound.play(glass ? 'glass' : 'step', { crouch: S.crouch, v: G.foot ? 1 : 0.88, run: !S.crouch });
       }
@@ -116,13 +114,12 @@
   }
   /* creatures: cadence never drops below MIN_CADENCE while moving (a slow prowl would otherwise play at 4 frames a second); thuds follow the drawn landings */
   function creatureGait(i, c, d, S) {
-    const mvNow = c.busy <= 0 && Math.abs(c.x - G.pcrx[i]) > 1e-5, mm = meta('Monster_Run');
+    const mvNow = c.busy <= 0 && Math.abs(c.x - G.pcrx[i]) > 1e-5;
     const ds = c.step - G.lastStep[i]; G.lastStep[i] = c.step;
-    if (mvNow && !G.crMv[i] && mm) G.cpo[i] = mm.neutral / 8 - frac(G.crPhase[i]);
-    const prev = G.crPhase[i];
-    if (mvNow) G.crPhase[i] += Math.max(ds / CYC.monster, MIN_CADENCE * DT);
+    const prev = G.crPhase[i], run = c.st === Sim.HUNT ? 1 : 0;
+    if (mvNow) G.crPhase[i] += ds / (RIG_CYC.mon0 + (RIG_CYC.mon1 - RIG_CYC.mon0) * run);
     G.crMv[i] = mvNow;
-    if (mvNow && mm && landed(prev + G.cpo[i], G.crPhase[i] + G.cpo[i], 8, mm.steps)) {
+    if (mvNow && landed(prev, G.crPhase[i], 2, [0, 1])) {
       const v = Math.max(0, 1 - d / 13) * (c.f === S.f ? 1 : 0.45);
       if (v > 0.03) Sound.play('cstep', { v: v * (G.crStep[i]++ % 2 ? 0.85 : 1), pan: c.f === S.f ? Math.max(-1, Math.min(1, (c.x - S.x) / 6)) : 0, kind: G.W.cdefs[i].t });
     }
