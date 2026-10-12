@@ -17,7 +17,7 @@ function make3D(r) {
   const mapTop = { bare: 'bare', vest: 'vest', tank: 'tank', tee: 'tee', crop: 'crop', jacket: 'jacket', gi: 'gi', armor: 'armor', hoodie: 'hoodie' }[top] || 'bare';
   const spec = {
     id: r.n.toLowerCase(), name: r.n, title: r.t, style: STYLE[r.n] || 'Freestyle', gender: fem ? 'f' : 'm',
-    skin: r.sk, eye: r.eye || (r.n === 'NOVA' ? '#3ad0ff' : r.n === 'OMEGA' ? '#ff2dd2' : '#3a2412'), height: h, bulk: clamp(.86 + (w - .84) * .55, .88, 1.34), shoulders: 1 + (w - 1) * .25, arms: 1 + (w - 1) * .15, legs: 1 + (w - 1) * .1,
+    skin: r.sk, eye: r.eye || (r.n === 'NOVA' ? '#3ad0ff' : r.n === 'OMEGA' ? '#ff2dd2' : '#3a2412'), height: h, bulk: clamp(1.0 + (w - .84) * .55, 1.0, 1.42), shoulders: 1.08 + (w - 1) * .25, arms: 1.14 + (w - 1) * .2, legs: 1.06 + (w - 1) * .1,
     hair: { style: hair, color: r.hc }, face: { real: true, jaw: fem ? 0 : clamp((w - .9) * .8, 0, .7), width: fem ? .82 : clamp(.84 + (w - 1) * .1, .8, .96), scar: r.ac === 'scar', gender: fem ? 'f' : 'm' },
     top: { type: mapTop, color: r.tc || '#444', fabric: (mapTop === 'jacket' || mapTop === 'armor') ? 'leather' : 'cloth' },
     pants: { type: r.pt === 'cargo' ? 'cargo' : r.pt || 'long', color: r.pc || '#333', fabric: r.pt === 'long' && mapTop === 'jacket' ? 'leather' : 'cloth' }, belt: r.bt || '#111',
@@ -33,4 +33,5 @@ function make3D(r) {
   if (r.tat) spec.tattoo = r.tat;
   return spec;
 }
-export const EXTRA_ROSTER = RAW.map(make3D);
+const KEEP = ['JADE', 'TITAN', 'ZARA', 'HAWK', 'SORA', 'VIPER', 'BRUTUS', 'KANE', 'IVAN', 'RYKER', 'AMARA', 'GRIZZ', 'OMEGA']; // 15 fighters with KAI + DRAVEN
+export const EXTRA_ROSTER = RAW.filter(r => KEEP.includes(r.n)).map(make3D);
