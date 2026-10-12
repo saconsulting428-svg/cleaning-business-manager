@@ -29,6 +29,7 @@ export class Game {
   sfx(n) { sfx(n); }
   voice(f, kind, big) { voice(kind, f.spec.gender === 'f', big); }
   say(t, o) { speak(t, Object.assign({ vol: this.settings.sfx }, o)); }
+  flash(a) { try { let d = this._fl; if (!d) { d = this._fl = document.createElement('div'); d.style.cssText = 'position:fixed;inset:0;background:#fff;pointer-events:none;opacity:0;z-index:5;transition:opacity .18s ease-out'; document.body.appendChild(d); } d.style.transition = 'none'; d.style.opacity = a; void d.offsetWidth; d.style.transition = 'opacity .18s ease-out'; d.style.opacity = 0; } catch (e) {} }
   hitstop(f) { this.hitstopF = Math.max(this.hitstopF, f); }
   shake(a) { this.gfx.cam.shake(a); this.gfx.kick(a * .02); if (a > .2) this.gfx.cam.zoomKick = a * 2; }
   onHit(att, def, info) {

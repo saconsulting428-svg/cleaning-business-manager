@@ -59,10 +59,10 @@ const jabW = mod(G, { hL: [.34, 1.37, -.2], twist: -38 });
 const jabS = mod(G, { hL: [.86, 1.47, -.1], pitch: 12, twist: -20, hip: [.08, .93, 0], headPitch: 4 });
 const crossW = mod(G, { hR: [.1, 1.3, .2], twist: -50, hipTwist: -32, hip: [-.04, .92, .03] });
 const crossS = mod(G, { hR: [.9, 1.46, -.05], twist: 8, hipTwist: 10, pitch: 14, hip: [.16, .92, 0], fRp: -28, fR: [-.16, .03, .2], fL: [.3, 0, -.2], hL: [.3, 1.35, -.2] });
-const lkC = mod(G, { fL: [.38, .66, -.12], hip: [-.02, .93, .02], pitch: 4, hL: [.4, 1.42, -.2] });
-const lkS = mod(G, { fL: [.84, .98, -.06], fLp: 24, pitch: -6, hip: [-.04, .92, .03], hL: [.3, 1.45, -.25], hR: [.2, 1.3, .15] });
-const hkC = mod(G, { fR: [.12, .98, .4], twist: -50, hipTwist: -34, pitch: 2, fL: [.14, 0, -.16], fLy: -40, hL: [.2, 1.5, -.3], hR: [.0, 1.2, .35] });
-const hkS = mod(G, { fR: [.66, 1.34, -.16], fRp: -10, twist: 24, hipTwist: 34, pitch: -16, hip: [-.03, .88, 0], fL: [.1, 0, -.14], fLy: -70, hL: [.2, 1.52, -.32], hR: [-.02, 1.14, .36] });
+const lkC = mod(G, { fL: [.4, .95, -.12], hip: [-.02, .93, .02], pitch: 4, hL: [.4, 1.42, -.2] });
+const lkS = mod(G, { fL: [.88, 1.38, -.06], fLp: 24, pitch: -12, hip: [-.04, .92, .03], hL: [.3, 1.45, -.25], hR: [.2, 1.3, .15] });
+const hkC = mod(G, { fR: [.25, 1.3, .4], twist: -50, hipTwist: -34, pitch: 2, fL: [.14, 0, -.16], fLy: -40, hL: [.2, 1.5, -.3], hR: [.0, 1.2, .35] });
+const hkS = mod(G, { fR: [.72, 1.72, -.16], fRp: -10, twist: 24, hipTwist: 34, pitch: -24, hip: [-.03, .88, 0], fL: [.1, 0, -.14], fLy: -70, hL: [.2, 1.52, -.32], hR: [-.02, 1.14, .36] });
 const swC = mod(P.crouch, { fR: [-.12, .09, .52], hip: [-.02, .52, .02], pitch: 22, hL: [.4, .7, -.3], hR: [.1, .62, .3] });
 const swS = mod(P.crouch, { fR: [.8, .09, -.02], hip: [.04, .5, .02], pitch: 18, twist: 4, hipTwist: 14, hL: [.5, .6, -.3], hR: [.1, .5, .3], fL: [.2, 0, -.26] });
 const upC = mod(P.crouch, { hR: [.14, .8, .16], hip: [-.02, .66, .02], pitch: 22, twist: -46 });
@@ -95,4 +95,25 @@ Object.assign(MOVES, {
   slideKick: { name: 'Slide Kick', su: 10, ac: 5, rc: 28, step: 4.2, crouch: true, keys: [[0, P.crouch], [6, flat({ hip: [0, .42, 0], fR: [-.1, .12, .4], pitch: 25, fL: [.3, 0, -.22], hL: [.4, .8, -.3], hR: [.2, .7, .3] })], [10, flat({ hip: [.2, .42, 0], fR: [.94, .1, -.02], pitch: 30, hL: [.5, .6, -.3], hR: [.1, .5, .3], fL: [.2, 0, -.2] })], [15, flat({ hip: [.2, .42, 0], fR: [.94, .1, -.02], pitch: 30 })], [38, G]], hit: { limb: 'footR', r: .14, dmg: 9, hs: 0, bs: 12, kb: .3, lvl: 'low', down: true, sfx: 'kick' } },
   tigerClaw: { name: 'Tiger Claw', su: 10, ac: 3, rc: 22, step: 1.4, keys: [[0, G], [5, flat({ hR: [.15, .9, .2], pitch: 16, twist: -45, hip: [-.03, .78, 0] })], [10, flat({ hR: [.7, 1.78, 0], hip: [.1, .96, 0], pitch: 4, twist: 4, hipTwist: 10 })], [13, flat({ hR: [.7, 1.78, 0], hip: [.1, .96, 0], pitch: 4 })], [34, G]], hit: { limb: 'handR', r: .14, dmg: 12, hs: 0, bs: 13, kb: .3, lvl: 'mid', launch: 5, sfx: 'punchH', big: true } }
 });
+
+MOVES.hook = { name: 'Haymaker', su: 11, ac: 3, rc: 22, step: 1.6, keys: [[0, G], [7, flat({ hR: [-.05, 1.35, .62], twist: -70, hipTwist: -50, hip: [-.08, .9, .03], pitch: 4 })], [12, flat({ hR: [.62, 1.5, -.42], twist: 40, hipTwist: 46, pitch: 16, hip: [.18, .88, 0], fL: [.3, 0, -.2], hL: [.3, 1.3, -.2] })], [15, flat({ hR: [.62, 1.5, -.42], twist: 40, hipTwist: 46, pitch: 16, hip: [.18, .88, 0] })], [38, G]], hit: { limb: 'handR', r: .16, dmg: 17, hs: 28, bs: 14, kb: 1.1, lvl: 'high', sfx: 'punchH', big: true } };
+MOVES.knee = { name: 'Knee Strike', su: 7, ac: 3, rc: 18, step: 2.2, keys: [[0, G], [4, flat({ fL: [.3, .62, -.1], hip: [.02, .9, 0], pitch: 6, hL: [.4, 1.35, -.2], hR: [.3, 1.45, .2] })], [8, flat({ fL: [.62, 1.0, -.08], hip: [.14, .9, 0], pitch: 14, hL: [.5, 1.5, -.2], hR: [.5, 1.5, .2] })], [11, flat({ fL: [.62, 1.0, -.08], hip: [.14, .9, 0], pitch: 14 })], [30, G]], hit: { limb: 'footL', r: .17, dmg: 12, hs: 24, bs: 12, kb: .8, lvl: 'mid', sfx: 'punchH', big: true } };
+MOVES.spinKick = { name: 'Spin Kick', su: 14, ac: 4, rc: 24, step: 1.6, keys: [[0, G], [7, flat({ twist: -110, hipTwist: -90, hip: [-.03, .9, 0], fL: [.14, 0, -.16] })], [13, flat({ twist: -300, hipTwist: -250, pitch: -14, hip: [-.02, .88, 0], fR: [.72, 1.55, -.05], fL: [.1, 0, -.14], hL: [.2, 1.45, -.3], hR: [0, 1.2, .35] })], [18, flat({ twist: -340, hipTwist: -300, pitch: -18, hip: [-.02, .88, 0], fR: [.74, 1.62, -.05], fL: [.1, 0, -.14] })], [42, G]], hit: { limb: 'footR', r: .17, dmg: 18, hs: 28, bs: 15, kb: 1.2, lvl: 'high', sfx: 'kickH', big: true } };
+// heavier, snappier: boost damage, compress timings ~20%
+for (const mv of Object.values(MOVES)) {
+  mv.hit.dmg = Math.round(mv.hit.dmg * 1.25); if (mv.hit.final) mv.hit.final.dmg = Math.round(mv.hit.final.dmg * 1.25);
+  mv.hit.kb *= 1.35; if (mv.hit.final) mv.hit.final.kb *= 1.2;
+  const k = .8; mv.su = Math.max(3, Math.round(mv.su * k)); mv.rc = Math.round(mv.rc * k); if (!mv.air) mv.ac = Math.max(2, Math.round(mv.ac * k));
+  if (mv.hit.gap) mv.hit.gap = Math.max(3, Math.round(mv.hit.gap * k));
+  mv.keys = mv.keys.map(([f, p]) => [Math.round(f * k), p]);
+}
+// fighter variety: each fighter gets their own heavy punch / kick / knee set
+const HP = ['cross', 'hook', 'elbowDrive', 'lungePunch', 'hammerFist', 'tigerClaw'], HK = ['hkick', 'spinKick', 'axeKick', 'hkick', 'doubleKick'], LK = ['lkick', 'knee', 'lkick', 'knee'];
+const HEAVY = ['titan', 'brutus', 'ogre', 'grizz', 'kane', 'ivan'];
+for (const id in ROSTER) {
+  if (id === 'kai') { ROSTER[id].basic = { hp: 'cross', hk: 'hkick', lk: 'lkick' }; continue; }
+  let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const heavy = HEAVY.includes(id);
+  ROSTER[id].basic = { hp: heavy ? (h % 2 ? 'hammerFist' : 'hook') : HP[h % HP.length], hk: HK[(h >> 3) % HK.length], lk: LK[(h >> 5) % LK.length] };
+}
 export const BASIC = { lp: 'jab', hp: 'cross', lk: 'lkick', hk: 'hkick', d_lk: 'sweep', d_hp: 'upper' };

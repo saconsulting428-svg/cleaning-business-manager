@@ -58,7 +58,7 @@ export class Fighter {
       case 'idle': case 'dash': this.tickFree(opp, grounded); break;
       case 'jump': this.tickAir(opp); break;
       case 'attack': this.tickAttack(opp); break;
-      case 'hit': this.st--; this.hitBlend = Math.max(0, this.hitBlend - .02); if (!this.launched && this.st <= 0) this.state = 'idle'; break;
+      case 'hit': this.st--; this.hitBlend = Math.max(0, this.hitBlend - .02); this.hitKick = Math.max(0, (this.hitKick || 0) - .04); if (!this.launched && this.st <= 0) this.state = 'idle'; break;
       case 'block': this.st--; if (this.st <= 0) this.state = 'idle'; break;
       case 'dodge': this.tickDodge(); break;
       case 'down': this.st--; if (this.st <= 0 && !this.ko) { this.state = 'getup'; this.st = 26; this.invul = 26; } break;
@@ -86,11 +86,11 @@ export class Fighter {
     if (this.tryAttack(opp)) return;
     if (this.sideUp || this.sideDown) { this.startDodge(this.sideUp ? -1 : 1); return; }
     if (this.buf.jump > 0) { this.consume('jump'); this.vy = 6.9; this.y = .001; this.airAtk = false; const ax = ((I.right ? 1 : 0) - (I.left ? 1 : 0)); this.vel.set(ax * 2.4 * spd, 0, 0); this.state = 'jump'; this.game.sfx('jump'); this.game.fx.dust(this.pos, 4); return; }
-    if (this.tapF || this.tapB) { this.state = 'dash'; this.st = 12; const s = this.tapF ? 1 : -1; this.dashVel = this.face.clone().multiplyScalar(s * (this.tapF ? 6.2 : 5) * spd); this.game.fx.dust(this.pos, 3); this.game.sfx('whoosh'); return; }
+    if (this.tapF || this.tapB) { this.state = 'dash'; this.st = 10; const s = this.tapF ? 1 : -1; this.dashVel = this.face.clone().multiplyScalar(s * (this.tapF ? 8 : 6.5) * spd); this.game.fx.dust(this.pos, 3); this.game.sfx('whoosh'); return; }
     // walk
     const ax = (I.right ? 1 : 0) - (I.left ? 1 : 0);
     if (!I.crouch && ax !== 0) {
-      const f = ax * Math.sign(this.face.x || 1), v = f > 0 ? 1.75 * spd : 1.4 * spd;
+      const f = ax * Math.sign(this.face.x || 1), v = f > 0 ? 2.2 * spd : 1.8 * spd;
       this.vel.copy(this.face).multiplyScalar(f * v); this.walkPh += f * v * DT * 3.4; this.walking = f;
     } else { this.vel.multiplyScalar(.6); this.walking = 0; }
   }
@@ -116,10 +116,10 @@ export class Fighter {
     let m = null, btn = null;
     if (b.hp > 0 && df && this.spec.specials.df_hp) { m = this.spec.specials.df_hp; btn = 'hp'; }
     else if (b.hk > 0 && df && this.spec.specials.df_hk) { m = this.spec.specials.df_hk; btn = 'hk'; }
-    else if (b.hp > 0) { m = down ? BASIC.d_hp : BASIC.hp; btn = 'hp'; }
+    else if (b.hp > 0) { m = down ? BASIC.d_hp : (this.spec.basic?.hp || BASIC.hp); btn = 'hp'; }
     else if (b.lp > 0) { m = BASIC.lp; btn = 'lp'; }
-    else if (b.lk > 0) { m = down ? BASIC.d_lk : BASIC.lk; btn = 'lk'; }
-    else if (b.hk > 0) { m = BASIC.hk; btn = 'hk'; }
+    else if (b.lk > 0) { m = down ? BASIC.d_lk : (this.spec.basic?.lk || BASIC.lk); btn = 'lk'; }
+    else if (b.hk > 0) { m = this.spec.basic?.hk || BASIC.hk; btn = 'hk'; }
     if (!m) return false; this.consume(btn); this.startMove(m); return true;
   }
   startMove(name) {
@@ -181,7 +181,7 @@ export class Fighter {
     if (launch || h.down) {
       def.state = 'hit'; def.launched = true; def.vy = launch || 4.2; def.y = Math.max(def.y, .02); def.vel.copy(dir).multiplyScalar((h.kb + .4) * 6 + (ko ? 2.5 : 0)); def.st = 999;
     } else { def.state = 'hit'; def.launched = false; def.st = h.hs; def.vel.copy(dir).multiplyScalar(h.kb * 7); }
-    G.hitstop(h.big || ko ? 10 : 5); G.fx.hit(point, dir, h.big || ko ? 2 : 1, this.spec.aura); G.sfx(h.sfx || 'punch'); if (h.big || ko || part === 'head') G.sfx('crunch'); G.voice(def, ko ? 'ko' : 'hurt', !!(h.big || ko)); G.shake(h.big || ko ? .35 : .14); G.onHit(this, def, { blocked: false, dmg, part, big: h.big || ko, ko });
+    def.hitKick = ko ? 2.2 : h.big ? 1.7 : 1; G.hitstop(ko ? 22 : h.big ? 14 : 8); G.fx.hit(point, dir, h.big || ko ? 2 : 1, this.spec.aura); G.sfx(h.sfx || 'punch'); if (h.big || ko || part === 'head') G.sfx('crunch'); G.voice(def, ko ? 'ko' : 'hurt', !!(h.big || ko)); G.shake(ko ? .7 : h.big ? .55 : .24); G.flash && G.flash(h.big || ko ? .35 : .15); G.onHit(this, def, { blocked: false, dmg, part, big: h.big || ko, ko });
   }
 
   /* ---- pose + render ---- */
@@ -199,7 +199,7 @@ export class Fighter {
     } else if (st === 'block') { lerpPose(T, this.crouchBlock ? POSE.crouchBlock : POSE.block, 1, T); T.pitch += 4; alpha = .5; }
     else if (st === 'jump') { lerpPose(T, POSE.air, 1, T); lerpPose(T, POSE.airFall, clamp(.5 - this.vy / 8, 0, 1), T); alpha = .3; }
     else if (st === 'attack') { this.attackPose(T); alphaOverride = 1; }
-    else if (st === 'hit') { const hp = this.hitPose; lerpPose(T, hp, this.launched ? 1 : clamp(.5 + this.hitBlend * .5, 0, 1), T); if (this.launched) { T.hip[1] = .95; } alpha = .55; }
+    else if (st === 'hit') { const hp = this.hitPose; lerpPose(T, hp, this.launched ? 1 : clamp(.5 + this.hitBlend * .5, 0, 1), T); if (this.launched) { T.hip[1] = .95; } const hk = this.hitKick || 0; T.pitch -= 16 * hk; T.hip[0] -= .09 * hk; T.headPitch = (T.headPitch || 0) - 22 * hk; alpha = .6; }
     else if (st === 'down') { lerpPose(T, this.ko ? POSE.defeat : POSE.down, 1, T); alpha = .35; }
     else if (st === 'getup') { lerpPose(T, POSE.down, clamp(this.st / 26, 0, 1), T); alpha = .3; }
     else if (st === 'dodge') { const d = this.dodgeDir, k = Math.sin(Math.min(1, this.dodgeT / 14) * Math.PI); lerpPose(T, mod(guard(), { hip: [0, .8, .02 + d * .06], pitch: 14, hL: [.38, 1.3, -.2], hR: [.3, 1.2, .1], fL: [.3, k * .06, -.16 + d * k * .3], fR: [-.3, 0, .24 + d * k * .22], roll: -d * 12 }), 1, T); alpha = .3; }
