@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
-const V3 = THREE.Vector3, TAU = Math.PI * 2, ZS = .87;
+const V3 = THREE.Vector3, TAU = Math.PI * 2; let ZS = .87;
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const gauss = (x, y, z, cx, cy, cz, sx, sy, sz) => Math.exp(-(((x - cx) / sx) ** 2 + ((y - cy) / sy) ** 2 + ((z - cz) / sz) ** 2));
 function rng(seed) { let s = seed >>> 0 || 1; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
@@ -31,7 +31,7 @@ function headGeometry(R, hero, face) {
   const P = []; // unit-R positions
   for (let i = 0; i < n0; i++) {
     v.fromBufferAttribute(p, i); const y = v.y;
-    if (y < 0) { const k = -y; v.x *= 1 - .05 * k; v.z *= 1 - (.26 + (face.jaw || 0) * .2) * k * k * 1.5 - .08 * k; if (v.x > 0) v.x += .075 * k * k; v.y *= 1 + .16 * k; }
+    if (y < 0) { const k = -y; v.x *= 1 - .05 * k; v.z *= 1 - ((face.gender === 'f' ? .3 : .26) + (face.jaw || 0) * .2) * k * k * 1.5 - .08 * k; if (v.x > 0) v.x += .075 * k * k; v.y *= 1 + .16 * k; }
     if (v.x < 0) v.x *= .96; v.y *= 1.09;
     nm.copy(v).normalize(); let d = 0; const az = Math.abs(v.z);
     if (v.x > -.1) for (const [cx, cy, cz, sx, sy, sz, amp] of FEAT) d += amp * gauss(v.x, v.y, cz === 0 ? v.z : az, cx, cy, cz, sx, sy, sz);
@@ -99,23 +99,25 @@ function skinMaps(spec, yLip, hero) {
   for (const s of [-1, 1]) { curve(gh, [[.97, .3, s * .1], [.99, .42, s * .12]], '#444', 2.5, .4, 1); curve(gh, [[.95, -.34, s * .16], [.9, -.42, s * .26], [.86, -.5, s * .32]], '#505050', 4, .35, 2); curve(gh, [[.92, -.12, s * .44], [.95, -.1, s * .3], [.93, -.12, s * .2]], '#606060', 3, .3, 2); }
   // --- stubble (light), pores
   const sm = hero ? 1 : .45;
-  const mask = (y, z) => { const jaw = sstep(-.36, -.6, y) * sstep(.85, .35, Math.abs(z)); const lip = Math.exp(-(((y + .47) / .1) ** 2)) * sstep(.4, .1, Math.abs(z)) * 1.2; const cheek = sstep(-.12, -.4, y) * sstep(.8, .5, Math.abs(z)) * .4; return Math.min(1, jaw + lip + cheek); };
-  g.fillStyle = '#17110e'; for (let i = 0; i < 110000 * sm; i++) { const y = -.95 + rn() * .75, z = (rn() * 1.0) * (rn() < .5 ? -1 : 1), m = mask(y, z); if (rn() > m * .55) continue; const x = Math.sqrt(Math.max(.05, 1 - y * y * .5 - z * z)), [cx, cy] = C(x, y, z); g.globalAlpha = .2 + rn() * .35; g.fillRect(cx, cy, 1 + rn() * .6, 1 + rn() * .6); gh.fillStyle = '#444'; gh.globalAlpha = .5; gh.fillRect(cx, cy, 1.4, 1.4); } g.globalAlpha = 1; gh.globalAlpha = 1;
-  const shade = (y, z) => mask(y, z); for (let k = 0; k < 40; k++) { const y = -.9 + k * .018; for (const z of [-.5, -.3, -.1, .1, .3, .5]) blob(g, .95, y, z, .12, .05, '#1c1411', .05 * shade(y, z)); }
+  const fem = spec.face && spec.face.gender === 'f', bt = spec.beard ? spec.beard.type : null, dens = { stubble: 1, beard: 2.4, goatee: 1.7, stache: 1.7 }[bt] || 0;
+  const mask = (y, z) => { const az = Math.abs(z); const jaw = sstep(-.36, -.6, y) * sstep(.85, .35, az), lip = Math.exp(-(((y + .47) / .1) ** 2)) * sstep(.4, .1, az) * 1.2, cheek = sstep(-.12, -.4, y) * sstep(.8, .5, az) * .4, chin = sstep(-.6, -.75, y) * sstep(.3, .1, az);
+    if (bt === 'goatee') return Math.min(1, chin * 1.4 + lip * .9); if (bt === 'stache') return Math.min(1, lip); return Math.min(1, jaw + lip + cheek); };
+  g.fillStyle = spec.beard ? mixHex(spec.beard.color || '#17110e', '#000000', .45) : '#17110e'; for (let i = 0; i < (dens ? 110000 * sm * dens : 0); i++) { const y = -.95 + rn() * .75, z = (rn() * 1.0) * (rn() < .5 ? -1 : 1), m = mask(y, z); if (rn() > m * Math.min(.95, .55 * (dens > 1 ? 1.4 : 1))) continue; const x = Math.sqrt(Math.max(.05, 1 - y * y * .5 - z * z)), [cx, cy] = C(x, y, z); g.globalAlpha = .2 + rn() * .35; g.fillRect(cx, cy, 1 + rn() * .6, 1 + rn() * .6); gh.fillStyle = '#444'; gh.globalAlpha = .5; gh.fillRect(cx, cy, 1.4, 1.4); } g.globalAlpha = 1; gh.globalAlpha = 1;
+  const shade = (y, z) => mask(y, z); if (dens) for (let k = 0; k < 40; k++) { const y = -.9 + k * .018; for (const z of [-.5, -.3, -.1, .1, .3, .5]) blob(g, .95, y, z, .12, .05, '#1c1411', .05 * shade(y, z)); }
   g.globalAlpha = .06; for (let i = 0; i < 26000 * sm; i++) { g.fillStyle = rn() < .5 ? '#000' : '#fff'; g.fillRect(rn() * Wc, rn() * Hc, 1.2, 1.2); } g.globalAlpha = 1;
   gh.globalAlpha = .5; for (let i = 0; i < 90000 * sm; i++) { gh.fillStyle = rn() < .6 ? '#656565' : '#999'; gh.fillRect(rn() * Wc, rn() * Hc, 1.3, 1.3); } gh.globalAlpha = 1;
   // --- eyebrows (hair strokes)
-  for (const s of [-1, 1]) for (let i = 0; i < 520 * sm + 60; i++) { const t = rn(), z = s * (.14 + .52 * t), y = .335 + .045 * Math.sin(t * Math.PI * .9) - .05 * t * t + (rn() - .5) * .045 * (1 - t * .5), x = Math.sqrt(1 - y * y * .6 - z * z) * .99; const [cx, cy] = C(x, y, z); const ang = -Math.PI / 2 + s * (.5 + .9 * t) * .6 + (rn() - .5) * .3; g.strokeStyle = '#0b0807'; g.globalAlpha = .55 + rn() * .4; g.lineWidth = 1.2 + rn() * .9; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(ang) * 8 * (hero ? 1 : .5), cy + Math.sin(ang) * 8 * (hero ? 1 : .5)); g.stroke(); } g.globalAlpha = 1;
+  for (const s of [-1, 1]) for (let i = 0; i < (fem ? 260 : 520) * sm + 60; i++) { const t = rn(), z = s * (.14 + .52 * t), y = .335 + .045 * Math.sin(t * Math.PI * .9) - .05 * t * t + (rn() - .5) * .045 * (1 - t * .5), x = Math.sqrt(1 - y * y * .6 - z * z) * .99; const [cx, cy] = C(x, y, z); const ang = -Math.PI / 2 + s * (.5 + .9 * t) * .6 + (rn() - .5) * .3; g.strokeStyle = spec.hair && spec.hair.color && fem ? mixHex(spec.hair.color, '#000000', .55) : '#0b0807'; g.globalAlpha = .55 + rn() * .4; g.lineWidth = (fem ? .8 : 1.2) + rn() * .9; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(ang) * 8 * (hero ? 1 : .5), cy + Math.sin(ang) * 8 * (hero ? 1 : .5)); g.stroke(); } g.globalAlpha = 1;
   // --- eye area: lash lines, creases, tear ducts
   for (const s of [-1, 1]) {
     const up = [], lo = []; for (let k = 0; k <= 24; k++) { const a = Math.PI * k / 24, z = s * (.385 + .15 * Math.cos(a)), yy = .075 + .066 * Math.sin(a); up.push([Math.sqrt(1 - yy * yy * .8 - z * z), yy + .004, z]); lo.push([Math.sqrt(1 - yy * yy * .8 - z * z), .075 - .062 * Math.sin(a) - .004, z]); }
-    curve(g, up, '#0a0605', hero ? 7 : 4, .95, .8); curve(g, lo, '#3a2420', hero ? 3 : 2, .6, .6);
+    curve(g, up, '#0a0605', (hero ? 7 : 4) * (fem ? 1.35 : 1), .95, .8); if (fem) { curve(g, up.map(([x, y, z]) => [x, y + .015, z]), '#2a1a1e', hero ? 5 : 3, .5, 2); blob(g, .86, -.14, s * .52, .22, .16, '#d8707a', .22); } curve(g, lo, '#3a2420', hero ? 3 : 2, .6, .6);
     curve(g, up.map(([x, y, z]) => [x, y + .045, z]), deep, 4, .38, 2); blob(g, .9, .07, s * .235, .035, .03, '#cc6a64', .7);
     curve(gh, up.map(([x, y, z]) => [x, y + .045, z]), '#444', 3, .5, 1.5);
   }
   // --- lips + nostrils + philtrum
   const lipU = [.985, yLip + .035, 0], lipL = [.985, yLip - .05, 0];
-  { const lc = mixHex(base, '#8a2f35', .62), lc2 = mixHex(base, '#a8474b', .6), shape = (pts, col, blur) => { g.save(); g.filter = 'blur(' + blur + 'px)'; g.fillStyle = col; g.beginPath(); pts.forEach(([x, y, z], i) => { const [cx, cy] = C(x, y, z); i ? g.lineTo(cx, cy) : g.moveTo(cx, cy); }); g.closePath(); g.fill(); g.restore(); };
+  { const lc = mixHex(base, fem ? '#a02a40' : '#8a2f35', fem ? .8 : .62), lc2 = mixHex(base, fem ? '#b8384c' : '#a8474b', fem ? .8 : .6), shape = (pts, col, blur) => { g.save(); g.filter = 'blur(' + blur + 'px)'; g.fillStyle = col; g.beginPath(); pts.forEach(([x, y, z], i) => { const [cx, cy] = C(x, y, z); i ? g.lineTo(cx, cy) : g.moveTo(cx, cy); }); g.closePath(); g.fill(); g.restore(); };
     const arcPts = (fn, n = 20) => { const o = []; for (let k = 0; k <= n; k++) { const t = k / n, z = -.28 + .56 * t; o.push([.99, fn(z), z]); } return o; };
     const up = arcPts(z => yLip + .075 * (1 - (z / .28) ** 2) - .012 * Math.exp(-((z / .04) ** 2))), upBase = arcPts(z => yLip), lo = arcPts(z => yLip - .1 * (1 - (z / .28) ** 2) ** .8);
     shape([...up, ...upBase.slice().reverse()], lc, hero ? 2 : 1); shape([...upBase, ...lo.slice().reverse()], lc2, hero ? 2 : 1);
@@ -156,10 +158,10 @@ function hairAlpha() {
   for (let i = 0; i < 46; i++) { const x0 = 3 + rn() * 58, x1 = 32 + (x0 - 32) * (.2 + rn() * .3), w = 3 + rn() * 2.5; g.strokeStyle = 'rgba(255,255,255,' + (.7 + rn() * .3) + ')'; g.lineWidth = w; g.lineCap = 'round'; g.beginPath(); g.moveTo(x0, 0); g.quadraticCurveTo(x0 + (rn() - .5) * 12, 60, x1, 100 + rn() * 26); g.stroke(); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.NoColorSpace; return t;
 }
-function hairGeometry(R, rn, DETq) {
-  const geos = [], up = new V3(0, 1, 0);
-  const card = (az, el, len, w, droop, side = 0, fwd = 0) => {
-    const base = new V3(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az) * ZS), out = base.clone().normalize(); base.multiplyScalar(R * 1.02);
+function hairBuild(R, rn, style, beardSpec) {
+  const geos = [], up = new V3(0, 1, 0), info = { cap: 'full', bun: false, afro: false };
+  const card = (az, el, len, w, droop, side = 0, fwd = 0, rad = 1.02) => {
+    const base = new V3(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az) * ZS), out = base.clone().normalize(); base.multiplyScalar(R * rad);
     let d = out.clone().multiplyScalar(1 - droop).addScaledVector(up, -droop).addScaledVector(new V3(1, 0, 0), fwd).addScaledVector(new V3(0, 0, 1), side).normalize();
     const seg = 6, pos = [], uv = [], idx = [], pts = [base.clone()]; let cur = base.clone(), dir = d.clone();
     for (let k = 1; k <= seg; k++) { dir.lerp(new V3(0, -1, 0), .16 * (1 + droop)).normalize(); cur = cur.clone().addScaledVector(dir, R * len / seg); pts.push(cur); }
@@ -167,20 +169,34 @@ function hairGeometry(R, rn, DETq) {
     for (let k = 0; k <= seg; k++) { const t = k / seg, hw = (R * w / 2) * (1 - .8 * Math.pow(t, 1.4)); const p0 = pts[k]; pos.push(p0.x - sd.x * hw, p0.y - sd.y * hw, p0.z - sd.z * hw, p0.x + sd.x * hw, p0.y + sd.y * hw, p0.z + sd.z * hw); uv.push(0, t, 1, t); if (k < seg) idx.push(k * 2, k * 2 + 1, k * 2 + 2, k * 2 + 1, k * 2 + 3, k * 2 + 2); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); geos.push(g);
   };
-  const r = (a, b) => a + rn() * (b - a);
-  for (let i = 0; i < 230; i++) card(r(0, TAU), r(.8, 1.5), r(.4, .85), r(.18, .3), r(.35, .75), r(-.3, .3), r(-.25, .1));                    // crown (messy, slightly forward-swept)
-  for (let i = 0; i < 44; i++) card(r(-.95, .95), r(.95, 1.22), r(.36, .58), r(.13, .22), r(.6, .85), r(-.4, .4), r(.2, .5));                       // fringe over forehead
-  for (const s of [-1, 1]) for (let i = 0; i < 32; i++) card(s * r(1.2, 2.3), r(.05, .85), r(.5, .95), r(.18, .3), r(.8, 1), 0, r(-.1, .15));  // side locks over ears
-  for (let i = 0; i < 70; i++) card(Math.PI + r(-1.2, 1.2), r(-.3, .9), r(.7, 1.3), r(.2, .32), r(.85, 1), 0, r(-.35, -.1));                    // back / nape
-  return mergeGeometries(geos);
+  const r = (a, b) => a + rn() * (b - a), n = (c, fn) => { for (let i = 0; i < c; i++) fn(i); };
+  const sidesFn = (cnt, len, w, droop, el0 = .05, el1 = .85) => { for (const s of [-1, 1]) n(cnt, () => card(s * r(1.2, 2.3), r(el0, el1), r(len[0], len[1]), r(w[0], w[1]), r(droop[0], droop[1]), 0, r(-.1, .15))); };
+  const sideFringe = (cnt, len) => n(cnt, () => card(r(-.95, .95), r(.95, 1.2), r(len[0], len[1]), r(.13, .22), r(.6, .85), r(-.4, .4), r(.2, .5)));
+  switch (style) {
+    case 'bald': info.cap = 'none'; break;
+    case 'messy': n(230, () => card(r(0, TAU), r(.8, 1.5), r(.4, .85), r(.18, .3), r(.35, .75), r(-.3, .3), r(-.25, .1))); sideFringe(44, [.36, .58]); sidesFn(32, [.5, .95], [.18, .3], [.8, 1]); n(70, () => card(Math.PI + r(-1.2, 1.2), r(-.3, .9), r(.7, 1.3), r(.2, .32), r(.85, 1), 0, r(-.35, -.1))); break;
+    case 'spiky': n(120, () => card(r(0, TAU), r(.7, 1.5), r(.5, .95), r(.22, .34), r(0, .25), r(-.2, .2), r(-.1, .15))); n(16, () => card(r(-.7, .7), r(1, 1.2), r(.35, .55), r(.2, .3), r(.4, .6), r(-.2, .2), r(.25, .45))); sidesFn(14, [.3, .5], [.2, .3], [.4, .7], .3, .8); break;
+    case 'short': n(160, () => { const az = r(0, TAU), el = r(.45, 1.5); if (Math.abs(((az + Math.PI) % TAU) - Math.PI) < 1.0 && el < .9) return; card(az, el, r(.22, .4), r(.2, .3), r(.55, .9), 0, r(-.1, .1)); }); sideFringe(22, [.24, .38]); break;
+    case 'slick': n(120, () => card(r(0, TAU), r(.7, 1.5), r(.6, .95), r(.22, .34), r(.35, .55), 0, r(-.6, -.35))); sidesFn(14, [.3, .5], [.2, .3], [.7, .95], .3, .8); break;
+    case 'long': n(80, () => card(r(0, TAU), r(.8, 1.5), r(.5, .85), r(.2, .32), r(.4, .8), r(-.3, .3), r(-.2, .1))); sideFringe(34, [.5, .85]); sidesFn(46, [1.2, 1.9], [.22, .34], [.9, 1], .0, .8); n(70, () => card(Math.PI + r(-1.3, 1.3), r(-.4, .9), r(1.6, 2.4), r(.24, .36), r(.92, 1), 0, r(-.3, -.1))); break;
+    case 'ponytail': n(100, () => card(r(0, TAU), r(.8, 1.5), r(.35, .6), r(.2, .3), r(.4, .8), 0, r(-.15, .15))); sideFringe(24, [.36, .6]); sidesFn(14, [.4, .7], [.2, .3], [.8, 1], .2, .8); n(46, () => card(Math.PI + r(-.28, .28), r(.55, .85), r(1.5, 2.1), r(.28, .4), r(.95, 1), 0, r(-.5, -.3))); break;
+    case 'bun': n(100, () => card(r(0, TAU), r(.7, 1.5), r(.35, .55), r(.2, .3), r(.4, .8), 0, r(-.1, .1))); sideFringe(24, [.3, .5]); sidesFn(16, [.3, .6], [.2, .3], [.8, 1], .2, .8); info.bun = true; break;
+    case 'mohawk': info.cap = 'none'; n(46, () => card(Math.PI * (rn() < .5 ? 0 : 1) + r(-.1, .1), r(.35, 1.5), r(.7, 1.1), r(.3, .42), r(0, .12), r(-.1, .1), r(-.05, .05))); n(30, () => card(r(-.2, .2) + (rn() < .5 ? 0 : Math.PI), r(1.3, 1.55), r(.9, 1.3), r(.3, .42), 0, 0, 0)); break;
+    case 'afro': info.afro = true; n(210, () => card(r(0, TAU), r(.2, 1.5), r(.3, .55), r(.4, .6), r(0, .2), 0, 0, 1.28)); break;
+    case 'braids': n(70, () => card(r(0, TAU), r(.8, 1.5), r(.3, .5), r(.2, .3), r(.5, .9), 0, 0)); n(22, () => { const s = rn() < .5 ? -1 : 1; card(s * r(1.2, 2.9), r(-.1, .8), r(1.7, 2.3), r(.1, .15), 1, 0, r(-.2, .1)); }); n(12, () => card(Math.PI + r(-.7, .7), r(.2, .9), r(1.8, 2.4), r(.1, .14), 1, 0, r(-.3, -.1))); break;
+    default: n(150, () => card(r(0, TAU), r(.7, 1.5), r(.3, .6), r(.2, .3), r(.5, .9), 0, 0));
+  }
+  if (beardSpec && beardSpec.type === 'beard') { const L = beardSpec.long ? 1.7 : 1; n(beardSpec.long ? 70 : 46, () => card(r(-1.1, 1.1) + 0, r(-.75, -.25), r(.3, .55) * L, r(.2, .3), r(.6, .95), 0, r(.05, .25), 1.0)); }
+  return { geo: geos.length ? mergeGeometries(geos) : null, info };
 }
 
 /* ---------------- main builder ---------------- */
 export function buildRealHead(spec, R, DET) {
+  ZS = (spec.face && spec.face.width) || .87;
   const hero = DET.hs >= 60, g = new THREE.Group(), { geo, yLip, hinge, TH } = headGeometry(R, hero, spec.face || {}), M = skinMaps(spec, yLip, hero);
   const skin = new THREE.MeshPhysicalMaterial({ map: M.map, normalMap: M.normal, normalScale: new THREE.Vector2(.9, .9), roughnessMap: M.rough, roughness: 1, metalness: 0, emissiveMap: M.emissive, emissive: new THREE.Color('#ff6a50'), emissiveIntensity: .07,
     sheen: .35, sheenRoughness: .6, sheenColor: new THREE.Color(spec.skin).multiplyScalar(.8), clearcoat: .02, clearcoatRoughness: .7, envMapIntensity: .55, side: THREE.FrontSide });
-  const head = new THREE.Mesh(geo, skin); head.castShadow = head.receiveShadow = true; head.morphTargetInfluences = new Array(MORPHS.length).fill(0); head.morphTargetDictionary = Object.fromEntries(MORPHS.map((m, i) => [m, i])); head.name = 'KAI_head'; g.add(head);
+  const head = new THREE.Mesh(geo, skin); head.castShadow = head.receiveShadow = true; head.morphTargetInfluences = new Array(MORPHS.length).fill(0); head.morphTargetDictionary = Object.fromEntries(MORPHS.map((m, i) => [m, i])); head.name = (spec.name || 'head') + '_head'; g.add(head);
   // inner dark shell + mouth cavity + teeth + tongue
   const inner = new THREE.Mesh(new THREE.SphereGeometry(.8 * R, 20, 14), new THREE.MeshBasicMaterial({ color: '#1a0709' })); inner.position.x = -.12 * R; inner.scale.z = ZS; g.add(inner);
   const tm = new THREE.MeshStandardMaterial({ color: '#e9e2d2', roughness: .28 });
@@ -201,9 +217,26 @@ export function buildRealHead(spec, R, DET) {
   const hairMat = new THREE.MeshStandardMaterial({ color: spec.hair.color, roughness: .55, metalness: 0, alphaMap: hairAlpha(), alphaTest: .42, side: THREE.DoubleSide, envMapIntensity: .6 });
   const hairG = new THREE.Group(); g.add(hairG);
   const capMat = new THREE.MeshStandardMaterial({ color: spec.hair.color, roughness: .75, envMapIntensity: .3 });
-  const capA = new THREE.Mesh(new THREE.SphereGeometry(R * 1.015, 40, 28, 0, TAU, 0, Math.PI * .36), capMat); capA.scale.set(1.0, 1.1, 1.01 * ZS); capA.rotation.z = .1; hairG.add(capA);
-  const capB = new THREE.Mesh(new THREE.SphereGeometry(R * 1.015, 40, 28, -Math.PI / 2, Math.PI, 0, Math.PI * .66), capMat); capB.scale.set(1.0, 1.1, 1.01 * ZS); hairG.add(capB);
-  const cards = new THREE.Mesh(hairGeometry(R, rng(77), DET), hairMat); cards.castShadow = true; hairG.add(cards);
+  const HB = hairBuild(R, rng(77 + (spec.name || 'x').charCodeAt(0)), spec.hair.style, spec.beard);
+  if (HB.info.cap === 'full') {
+    const capA = new THREE.Mesh(new THREE.SphereGeometry(R * 1.015, 40, 28, 0, TAU, 0, Math.PI * .36), capMat); capA.scale.set(1.0, 1.1, 1.01 * ZS); capA.rotation.z = .1; hairG.add(capA);
+    const capB = new THREE.Mesh(new THREE.SphereGeometry(R * 1.015, 40, 28, -Math.PI / 2, Math.PI, 0, Math.PI * .66), capMat); capB.scale.set(1.0, 1.1, 1.01 * ZS); hairG.add(capB);
+  }
+  if (HB.info.afro) { const af = new THREE.Mesh(new THREE.SphereGeometry(R * 1.3, 32, 24), capMat); af.scale.set(.95, 1.0, ZS * 1.05); af.position.set(-R * .12, R * .25, 0); hairG.add(af); }
+  if (HB.info.bun) { const bn = new THREE.Mesh(new THREE.SphereGeometry(R * .42, 24, 18), capMat); bn.position.set(-R * .75, R * .98, 0); hairG.add(bn); }
+  if (HB.geo) { const cards = new THREE.Mesh(HB.geo, hairMat); cards.castShadow = true; hairG.add(cards); }
+  // accessories
+  const ac = spec.accessory;
+  if (ac) {
+    const col = ac.color || '#aa2222', cloth = new THREE.MeshStandardMaterial({ color: col, roughness: .8, side: THREE.DoubleSide });
+    if (ac.type === 'headband' || ac.type === 'bandana') { const hb = new THREE.Mesh(new THREE.TorusGeometry(R * 1.03, R * .07, 8, 40).rotateX(Math.PI / 2), cloth); hb.position.y = R * .5; hb.scale.z = ZS * 1.02; hb.rotation.z = -.08; head.add(hb);
+      for (const s of [-1, 1]) { const t = new THREE.Mesh(new THREE.BoxGeometry(R * .02, R * .9, R * .16), cloth); t.position.set(-R * 1.0, R * .15, s * R * .1); t.rotation.set(s * .3, 0, .35); head.add(t); } }
+    if (ac.type === 'glasses' || ac.type === 'shades') { const lens = new THREE.MeshPhysicalMaterial({ color: ac.type === 'shades' ? '#050508' : '#7ab8d8', roughness: .05, metalness: ac.type === 'shades' ? .6 : 0, transparent: ac.type === 'glasses', opacity: ac.type === 'glasses' ? .35 : 1, clearcoat: 1 }), frame = new THREE.MeshStandardMaterial({ color: '#111', roughness: .4, metalness: .5 });
+      for (const s of [-1, 1]) { const l = new THREE.Mesh(new THREE.BoxGeometry(R * .05, R * .24, R * .34), lens); l.position.set(R * .96, R * .07, s * R * .38 * ZS); head.add(l); const a = new THREE.Mesh(new THREE.BoxGeometry(R * 1.0, R * .03, R * .03), frame); a.position.set(R * .45, R * .1, s * R * .95 * ZS); head.add(a); }
+      const br = new THREE.Mesh(new THREE.BoxGeometry(R * .04, R * .03, R * .16), frame); br.position.set(R * .98, R * .12, 0); head.add(br); }
+    if (ac.type === 'mask' || ac.type === 'ninja') { const m = new THREE.Mesh(new THREE.SphereGeometry(R * 1.04, 40, 20, Math.PI / 2, Math.PI, 1.72, .95), cloth); m.scale.z = ZS * 1.02; head.add(m);
+      if (ac.type === 'ninja') { const hood = new THREE.Mesh(new THREE.SphereGeometry(R * 1.06, 40, 28, 0, TAU, 0, Math.PI * .36), cloth); hood.scale.set(1, 1.1, ZS * 1.03); head.add(hood); const back = new THREE.Mesh(new THREE.SphereGeometry(R * 1.06, 40, 28, -Math.PI / 2, Math.PI, 0, Math.PI * .7), cloth); back.scale.set(1, 1.1, ZS * 1.03); head.add(back); } }
+  }
   // ears
   const earMat = new THREE.MeshStandardMaterial({ color: mixHex(spec.skin, '#c0605a', .12), roughness: .55 });
   for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(R * .15, 18, 14), earMat); e.scale.set(.32, 1.05, .6); e.position.set(-R * .06, -R * .02, s * R * .9 * ZS); e.rotation.set(s * .1, 0, s * .12); g.add(e); }

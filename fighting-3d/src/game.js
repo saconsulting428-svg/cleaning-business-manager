@@ -1,7 +1,8 @@
 /* Game flow: menus, select, match/round manager, tournament (arcade), versus, training, settings, HUD. */
 import * as THREE from 'three';
 import { Fighter, AI, DIFFICULTY } from './fight.js';
-import { ROSTER, POSE } from './moves.js';
+import { ROSTER, POSE, MOVES } from './moves.js';
+import { PORTRAITS } from './portraits.js';
 import { Controller, getBindings, setBinding, resetBindings, onKey, isDown, touchState } from './input.js';
 import { initAudio, sfx, setVolume, setMusic, setIntensity } from './audio.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
@@ -38,10 +39,16 @@ export class Game {
     if (!f) { f = new Fighter(idx, ROSTER[id], this); this.fighterCache[key] = f; f.rig.root.visible = false; this.scene.add(f.rig.root); }
     return f;
   }
+  disposeFighter(key) {
+    const f = this.fighterCache[key]; if (!f) return; this.scene.remove(f.rig.root);
+    f.rig.root.traverse(o => { if (o.isMesh) { o.geometry && o.geometry.dispose(); for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (!m) continue; for (const k in m) if (m[k] && m[k].isTexture) m[k].dispose(); m.dispose && m.dispose(); } } });
+    delete this.fighterCache[key]; if (this.previewFighter === f) this.previewFighter = null;
+  }
+  pruneCache(keep) { for (const k of Object.keys(this.fighterCache)) if (!keep.includes(k)) this.disposeFighter(k); }
   getHero(id) { const key = 'hero:' + id; let f = this.fighterCache[key]; if (!f) { f = new Fighter(9, ROSTER[id], this, { lod: 'hero' }); this.fighterCache[key] = f; f.rig.root.visible = false; this.scene.add(f.rig.root); } return f; }
   setFighters(id1, id2) {
     for (const f of this.F) f.rig.root.visible = false;
-    this.F = [this.getFighter(0, id1), this.getFighter(1, id2)];
+    this.pruneCache(['0:' + id1, '1:' + id2]); this.F = [this.getFighter(0, id1), this.getFighter(1, id2)];
     for (const f of this.F) { f.rig.root.visible = true; f.wins = 0; }
   }
   placeFighters() {
@@ -56,7 +63,7 @@ export class Game {
     this.ctrl = [new Controller(0, this.mode === 'versus' ? 0 : -1), this.mode === 'versus' ? new Controller(1, 1) : null];
     this.solo = solo;
     this.ai = null;
-    if (solo) { const lvl = opts.level || s.difficulty; this.ai = new AI(lvl, ROSTER[opts.p2].ai); this.ai.dummy = this.mode === 'training'; }
+    if (solo) { const lvl = opts.level || s.difficulty; this.ai = new AI(lvl, ROSTER[opts.p2].ai); this.F[1].tkx = (opts.mode === 'arcade' && opts.p2 === 'omega') ? .88 : 1; this.ai.dummy = this.mode === 'training'; }
     this.round = 1; this.F[0].wins = this.F[1].wins = 0; this.training = this.mode === 'training';
     this.hideAll(); this.beginRound(true);
   }
@@ -103,10 +110,11 @@ export class Game {
 
   /* ---------------- tournament ---------------- */
   startTour(p1) {
-    const others = Object.keys(ROSTER).filter(k => k !== p1); for (let i = others.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0;[others[i], others[j]] = [others[j], others[i]]; }
+    const others = Object.keys(ROSTER).filter(k => k !== p1 && k !== 'omega'); for (let i = others.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0;[others[i], others[j]] = [others[j], others[i]]; }
+    if (p1 !== 'omega' && ROSTER.omega) others.push('omega'); // the final boss always comes last
     this.tour = { p1, queue: others, step: 0 }; this.saveTour(); this.nextTourFight();
   }
-  tourLevel() { const n = this.tour.queue.length, t = n <= 1 ? .5 : this.tour.step / (n - 1), base = LEVELS.indexOf(this.settings.difficulty); const k = Math.min(3, Math.max(0, Math.round(t * 3 * .75 + base * .35))); return LEVELS[Math.max(0, Math.min(3, base < 1 ? Math.round(t * 2) : k))]; }
+  tourLevel() { const n = this.tour.queue.length, t = n <= 1 ? .5 : this.tour.step / (n - 1), base = LEVELS.indexOf(this.settings.difficulty); return LEVELS[Math.max(0, Math.min(3, Math.floor(t * 3.4 + (base - 1) * .5)))]; }
   nextTourFight(retry) { const T = this.tour; this.startMatch({ mode: 'arcade', p1: T.p1, p2: T.queue[T.step], level: this.tourLevel() }); }
   saveTour() { try { localStorage.setItem('sc3d_tour', JSON.stringify(this.tour)); } catch (e) {} }
   clearTour() { try { localStorage.removeItem('sc3d_tour'); } catch (e) {} }
@@ -127,7 +135,7 @@ export class Game {
     const camF = this.camMode === 'select' || this.screen === 'viewer' && this.previewFighter ? [this.previewFighter || this.v.f, this.previewFighter || this.v.f] : (F.length ? F : [{ pos: new THREE.Vector3(-1, 0, 0), y: 0 }, { pos: new THREE.Vector3(1, 0, 0), y: 0 }]);
     this.gfx.cam.update(dt, camF, this.gfx.aspect);
     if (this.screen === 'game') {
-      this.ui.updateHud(); for (const f of F) { for (const [k, c] of [['handL', '#ffffff'], ['handR', '#ffffff'], ['footL', '#ffdca0'], ['footR', '#ffdca0']]) { const act = f.state === 'attack' && f.mv && f.mf >= f.mv.su - 4 && f.mf <= f.mv.su + f.mv.ac + 3 && (f.mv.hit.limb === k || f.mv.hit.limb === 'both' || f.mv.hit.limb === 'either'); this.fx.trail(f.idx + k, f.world[k], act, f.spec.color); } }
+      this.ui.updateHud(); for (const f of F) { for (const [k, c] of [['handL', '#ffffff'], ['handR', '#ffffff'], ['footL', '#ffdca0'], ['footR', '#ffdca0']]) { const act = f.state === 'attack' && f.mv && f.mf >= f.mv.su - 4 && f.mf <= f.mv.su + f.mv.ac + 3 && (f.mv.hit.limb === k || f.mv.hit.limb === 'both' || f.mv.hit.limb === 'either' || (f.mv.hit.limb === 'eitherFoot' && k.startsWith('foot'))); this.fx.trail(f.idx + k, f.world[k], act, f.spec.color); } }
     }
   }
   step() {
@@ -233,14 +241,17 @@ export class Game {
   }
   previewSel() {
     const ids = Object.keys(ROSTER), id = ids[this.sel.idx]; if (this.previewFighter) this.previewFighter.rig.root.visible = false;
-    const f = this.previewFighter = this.getHero(id); f.reset(0, 0); f.face.set(1, 0, 0); f.rig.root.visible = true; f.mood = 'idle';
+    this.pruneCache(['hero:' + id]); const f = this.previewFighter = this.getHero(id); f.reset(0, 0); f.face.set(1, 0, 0); f.rig.root.visible = true; f.mood = 'idle';
     if (this.sel.step === 1) f.face.set(-1, 0, 0);
     this.gfx.cam.focus = f; this.ui.refreshSelect(id);
   }
   selectNav(code) {
     const ids = Object.keys(ROSTER), n = ids.length;
-    if (code === 'ArrowLeft' || code === 'KeyA' || code === 'ArrowUp' || code === 'KeyW') { this.sel.idx = (this.sel.idx + n - 1) % n; sfx('ui'); this.previewSel(); }
-    else if (code === 'ArrowRight' || code === 'KeyD' || code === 'ArrowDown' || code === 'KeyS') { this.sel.idx = (this.sel.idx + 1) % n; sfx('ui'); this.previewSel(); }
+    const cols = 10, mv = (d) => { this.sel.idx = (this.sel.idx + d + n * 4) % n; sfx('ui'); this.previewSel(); };
+    if (code === 'ArrowLeft' || code === 'KeyA') mv(-1);
+    else if (code === 'ArrowRight' || code === 'KeyD') mv(1);
+    else if (code === 'ArrowUp' || code === 'KeyW') mv(-cols);
+    else if (code === 'ArrowDown' || code === 'KeyS') mv(cols);
     else if (code === 'Enter' || code === 'Space') this.confirmSel();
     else if (code === 'Escape') { if (this.sel.step === 1) { this.sel.step = 0; this.previewSel(); } else { this.previewFighter && (this.previewFighter.rig.root.visible = false); this.toMenu(); } }
   }
@@ -301,8 +312,8 @@ export class Game {
     ui.setHud = (v) => $('#hud').classList.toggle('show', v);
     // ----- select
     ui.showSelect = () => { for (const e of $$('.screen')) e.classList.toggle('show', e.id === 'select');
-      const ids = Object.keys(ROSTER); $('#selList').innerHTML = ids.map((id, i) => `<div class="card" data-i="${i}" style="--c:${ROSTER[id].color}"><b>${ROSTER[id].name}</b><i>${ROSTER[id].title}</i></div>`).join('');
-      $$('#selList .card').forEach(c => { c.onclick = () => { G.sel.idx = +c.dataset.i; if (G.sel.idx === G.sel.last) G.confirmSel(); G.sel.last = G.sel.idx; G.previewSel(); sfx('ui'); }; }); };
+      const ids = Object.keys(ROSTER); $('#selList').innerHTML = ids.map((id, i) => { const R = ROSTER[id]; return `<div class="card" data-i="${i}" style="--c:${R.color}">${PORTRAITS[id] ? `<img src="${PORTRAITS[id]}" alt="${R.name}">` : `<span class="ph">${R.name[0]}</span>`}<b>${R.name}</b></div>`; }).join('');
+      $$('#selList .card').forEach(c => { c.onclick = () => { const i = +c.dataset.i; if (i === G.sel.last) G.confirmSel(); G.sel.last = i; G.sel.idx = i; G.previewSel(); sfx('ui'); }; }); };
     ui.refreshSelect = (id) => { const s = ROSTER[id], st = s.stats, step = G.sel.step;
       $('#selTitle').innerHTML = (G.mode === 'versus' ? `PLAYER ${step + 1} — ` : G.mode === 'training' ? 'TRAINING — ' : 'ARCADE — ') + 'SELECT FIGHTER';
       $$('#selList .card').forEach((c, i) => c.classList.toggle('on', i === G.sel.idx));
@@ -354,7 +365,7 @@ export class Game {
       ['#sq', '#sd', '#sr', '#st', '#sv', '#mv'].forEach(i => $(i).oninput = sv); $('#rst').onclick = () => { resetBindings(); ui.buildSettings(); };
       $$('.kb').forEach(b => b.onclick = () => { b.textContent = 'press a key…'; G.remapping = (code) => { if (code === 'Escape') { G.remapping = null; ui.buildSettings(); return; } setBinding(+b.dataset.p, b.dataset.a, code); G.remapping = null; ui.buildSettings(); }; });
     };
-    function movesName(k) { return ({ dragonPalm: 'Dragon Palm', risingKick: 'Rising Dragon Kick', shadowFlurry: 'Shadow Flurry', reaperSpin: 'Reaper Spin' })[k] || k; }
+    function movesName(k) { return (MOVES[k] && MOVES[k].name) || k; }
     const ANIMS = [['stand', 'Standing (turnaround)'], ['idle', 'Fighting stance'], ['walkF', 'Walk forward'], ['walkB', 'Walk back'], ['dodge', 'Sidestep / dodge'], ['jab', 'Light punch'], ['cross', 'Heavy punch'], ['lkick', 'Front kick'], ['hkick', 'Heavy kick'], ['upper', 'Uppercut'], ['sweep', 'Low sweep'], ['special1', 'Special 1'], ['special2', 'Special 2'], ['block', 'Block'], ['crouchBlock', 'Crouch block'], ['hit', 'Hit reactions'], ['jump', 'Jump + kick'], ['knockdown', 'Knockdown + get-up'], ['victory', 'Victory'], ['defeat', 'Defeat']];
     const VIEWS = [['front', 'Front'], ['left', 'Left'], ['back', 'Back'], ['right', 'Right'], ['three', '3/4'], ['face', 'Face'], ['closeup', 'Close-up'], ['spin', 'Turntable']];
     const EXPRS = [['auto', 'Auto'], ['neutral', 'Neutral'], ['angry', 'Angry'], ['shouting', 'Shouting'], ['focused', 'Focused'], ['smirk', 'Smirk'], ['serious', 'Serious'], ['pain', 'Pain']];

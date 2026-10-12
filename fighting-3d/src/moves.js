@@ -1,6 +1,7 @@
 /* Fighter specs (data-driven: adding a fighter = adding an entry), poses and move data. */
 
 import { KAI } from './kai.js';
+import { EXTRA_ROSTER } from './roster3d.js';
 export const ROSTER = {
   kai: KAI,
   draven: {
@@ -15,6 +16,7 @@ export const ROSTER = {
     ai: { aggr: .9, block: 1.15, combo: 1.1 }
   }
 };
+for (const s of EXTRA_ROSTER) ROSTER[s.id] = s;
 
 /* ---------- pose model ---------- */
 const NUM = ['pitch', 'twist', 'roll', 'hipTwist', 'hipRoll', 'headPitch', 'headYaw', 'fLp', 'fRp', 'fLy', 'fRy', 'lay', 'eye', 'brow'];
@@ -80,4 +82,17 @@ export const MOVES = {
   shadowFlurry: { name: 'Shadow Flurry', su: 11, ac: 8, rc: 26, step: 2.6, keys: [[0, G], [6, mod(G, { hL: [.1, 1.2, -.2], hR: [.1, 1.2, .2], pitch: 14, twist: -48 })], [11, mod(G, { hL: [.86, 1.5, -.12], pitch: 14, twist: -14, hip: [.12, .92, 0] })], [15, mod(G, { hR: [.9, 1.42, -.02], pitch: 14, twist: 10, hipTwist: 10, hip: [.16, .92, 0] })], [19, mod(G, { hL: [.9, 1.5, -.08], pitch: 16, twist: -12, hip: [.2, .91, 0] })], [45, G]], hit: { limb: 'either', r: .13, dmg: 6, hs: 20, bs: 8, kb: .3, lvl: 'mid', sfx: 'punch2', multi: 3, final: { dmg: 8, launch: 0, kb: 1.0 } } },
   reaperSpin: { name: 'Reaper Spin', su: 18, ac: 4, rc: 28, step: 1.8, keys: [[0, G], [8, mod(G, { twist: -120, hipTwist: -90, pitch: 6, hL: [.1, 1.4, -.3], hR: [-.1, 1.3, .35], hip: [-.04, .9, 0] })], [14, mod(G, { twist: -250, hipTwist: -200, pitch: -4, hip: [-.02, .88, 0], fR: [.3, .98, .2], hL: [.1, 1.4, -.3], hR: [-.1, 1.3, .35] })], [18, mod(G, { twist: -360 - 20, hipTwist: -330, pitch: -16, hip: [-.02, .88, 0], fR: [.72, 1.12, -.05], fRp: -8, fL: [.1, 0, -.14], hL: [.2, 1.5, -.35], hR: [.0, 1.2, .36] })], [22, mod(G, { twist: -380, hipTwist: -330, pitch: -16, hip: [-.02, .88, 0], fR: [.72, 1.12, -.05], fL: [.1, 0, -.14] })], [50, G]], hit: { limb: 'footR', r: .17, dmg: 20, hs: 0, bs: 16, kb: .5, lvl: 'high', launch: 6, sfx: 'heavy', big: true } }
 };
+
+/* --- extra specials used by the rest of the roster --- */
+const flat = (o) => mod(G, o);
+Object.assign(MOVES, {
+  lungePunch: { name: 'Lunge Cross', su: 12, ac: 3, rc: 24, step: 3.6, keys: [[0, G], [7, flat({ hR: [.0, 1.25, .25], twist: -58, hipTwist: -36, hip: [-.1, .9, .03], pitch: 8 })], [12, flat({ hR: [.96, 1.42, 0], twist: 12, hipTwist: 14, pitch: 18, hip: [.28, .86, 0], fL: [.62, 0, -.2], fR: [-.3, .04, .2], fRp: -25, hL: [.3, 1.3, -.2] })], [15, flat({ hR: [.96, 1.42, 0], twist: 12, hipTwist: 14, pitch: 18, hip: [.28, .86, 0], fL: [.62, 0, -.2], fR: [-.3, .04, .2] })], [40, G]], hit: { limb: 'handR', r: .13, dmg: 15, hs: 26, bs: 13, kb: 1.0, lvl: 'mid', sfx: 'punchH', big: true } },
+  axeKick: { name: 'Axe Kick', su: 16, ac: 5, rc: 28, step: .4, keys: [[0, G], [9, flat({ fR: [.15, 1.72, .08], pitch: -14, hip: [-.05, .9, 0], fL: [.1, 0, -.14], hL: [.2, 1.5, -.3], hR: [-.05, 1.3, .35] })], [16, flat({ fR: [.6, 1.5, -.02], pitch: -4, hip: [.02, .9, 0], fL: [.15, 0, -.14] })], [21, flat({ fR: [.66, .75, -.02], pitch: 8, hip: [.06, .88, 0], fL: [.2, 0, -.14] })], [44, G]], hit: { limb: 'footR', r: .16, dmg: 14, hs: 0, bs: 15, kb: .3, lvl: 'high', down: true, sfx: 'kickH', big: true } },
+  flyingKnee: { name: 'Flying Knee', su: 6, ac: 14, rc: 0, air: true, leap: { vy: 4.6, vx: 3.6 }, keys: [[0, G], [5, flat({ hip: [0, .8, 0], fR: [.4, .72, .05], fL: [-.05, .2, -.2], pitch: 14, hL: [.4, 1.3, -.2], hR: [.35, 1.4, .1] })], [10, flat({ hip: [.05, .82, 0], fR: [.52, .82, .02], fL: [-.05, .15, -.2], pitch: 20, hL: [.5, 1.4, -.2], hR: [.4, 1.5, .1] })], [26, flat({ hip: [.05, .82, 0], fR: [.52, .82, .02], fL: [-.05, .1, -.2], pitch: 16 })]], hit: { limb: 'footR', r: .17, dmg: 13, hs: 22, bs: 12, kb: .7, lvl: 'high', launch: 3.5, sfx: 'heavy', big: true } },
+  doubleKick: { name: 'Double Kick', su: 8, ac: 14, rc: 22, step: 1.8, keys: [[0, G], [5, lkC], [9, lkS], [13, flat({ fL: [.3, .45, -.12], hip: [0, .93, .02] })], [18, hkS], [22, hkS], [48, G]], hit: { limb: 'eitherFoot', r: .15, dmg: 8, hs: 18, bs: 10, kb: .4, lvl: 'mid', sfx: 'kick', multi: 2, gap: 8, final: { dmg: 10, launch: 0, kb: .9 } } },
+  elbowDrive: { name: 'Elbow Drive', su: 7, ac: 3, rc: 20, step: 2.4, keys: [[0, G], [4, flat({ hR: [.1, 1.3, .22], twist: -48, hipTwist: -30, hip: [-.06, .9, 0] })], [7, flat({ hR: [.58, 1.36, 0], twist: 22, hipTwist: 20, pitch: 16, hip: [.16, .9, 0], hL: [.3, 1.35, -.2] })], [10, flat({ hR: [.58, 1.36, 0], twist: 22, hipTwist: 20, pitch: 16, hip: [.16, .9, 0] })], [28, G]], hit: { limb: 'handR', r: .16, dmg: 14, hs: 24, bs: 12, kb: .7, lvl: 'mid', sfx: 'punchH' } },
+  hammerFist: { name: 'Hammer Fist', su: 13, ac: 3, rc: 24, step: 1.2, keys: [[0, G], [8, flat({ hL: [.2, 1.98, -.1], hR: [.2, 1.98, .1], pitch: -6, hip: [-.04, .95, 0] })], [13, flat({ hL: [.74, 1.2, -.08], hR: [.74, 1.2, .08], pitch: 22, hip: [.15, .88, 0], twist: 0, hipTwist: 0 })], [16, flat({ hL: [.74, 1.2, -.08], hR: [.74, 1.2, .08], pitch: 22, hip: [.15, .88, 0] })], [40, G]], hit: { limb: 'both', r: .15, dmg: 13, hs: 28, bs: 14, kb: .9, lvl: 'high', sfx: 'punchH', big: true } },
+  slideKick: { name: 'Slide Kick', su: 10, ac: 5, rc: 28, step: 4.2, crouch: true, keys: [[0, P.crouch], [6, flat({ hip: [0, .42, 0], fR: [-.1, .12, .4], pitch: 25, fL: [.3, 0, -.22], hL: [.4, .8, -.3], hR: [.2, .7, .3] })], [10, flat({ hip: [.2, .42, 0], fR: [.94, .1, -.02], pitch: 30, hL: [.5, .6, -.3], hR: [.1, .5, .3], fL: [.2, 0, -.2] })], [15, flat({ hip: [.2, .42, 0], fR: [.94, .1, -.02], pitch: 30 })], [38, G]], hit: { limb: 'footR', r: .14, dmg: 9, hs: 0, bs: 12, kb: .3, lvl: 'low', down: true, sfx: 'kick' } },
+  tigerClaw: { name: 'Tiger Claw', su: 10, ac: 3, rc: 22, step: 1.4, keys: [[0, G], [5, flat({ hR: [.15, .9, .2], pitch: 16, twist: -45, hip: [-.03, .78, 0] })], [10, flat({ hR: [.7, 1.78, 0], hip: [.1, .96, 0], pitch: 4, twist: 4, hipTwist: 10 })], [13, flat({ hR: [.7, 1.78, 0], hip: [.1, .96, 0], pitch: 4 })], [34, G]], hit: { limb: 'handR', r: .14, dmg: 12, hs: 0, bs: 13, kb: .3, lvl: 'mid', launch: 5, sfx: 'punchH', big: true } }
+});
 export const BASIC = { lp: 'jab', hp: 'cross', lk: 'lkick', hk: 'hkick', d_lk: 'sweep', d_hp: 'upper' };

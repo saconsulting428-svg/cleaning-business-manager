@@ -132,6 +132,7 @@ export class Fighter {
     const mv = this.mv, h = mv.hit, sp = this.stats.quick; this.mf++;
     const su = mv.su, ac = mv.ac, total = su + ac + mv.rc;
     if (!mv.air && mv.step && this.mf <= su) this.vel.copy(this.attFace).multiplyScalar(mv.step * (this.mf < su ? 1 : 0.4));
+    if (mv.leap && this.mf === 1) { this.vy = mv.leap.vy; this.y = .001; this.vel.copy(this.attFace).multiplyScalar(mv.leap.vx); }
     // chains: buffered button after a connected attack
     if (this.hitDone && mv.chain && this.mf >= su + 1) { for (const k in mv.chain) if (this.buf[k] > 0) { this.consume(k); this.startMove(mv.chain[k]); this.comboChain = true; return; } }
     if (this.mf >= su && this.mf < su + ac && !this.hitDone) this.checkHit(opp);
@@ -150,8 +151,8 @@ export class Fighter {
   checkHit(opp) {
     const mv = this.mv, h = mv.hit, reach = this.stats.reach;
     if (opp.invul > 0 || opp.state === 'down' || opp.state === 'getup' || opp.ko) return;
-    const pts = h.limb === 'both' ? ['handL', 'handR'] : h.limb === 'either' ? ['handL', 'handR'] : [h.limb];
-    if (h.multi) { const k = this.mf - mv.su; if (k % 3 !== 0 || this.hitsDone >= h.multi) return; }
+    const pts = h.limb === 'both' ? ['handL', 'handR'] : h.limb === 'either' ? ['handL', 'handR'] : h.limb === 'eitherFoot' ? ['footL', 'footR'] : [h.limb];
+    if (h.multi) { const k = this.mf - mv.su; if (k % (h.gap || 3) !== 0 || this.hitsDone >= h.multi) return; }
     let part = null, hp = null;
     for (const l of pts) { part = this.hurtOverlap(opp, this.tip(l), h.r * (reach > 1 ? 1 + (reach - 1) * .6 : 1)); if (part) { hp = this.tip(l); break; } }
     if (!part) return;

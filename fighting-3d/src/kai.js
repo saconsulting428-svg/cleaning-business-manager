@@ -9,7 +9,7 @@ export const KAI = {
   id: 'kai', name: 'KAI', title: 'DRAGON JACKET', style: 'Mixed Martial Arts', age: 25, height_cm: 183, weight_kg: 78, country: 'Unknown',
   skin: '#c4936a', eye: '#3a2412', height: 1.0, bulk: 1.04, shoulders: 1.05, arms: 1.06, legs: 1.02,
   face: { jaw: .6, hollow: 1, scar: true, real: true },
-  hair: { style: 'messy', color: '#09080a' },
+  hair: { style: 'messy', color: '#09080a' }, beard: { type: 'stubble', color: '#1b1410' },
   top: { type: 'tank', color: '#0d0d11' }, pants: { type: 'long', color: '#111014', fabric: 'leather' }, belt: '#0c0a0b',
   gloves: { color: '#0d0c0e' }, shoes: { type: 'boot', color: '#0a090b', sole: '#1c1114' },
   aura: '#ffb02a', color: '#ff3b2f',
