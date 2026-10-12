@@ -64,3 +64,8 @@ Main menu → **CHARACTER VIEWER**: front/left/back/right/3-4/face/close-up/turn
 2. Rig in Blender (Rigify) or auto-rig with Mixamo / AccuRig; add facial blendshapes (ARKit 52).
 3. Animate with mocap (Rokoko/Move.ai/Mixamo) + hand polish; export glTF/GLB.
 4. Load with `GLTFLoader` and map bones to `Rig` joints (the combat code only needs head/hip/neck/hand/foot/knee positions).
+
+## Measured (headless software-GL, not a real GPU)
+- KAI hero LOD ≈ 80k triangles (GLB, 47 materials, 10 textures); in-game LOD ≈ 33k triangles. The game LOD is **not** yet aggressively optimised.
+- Integration test: KAI vs DRAVEN (AI vs AI, Hard) ran full 3-round matches with hits, blocks, specials, KO, round end and match end; no runtime errors.
+- Known weak spots: face/hair are stylised (cartoon-ish), skin is flat, GLB is rigid parts (not skinned), real-GPU FPS not measured.
