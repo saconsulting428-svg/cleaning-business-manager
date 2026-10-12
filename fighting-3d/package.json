@@ -1,0 +1,17 @@
+{
+  "name": "street-clash-3d",
+  "version": "1.0.0",
+  "description": "Street Clash 3D - original 3D fighting game (Three.js)",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "esbuild": "^0.28.2",
+    "three": "^0.160.0"
+  },
+  "private": true,
+  "type": "module"
+}
