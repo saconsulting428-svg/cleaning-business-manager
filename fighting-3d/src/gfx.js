@@ -69,7 +69,7 @@ export class Gfx {
   render(dt) {
     const t = this.clock.elapsedTime; this.arena.update(t, dt); this.fx.update(dt);
     if (this.studioOn) { const c = this.camera.position, L = this.studioLights, h = Math.hypot(c.x, c.z) || 1, dx = c.x / h, dz = c.z / h;
-      L.sk.position.set(dx * 3.2 - dz * 1.6, 3.2, dz * 3.2 + dx * 1.6); L.sb.position.set(dx * 3 + dz * 2.2, 1.6, dz * 3 - dx * 2.2); L.sa.position.set(-dx * 2.8 + dz * 1.2, 2.6, -dz * 2.8 - dx * 1.2); this.key.position.set(dx * 4, 7, dz * 4); }
+      L.sk.position.set(dx * 3.2 - dz * 1.4, 3.0, dz * 3.2 + dx * 1.4); L.sf.position.set(dx * 3 + dz * 1.8, 1.4, dz * 3 - dx * 1.8); L.sa.position.set(-dx * 2.4 + dz * 1.8, 2.6, -dz * 2.4 - dx * 1.8); L.sb.position.set(-dx * 2.4 - dz * 1.8, 2.4, -dz * 2.4 + dx * 1.8); this.key.position.set(dx * 4, 7, dz * 4); }
     this.grade.uniforms.time.value = t % 10; this.grade.uniforms.chroma.value *= .88; this.grade.uniforms.flash.value *= .8;
     this.bloom.strength = (.55 + this.fx.bloomKick) * this.q.bloom; this.composer.render(dt);
   }
@@ -194,7 +194,7 @@ export class Gfx {
     const tt = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.4, .05, 64), new THREE.MeshStandardMaterial({ color: 0x15151c, roughness: .22, metalness: .7 })); tt.position.y = -.026; tt.receiveShadow = true; st.add(tt);
     const rg3 = new THREE.Mesh(new THREE.RingGeometry(1.38, 1.42, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ff3b2f').multiplyScalar(2.4), toneMapped: false })); rg3.rotation.x = -Math.PI / 2; rg3.position.y = .002; st.add(rg3);
     const sa = new THREE.SpotLight(0xff9a50, 34, 14, .7, .7, 1.6), sb = new THREE.SpotLight(0x5a8aff, 20, 14, .8, .8, 1.6), sk = new THREE.SpotLight(0xfff0dd, 24, 16, .6, .8, 1.5), hemi = new THREE.HemisphereLight(0x9aa6ff, 0x2a1a22, .55);
-    for (const l of [sa, sb, sk]) { l.target.position.set(0, 1.1, 0); st.add(l, l.target); } st.add(hemi); this.studioLights = { sa, sb, sk };
+    const sf = new THREE.SpotLight(0xffe9d6, 9, 16, .7, .8, 1.5); for (const l of [sa, sb, sk, sf]) { l.target.position.set(0, 1.2, 0); st.add(l, l.target); } st.add(hemi); this.studioLights = { sa, sb, sk, sf };
     const backdrop = new THREE.Mesh(new THREE.SphereGeometry(16, 32, 16), new THREE.MeshBasicMaterial({ color: 0x14141e, side: THREE.BackSide, fog: false })); st.add(backdrop);
     // image-based lighting from the arena itself (neon reflections on skin, leather, metal)
     const pm = new THREE.PMREMGenerator(this.renderer); const envScene = new THREE.Scene(); envScene.background = new THREE.Color(0x120a22);

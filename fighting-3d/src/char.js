@@ -1,6 +1,7 @@
 /* Procedural 3D character builder + IK rig.
    Local space: origin = ground under the fighter, +X = forward, +Y = up, +Z = fighter's right. */
 import * as THREE from 'three';
+import { buildRealHead } from './face.js';
 
 const V3 = THREE.Vector3, D2R = Math.PI / 180;
 const UP = new V3(0, 1, 0);
@@ -238,7 +239,7 @@ export class Rig {
     this.shMesh = [-1, 1].map(() => { const m = shadow(new THREE.Mesh(new THREE.SphereGeometry(.07 * bulk * (spec.shoulderBulk || 1), 20, 14), (top.type === 'bare' || top.type === 'vest' || top.type === 'tank') ? mats.skin : clothMat(top.color, top.fabric || 'cloth'))); S(m); return m; });
     this.neck = S(shadow(new THREE.Mesh(tubeGeo(.052 * bulk, .05 * bulk, .0), mats.skin)));
     // --- head
-    const hb = buildHead(spec, L.headR, mats); this.head = hb.g; this.eyes = hb.eyes; this.hairParts = hb.hairParts; this.face = hb; body.add(this.head);
+    const hb = (spec.face && spec.face.real) ? buildRealHead(spec, L.headR, DET) : buildHead(spec, L.headR, mats); this.head = hb.g; this.eyes = hb.eyes; this.hairParts = hb.hairParts; this.face = hb; body.add(this.head);
     // --- limbs
     const armSleeve = top.type === 'jacket' || top.type === 'coat' || top.type === 'hoodie' || top.type === 'gi', armMat = armSleeve ? clothMat(top.color, top.fabric || 'cloth') : mats.skin;
     const wrapC = spec.wraps ? clothMat(spec.wraps.color, 'cloth') : null;
