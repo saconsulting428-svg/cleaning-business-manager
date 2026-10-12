@@ -12,7 +12,7 @@ for k, v in atlas.items():
 fonts = ''
 for fam, w, fn in [('Barlow Condensed', 500, 'BarlowCondensed-500'), ('Barlow Condensed', 600, 'BarlowCondensed-600'), ('Barlow Condensed', 700, 'BarlowCondensed-700'), ('Barlow', 400, 'Barlow-400'), ('Barlow', 500, 'Barlow-500')]:
     fonts += '@font-face { font-family: "%s"; font-weight: %d; font-display: swap; src: url(data:font/woff2;base64,%s) format("woff2"); }\n' % (fam, w, b64('assets/%s.woff2' % fn))
-scripts = '\n'.join(rd('src/' + f) for f in ['levels.js', 'sim.js', 'gfx.js', 'rig.js', 'render.js', 'audio.js', 'game.js'])
+scripts = '\n'.join(rd('src/' + f) for f in ['levels.js', 'sim.js', 'gfx.js', 'render.js', 'audio.js', 'game.js'])
 html = f'''<!DOCTYPE html>
 <html lang="en">
 <head>

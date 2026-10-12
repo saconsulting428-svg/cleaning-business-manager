@@ -22,7 +22,7 @@ On Android: copy the file to the phone and open it in Chrome (or wrap it with Ca
 python3 tools/clean_sprites.py assets assets/clean        # or: tools/build_sprites_from_zip.py Pngs.zip  (see below)
 python3 tools/build.py                                    # -> HUSH-HD.html
 ```
-Source: `src/levels.js` (original data, verbatim), `sim.js` (rules/AI), `gfx.js` (textures, tile bake), `rig.js` (procedural survivor and monster), `render.js`, `audio.js`, `game.js`, `ui.css/html`.
+Source: `src/levels.js` (original data, verbatim), `sim.js` (rules/AI), `gfx.js` (textures, tile bake, sprite cache), `render.js`, `audio.js`, `game.js`, `ui.css/html`.
 
 ## Using the artist PNGs (Pngs.zip)
 `tools/build_sprites_from_zip.py Pngs.zip` converts the individual frames (Run,S1-S9,C1-C6,W1-W6,Y1-Y4,X1-X4,U1-U8,A1-A4,R1-R3) into the atlases the game reads
@@ -30,4 +30,4 @@ Source: `src/levels.js` (original data, verbatim), `sim.js` (rules/AI), `gfx.js`
 This build uses the 45 frames sent in chat (named by `tools/identify_frames.py`). See REPORT.md.
 
 ## Tests (`tests/`)
-`diff-sim.js`, `regression-sim.js`, `verify-original.js` (Node); `rig.js`, `regression-ui.js`, `playthrough.js`, `levels-load.js`, `audio-offline.js` (Chromium via Playwright). Results are in REPORT.md.
+`diff-sim.js`, `regression-sim.js`, `verify-original.js` (Node); `regression-ui.js`, `playthrough.js`, `levels-load.js`, `audio-offline.js` (Chromium via Playwright). Results are in REPORT.md.

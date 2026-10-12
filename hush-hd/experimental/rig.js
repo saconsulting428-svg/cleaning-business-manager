@@ -54,10 +54,10 @@ const Rig = (function () {
     c.setTransform(PM, 0, 0, -PM, W / 2, H - 0.05 * PM); return { c, W, H };
   }
   /* lighting pass on the painted figure: darkening toward the ground, an edge (rim) light from the given colour on the lit side, then grit, then blit */
-  function finish(owner, surf, ctx, px, fy, dir, alpha, PM, grainAmt, rim) {
+  function finish(owner, surf, ctx, px, fy, dir, alpha, PM, grainAmt, rim, is3d) {
     const c = surf.c; c.setTransform(1, 0, 0, 1, 0, 0);
     c.globalCompositeOperation = 'source-atop';
-    let g = c.createLinearGradient(0, 0, 0, surf.H); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.55, 'rgba(0,0,0,0.12)'); g.addColorStop(1, 'rgba(0,0,0,0.5)'); c.fillStyle = g; c.fillRect(0, 0, surf.W, surf.H);
+    if (!is3d) { let g = c.createLinearGradient(0, 0, 0, surf.H); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.55, 'rgba(0,0,0,0.12)'); g.addColorStop(1, 'rgba(0,0,0,0.5)'); c.fillStyle = g; c.fillRect(0, 0, surf.W, surf.H); }
     const k = PM / 70, pat = c.createPattern(grain(), 'repeat'); c.save(); c.scale(k, k); c.globalAlpha = grainAmt; c.fillStyle = pat; c.fillRect(0, 0, surf.W / k, surf.H / k); c.restore(); c.globalAlpha = 1;
     if (rim) {                                                           // edge band = silhouette minus itself shifted toward the light
       if (!owner.tmp || owner.tmp.width !== surf.W || owner.tmp.height !== surf.H) { owner.tmp = Gfx.mk(surf.W, surf.H); owner.tx = owner.tmp.getContext('2d'); }
@@ -217,11 +217,35 @@ const Rig = (function () {
   function survivorAnchors(J) { const T = J.torch || J.fallen; if (!T) return { x: J.hip[0] + 0.3, y: 1.0, a: 0 }; const l = J.torch ? 0.22 : 0.14; return { x: T.x + Math.cos(T.a) * l, y: T.y + Math.sin(T.a) * l, a: T.a }; }
 
   /* draws the survivor; returns the torch lens position in metres relative to the feet (x forward) for the flashlight */
+  function bbox(pts, padL, padR, padB, padT) { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const q of pts) { if (!q) continue; x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); } return [x0 - padL, Math.max(-0.05, y0 - padB), x1 + padR, y1 + padT]; }
+  /* 3D path: returns true when the figure was drawn by the WebGL ray-marcher */
+  function paint3dSurvivor(surf, J, PM, t) {
+    const box = bbox([J.hip, J.sh, J.head, J.neck, [J.armN.ex, J.armN.ey], [J.armF.ex, J.armF.ey], J.feet[0].ank, J.feet[1].ank, J.feet[0].knee, J.feet[1].knee, J.torch ? [J.torch.x, J.torch.y] : null, J.fallen ? [J.fallen.x, J.fallen.y] : null], 0.6, 0.35, 0.15, 0.3);
+    const r = Rig3D.render('surv', surf.W, surf.H, PM, [surf.W / 2 / PM, 0.05], box, t, function (u) {
+      u('uHip', J.hip[0], J.hip[1]); u('uSh', J.sh[0], J.sh[1]); u('uNeck', J.neck[0], J.neck[1]); u('uHead', J.head[0], J.head[1]); u('uHeadA', J.headA); u('uLean', J.lean); u('uPackA', J.packA || 0);
+      u('uArmN', J.armN.mx, J.armN.my, J.armN.ex, J.armN.ey); u('uArmF', J.armF.mx, J.armF.my, J.armF.ex, J.armF.ey);
+      u('uLegN', J.feet[0].knee[0], J.feet[0].knee[1], J.feet[0].ank[0], J.feet[0].ank[1]); u('uLegF', J.feet[1].knee[0], J.feet[1].knee[1], J.feet[1].ank[0], J.feet[1].ank[1]); u('uPitch', J.feet[0].pitch, J.feet[1].pitch);
+      const T = J.torch || { x: 0, y: 0, a: 0 }, F = J.fallen || { x: 0, y: 0, a: 0 }; u('uTorch', T.x, T.y, T.a); u('uFall', F.x, F.y, F.a); u('uFlags', J.torch ? 1 : 0, J.fallen ? 1 : 0);
+    });
+    if (!r) return false; const c = surf.c; c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(r.cv, r.sx, r.sy, r.sw, r.sh, 0, 0, surf.W, surf.H); c.restore(); return true;
+  }
+  function paint3dCreature(surf, J, PM, t) {
+    const box = bbox([J.hip, J.sh, J.head, J.neck, [J.armN.ex, J.armN.ey], [J.armF.ex, J.armF.ey], J.feet[0].ank, J.feet[1].ank, J.feet[0].knee, J.feet[1].knee], 0.95, 0.75, 0.15, 0.7);
+    const r = Rig3D.render('mon', surf.W, surf.H, PM, [surf.W / 2 / PM, 0.05], box, t, function (u) {
+      u('uHip', J.hip[0], J.hip[1]); u('uSh', J.sh[0], J.sh[1]); u('uNeck', J.neck[0], J.neck[1]); u('uHead', J.head[0], J.head[1]); u('uHeadA', J.headA); u('uLean', J.lean); u('uJaw', J.jaw); u('uRoll', J.roll || 0);
+      u('uArmN', J.armN.mx, J.armN.my, J.armN.ex, J.armN.ey); u('uArmF', J.armF.mx, J.armF.my, J.armF.ex, J.armF.ey); u('uHA', J.armN.a, J.armF.a);
+      u('uLegN', J.feet[0].knee[0], J.feet[0].knee[1], J.feet[0].ank[0], J.feet[0].ank[1]); u('uLegF', J.feet[1].knee[0], J.feet[1].knee[1], J.feet[1].ank[0], J.feet[1].ank[1]); u('uPitch', J.feet[0].pitch, J.feet[1].pitch);
+    });
+    if (!r) return false; const c = surf.c; c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(r.cv, r.sx, r.sy, r.sw, r.sh, 0, 0, surf.W, surf.H); c.restore(); return true;
+  }
+  const have3d = function () { return typeof Rig3D !== 'undefined' && Rig3D.ok(); };
+
+  /* draws the survivor; returns the torch lens position in metres relative to the feet (x forward) for the flashlight */
   function drawSurvivor(S, ctx, px, fy, dir, PM, P, alpha, mul) {
     mul = mul || 1; const surf = surface(S, 3.4, 2.6, PM / 1); const c = surf.c;
     let J; if (P.vent) J = poseCrawl(S, P.ph, P.t); else if (P.dead >= 0) J = poseCaught(S, P.dead); else J = pose(S, P);
-    paintSurvivor(c, J, S, { light: 1 });
-    finish(S, surf, ctx, px, fy, dir, alpha, PM, 0.5, { sx: -1, sy: 1, col: 'rgb(150,190,215)', a: 0.55 });
+    if (have3d() && paint3dSurvivor(surf, J, PM, P.t)) finish(S, surf, ctx, px, fy, dir, alpha, PM, 0.1, null, true);
+    else { paintSurvivor(c, J, S, { light: 1 }); finish(S, surf, ctx, px, fy, dir, alpha, PM, 0.5, { sx: -1, sy: 1, col: 'rgb(150,190,215)', a: 0.55 }); }
     const a = survivorAnchors(J); return { lens: [a.x, a.y], ang: a.a, head: J.head, J };
   }
 
@@ -322,10 +346,13 @@ const Rig = (function () {
 
   function drawCreature(M, ctx, px, fy, dir, PM, P, alpha, mul, tint) {
     const surf = surface(M, 5.2, 3.6, PM); const c = surf.c; const J = cpose(M, P);
-    paintCreature(c, J, M, { light: 1, t: P.t });
-    if (tint) { c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'source-atop'; c.globalAlpha = 0.9; c.fillStyle = tint; c.fillRect(0, 0, surf.W, surf.H); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
-    finish(M, surf, ctx, px, fy, dir, alpha, PM, 0.5, { sx: 1, sy: 1, col: 'rgb(255,70,60)', a: 0.5 });
-    const eyeA = J.headA; const e = [J.head[0] + Math.cos(eyeA) * 0.2 + Math.sin(eyeA) * 0.105, J.head[1] - Math.sin(eyeA) * 0.2 + Math.cos(eyeA) * 0.105];   // rotated eye position (matches the head transform)
+    if (have3d() && paint3dCreature(surf, J, PM, P.t)) { if (tint) { c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'source-atop'; c.globalAlpha = 0.9; c.fillStyle = tint; c.fillRect(0, 0, surf.W, surf.H); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; } finish(M, surf, ctx, px, fy, dir, alpha, PM, 0.08, null, true); }
+    else {
+      paintCreature(c, J, M, { light: 1, t: P.t });
+      if (tint) { c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'source-atop'; c.globalAlpha = 0.9; c.fillStyle = tint; c.fillRect(0, 0, surf.W, surf.H); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
+      finish(M, surf, ctx, px, fy, dir, alpha, PM, 0.5, { sx: 1, sy: 1, col: 'rgb(255,70,60)', a: 0.5 });
+    }
+    const eyeA = J.headA; const e = [J.head[0] + Math.cos(eyeA) * 0.2 + Math.sin(eyeA) * 0.105, J.head[1] - Math.sin(eyeA) * 0.2 + Math.cos(eyeA) * 0.105];
     return { eye: e, head: J.head, J };
   }
 
