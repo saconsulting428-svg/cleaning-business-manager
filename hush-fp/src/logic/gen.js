@@ -123,13 +123,23 @@ function tryGenerate(spec, seed) {
   for (let g = 0; g < spec.glass; g++) { const r = pick(rooms); const x = ri(r.x0, r.x0 + r.w - 1), y = ri(r.y0, r.y0 + r.h - 1); if (cells[at(x, y)] === T.FLOOR && !objs.some(o => o.x === x && o.y === y)) cells[at(x, y)] = T.GLASS; }
   for (const e of edges) for (const [x, y] of e.cells) if (spec.glass && R() < 0.05 && cells[at(x, y)] === T.FLOOR && !objs.some(o => o.x === x && o.y === y)) cells[at(x, y)] = T.GLASS;
   /* props: solid clutter in room interiors (never on a tile that would cut the room apart) */
-  const propKinds = spec.ch === 1 ? ['crate', 'barrel', 'pipe', 'table'] : spec.ch === 2 ? ['pod', 'barrel', 'crate', 'bones'] : ['crate', 'barrel', 'shelf', 'table'];
+  /* every room gets a character: a kind, a landmark prop and a mix of clutter that fits it (chapter 1 abandoned facility, 2 flooded pumping station, 3 the nest) */
+  const KINDS = [['storage', 'office', 'machine', 'vault'], ['pump', 'tanks', 'control', 'sluice'], ['hive', 'cells', 'bonepit', 'nursery']][spec.ch];
+  const MIX = { storage: ['shelf', 'crate', 'barrel'], office: ['console', 'table', 'crate'], machine: ['machine', 'pipe', 'barrel'], vault: ['column', 'crate', 'shelf'],
+    pump: ['tank', 'pipe', 'barrel'], tanks: ['tank', 'tank', 'crate'], control: ['console', 'pipe', 'table'], sluice: ['machine', 'pipe', 'barrel'],
+    hive: ['cocoon', 'pod', 'bones'], cells: ['cage', 'bones', 'crate'], bonepit: ['bones', 'bones', 'pod'], nursery: ['pod', 'pod', 'cocoon'] };
+  const LAND = { storage: 'shelf', office: 'console', machine: 'machine', vault: 'column', pump: 'tank', tanks: 'tank', control: 'console', sluice: 'machine', hive: 'cocoon', cells: 'cage', bonepit: 'bones', nursery: 'pod' };
+  rooms.forEach((r, i) => { r.kind = i === startRoom.id ? KINDS[0] : KINDS[Math.floor(R() * KINDS.length)]; });
   const floorCount = () => { let c = 0; for (let i = 0; i < cells.length; i++) if (cells[i] !== T.WALL && !blocked.has(i)) c++; return c; };
   const connected = () => { const seen = new Uint8Array(W * H); const q = [[st.x, st.y]]; seen[at(st.x, st.y)] = 1; let cnt = 1, qi = 0; while (qi < q.length) { const [x, y] = q[qi++]; for (const [dx, dy] of DIRS) { const nx = x + dx, ny = y + dy; if (inb(nx, ny) && !seen[at(nx, ny)] && cells[at(nx, ny)] !== T.WALL && !blocked.has(key(nx, ny))) { seen[at(nx, ny)] = 1; cnt++; q.push([nx, ny]); } } } return cnt === floorCount(); };
   for (const r of rooms) {
-    const cnt = ri(1, 3);
-    for (let i = 0; i < cnt; i++) { const x = ri(r.x0 + 1, r.x0 + r.w - 2), y = ri(r.y0 + 1, r.y0 + r.h - 2); if (!isFree(x, y) || nearMouth(x, y) || (x === st.x && y === st.y) || cells[at(x, y)] === T.GLASS) continue;
-      blocked.add(key(x, y)); if (!connected()) { blocked.delete(key(x, y)); continue; } O({ type: 'prop', kind: pick(propKinds), x, y, rot: R() * Math.PI * 2, solid: true }); }
+    const mix = MIX[r.kind], cnt = ri(1, 3); let landmark = false;
+    for (let i = 0; i < cnt + 1; i++) {
+      let x, y; if (!landmark) { x = r.cx; y = r.cy; if (!isFree(x, y) || nearMouth(x, y) || (x === st.x && y === st.y) || cells[at(x, y)] === T.GLASS) { x = ri(r.x0 + 1, r.x0 + r.w - 2); y = ri(r.y0 + 1, r.y0 + r.h - 2); } } else { x = ri(r.x0 + 1, r.x0 + r.w - 2); y = ri(r.y0 + 1, r.y0 + r.h - 2); }
+      if (!isFree(x, y) || nearMouth(x, y) || (x === st.x && y === st.y) || cells[at(x, y)] === T.GLASS) continue;
+      blocked.add(key(x, y)); if (!connected()) { blocked.delete(key(x, y)); continue; }
+      O({ type: 'prop', kind: landmark ? pick(mix) : LAND[r.kind], x, y, rot: R() * Math.PI * 2, solid: true, landmark: !landmark, room: r.idx }); landmark = true;
+    }
   }
   /* lights: a fixture every few tiles of corridor and in every room */
   const lights = [];

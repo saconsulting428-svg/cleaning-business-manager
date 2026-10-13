@@ -79,9 +79,9 @@ export class View {
     if (!fx.menu) this.updateCamera(world, dt, now); this.updateDynamic(world, dt, now);
     /* pooled lamps: the three nearest live fixtures light the scene; flickering ones really flicker */
     const cx = this.camera.position.x, cz = this.camera.position.z; const near = [];
-    for (const f of b.fixtures) { const k = f.kind === 'dead' ? 0 : f.kind === 'flicker' ? flick(f.ph, now) : 1; f.k = k; if (f.kind === 'flicker') f.mat.color.setHex(TH.lamp).multiplyScalar(0.12 + 0.88 * k); if (f.kind === 'dead') continue; const d = (f.x - cx) ** 2 + (f.z - cz) ** 2; if (d < 200) near.push([d, f]); }
+    for (const f of b.fixtures) { const k = f.kind === 'dead' ? 0 : f.kind === 'flicker' ? flick(f.ph, now) : 1; f.k = k; if (f.kind === 'flicker') f.mat.color.setHex(f.col).multiplyScalar(0.12 + 0.88 * k); if (f.kind === 'dead') continue; const d = (f.x - cx) ** 2 + (f.z - cz) ** 2; if (d < 200) near.push([d, f]); }
     near.sort((a, c) => a[0] - c[0]);
-    for (let i = 0; i < this.pool.length; i++) { const l = this.pool[i], e = near[i]; if (!e) { l.intensity = 0; continue; } l.position.set(e[1].x, WH - 0.45, e[1].z); l.color.setHex(TH.lamp); l.intensity = (world.spec.lightsOut ? 6 : 30) * e[1].k * (1 - i * 0.12); }
+    for (let i = 0; i < this.pool.length; i++) { const l = this.pool[i], e = near[i]; if (!e) { l.intensity = 0; continue; } l.position.set(e[1].x, WH - 0.45, e[1].z); l.color.setHex(e[1].col); l.intensity = (world.spec.lightsOut ? 6 : 30) * e[1].k * (1 - i * 0.12); }
     /* sonar pulse */
     const ps = world.pulseState; if (ps) { const age = now - (this.pulseT0 === undefined || this.pulseSrc !== ps ? (this.pulseSrc = ps, this.pulseT0 = now) : this.pulseT0); PULSE.uPulseO.value.set(ps.x * TS, 1.2, ps.y * TS); PULSE.uPulseR.value = age * 15; PULSE.uPulseA.value = age < 1.6 ? 1 : Math.max(0, 1 - (age - 1.6) / 1.8); PULSE.uPulseMax.value = 28; if (age > 3.5) { world.pulseState = null; PULSE.uPulseA.value = 0; } } else PULSE.uPulseA.value = 0;
     PULSE.uTime.value = now;

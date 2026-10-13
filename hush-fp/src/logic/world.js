@@ -8,7 +8,7 @@ export const DT = 1 / 30;
 export const DIFF = { easy: { sight: 0.75, alert: 0.7, speed: 0.9 }, normal: { sight: 1, alert: 1, speed: 1 }, hard: { sight: 1.2, alert: 1.3, speed: 1.12 } };
 export const SPEED = { walk: 1.55, sprint: 2.7, crouch: 0.8 };
 const PR = 0.3;                                                    // player radius in tiles
-const TALL = { crate: 1, shelf: 1, pod: 1, barrel: 1 };
+const TALL = { crate: 1, shelf: 1, pod: 1, barrel: 1, machine: 1, tank: 1, column: 1, cocoon: 1 };
 
 export class World {
   constructor(gen, opts) {

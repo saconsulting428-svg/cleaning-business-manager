@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { buildTextures, canvasTexture } from './textures.js';
+import { KIND_TINT, KIND_LAMP, extraProp, buildDecor } from './decor.js';
 import { T } from '../logic/gen.js';
 import { rng32 } from '../logic/rng.js';
 
@@ -58,19 +59,23 @@ export function buildScene(world, Q) {
   const metalMat = mk(tex.metal, 1, { roughness: 0.5, metalness: 0.55 }), crateMat = mk(tex.crate, 1, { roughness: 0.85 });
   const solid = (x, y) => x < 0 || y < 0 || x >= W || y >= H || cells[y * W + x] === T.WALL;
   const wall = new GB(), floor = new GB(), ceil = new GB();
+  const roomOf = new Int16Array(W * H).fill(-1); world.rooms.forEach((r, i) => { for (let y = r.y0; y < r.y0 + r.h; y++) for (let x = r.x0; x < r.x0 + r.w; x++) roomOf[y * W + x] = i; });
+  const roomAt = (x, y) => (x < 0 || y < 0 || x >= W || y >= H || roomOf[y * W + x] < 0) ? null : world.rooms[roomOf[y * W + x]];
+  const tintAt = (x, y) => { const r = roomAt(x, y); return r && KIND_TINT[r.kind] ? KIND_TINT[r.kind] : [1, 1, 1]; };
+  const wallFaces = [];
   const shade = (k) => [[k * 0.5, k * 0.5, k * 0.5], [k * 0.5, k * 0.5, k * 0.5], [k, k, k], [k, k, k]];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const t = cells[y * W + x];
     if (t === T.WALL) {
       const x0 = x * TS, z0 = y * TS, x1 = x0 + TS, z1 = z0 + TS, tint = 0.8 + R() * 0.3, top = tint * 0.95, bot = tint * 0.5;
-      const col = [[bot, bot, bot], [bot, bot, bot], [top, top, top], [top, top, top]], vv = WH / TS;
-      if (!solid(x, y + 1)) wall.quad([x0, 0, z1], [x1, 0, z1], [x1, WH, z1], [x0, WH, z1], [0, 0, 1], [0, 0, 1, 0, 1, vv, 0, vv], col);        // faces +z side (toward floor tile at y+1)
-      if (!solid(x, y - 1)) wall.quad([x1, 0, z0], [x0, 0, z0], [x0, WH, z0], [x1, WH, z0], [0, 0, -1], [0, 0, 1, 0, 1, vv, 0, vv], col);
-      if (!solid(x + 1, y)) wall.quad([x1, 0, z1], [x1, 0, z0], [x1, WH, z0], [x1, WH, z1], [1, 0, 0], [0, 0, 1, 0, 1, vv, 0, vv], col);
-      if (!solid(x - 1, y)) wall.quad([x0, 0, z0], [x0, 0, z1], [x0, WH, z1], [x0, WH, z0], [-1, 0, 0], [0, 0, 1, 0, 1, vv, 0, vv], col);
+      const vv = WH / TS, mc = (nx, ny) => { const t = tintAt(nx, ny); return [[bot * t[0], bot * t[1], bot * t[2]], [bot * t[0], bot * t[1], bot * t[2]], [top * t[0], top * t[1], top * t[2]], [top * t[0], top * t[1], top * t[2]]]; }, UV = [0, 0, 1, 0, 1, vv, 0, vv];
+      if (!solid(x, y + 1)) { wall.quad([x0, 0, z1], [x1, 0, z1], [x1, WH, z1], [x0, WH, z1], [0, 0, 1], UV, mc(x, y + 1)); wallFaces.push({ tx: x, ty: y + 1, x: x0 + TS / 2, z: z1, n: [0, 1] }); }
+      if (!solid(x, y - 1)) { wall.quad([x1, 0, z0], [x0, 0, z0], [x0, WH, z0], [x1, WH, z0], [0, 0, -1], UV, mc(x, y - 1)); wallFaces.push({ tx: x, ty: y - 1, x: x0 + TS / 2, z: z0, n: [0, -1] }); }
+      if (!solid(x + 1, y)) { wall.quad([x1, 0, z1], [x1, 0, z0], [x1, WH, z0], [x1, WH, z1], [1, 0, 0], UV, mc(x + 1, y)); wallFaces.push({ tx: x + 1, ty: y, x: x1, z: z0 + TS / 2, n: [1, 0] }); }
+      if (!solid(x - 1, y)) { wall.quad([x0, 0, z0], [x0, 0, z1], [x0, WH, z1], [x0, WH, z0], [-1, 0, 0], UV, mc(x - 1, y)); wallFaces.push({ tx: x - 1, ty: y, x: x0, z: z0 + TS / 2, n: [-1, 0] }); }
     } else {
       const x0 = x * TS, z0 = y * TS, x1 = x0 + TS, z1 = z0 + TS, k = 0.78 + R() * 0.3;
-      floor.quad([x0, 0, z1], [x1, 0, z1], [x1, 0, z0], [x0, 0, z0], [0, 1, 0], [0, 1, 1, 1, 1, 0, 0, 0], [[k, k, k], [k, k, k], [k, k, k], [k, k, k]]);
+      const ft = tintAt(x, y), fc = [k * ft[0], k * ft[1], k * ft[2]]; floor.quad([x0, 0, z1], [x1, 0, z1], [x1, 0, z0], [x0, 0, z0], [0, 1, 0], [0, 1, 1, 1, 1, 0, 0, 0], [fc, fc, fc, fc]);
       ceil.quad([x0, WH, z0], [x1, WH, z0], [x1, WH, z1], [x0, WH, z1], [0, -1, 0], [0, 0, 1, 0, 1, 1, 0, 1], shade(0.85 + R() * 0.15).map(c => c.map(v => v * 0.8)));
     }
   }
@@ -89,6 +94,11 @@ export function buildScene(world, Q) {
   const podMat = (() => { const m = lit({ color: 0x4a1418, roughness: 0.35, emissive: 0xaa1818, emissiveIntensity: 0.9, transparent: false }); patchPulse(m); return m; })();
   const boneMat = (() => { const m = lit({ color: 0xb8ad98, roughness: 0.6 }); patchPulse(m); return m; })();
   const pods = [], bones = [];
+  const lm = (o) => { const m = lit(o); patchPulse(m); disposables.push(m); return m; };
+  const XM = { scr: [], glass: [], liq: [], bl1: [], bl2: [], hazard: [] };
+  const scrMat = new THREE.MeshBasicMaterial({ color: theme === 'nest' ? 0xff6050 : 0x58d8ff }), liqMat = new THREE.MeshBasicMaterial({ color: theme === 'flood' ? 0x4cc8ff : 0x70ffb0, transparent: true, opacity: 0.6 }), bl1Mat = new THREE.MeshBasicMaterial({ color: 0xff2a1a }), bl2Mat = new THREE.MeshBasicMaterial({ color: 0x40ff80 });
+  const glassMat = lm({ color: 0xbfe0ee, roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.28, depthWrite: false }), hazMat = lm({ color: 0xc99a14, roughness: 0.7 });
+  disposables.push(scrMat, liqMat, bl1Mat, bl2Mat);
   const P = (arr, g, x, z, ry) => { g.applyMatrix4(new THREE.Matrix4().makeRotationY(ry || 0)); g.translate(x, 0, z); arr.push(g); };
   for (const o of world.objs) {
     if (o.type !== 'prop') continue; const cx = o.x * TS + TS / 2, cz = o.y * TS + TS / 2, r = Math.round(o.rot / (Math.PI / 2)) * (Math.PI / 2) + (R() - 0.5) * 0.2;
@@ -99,11 +109,13 @@ export function buildScene(world, Q) {
       case 'table': { const parts = [box(1.7, 0.07, 0.85, 0, 0.82, 0)]; for (const sx of [-0.78, 0.78]) for (const sz of [-0.36, 0.36]) parts.push(box(0.07, 0.8, 0.07, sx, 0.4, sz)); P(stat.metal, mergeGeometries(parts), cx, cz, r); if (R() < 0.6) P(stat.dark, box(0.4, 0.28, 0.3, (R() - 0.5), 0.99, 0), cx, cz, r); break; }
       case 'pipe': { const parts = [cyl(0.17, 0.17, WH, 0, WH / 2, 0), cyl(0.2, 0.2, 0.15, 0, 0.5, 0), cyl(0.2, 0.2, 0.15, 0, 2.2, 0), cyl(0.12, 0.12, 1.4, 0.45, 1.5, 0)]; P(stat.metal, mergeGeometries(parts), cx, cz, r); break; }
       case 'pod': { const g = ell(0.75, 1.05, 0.75, 0, 1.0, 0); P(pods, g, cx, cz, 0); P(stat.flesh, cyl(0.9, 1.1, 0.3, 0, 0.15, 0, 12), cx, cz, 0); break; }
+      case 'console': case 'tank': case 'machine': case 'column': case 'cage': case 'cocoon': extraProp(o.kind, { metal: stat.metal, dark: stat.dark, flesh: stat.flesh, pod: pods, bone: bones, scr: XM.scr, glass: XM.glass, liq: XM.liq, bl1: XM.bl1, bl2: XM.bl2, hazard: XM.hazard }, cx, cz, r, R, WH); break;
       case 'bones': { for (let i = 0; i < 9; i++) { const g = cyl(0.04, 0.06, 0.6 + R() * 0.6, 0, 0.1 + R() * 0.2, 0, 6); g.rotateZ(R() * 3); g.rotateY(R() * 6); g.translate((R() - 0.5) * 1.4, 0, (R() - 0.5) * 1.4); P(bones, g, cx, cz, 0); } P(bones, ell(0.2, 0.17, 0.25, 0.1, 0.17, 0.2), cx, cz, 0); P(stat.flesh, cyl(0.95, 1.05, 0.12, 0, 0.06, 0, 12), cx, cz, 0); break; }
     }
   }
   const pushStat = (arr, mat, cast) => { if (arr.length) addMesh(mergeGeometries(arr), mat, cast, true); };
-  pushStat(stat.crate, crateMat, true); pushStat(stat.metal, metalMat, true); pushStat(stat.dark, darkMat, true); pushStat(stat.flesh, fleshMat, false); pushStat(pods, podMat, false); pushStat(bones, boneMat, false);
+  pushStat(stat.crate, crateMat, true); pushStat(stat.metal, metalMat, true); pushStat(stat.dark, darkMat, true); pushStat(stat.flesh, fleshMat, false); pushStat(pods, podMat, false); pushStat(bones, boneMat, false); pushStat(XM.scr, scrMat, false); pushStat(XM.liq, liqMat, false); pushStat(XM.bl1, bl1Mat, false); pushStat(XM.bl2, bl2Mat, false); pushStat(XM.hazard, hazMat, false); pushStat(XM.glass, glassMat, false);
+  const decor = buildDecor({ world, scene, R, TH, theme, lit, patchPulse, TS, WH, roomAt, wallFaces });
   /* pipes and conduits along corridor walls: breaks up the flat walls */
   const duct = [], conduit = [];
   for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { if (cells[y * W + x] === T.WALL) continue; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (solid(x + dx, y + dz) && R() < 0.2) {
@@ -175,15 +187,18 @@ export function buildScene(world, Q) {
     }
   }
   /* ---------------- light fixtures ---------------- */
-  const lampMats = { ok: new THREE.MeshBasicMaterial({ color: TH.lamp }), dead: new THREE.MeshBasicMaterial({ color: 0x151515 }), fl: [0, 1, 2].map(() => new THREE.MeshBasicMaterial({ color: TH.lamp })) };
-  const lampGeo = new THREE.BoxGeometry(0.9, 0.08, 0.28), lampGeoH = [], fixtures = [];
+  const lampMats = { ok: new THREE.MeshBasicMaterial({ color: TH.lamp }), dead: new THREE.MeshBasicMaterial({ color: 0x151515 }), fl: [] };
+  const lampGeo = new THREE.BoxGeometry(0.9, 0.08, 0.28), fixtures = [], lampCache = {};
   const housing = [];
-  for (const l of world.lights) { const kind = spec.lightsOut ? (R() < 0.8 ? 'dead' : l.kind) : l.kind; const m = kind === 'ok' ? lampMats.ok : kind === 'dead' ? lampMats.dead : lampMats.fl[Math.floor(R() * 3)];
-    const mesh = new THREE.Mesh(lampGeo, m); mesh.position.set(l.x * TS, WH - 0.06, l.y * TS); mesh.rotation.y = R() < 0.5 ? 0 : Math.PI / 2; scene.add(mesh); housing.push(box(1.0, 0.04, 0.34, l.x * TS, WH - 0.02, l.y * TS, mesh.rotation.y)); fixtures.push({ x: l.x * TS, z: l.y * TS, kind, mat: m, ph: l.ph }); }
+  const lampMat = (col, st) => { const key = col + st; return lampCache[key] || (lampCache[key] = new THREE.MeshBasicMaterial({ color: col })); };
+  for (const l of world.lights) { const kind = spec.lightsOut ? (R() < 0.8 ? 'dead' : l.kind) : l.kind; const rm = roomAt(Math.floor(l.x), Math.floor(l.y)), col = rm && KIND_LAMP[rm.kind] ? KIND_LAMP[rm.kind] : TH.lamp;
+    const m = kind === 'dead' ? lampMats.dead : lampMat(col, kind === 'ok' ? 'ok' : 'f' + Math.floor(R() * 3));
+    const mesh = new THREE.Mesh(lampGeo, m); mesh.position.set(l.x * TS, WH - 0.06, l.y * TS); mesh.rotation.y = R() < 0.5 ? 0 : Math.PI / 2; scene.add(mesh); housing.push(box(1.0, 0.04, 0.34, l.x * TS, WH - 0.02, l.y * TS, mesh.rotation.y)); fixtures.push({ x: l.x * TS, z: l.y * TS, kind, mat: m, ph: l.ph, col }); }
+  disposables.push(...Object.values(lampCache), lampMats.ok, lampMats.dead);
   if (housing.length) addMesh(mergeGeometries(housing), darkMat, false, false);
   const sceneAmb = new THREE.HemisphereLight(TH.amb, 0x050507, TH.ambI * (spec.lightsOut ? 0.6 : 1) * (Q.mats === 'std' ? 1.7 : 2.2)); scene.add(sceneAmb);
   /* nest: an organic glow in every wall pocket and floor veins */
-  return { scene, group, dyn, fixtures, lampMats, theme, TH, tex, waterMesh, disposables, wallMat, floorMat, amb: sceneAmb };
+  return { scene, group, dyn, decor, fixtures, lampMats, theme, TH, tex, waterMesh, disposables, wallMat, floorMat, amb: sceneAmb };
 }
 let _glow = null;
 export function glowTex() { if (_glow) return _glow; const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,0.4)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); _glow = new THREE.CanvasTexture(c); return _glow; }
