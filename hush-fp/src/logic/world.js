@@ -8,12 +8,13 @@ export const DT = 1 / 30;
 export const DIFF = { easy: { sight: 0.75, alert: 0.7, speed: 0.9 }, normal: { sight: 1, alert: 1, speed: 1 }, hard: { sight: 1.2, alert: 1.3, speed: 1.12 } };
 export const SPEED = { walk: 1.55, sprint: 2.7, crouch: 0.8 };
 const PR = 0.3;                                                    // player radius in tiles
+export const PULSE_CD = 3.5;
 const TALL = { crate: 1, shelf: 1, pod: 1, barrel: 1, machine: 1, tank: 1, column: 1, cocoon: 1 };
 
 export class World {
   constructor(gen, opts) {
     opts = opts || {}; this.gen = gen; this.lights = gen.lights; this.spec = gen.spec; this.W = gen.W; this.H = gen.H; this.cells = gen.cells; this.rooms = gen.rooms; this.rnd = rng32(gen.seed * 3 + 1);
-    this.god = !!opts.god; this.diff = DIFF[opts.diff || 'normal'] || DIFF.normal; this.time = 0; this.events = []; this.noiseLevel = 0; this.huntCount = 0; this.over = null; this.threat = 0; this.pulseState = null; this.radioLures = [];
+    this.god = !!opts.god; this.diff = DIFF[opts.diff || 'normal'] || DIFF.normal; this.time = 0; this.events = []; this.noiseLevel = 0; this.huntCount = 0; this.over = null; this.threat = 0; this.pulseState = null; this.pulseCd = 0; this.radioLures = [];
     this.solid = new Set(gen.blocked); this.tall = new Set(); this.doorAt = new Map(); this.objById = new Map(); this.doors = [];
     this.objs = gen.objs.map(o => Object.assign({}, o)); for (const o of this.objs) { this.objById.set(o.id, o); if (o.type === 'prop' && TALL[o.kind]) this.tall.add(o.y * this.W + o.x); }
     for (const o of this.objs) if (o.type === 'door') { o.open = 0; o.want = 0; o.locked = !!o.lock; o.revealed = !o.hidden; o.codeOk = false; this.doorAt.set(o.y * this.W + o.x, o); this.doors.push(o); this.solid.add(o.y * this.W + o.x); }
@@ -137,7 +138,7 @@ export class World {
     p.vent = { t: 0, dur: 2.4, from: v, to: pr }; this.events.push({ type: 'vent', x: v.x + 0.5, y: v.y + 0.5 }); emitNoise(this, v.x + 0.5, v.y + 0.5, 3, 'vent');
   }
   pulse() {
-    const p = this.player; if (!p.alive || p.vent || this.over || p.pulses <= 0 || p.hidden >= 0) return false; p.pulses--; this.stats.pulses++;
+    const p = this.player; if (!p.alive || p.vent || this.over || p.pulses <= 0 || p.hidden >= 0) return false; if (this.pulseCd > 0) { this.events.push({ type: 'pulsecd' }); return false; } this.pulseCd = PULSE_CD; p.pulses--; this.stats.pulses++;
     this.pulseState = { x: p.x, y: p.y, t0: this.time }; this.events.push({ type: 'pulse', x: p.x, y: p.y });
     const R = 13; for (const c of this.creatures) if (Math.hypot(c.x - p.x, c.y - p.y) < R) c.revealT = 3.2;
     for (const o of this.objs) { if (Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y) < R) { o.pingT = 4; if (o.type === 'door' && o.hidden && !o.revealed && Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y) < 9) { o.revealed = true; this.refreshLocks(); this.events.push({ type: 'reveal', x: o.x + 0.5, y: o.y + 0.5 }); } } }
@@ -151,7 +152,7 @@ export class World {
   catchPlayer(c) { if (this.god || !this.player.alive) { if (this.god) { c.state = 'search'; c.searchT = 3; c.target = null; } return; } this.player.alive = false; this.over = 'dead'; this.caughtBy = c; this.events.push({ type: 'caught', id: c.id }); }
   /* ---------- the tick ---------- */
   update(dt, inp) {
-    inp = inp || {}; const p = this.player; p.px = p.x; p.py = p.y; for (const c of this.creatures) { c.px = c.x; c.py = c.y; c.pyaw = c.yaw; } this.time += dt; this.noiseLevel = Math.max(0, this.noiseLevel - dt * 0.9);
+    inp = inp || {}; const p = this.player; p.px = p.x; p.py = p.y; for (const c of this.creatures) { c.px = c.x; c.py = c.y; c.pyaw = c.yaw; } this.time += dt; this.pulseCd = Math.max(0, this.pulseCd - dt); this.noiseLevel = Math.max(0, this.noiseLevel - dt * 0.9);
     if (this.over && this.over !== 'win') { for (const c of this.creatures) c.moving = false; return; }
     if (this.over === 'win') return;
     if (p.alive) this.updatePlayer(dt, inp);

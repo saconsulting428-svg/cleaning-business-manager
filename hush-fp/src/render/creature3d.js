@@ -97,7 +97,7 @@ function legIK(L, tz, ty) {                         // target (z forward, y up) 
 export function poseCreature(root, c, t, dt, look) {
   const J = root.userData.J, S = J.state, K = J.K; if (!J) return; const hunting = c.state === 'hunt', moving = c.moving && c.speed > 0.05;
   S.mv += ((moving ? 1 : 0) - S.mv) * Math.min(1, dt * 7); S.run += ((hunting && moving ? 1 : 0) - S.run) * Math.min(1, dt * 5); const w = S.mv, run = S.run;
-  const roar = c.roar > 0 ? ease(Math.min(1, c.roar * 2)) * (c.roar > 0.3 ? 1 : c.roar / 0.3) : 0;
+  const lunge = c.lunge || 0; const roar = Math.max(lunge * 0.85, c.roar > 0 ? ease(Math.min(1, c.roar * 2)) * (c.roar > 0.3 ? 1 : c.roar / 0.3) : 0);
   const phase = c.phase, hipBase = 1.18 - 0.2 * run - 0.08 * (c.state === 'search' || c.state === 'check' ? 1 : 0), stepL = lerp(0.8, 1.35, run) * w, lift = lerp(0.13, 0.3, run) * w, st = lerp(0.58, 0.44, run);
   const bob = (0.035 + 0.04 * run) * w * (0.5 + 0.5 * Math.cos(4 * Math.PI * phase)), breath = Math.sin(t * 1.6 + S.seed) * 0.012 * (1 - w);
   J.pelvis.position.y = hipBase - bob + breath;

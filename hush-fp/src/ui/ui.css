@@ -102,3 +102,15 @@ svg { width: 22px; height: 22px; flex: none; display: block; }
 @keyframes tilt { 0%, 15% { transform: rotate(0); } 55%, 100% { transform: rotate(-90deg); } }
 @media (pointer: coarse) and (orientation: portrait) { #ov-rotate { display: grid; } }
 .prompt { pointer-events: auto !important; }
+
+/* v3: sonar cooldown, markers, inventory + objective panels */
+.marks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+button.obj { font: inherit; color: inherit; text-align: left; cursor: pointer; touch-action: manipulation; min-height: 52px; } button.obj:active { filter: brightness(1.5); }
+.bag { right: calc(66px + var(--sar)); top: calc(var(--sat) + 12px); }
+.act.big.cd { background: conic-gradient(rgba(0,0,0,.72) calc(var(--cd, 0) * 360deg), rgba(10,11,14,.7) 0); border-color: #3a6d80; color: #5f8da0; box-shadow: none; } .act.big.cd small { color: #fff; font-weight: 700; }
+.invgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 6px 0 12px; }
+.iv { position: relative; min-height: 76px; border: 1px solid var(--edge2); border-radius: 4px; background: rgba(10,11,14,.8); color: #cfd5db; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-family: var(--display); letter-spacing: .08em; text-transform: uppercase; font-size: 13px; touch-action: manipulation; }
+.iv svg { width: 30px; height: 30px; } .iv i { position: absolute; right: 8px; top: 5px; font-style: normal; font-weight: 700; color: #fff; } .iv.sel { border-color: #ff5c66; box-shadow: 0 0 12px var(--glow); color: #fff; } .iv.empty { opacity: .4; }
+.invdesc { font-size: 14px; line-height: 1.45; color: #c3c8ce; min-height: 40px; margin-bottom: 10px; }
+.objlist { list-style: none; margin: 8px 0 12px; padding: 0; display: grid; gap: 8px; } .objlist li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--edge); border-radius: 4px; background: rgba(10,11,14,.7); font-family: var(--display); font-size: 17px; letter-spacing: .04em; color: #aab; }
+.objlist li svg { width: 20px; height: 20px; flex: none; } .objlist li.cur { border-color: var(--amber); color: #fff; } .objlist li.cur svg { color: var(--amber); } .objlist li.done { opacity: .55; text-decoration: line-through; } .objlist li.done svg { color: #3dff8a; }

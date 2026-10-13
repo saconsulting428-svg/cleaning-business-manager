@@ -1,10 +1,11 @@
 /* HUSH: Echoes in the Dark - game controller: screens, input (touch + keyboard/mouse), the fixed-step loop, HUD, audio hooks, saving.
    The rules live in logic/world.js, the picture in render/view.js; this file connects them to the player. */
 import { View } from './render/view.js';
-import { World, DT } from './logic/world.js';
+import { World, DT, PULSE_CD } from './logic/world.js';
 import { generate, T } from './logic/gen.js';
 import { LEVELS, CHAPTERS } from './logic/levels.js';
 import { Sound } from './audio.js';
+import * as AI from './logic/ai.js';
 import { runBot } from './test/bot.js';
 
 const $ = (id) => document.getElementById(id), qa = (s, r) => Array.prototype.slice.call((r || document).querySelectorAll(s));
@@ -15,7 +16,7 @@ $('app').classList.toggle('touch', coarse);
 
 /* ---------------- save ---------------- */
 const KEY = 'hush.fp.v1';
-const save = { v: 1, stars: [], best: [], set: { gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal' }, last: 0 };
+const save = { v: 1, stars: [], best: [], set: { gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, last: 0 };
 try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.v === 1) { Object.assign(save, s); save.set = Object.assign({ gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal' }, s.set || {}); } } catch (e) { /* private mode */ }
 const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } };
 const unlocked = (i) => UNLOCK || i === 0 || (save.stars[i - 1] || 0) > 0;
@@ -68,7 +69,7 @@ function buildLevels() {
 function setLoading(on, text, pct) { overlay('load', on); if (text) $('load-text').textContent = text; if (pct !== undefined) $('load-bar').style.width = pct + '%'; }
 function nextFrame() { return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))); }
 async function startLevel(i) {
-  setLoading(true, 'Entering ' + LEVELS[i].name, 20); ['pause', 'win', 'dead', 'note', 'keypad', 'settings', 'how', 'credits'].forEach(o => overlay(o, false)); await nextFrame();
+  setLoading(true, 'Entering ' + LEVELS[i].name, 20); ['pause', 'win', 'dead', 'note', 'keypad', 'settings', 'how', 'credits', 'inv', 'obj'].forEach(o => overlay(o, false)); await nextFrame();
   G.level = i; save.last = i; persist(); G.chapterView = LEVELS[i].ch; const w = new World(gen(i), { diff: save.set.diff }); G.world = w; setLoading(true, null, 55); await nextFrame(); G.view.loadLevel(w); setLoading(true, null, 95); await nextFrame();
   G.mode = 'game'; show('game'); G.paused = false; G.modal = false; G.over = false; G.ended = 0; G.timeSpent = 0; G.acc = 0; G.hintT = 8; G.shownHint = -1; G.lastInv = ''; G.menu = false; inp.sprintBtn = false; $('b-sprint').classList.remove('on');
   $('hint').textContent = save.set.hints ? LEVELS[i].hint : ''; $('hint').classList.toggle('show', save.set.hints); G.chapterAudio = LEVELS[i].ch; applyAudio(); Sound.unlock(); buildHotbar(true);
@@ -84,7 +85,7 @@ function winLevel() {
 }
 const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 function loseLevel() { G.over = true; vibe([80, 60, 160]); setTimeout(() => { overlay('dead', true); if (document.pointerLockElement) document.exitPointerLock(); }, 1700); }
-function toMenu() { ['pause', 'win', 'dead', 'note', 'keypad'].forEach(o => overlay(o, false)); G.mode = 'home'; G.world = null; startMenuScene(); show('home'); Sound.scene({ menu: true }); }
+function toMenu() { ['pause', 'win', 'dead', 'note', 'keypad', 'inv', 'obj'].forEach(o => overlay(o, false)); G.mode = 'home'; G.world = null; startMenuScene(); show('home'); Sound.scene({ menu: true }); }
 
 /* ---------------- menu scene: the first corridor, something far down it ---------------- */
 async function startMenuScene() {
@@ -114,12 +115,51 @@ function setC(id, cls, on) { const k = id + cls; if (HC[k] !== on) { HC[k] = on;
 function setO(id, v) { v = Math.round(v * 20) / 20; if (HC[id + 'o'] !== v) { HC[id + 'o'] = v; $(id).style.opacity = v; } }
 function hud(w, dt) {
   const p = w.player; G.hudT = (G.hudT || 0) + dt; if (G.bannerT > 0) { G.bannerT -= dt; if (G.bannerT <= 0) $('banner').classList.remove('show'); } if (G.hintT > 0) { G.hintT -= dt; if (G.hintT <= 0) $('hint').classList.remove('show'); }
+  drawMarks(w);
   if (G.hudT < 0.066) return; const dtH = G.hudT; G.hudT = 0;
-  setT('obj-text', w.objective().current); setT('pulse-n', p.pulses); setC('b-pulse', 'dim', p.pulses <= 0); buildHotbar(false);
+  setT('obj-text', w.objective().current); setT('pulse-n', p.pulses); setC('b-pulse', 'dim', p.pulses <= 0); const cdf = Math.round(w.pulseCd / PULSE_CD * 40) / 40; if (HC.cdf !== cdf) { HC.cdf = cdf; $('b-pulse').style.setProperty('--cd', cdf); } setC('b-pulse', 'cd', cdf > 0); setT('pulse-l', w.pulseCd > 0 ? w.pulseCd.toFixed(1) + 's' : 'Pulse'); buildHotbar(false);
   const pr = w.prompt, show = !!(pr && !G.modal); setC('prompt', 'show', show); if (show) { setC('prompt', 'no', /^Locked|needs/.test(pr.text)); setT('prompt-text', pr.text); }
   const st = $('stam'); setC('stam', 'show', p.stamina < 0.98); setC('stam', 'tired', p.tired); const sw = Math.round(p.stamina * 50) * 2 + '%'; if (HC.stw !== sw) { HC.stw = sw; st.firstChild.style.width = sw; } setC('b-crouch', 'on', p.crouch);
   drawNoise(w, dtH); setO('fx-locker', p.hidden >= 0 ? 1 : 0); const th = w.threat; setO('fx-hurt', (w.over === 'dead') ? 0.9 : Math.max(0, th - 0.55) * 0.9);
 }
+
+
+/* ---------------- sonar markers + threat direction ---------------- */
+const MARKC = { item: '#ffd070', exit: '#3dff8a', door: '#ff8a5a', generator: '#ffcc22', valve: '#ff5533', note: '#fff0b0', locker: '#9ad', vent: '#9ad' };
+let marksOn = false;
+function drawMarks(w) {
+  const cv = $('marks'), v = G.view, p = w.player; if (!cv || !v) return; const r = cv.getBoundingClientRect(), W = Math.round(r.width), H = Math.round(r.height); if (!W) return;
+  const threats = w.creatures.filter(c => (c.state === 'hunt' || c.state === 'investigate' || c.state === 'suspicious') && Math.hypot(c.x - p.x, c.y - p.y) < 16 && p.alive);
+  const pinged = save.set.marks && (w.pulseState || w.objs.some(o => o.pingT > 0)), reveal = w.creatures.some(c => c.revealT > 0);
+  if (!pinged && !reveal && !threats.length) { if (marksOn) { cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); marksOn = false; } return; }
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; } const x = cv.getContext('2d'); x.clearRect(0, 0, W, H); marksOn = true; v.camera.updateMatrixWorld(true);
+  const T = v.camera.position.clone(), pr = (px, py, h) => { T.set(px * 2, h, py * 2).project(v.camera); return [(T.x * 0.5 + 0.5) * W, (-T.y * 0.5 + 0.5) * H, T.z < 1 && Math.abs(T.x) < 1.3]; };
+  const edge = (sx, sy, behind, col, a) => { const cx = W / 2, cy = H / 2; let dx = sx - cx, dy = sy - cy; if (behind) { dx = -dx; dy = -dy; } const k = Math.min((W / 2 - 30) / Math.abs(dx || 1e-3), (H / 2 - 40) / Math.abs(dy || 1e-3)), ex = cx + dx * k, ey = cy + dy * k, ang = Math.atan2(dy, dx); x.save(); x.translate(ex, ey); x.rotate(ang); x.globalAlpha = a; x.fillStyle = col; x.beginPath(); x.moveTo(14, 0); x.lineTo(-8, 10); x.lineTo(-4, 0); x.lineTo(-8, -10); x.fill(); x.restore(); };
+  const pulseK = 0.6 + 0.4 * Math.sin(performance.now() / 120);
+  if (pinged) for (const o of w.objs) { if (!(o.pingT > 0) || !MARKC[o.type] || (o.type === 'item' && o.taken) || (o.type === 'door' && o.hidden && !o.revealed) || o.type === 'locker' || o.type === 'vent') continue; const [sx, sy, vis] = pr(o.x + 0.5, o.y + 0.5, REACH_H[o.type] || 1); if (!vis) continue; const a = Math.min(1, o.pingT / 1.5), c = MARKC[o.type];
+    x.save(); x.globalAlpha = a; x.translate(sx, sy); x.rotate(Math.PI / 4); x.strokeStyle = c; x.lineWidth = 2; x.strokeRect(-7, -7, 14, 14); x.fillStyle = c; x.globalAlpha = a * 0.35; x.fillRect(-7, -7, 14, 14); x.restore(); }
+  for (const c of w.creatures) { if (!(c.revealT > 0)) continue; const [sx, sy, vis] = pr(c.x, c.y, 1.4); if (vis) { x.save(); x.globalAlpha = Math.min(1, c.revealT); x.strokeStyle = '#ff3b47'; x.lineWidth = 2.5; x.beginPath(); x.moveTo(sx, sy - 34); x.lineTo(sx + 14, sy - 12); x.lineTo(sx - 14, sy - 12); x.closePath(); x.stroke(); x.restore(); } }
+  for (const c of threats) { const [sx, sy, vis] = pr(c.x, c.y, 1.4); if (vis && sx > 20 && sx < W - 20) continue; edge(sx, sy, !vis, c.state === 'hunt' ? '#ff3b47' : '#f0b34a', c.state === 'hunt' ? pulseK : 0.55); }
+}
+
+/* ---------------- inventory + objectives panels (the game holds still while they are open) ---------------- */
+const INVINFO = { flash: ['Flashlight', 'A narrow beam. Switch it off to be harder to see. (F)'], card: ['Keycard', 'Opens doors with a blue card reader. Walk up and tap the door.'], key: ['Brass key', 'Opens doors with a gold lock.'], fuse: ['Fuse', 'Slot fuses into the generator to bring the power back.'], radio: ['Radio', 'Plays noise a little ahead of you. The creature goes there. One use each. (R)'], pulse: ['Sonar pulse', 'Reveals walls, doors, items and creatures for a few seconds. It also makes noise (radius 14) and needs ' + PULSE_CD + ' s to recharge.'] };
+let invSel = 'flash';
+function panel(id, on) {
+  const open = $('ov-' + id).classList.contains('show');
+  if (on) { if (G.mode !== 'game' || G.over || G.modal || anyOverlay() || !G.world) return; G.paused = true; if (document.pointerLockElement) document.exitPointerLock(); id === 'inv' ? drawInv() : drawObj(); overlay(id, true); Sound.play('ui'); }
+  else if (open) { overlay(id, false); G.paused = false; if (!coarse) lockPointer(); }
+}
+function drawInv() {
+  const w = G.world, inv = w.player.inv, cnt = { flash: w.player.flash ? 1 : 0, card: inv.card, key: inv.key, fuse: inv.fuse, radio: inv.radio, pulse: w.player.pulses }, g = $('inv-grid'); g.innerHTML = '';
+  ['flash', 'pulse', 'card', 'key', 'fuse', 'radio'].forEach(k => { const b = document.createElement('button'); b.className = 'iv' + (k === invSel ? ' sel' : '') + (k !== 'flash' && !cnt[k] ? ' empty' : ''); b.innerHTML = '<svg><use href="#' + (k === 'pulse' ? 'i-pulse' : ICON[k]) + '"/></svg><span>' + INVINFO[k][0] + '</span>' + (k === 'flash' ? '<i>' + (cnt.flash ? 'ON' : 'OFF') + '</i>' : '<i>' + cnt[k] + '</i>'); b.onclick = () => { invSel = k; Sound.play('ui'); drawInv(); }; g.appendChild(b); });
+  $('inv-desc').textContent = INVINFO[invSel][0] + ' - ' + INVINFO[invSel][1]; const u = $('inv-use'); u.hidden = !(invSel === 'flash' || (invSel === 'radio' && inv.radio > 0)); u.textContent = invSel === 'flash' ? (w.player.flash ? 'Switch off' : 'Switch on') : 'Use radio';
+}
+function drawObj() { const o = G.world.objective(), l = $('obj-list'); l.innerHTML = ''; let cur = true; o.steps.forEach(st => { const li = document.createElement('li'); li.className = st.done ? 'done' : cur ? 'cur' : ''; if (!st.done) cur = false; li.innerHTML = '<svg><use href="#' + (st.done ? 'i-check' : 'i-bulb') + '"/></svg><span></span>'; li.lastChild.textContent = st.text; l.appendChild(li); }); $('obj-hint').textContent = 'Hint: ' + LEVELS[G.level].hint; }
+for (const [id, pn] of [['b-bag', 'inv'], ['obj', 'obj']]) $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); panel(pn, true); });
+$('inv-use').onclick = () => { const k = invSel; panel('inv', false); if (k === 'flash') inp.edge.flash = true; else inp.edge.radio = true; };
+qa('[data-pclose]').forEach(b => { b.onclick = () => { Sound.play('ui'); panel(b.getAttribute('data-pclose'), false); }; });
+document.addEventListener('keydown', (e) => { if (e.code === 'Escape') { if ($('ov-inv').classList.contains('show')) panel('inv', false); else if ($('ov-obj').classList.contains('show')) panel('obj', false); } else if (G.mode === 'game' && (e.code === 'KeyI' || e.code === 'Tab')) { e.preventDefault(); $('ov-inv').classList.contains('show') ? panel('inv', false) : panel('inv', true); } else if (G.mode === 'game' && e.code === 'KeyO') { $('ov-obj').classList.contains('show') ? panel('obj', false) : panel('obj', true); } }, true);
 
 /* ---------------- events -> sound, banners, vibration ---------------- */
 let hbTimer = 0;
@@ -132,6 +172,7 @@ function handleEvents(w, dt) {
       case 'pickup': Sound.play('key'); G.view.reach(); buildHotbar(true); break;
       case 'door': { const s = spatial(e.x, e.y); if (s.d < 16) Sound.play('door'); if (e.by !== 'creature') G.view.reach(); break; }
       case 'unlock': Sound.play('unlock'); G.view.reach(); break;
+      case 'pulsecd': banner('SONAR RECHARGING', 'sus', 700); break;
       case 'denied': Sound.play('denied'); banner(e.text, 'sus', 1100); break;
       case 'hide': Sound.play('hide'); break;
       case 'vent': Sound.play('vent'); break;
@@ -234,11 +275,11 @@ function openSettings() { syncSettings(); overlay('settings', true); }
 $('s-close').onclick = () => { overlay('settings', false); persist(); };
 qa('#s-tabs button').forEach(b => { b.onclick = () => { qa('#s-tabs button').forEach(x => x.classList.toggle('on', x === b)); qa('.spage').forEach(p => p.classList.toggle('on', p.id === 'sp-' + b.getAttribute('data-t'))); }; });
 function seg(id, key, fn) { qa('#' + id + ' button').forEach(b => { b.onclick = () => { save.set[key] = b.getAttribute('data-v'); syncSettings(); fn && fn(); persist(); Sound.play('ui'); }; }); }
-function syncSettings() { const s = save.set; qa('#set-gfx button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.gfx)); qa('#set-aq button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.aq)); qa('#set-diff button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.diff)); $('set-bright').value = s.bright; $('set-vibe').checked = s.vibe; $('set-hints').checked = s.hints; $('set-vol').value = s.vol; $('set-mvol').value = s.mvol; $('v-vol').textContent = s.vol + '%'; $('v-mvol').textContent = s.mvol + '%'; $('set-sound').checked = s.sound; $('set-music').checked = s.music; $('set-sens').value = s.sens; $('set-inv').checked = s.inv; }
+function syncSettings() { const s = save.set; qa('#set-gfx button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.gfx)); qa('#set-aq button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.aq)); qa('#set-diff button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.diff)); $('set-bright').value = s.bright; $('set-vibe').checked = s.vibe; $('set-hints').checked = s.hints; $('set-marks').checked = s.marks; $('set-vol').value = s.vol; $('set-mvol').value = s.mvol; $('v-vol').textContent = s.vol + '%'; $('v-mvol').textContent = s.mvol + '%'; $('set-sound').checked = s.sound; $('set-music').checked = s.music; $('set-sens').value = s.sens; $('set-inv').checked = s.inv; }
 function applyGfx() { const g = save.set.gfx, v = G.view; v.autoQ = g === 'auto' && (!TEST || /[?&]adapt=1\b/.test(location.search)); v.setQuality(g === 'auto' ? (isMobile ? 'medium' : 'high') : g); v.brightness = save.set.bright / 100; }
 seg('set-gfx', 'gfx', () => { applyGfx(); if (G.world) G.view.loadLevel(G.world); else startMenuScene(); }); seg('set-diff', 'diff', () => { if (G.world && !G.over) G.world.diff = { easy: { sight: 0.75, alert: 0.7, speed: 0.9 }, normal: { sight: 1, alert: 1, speed: 1 }, hard: { sight: 1.2, alert: 1.3, speed: 1.12 } }[save.set.diff]; }); seg('set-aq', 'aq', () => { Sound.setQuality(save.set.aq); Sound.unlock(); applyAudio(); });
 const bindR = (id, key, fn) => { $(id).oninput = () => { save.set[key] = +$(id).value; fn && fn(); syncSettings(); }; $(id).onchange = persist; }, bindC = (id, key, fn) => { $(id).onchange = () => { save.set[key] = $(id).checked; fn && fn(); persist(); }; };
-bindR('set-bright', 'bright', () => { G.view.brightness = save.set.bright / 100; }); bindR('set-vol', 'vol', applyAudio); bindR('set-mvol', 'mvol', applyAudio); bindR('set-sens', 'sens'); bindC('set-vibe', 'vibe', applyAudio); bindC('set-hints', 'hints'); bindC('set-sound', 'sound', applyAudio); bindC('set-music', 'music', applyAudio); bindC('set-inv', 'inv');
+bindR('set-bright', 'bright', () => { G.view.brightness = save.set.bright / 100; }); bindR('set-vol', 'vol', applyAudio); bindR('set-mvol', 'mvol', applyAudio); bindR('set-sens', 'sens'); bindC('set-vibe', 'vibe', applyAudio); bindC('set-hints', 'hints'); bindC('set-marks', 'marks'); bindC('set-sound', 'sound', applyAudio); bindC('set-music', 'music', applyAudio); bindC('set-inv', 'inv');
 $('set-reset').onclick = () => { if ($('set-reset').dataset.sure) { save.stars = []; save.best = []; save.last = 0; persist(); delete $('set-reset').dataset.sure; $('set-reset').textContent = 'Reset'; } else { $('set-reset').dataset.sure = 1; $('set-reset').textContent = 'Sure?'; setTimeout(() => { delete $('set-reset').dataset.sure; $('set-reset').textContent = 'Reset'; }, 2500); } };
 
 /* ---------------- the loop ---------------- */
@@ -261,4 +302,4 @@ async function boot() {
   await startMenuScene(); G.mode = 'home'; show('home'); syncSettings(); setLoading(false, null, 100); overlay('gate', !TEST); requestAnimationFrame(frame); Sound.setQuality(save.set.aq);
 }
 boot();
-if (TEST) { window.HUSH = { G, save, inp, tapAt, proj: (o) => { const v = G.view, r = $('view').getBoundingClientRect(), t = v.camera.position.clone(); v.camera.updateMatrixWorld(true); t.set((o.x + 0.5) * 2, REACH_H[o.type] || 1, (o.y + 0.5) * 2).project(v.camera); return [(t.x * 0.5 + 0.5) * r.width + r.left, (-t.y * 0.5 + 0.5) * r.height + r.top]; }, startLevel, toMenu, pause, view: () => G.view, world: () => G.world, LEVELS, runBot: (n) => runBot(G.world, n || 600), gen, step: (n, i) => { for (let k = 0; k < (n || 1); k++) { G.world.update(DT, i || {}); G.timeSpent += DT; handleEvents(G.world, DT); } }, unlockAll: () => { save.stars = LEVELS.map(() => 1); persist(); }, buildLevels, buildChapters, show }; }
+if (TEST) { window.HUSH = { G, save, inp, ai: AI, tapAt, proj: (o) => { const v = G.view, r = $('view').getBoundingClientRect(), t = v.camera.position.clone(); v.camera.updateMatrixWorld(true); t.set((o.x + 0.5) * 2, REACH_H[o.type] || 1, (o.y + 0.5) * 2).project(v.camera); return [(t.x * 0.5 + 0.5) * r.width + r.left, (-t.y * 0.5 + 0.5) * r.height + r.top]; }, startLevel, toMenu, pause, view: () => G.view, world: () => G.world, LEVELS, runBot: (n) => runBot(G.world, n || 600), gen, step: (n, i) => { for (let k = 0; k < (n || 1); k++) { G.world.update(DT, i || {}); G.timeSpent += DT; handleEvents(G.world, DT); } }, unlockAll: () => { save.stars = LEVELS.map(() => 1); persist(); }, buildLevels, buildChapters, show }; }

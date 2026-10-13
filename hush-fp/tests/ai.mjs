@@ -2,7 +2,7 @@
 import { LEVELS } from '../src/logic/levels.js';
 import { generate } from '../src/logic/gen.js';
 import { World, DT } from '../src/logic/world.js';
-import { emitNoise, findPath } from '../src/logic/ai.js';
+import { emitNoise, findPath, distField, lineOfSight } from '../src/logic/ai.js';
 let ok = 0, bad = 0; const t = (n, c, d) => { c ? ok++ : bad++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : '  ' + (d || ''))); };
 const lvl = i => generate(LEVELS[i]);
 const run = (w, secs, inp, fn) => { for (let i = 0; i < secs / DT; i++) { w.update(DT, inp || {}); if (fn && fn(i)) return i * DT; } return -1; };
@@ -11,7 +11,7 @@ function arena(spec) { const g = lvl(4); const w = new World(Object.assign(g, {}
 function farPoint(w, c, minD) { for (const r of w.rooms) if (Math.hypot(r.cx - c.x, r.cy - c.y) > minD) return r; return w.rooms[0]; }
 
 { // 1 hearing: a noise in a nearby room makes the stalker investigate it, search, then go back to roaming
-  const w = new World(lvl(4), {}); const c = w.creatures[0]; w.player.x = w.start ? 0 : w.player.x; const room = w.rooms.find(r => r.idx !== c.roomIdx && Math.hypot(r.cx - c.x, r.cy - c.y) < 16) || w.rooms[0];
+  const w = new World(lvl(4), {}); const c = w.creatures[0]; w.player.x = w.start ? 0 : w.player.x; const fld = distField(w, c.x, c.y, 40); let nTile = null; for (const [k, d] of fld) { const x = k % w.W, y = Math.floor(k / w.W); if (d > 12 && d < 28 && w.cells[k] !== 0 && !w.solid.has(k)) { nTile = { x, y }; break; } } const room = { cx: nTile.x, cy: nTile.y };
   w.player.alive = true; const px = w.player.x, py = w.player.y; w.player.x = -100; // player out of the picture
   c.state = 'roam'; c.wait = 99; const nx = room.cx + 0.5, ny = room.cy + 0.5; emitNoise(w, nx, ny, 40, 'test');
   t('noise within hearing makes it investigate', c.state === 'investigate', c.state);
@@ -22,7 +22,7 @@ function farPoint(w, c, minD) { for (const r of w.rooms) if (Math.hypot(r.cx - c
 { // 2 sight: standing in view of a stalker leads to suspicion, hunting, and being caught
   const w = new World(lvl(4), {}); const c = w.creatures[0]; const p = w.player; p.x = c.x + 4; p.y = c.y; c.yaw = 0; c.state = 'roam'; c.wait = 99;
   // clear the line of sight by moving the player into a cell with a clean ray
-  let found = false; for (let a = 0; a < 6.28 && !found; a += 0.3) for (let d = 2; d < 6 && !found; d += 0.5) { const x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d; if (w.tileAt(x, y) !== 0) { p.x = x; p.y = y; c.yaw = a + Math.PI; found = true; } }
+  let found = false; for (let a = 0; a < 6.28 && !found; a += 0.3) for (let d = 2; d < 6 && !found; d += 0.5) { const x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d; if (w.tileAt(x, y) !== 0 && !w.solid.has(Math.floor(y) * w.W + Math.floor(x)) && lineOfSight(w, c.x, c.y, x, y)) { p.x = x; p.y = y; c.yaw = a + Math.PI; found = true; } }
   c.yaw = Math.atan2(p.y - c.y, p.x - c.x); let sus = false; const th = run(w, 12, {}, () => { if (c.state === 'suspicious') sus = true; return c.state === 'hunt'; });
   t('seeing the player makes it suspicious then hunt', th > 0, c.state + ' alert ' + c.alert.toFixed(2)); const tc = run(w, 15, {}, () => w.over === 'dead'); t('a hunting creature catches the player', tc > 0 || w.over === 'dead', w.over);
 }
@@ -45,7 +45,7 @@ function farPoint(w, c, minD) { for (const r of w.rooms) if (Math.hypot(r.cx - c
   t('crouched steps are quieter than walking steps', rCr < rWalk, rWalk + ' vs ' + rCr);
 }
 { // 5 lockers: if it SAW you go in, it checks the locker and catches you; if it did not, it does not
-  const mk = (saw) => { const w = new World(lvl(4), {}); const c = w.creatures[0]; const L = w.objs.find(o => o.type === 'locker'); const p = w.player; p.x = L.x + 0.5 + Math.cos(L.face) * 0.8; p.y = L.y + 0.5 + Math.sin(L.face) * 0.8; c.x = p.x + Math.cos(L.face) * 3; c.y = p.y + Math.sin(L.face) * 3; if (w.tileAt(c.x, c.y) === 0) { c.x = p.x; c.y = p.y; }
+  const mk = (saw) => { const w = new World(lvl(4), {}); const c = w.creatures[0]; const L = w.objs.find(o => o.type === 'locker'); const p = w.player; p.x = L.x + 0.5 + Math.cos(L.face) * 0.8; p.y = L.y + 0.5 + Math.sin(L.face) * 0.8; let placed = false; for (const d of [3, 4, 5, 2.5, 6]) { const cx = p.x + Math.cos(L.face) * d, cy = p.y + Math.sin(L.face) * d; if (w.tileAt(cx, cy) !== 0 && !w.solid.has(Math.floor(cy) * w.W + Math.floor(cx)) && lineOfSight(w, cx, cy, p.x, p.y)) { c.x = cx; c.y = cy; placed = true; break; } } if (!placed) { c.x = p.x; c.y = p.y; }
     c.state = 'hunt'; c.alert = 1; c.lastSeen = { x: p.x, y: p.y }; p.yaw = L.face; w.enterLocker(L); if (!saw) { c.knowsLocker = -1; } return { w, c, L }; };
   const s = mk(true); const caught = run(s.w, 30, {}, () => s.w.over === 'dead'); t('it checks the locker you were seen entering', caught > 0, 'state ' + s.c.state);
   const u = mk(false); u.c.x = u.w.player.x + 5; u.c.y = u.w.player.y; if (u.w.tileAt(u.c.x, u.c.y) === 0) { u.c.x = u.w.player.x; u.c.y = u.w.player.y; } const caught2 = run(u.w, 8, {}, () => u.w.over === 'dead'); t('an unseen hide is safe for a while (8 s)', caught2 < 0 || u.w.over !== 'dead', u.c.state);

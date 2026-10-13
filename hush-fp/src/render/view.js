@@ -12,9 +12,11 @@ export const QUALITY = {
   medium: { pr: 2, shadow: 0, texSize: 512, dust: 70, mats: 'lambert-n', lamps: 1, head: false, cone: true },
   low: { pr: 1.25, shadow: 0, texSize: 256, dust: 30, mats: 'lambert', lamps: 1, head: false, cone: false }
 };
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const flick = (ph, t) => { const s = Math.sin(t * 13 + ph) * Math.sin(t * 7.3 + ph * 2); return s > 0.55 ? 0.1 : s > 0.3 ? 0.55 : 1; };
 
 function matcap() { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(24, 22, 2, 32, 32, 34); g.addColorStop(0, '#d8d8d8'); g.addColorStop(0.5, '#707070'); g.addColorStop(1, '#202020'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
+let _blob = null; function blobTex() { if (_blob) return _blob; const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(0,0,0,.85)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); _blob = new THREE.CanvasTexture(c); _blob.userData = { shared: true }; return _blob; }
 export class View {
   constructor(canvas, qualityName, opts) {
     this.canvas = canvas; this.qName = qualityName || 'medium'; this.Q = QUALITY[this.qName]; this.t = 0; this.bob = 0; this.reachT = 0; this.shake = 0; this.world = null; this.built = null; this.cr = [];
@@ -65,7 +67,7 @@ export class View {
     const n = this.Q.dust; const g = new THREE.BufferGeometry(); const pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) { pos[i * 3] = (Math.random() - 0.5) * 12; pos[i * 3 + 1] = Math.random() * 3; pos[i * 3 + 2] = (Math.random() - 0.5) * 12; } g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     this.dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xd8e0e8, size: 0.028, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending })); this.dust.frustumCulled = false; sc.add(this.dust); this.dustBase = pos.slice();
     /* creatures: the body and its sonar silhouette */
-    this.cr = world.creatures.map(c => { const mats = creatureMaterials(c.t), real = buildCreature(c.t, mats, true), gm = ghostMaterial(), ghost = buildCreature(c.t, { skin: gm, bone: gm, eye: gm }, false); ghost.traverse(o => { o.renderOrder = 999; }); ghost.visible = false; sc.add(real); sc.add(ghost); return { c, real, ghost, gm, mats }; });
+    this.cr = world.creatures.map(c => { const mats = creatureMaterials(c.t), real = buildCreature(c.t, mats, true), gm = ghostMaterial(), ghost = buildCreature(c.t, { skin: gm, bone: gm, eye: gm }, false); ghost.traverse(o => { o.renderOrder = 999; }); ghost.visible = false; sc.add(real); sc.add(ghost); const blob = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, opacity: 0.8 })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; blob.renderOrder = 1; sc.add(blob); return { c, real, ghost, gm, mats, blob }; });
     this.bobPhase = 0; this.hurtT = 0; this.deadT = 0; this.winT = 0; this.updateCamera(world, 0, 0);
   }
   disposeLevel() {
@@ -79,7 +81,8 @@ export class View {
     if (!fx.menu) this.updateCamera(world, dt, now); this.updateDynamic(world, dt, now);
     /* pooled lamps: the three nearest live fixtures light the scene; flickering ones really flicker */
     const cx = this.camera.position.x, cz = this.camera.position.z; const near = [];
-    for (const f of b.fixtures) { const k = f.kind === 'dead' ? 0 : f.kind === 'flicker' ? flick(f.ph, now) : 1; f.k = k; if (f.kind === 'flicker') f.mat.color.setHex(f.col).multiplyScalar(0.12 + 0.88 * k); if (f.kind === 'dead') continue; const d = (f.x - cx) ** 2 + (f.z - cz) ** 2; if (d < 200) near.push([d, f]); }
+    const awake = world.creatures.filter(c => c.state === 'hunt' || c.state === 'investigate' || c.state === 'suspicious');
+    for (const f of b.fixtures) { let k = f.kind === 'dead' ? 0 : f.kind === 'flicker' ? flick(f.ph, now) : 1; if (k && awake.length) for (const c of awake) if ((c.x * TS - f.x) ** 2 + (c.y * TS - f.z) ** 2 < 90) { k = Math.min(k, flick(f.ph + 3, now * 1.7)); break; } f.k = k; const fl = f.kind === 'flicker'; if (fl) f.mat.color.setHex(f.col).multiplyScalar(0.12 + 0.88 * k); if (f.kind === 'dead') continue; const d = (f.x - cx) ** 2 + (f.z - cz) ** 2; if (d < 200) near.push([d, f]); }
     near.sort((a, c) => a[0] - c[0]);
     for (let i = 0; i < this.pool.length; i++) { const l = this.pool[i], e = near[i]; if (!e) { l.intensity = 0; continue; } l.position.set(e[1].x, WH - 0.45, e[1].z); l.color.setHex(e[1].col); l.intensity = (world.spec.lightsOut ? 6 : 30) * e[1].k * (1 - i * 0.12); }
     /* sonar pulse */
@@ -88,7 +91,7 @@ export class View {
     /* creatures */
     let li = 0; const sorted = this.cr.slice().sort((a, c) => (Math.hypot(a.c.x * TS - cx, a.c.y * TS - cz)) - (Math.hypot(c.c.x * TS - cx, c.c.y * TS - cz)));
     for (const e of this.cr) {
-      const c = e.c, al = this.alpha, cxp = c.px === undefined ? c.x : c.px + (c.x - c.px) * al, cyp = c.py === undefined ? c.y : c.py + (c.y - c.py) * al, cyaw = c.pyaw === undefined ? c.yaw : c.pyaw + angDiff(c.pyaw, c.yaw) * al, px = cxp * TS, pz = cyp * TS, rot = Math.PI / 2 - cyaw; e.real.position.set(px, 0, pz); e.real.rotation.y = rot; e.ghost.position.set(px, 0, pz); e.ghost.rotation.y = rot;
+      const c = e.c, al = this.alpha, cxp = c.px === undefined ? c.x : c.px + (c.x - c.px) * al, cyp = c.py === undefined ? c.y : c.py + (c.y - c.py) * al, cyaw = c.pyaw === undefined ? c.yaw : c.pyaw + angDiff(c.pyaw, c.yaw) * al, px = cxp * TS, pz = cyp * TS, rot = Math.PI / 2 - cyaw; e.real.position.set(px, 0, pz); e.real.rotation.y = rot; e.blob.position.set(px, 0.03, pz); const dpl = Math.hypot(p.x - c.x, p.y - c.y); c.lunge = c.state === 'hunt' && p.alive ? clamp(1 - (dpl - 0.9) / 1.1, 0, 1) : (world.over === 'dead' && world.caughtBy === c ? 1 : 0); e.ghost.position.set(px, 0, pz); e.ghost.rotation.y = rot;
       const dxp = p.x - c.x, dyp = p.y - c.y; let look; if (c.state !== 'roam' && c.state !== 'search' || c.seen) look = -angDiff(c.yaw, Math.atan2(dyp, dxp)) * (Math.hypot(dxp, dyp) < 12 ? 1 : 0);
       poseCreature(e.real, c, now, dt, c.seen || c.state === 'hunt' ? look : undefined); if (c.revealT > 0) poseCreature(e.ghost, c, now, dt, c.seen || c.state === 'hunt' ? look : undefined);
       e.ghost.visible = c.revealT > 0; if (e.ghost.visible) e.gm.opacity = Math.min(1, c.revealT * 1.1) * (0.55 + 0.1 * Math.sin(now * 20));
