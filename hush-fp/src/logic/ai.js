@@ -3,9 +3,9 @@ import { clamp, angDiff, TAU } from './rng.js';
 import { T } from './gen.js';
 
 export const KINDS = {
-  stalker: { roam: 1.1, invest: 1.5, hunt: 2.25, hear: 1.0, sight: 9, fov: 1.75, turn: 3.5, cycle: 1.7, label: 'stalker' },
-  sentinel: { roam: 0, invest: 1.3, hunt: 2.1, hear: 0.85, sight: 13, fov: 0.95, turn: 2.2, cycle: 1.7, label: 'sentinel', leash: 7 },
-  listener: { roam: 0.95, invest: 1.6, hunt: 2.0, hear: 1.7, sight: 3.2, fov: 2.4, turn: 3.2, cycle: 1.6, label: 'listener' }
+  stalker: { roam: 1.1, invest: 1.5, hunt: 2.25, hear: 1.0, sight: 9, fov: 1.75, turn: 3.5, cycle: 1.15, label: 'stalker' },
+  sentinel: { roam: 0, invest: 1.3, hunt: 2.1, hear: 0.85, sight: 13, fov: 0.95, turn: 2.2, cycle: 1.3, label: 'sentinel', leash: 7 },
+  listener: { roam: 0.95, invest: 1.6, hunt: 2.0, hear: 1.7, sight: 3.2, fov: 2.4, turn: 3.2, cycle: 1.0, label: 'listener' }
 };
 const DIRS8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 const BLOCK_SIGHT = { crate: 1, shelf: 1, pod: 1, barrel: 1 };
