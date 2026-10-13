@@ -3,14 +3,14 @@
 A first-person survival-horror game in one offline HTML file. Dark facilities, a flashlight, a limited **sonar pulse** that lights up walls, doors and creatures but makes noise, and a creature that comes to where the noise was.
 30 levels in 3 chapters, procedural 3D world (Three.js), procedural creature, procedural sound. No image or audio files.
 
-**Play:** open `HUSH-FP.html` in a browser (Chrome/Edge/Firefox/Safari; Android Chrome for phones). Landscape works best; portrait is supported.
+**Play:** open `HUSH-FP.html` in a browser (Chrome/Edge/Firefox/Safari; Android Chrome for phones). On phones it runs in **landscape only** (it asks for fullscreen + landscape, and shows a rotate screen in portrait).
 
 | | Touch | Keyboard / mouse |
 |---|---|---|
 | Move | floating stick (left half of the screen) | W A S D |
 | Look | drag (right half) | mouse (click the game to capture it) |
 | Sonar pulse | Pulse button | Space or Q |
-| Use / open / hide / take | Use button (lights up when something is in reach) | E |
+| Use / open / hide / take | **tap the thing** (door, locker, vent, item, generator, valve, exit) or tap the prompt | click the thing at the crosshair, or E |
 | Crouch (silent) | Crouch button | C or Ctrl |
 | Sprint (loud, limited stamina) | sprint toggle | Shift |
 | Flashlight / radio | tap the slot in the hotbar | F / R |

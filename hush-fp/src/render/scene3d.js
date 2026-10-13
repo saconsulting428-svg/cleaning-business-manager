@@ -49,8 +49,9 @@ export function buildScene(world, Q) {
   const spec = world.spec, theme = ['concrete', 'flood', 'nest'][spec.ch], TH = THEME[theme], R = rng32(spec.seed * 31 + 7), W = world.W, H = world.H, cells = world.cells;
   const scene = new THREE.Scene(); scene.background = new THREE.Color(0x000000); scene.fog = new THREE.FogExp2(TH.fog, TH.fogD * (spec.lightsOut ? 1.15 : 1));
   const tex = buildTextures(theme, Q.texSize), disposables = [];
-  const lit = (o) => (Q.lowMats ? new THREE.MeshLambertMaterial(o) : new THREE.MeshStandardMaterial(o));
-  const mk = (t, rep, o) => { const m = lit(Object.assign({ map: t.map, vertexColors: false }, o)); if (!Q.lowMats && t.normal) { m.normalMap = t.normal; m.normalScale = new THREE.Vector2(1.1, 1.1); } patchPulse(m); disposables.push(m); return m; };
+  const cheap = Q.mats !== 'std', useNormal = Q.mats !== 'lambert';
+  const lit = (o) => { if (cheap) { delete o.roughness; delete o.metalness; return new THREE.MeshLambertMaterial(o); } return new THREE.MeshStandardMaterial(o); };
+  const mk = (t, rep, o) => { const m = lit(Object.assign({ map: t.map, vertexColors: false }, o)); if (useNormal && t.normal) { m.normalMap = t.normal; m.normalScale = new THREE.Vector2(1.1, 1.1); } patchPulse(m); disposables.push(m); return m; };
   const wallMat = mk(tex.wall, 1, { vertexColors: true, roughness: theme === 'flood' ? 0.45 : 0.88, metalness: 0.02 });
   const floorMat = mk(tex.floor, 1, { vertexColors: true, roughness: theme === 'flood' ? 0.22 : theme === 'nest' ? 0.5 : 0.62, metalness: 0.05 });
   const ceilMat = mk(tex.ceil, 1, { vertexColors: true, roughness: 0.95 });
@@ -79,7 +80,7 @@ export function buildScene(world, Q) {
   const waterG = []; const glassG = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const t = cells[y * W + x]; if (t === T.WATER) { const g = new THREE.PlaneGeometry(TS, TS); g.rotateX(-Math.PI / 2); g.translate(x * TS + TS / 2, 0.07, y * TS + TS / 2); waterG.push(g); }
     if (t === T.GLASS) for (let s = 0; s < 9; s++) { const g = new THREE.BoxGeometry(0.1 + R() * 0.16, 0.012, 0.06 + R() * 0.1); g.rotateY(R() * 6.28); g.translate(x * TS + R() * TS, 0.02, y * TS + R() * TS); glassG.push(g); } }
-  let waterMesh = null; if (waterG.length) { const wm = lit({ color: TH.water, roughness: 0.04, metalness: 0.3, transparent: true, opacity: 0.78, normalMap: Q.lowMats ? null : tex.water.normal }); if (!Q.lowMats) { wm.normalScale = new THREE.Vector2(0.6, 0.6); tex.water.normal.repeat.set(1, 1); } patchPulse(wm); disposables.push(wm); waterMesh = new THREE.Mesh(mergeGeometries(waterG), wm); scene.add(waterMesh); }
+  let waterMesh = null; if (waterG.length) { const wm = lit({ color: TH.water, roughness: 0.04, metalness: 0.3, transparent: true, opacity: 0.78, normalMap: useNormal ? tex.water.normal : null }); if (useNormal) { wm.normalScale = new THREE.Vector2(0.6, 0.6); tex.water.normal.repeat.set(1, 1); } patchPulse(wm); disposables.push(wm); waterMesh = new THREE.Mesh(mergeGeometries(waterG), wm); scene.add(waterMesh); }
   if (glassG.length) { const gm = lit({ color: 0xcfe6f2, roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.7, emissive: 0x112233, emissiveIntensity: 0.3 }); patchPulse(gm); const gmesh = new THREE.Mesh(mergeGeometries(glassG), gm); scene.add(gmesh); }
   /* static props merged by material */
   const stat = { metal: [], crate: [], dark: [], flesh: [], emis: [] };
@@ -180,7 +181,7 @@ export function buildScene(world, Q) {
   for (const l of world.lights) { const kind = spec.lightsOut ? (R() < 0.8 ? 'dead' : l.kind) : l.kind; const m = kind === 'ok' ? lampMats.ok : kind === 'dead' ? lampMats.dead : lampMats.fl[Math.floor(R() * 3)];
     const mesh = new THREE.Mesh(lampGeo, m); mesh.position.set(l.x * TS, WH - 0.06, l.y * TS); mesh.rotation.y = R() < 0.5 ? 0 : Math.PI / 2; scene.add(mesh); housing.push(box(1.0, 0.04, 0.34, l.x * TS, WH - 0.02, l.y * TS, mesh.rotation.y)); fixtures.push({ x: l.x * TS, z: l.y * TS, kind, mat: m, ph: l.ph }); }
   if (housing.length) addMesh(mergeGeometries(housing), darkMat, false, false);
-  const sceneAmb = new THREE.HemisphereLight(TH.amb, 0x050507, TH.ambI * (spec.lightsOut ? 0.6 : 1) * 1.7); scene.add(sceneAmb);
+  const sceneAmb = new THREE.HemisphereLight(TH.amb, 0x050507, TH.ambI * (spec.lightsOut ? 0.6 : 1) * (Q.mats === 'std' ? 1.7 : 2.2)); scene.add(sceneAmb);
   /* nest: an organic glow in every wall pocket and floor veins */
   return { scene, group, dyn, fixtures, lampMats, theme, TH, tex, waterMesh, disposables, wallMat, floorMat, amb: sceneAmb };
 }

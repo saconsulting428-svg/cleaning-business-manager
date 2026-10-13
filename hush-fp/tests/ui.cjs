@@ -29,6 +29,22 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright'); const p
   await p.click('#p-settings'); t('settings open from pause', await vis('ov-settings')); await p.click('#set-gfx button[data-v="low"]'); await p.fill('#set-bright', '120'); await p.click('#s-tabs button[data-t="audio"]'); t('audio tab shows', await p.evaluate(() => document.getElementById('sp-audio').classList.contains('on'))); await p.click('#s-close');
   await p.click('#p-resume'); t('resume closes the pause menu', !(await vis('ov-pause')) && !(await p.evaluate(() => HUSH.G.paused)));
   const q = await p.evaluate(() => HUSH.view().qName); t('graphics setting applied (low)', q === 'low', q);
+  /* tap on things: no Use button, the object under the finger is used */
+  await p.evaluate(() => HUSH.startLevel(4)); await inGame();
+  const tapObj = async (pick, label, check, setup) => {
+    const info = await p.evaluate(([pick, setup]) => { const w = HUSH.world(), o = w.objs.find(new Function('o', 'return ' + pick)); if (!o) return null; const pl = w.player; pl.hidden = -1; pl.crouch = false; const dx = Math.cos(o.face === undefined ? 0 : o.face), dy = Math.sin(o.face === undefined ? 0 : o.face); if (o.type === 'door') { pl.x = o.x + 0.5 - (o.dir === 'x' ? 1.4 : 0); pl.y = o.y + 0.5 - (o.dir === 'y' ? 1.4 : 0); pl.yaw = o.dir === 'x' ? 0 : Math.PI / 2; } else if (o.type === 'locker' || o.type === 'vent') { pl.x = o.x + 0.5 + dx * 1.3; pl.y = o.y + 0.5 + dy * 1.3; pl.yaw = o.face + Math.PI; } else { pl.x = o.x + 0.5; pl.y = o.y + 1.3; pl.yaw = -Math.PI / 2; } pl.px = pl.x; pl.py = pl.y; HUSH.step(2, {}); return { id: o.id }; }, [pick, setup]);
+    if (!info) return t(label + ' (no such object in level)', false);
+    await p.waitForTimeout(400); const xy = await p.evaluate((id) => HUSH.proj(HUSH.world().objById.get(id)), info.id);
+    await touch('pointerdown', 21, xy[0], xy[1]); await touch('pointerup', 21, xy[0], xy[1]);
+    await p.waitForFunction(check, info.id, { timeout: 8000 }).catch(() => {}); t(label, await p.evaluate(check, info.id), xy);
+  };
+  await tapObj("o.type === 'door' && !o.lock", 'tapping a door opens it', (id) => HUSH.world().objById.get(id).want === 1);
+  await tapObj("o.type === 'locker'", 'tapping a locker hides in it', () => HUSH.world().player.hidden >= 0);
+  await touch('pointerdown', 22, 420, 200); await touch('pointerup', 22, 420, 200); await p.waitForFunction(() => HUSH.world().player.hidden < 0, null, { timeout: 8000 }).catch(() => {}); t('tapping while hidden leaves the locker', await p.evaluate(() => HUSH.world().player.hidden < 0));
+  t('no Use button on screen', await p.evaluate(() => !document.getElementById('b-use')));
+  await p.evaluate(() => HUSH.startLevel(0)); await inGame();
+  const interp = await p.evaluate(() => { const w = HUSH.world(), v = HUSH.view(); HUSH.pause(true); w.player.crouch = false; for (let i = 0; i < 12; i++) w.update(1 / 30, { fwd: 1 }); w.update(1 / 30, { fwd: 1 }); const xs = []; for (const a of [0, 0.25, 0.5, 0.75, 1]) { v.frame(w, 0.008, 5 + a, { alpha: a }); xs.push(Math.hypot(v.camera.position.x, v.camera.position.z)); } HUSH.pause(false); return xs; });
+  t('rendering interpolates between logic ticks (smooth motion at any refresh rate)', interp.every((x, i) => i === 0 || Math.abs(x - interp[i - 1]) > 1e-4) && interp.length === 5, interp);
   /* death -> retry */
   await p.evaluate(() => { const w = HUSH.world(); const c = w.creatures[0]; if (!c) { w.catchPlayer({ id: 0, x: w.player.x + 1, y: w.player.y }); w.caughtBy = { x: w.player.x + 1, y: w.player.y }; } else { w.catchPlayer(c); } }); await p.waitForTimeout(2600); t('being caught shows the Caught screen', await vis('ov-dead'));
   await p.click('#d-retry'); await inGame(); t('Try again restarts the level (alive, no overlay)', await p.evaluate(() => HUSH.world().player.alive && !document.getElementById('ov-dead').classList.contains('show')));

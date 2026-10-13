@@ -26,14 +26,16 @@ function make(n, seed, painter, normalStrength) {
     let nx = (l - r) * s, ny = (u - d) * s, nz = 1; const len = Math.hypot(nx, ny, nz); nx /= len; ny /= len; nz /= len; const i = (y * n + x) * 4;
     nrm[i] = (nx * 0.5 + 0.5) * 255; nrm[i + 1] = (ny * 0.5 + 0.5) * 255; nrm[i + 2] = (nz * 0.5 + 0.5) * 255; nrm[i + 3] = 255;
   }
-  const mk = (data, srgb) => { const cv = document.createElement('canvas'); cv.width = cv.height = n; cv.getContext('2d').putImageData(new ImageData(data, n, n), 0, 0); const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
+  const mk = (data, srgb) => { const cv = document.createElement('canvas'); cv.width = cv.height = n; cv.getContext('2d').putImageData(new ImageData(data, n, n), 0, 0); const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
   return { map: mk(col, true), normal: mk(nrm, false) };
 }
 function cracks(n, h, col, R, count, darken) {
   for (let c = 0; c < count; c++) { let x = R() * n, y = R() * n, a = R() * 6.28; const len = 40 + R() * 120; for (let i = 0; i < len; i++) { a += (R() - 0.5) * 0.7; x += Math.cos(a); y += Math.sin(a); const ix = ((x % n) + n) % n | 0, iy = ((y % n) + n) % n | 0, k = iy * n + ix; h[k] -= 0.35; col[k * 4] *= darken; col[k * 4 + 1] *= darken; col[k * 4 + 2] *= darken; if (R() < 0.15) { const k2 = (((iy + 1) % n) * n + ix); h[k2] -= 0.15; } } }
 }
 
+const CACHE = {};
 export function buildTextures(theme, size) {
+  const ck = theme + ':' + (size || 512); if (CACHE[ck]) return CACHE[ck];
   const n = size || 512, T = {};
   const C = { concrete: { lo: [36, 34, 32], hi: [96, 90, 80], stain: [22, 18, 14] }, flood: { lo: [38, 50, 58], hi: [92, 112, 122], stain: [18, 30, 34] }, nest: { lo: [52, 28, 30], hi: [118, 70, 66], stain: [30, 8, 10] } }[theme] || null;
   /* WALL: panelled concrete / tiled / flesh */
@@ -73,7 +75,8 @@ export function buildTextures(theme, size) {
   T.crate = make(n, 15, ({ col, h, R, set }) => { const f1 = fbmField(n, 4, 71, 4); for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * n + x, plank = Math.floor(y / (n / 5)), edge = (y % (n / 5) < 3); const grain = Math.sin((x * 0.15) + f1[i] * 9 + plank * 7) * 0.5 + 0.5; let k = 0.55 + grain * 0.35 + f1[i] * 0.2; if (edge) k *= 0.4; set(x, y, 96 * k, 72 * k, 44 * k, grain * 0.3 - (edge ? 0.7 : 0)); } }, 2.4);
   /* WATER normal (animated by offset) */
   T.water = make(n, 16, ({ col, h, set }) => { const f1 = fbmField(n, 5, 81, 6); for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const v = f1[y * n + x]; set(x, y, 20, 40, 52, v); } }, 5);
-  return T;
+  for (const k of Object.keys(T)) { T[k].map.userData.shared = true; T[k].normal.userData.shared = true; }
+  return (CACHE[ck] = T);
 }
 function fbmStreak(st, x, y, n) { return st[((y * 0.25) | 0) * n % (n * n) + x] * 0.6 + st[((y * 0.07) | 0) * n + ((x + 37) % n)] * 0.4; }
 /* a small texture drawn with 2D canvas calls (signs, stripes, glyphs) */

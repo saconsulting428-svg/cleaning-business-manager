@@ -108,12 +108,17 @@ function drawNoise(w, dt) {
   const n = $('noise'); n.classList.toggle('alert', ni.hunted); n.classList.toggle('warn', !ni.hunted && ni.alert > 0.3); n.classList.toggle('show', ni.hunted || ni.noise > 0.45); $('noise-msg').textContent = ni.hunted ? 'The creature has seen you. Run or hide!' : ni.noise > 0.45 ? 'Your sound is attracting something...' : '';
 }
 function banner(text, cls, ms) { const b = $('banner'); b.textContent = text; b.className = 'banner show ' + cls; G.bannerT = (ms || 1800) / 1000; }
+const HC = {};                                                   // last values written to the DOM: nothing is touched unless it changed (cheap on phones)
+function setT(id, v) { if (HC[id] !== v) { HC[id] = v; $(id).textContent = v; } }
+function setC(id, cls, on) { const k = id + cls; if (HC[k] !== on) { HC[k] = on; $(id).classList.toggle(cls, on); } }
+function setO(id, v) { v = Math.round(v * 20) / 20; if (HC[id + 'o'] !== v) { HC[id + 'o'] = v; $(id).style.opacity = v; } }
 function hud(w, dt) {
-  const p = w.player; $('obj-text').textContent = w.objective().current; $('pulse-n').textContent = p.pulses; $('b-pulse').classList.toggle('dim', p.pulses <= 0); buildHotbar(false);
-  const pr = w.prompt; const pe = $('prompt'); if (pr && !G.modal) { pe.classList.add('show'); pe.classList.toggle('no', /^Locked|needs/.test(pr.text)); $('prompt-text').textContent = pr.text; } else pe.classList.remove('show'); $('b-use').classList.toggle('can', !!pr && !/^Locked|needs/.test(pr.text));
-  const st = $('stam'); st.classList.toggle('show', p.stamina < 0.98); st.classList.toggle('tired', p.tired); st.firstChild.style.width = (p.stamina * 100) + '%'; $('b-crouch').classList.toggle('on', p.crouch);
-  if (G.bannerT > 0) { G.bannerT -= dt; if (G.bannerT <= 0) $('banner').classList.remove('show'); } if (G.hintT > 0) { G.hintT -= dt; if (G.hintT <= 0) $('hint').classList.remove('show'); }
-  drawNoise(w, dt); $('fx-locker').style.opacity = p.hidden >= 0 ? 1 : 0; const th = w.threat; $('fx-hurt').style.opacity = (w.over === 'dead') ? 0.9 : Math.max(0, th - 0.55) * 0.9 * (0.7 + 0.3 * Math.sin(G.now * 6));
+  const p = w.player; G.hudT = (G.hudT || 0) + dt; if (G.bannerT > 0) { G.bannerT -= dt; if (G.bannerT <= 0) $('banner').classList.remove('show'); } if (G.hintT > 0) { G.hintT -= dt; if (G.hintT <= 0) $('hint').classList.remove('show'); }
+  if (G.hudT < 0.066) return; const dtH = G.hudT; G.hudT = 0;
+  setT('obj-text', w.objective().current); setT('pulse-n', p.pulses); setC('b-pulse', 'dim', p.pulses <= 0); buildHotbar(false);
+  const pr = w.prompt, show = !!(pr && !G.modal); setC('prompt', 'show', show); if (show) { setC('prompt', 'no', /^Locked|needs/.test(pr.text)); setT('prompt-text', pr.text); }
+  const st = $('stam'); setC('stam', 'show', p.stamina < 0.98); setC('stam', 'tired', p.tired); const sw = Math.round(p.stamina * 50) * 2 + '%'; if (HC.stw !== sw) { HC.stw = sw; st.firstChild.style.width = sw; } setC('b-crouch', 'on', p.crouch);
+  drawNoise(w, dtH); setO('fx-locker', p.hidden >= 0 ? 1 : 0); const th = w.threat; setO('fx-hurt', (w.over === 'dead') ? 0.9 : Math.max(0, th - 0.55) * 0.9);
 }
 
 /* ---------------- events -> sound, banners, vibration ---------------- */
@@ -170,28 +175,50 @@ window.addEventListener('blur', () => { inp.keys = {}; if (G.mode === 'game' && 
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'game' && !G.over) pause(true); });
 document.addEventListener('pointerlockchange', () => { if (G.mode === 'game' && !document.pointerLockElement && !G.paused && !G.over && !G.modal && !coarse && !anyOverlay()) pause(true); });
 document.addEventListener('mousemove', (e) => { if (!document.pointerLockElement || G.paused || G.modal) return; const s = 0.0022 * save.set.sens / 100; inp.dyaw += e.movementX * s; inp.dpitch += -e.movementY * s * (save.set.inv ? -1 : 1); });
-$('view').addEventListener('mousedown', () => { if (G.mode === 'game' && !G.paused && !G.modal && !coarse && !G.over) lockPointer(); });
+$('view').addEventListener('mousedown', (e) => { if (G.mode === 'game' && !G.paused && !G.modal && !coarse && !G.over) { if (document.pointerLockElement) { const r = $('view').getBoundingClientRect(); tapAt(r.left + r.width / 2, r.top + r.height / 2); } else lockPointer(); } });
+/* tap or click a thing to use it: the object nearest the tap on screen, within reach (doors, lockers, items, vents, generator, valve, exit) */
+const REACH_H = { door: 1.3, locker: 1.0, item: 0.95, generator: 0.9, valve: 1.2, note: 0.1, vent: 0.55, exit: 1.3 };
+function tapAt(cx, cy) {
+  const w = G.world, v = G.view; if (!w || G.paused || G.modal || G.over || !w.player.alive) return false; const p = w.player;
+  if (p.hidden >= 0) { inp.edge.interact = true; return true; }
+  const rect = $('view').getBoundingClientRect(), R = Math.max(80, Math.min(rect.width, rect.height) * 0.2); let best = null, bd = 1e9; const tmp = v.tmpV || (v.tmpV = v.camera.position.clone());
+  v.camera.updateMatrixWorld(true);
+  for (const o of w.objs) {
+    if (!REACH_H[o.type] || (o.type === 'item' && o.taken) || (o.type === 'door' && o.hidden && !o.revealed)) continue; const d = Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y); if (d > 3.4) continue;
+    tmp.set((o.x + 0.5) * 2, REACH_H[o.type], (o.y + 0.5) * 2).project(v.camera); if (tmp.z > 1 || tmp.z < -1) continue;
+    const sx = (tmp.x * 0.5 + 0.5) * rect.width + rect.left, sy = (-tmp.y * 0.5 + 0.5) * rect.height + rect.top, dd = Math.hypot(sx - cx, sy - cy) / (o.type === 'door' || o.type === 'exit' ? 1.6 : 1) + d * 4;
+    if (dd < R && dd < bd) { bd = dd; best = o; }
+  }
+  if (best) { const ok = w.interactWith(best); if (ok) v.reach(); return ok; }
+  if (w.prompt && Math.hypot(cx - (rect.left + rect.width / 2), cy - (rect.top + rect.height / 2)) < R * 1.6) { inp.edge.interact = true; return true; }
+  return false;
+}
+$('prompt').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (G.mode === 'game' && !G.paused && !G.modal && !G.over) inp.edge.interact = true; });
 /* touch: a floating stick on the left, look-drag on the right, buttons */
 const touch = { stick: null, look: null }; const R = 56;
 function stickReset() { touch.stick = null; inp.fwd = 0; inp.str = 0; const st = $('stick'); st.firstChild.style.transform = ''; st.style.left = ''; st.style.top = ''; st.style.bottom = ''; }
 $('scr-game').addEventListener('pointerdown', (e) => {
   if (G.mode !== 'game' || G.paused || G.modal || G.over) return; if (e.target.closest('.act, .slot, .icon-btn, .hotbar, .overlay')) return; const half = innerWidth * 0.45;
-  if (e.clientX < half && !touch.stick) { touch.stick = { id: e.pointerId, x: e.clientX, y: e.clientY }; const st = $('stick'); st.style.left = (e.clientX - 66) + 'px'; st.style.top = (e.clientY - 66) + 'px'; st.style.bottom = 'auto'; st.style.display = 'block'; }
-  else if (e.clientX >= half && !touch.look) touch.look = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  if (e.clientX < half && !touch.stick) { touch.stick = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: false }; const st = $('stick'); st.style.left = (e.clientX - 66) + 'px'; st.style.top = (e.clientY - 66) + 'px'; st.style.bottom = 'auto'; st.style.display = 'block'; }
+  else if (e.clientX >= half && !touch.look) touch.look = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now(), moved: false };
   try { $('scr-game').setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
 });
 $('scr-game').addEventListener('pointermove', (e) => {
-  if (touch.stick && e.pointerId === touch.stick.id) { let dx = e.clientX - touch.stick.x, dy = e.clientY - touch.stick.y; const d = Math.hypot(dx, dy); if (d > R) { dx = dx / d * R; dy = dy / d * R; } $('stick').firstChild.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'; inp.str = dx / R; inp.fwd = -dy / R; if (Math.hypot(inp.str, inp.fwd) < 0.12) { inp.str = inp.fwd = 0; } }
-  else if (touch.look && e.pointerId === touch.look.id) { const s = 0.0052 * save.set.sens / 100; inp.dyaw += (e.clientX - touch.look.x) * s; inp.dpitch += -(e.clientY - touch.look.y) * s * (save.set.inv ? -1 : 1); touch.look.x = e.clientX; touch.look.y = e.clientY; }
+  if (touch.stick && e.pointerId === touch.stick.id) { let dx = e.clientX - touch.stick.x, dy = e.clientY - touch.stick.y; const d = Math.hypot(dx, dy); if (d > 12) touch.stick.moved = true; if (d > R) { dx = dx / d * R; dy = dy / d * R; } $('stick').firstChild.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'; inp.str = dx / R; inp.fwd = -dy / R; if (Math.hypot(inp.str, inp.fwd) < 0.12) { inp.str = inp.fwd = 0; } }
+  else if (touch.look && e.pointerId === touch.look.id) { if (Math.hypot(e.clientX - touch.look.sx, e.clientY - touch.look.sy) > 12) touch.look.moved = true; const s = 0.0052 * save.set.sens / 100; inp.dyaw += (e.clientX - touch.look.x) * s; inp.dpitch += -(e.clientY - touch.look.y) * s * (save.set.inv ? -1 : 1); touch.look.x = e.clientX; touch.look.y = e.clientY; }
 });
-const endTouch = (e) => { if (touch.stick && e.pointerId === touch.stick.id) stickReset(); if (touch.look && e.pointerId === touch.look.id) touch.look = null; };
+const endTouch = (e) => {
+  const t0 = performance.now();
+  if (touch.stick && e.pointerId === touch.stick.id) { const st = touch.stick; if (t0 - st.t < 320 && !st.moved) tapAt(st.x, st.y); stickReset(); }
+  if (touch.look && e.pointerId === touch.look.id) { const lk = touch.look; if (t0 - lk.t < 320 && !lk.moved) tapAt(lk.sx, lk.sy); touch.look = null; }
+};
 $('scr-game').addEventListener('pointerup', endTouch); $('scr-game').addEventListener('pointercancel', endTouch);
 const press = (id, fn) => { const el = $(id); el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (G.mode === 'game' && !G.paused && !G.modal && !G.over) fn(); }); };
-press('b-pulse', () => { inp.edge.pulse = true; }); press('b-crouch', () => { inp.edge.crouch = true; }); press('b-use', () => { inp.edge.interact = true; }); press('b-sprint', () => { inp.sprintBtn = !inp.sprintBtn; $('b-sprint').classList.toggle('on', inp.sprintBtn); });
+press('b-pulse', () => { inp.edge.pulse = true; }); press('b-crouch', () => { inp.edge.crouch = true; }); press('b-sprint', () => { inp.sprintBtn = !inp.sprintBtn; $('b-sprint').classList.toggle('on', inp.sprintBtn); });
 $('b-pause').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); pause(true); });
 
 /* ---------------- menu wiring ---------------- */
-$('m-play').onclick = () => { Sound.play('ui'); buildChapters(); show('chapters'); }; $('m-levels').onclick = () => { Sound.play('ui'); G.chapterView = Math.min(2, Math.floor(save.last / 10)); buildLevels(); show('levels'); };
+$('m-play').onclick = () => { landscape(); Sound.play('ui'); buildChapters(); show('chapters'); }; $('m-levels').onclick = () => { Sound.play('ui'); G.chapterView = Math.min(2, Math.floor(save.last / 10)); buildLevels(); show('levels'); };
 $('m-settings').onclick = () => { Sound.play('ui'); openSettings(); }; $('m-how').onclick = () => { Sound.play('ui'); overlay('how', true); }; $('m-credits').onclick = () => { Sound.play('ui'); overlay('credits', true); };
 $('m-exit').onclick = () => { Sound.play('ui'); try { window.close(); } catch (e) { /* ignore */ } toMenu(); };
 qa('[data-go]').forEach(b => { b.onclick = () => { Sound.play('ui'); const g = b.getAttribute('data-go'); if (g === 'chapters') buildChapters(); show(g); }; });
@@ -199,14 +226,16 @@ qa('[data-close]').forEach(b => { b.onclick = () => { Sound.play('ui'); overlay(
 $('p-resume').onclick = () => pause(false); $('p-restart').onclick = () => { Sound.play('ui'); overlay('pause', false); startLevel(G.level); }; $('p-settings').onclick = () => openSettings(); $('p-menu').onclick = () => { Sound.play('ui'); toMenu(); };
 $('w-next').onclick = () => { Sound.play('ui'); overlay('win', false); startLevel(Math.min(LEVELS.length - 1, G.level + 1)); }; $('w-retry').onclick = () => { overlay('win', false); startLevel(G.level); }; $('w-menu').onclick = () => { overlay('win', false); toMenu(); buildLevels(); show('levels'); };
 $('d-retry').onclick = () => { overlay('dead', false); startLevel(G.level); }; $('d-menu').onclick = () => { overlay('dead', false); toMenu(); buildLevels(); show('levels'); };
-$('gate-go').onclick = () => { overlay('gate', false); Sound.unlock(); applyAudio(); Sound.scene({ menu: true }); Sound.play('ui'); };
+function landscape() { try { const el = document.documentElement; if (coarse && !document.fullscreenElement && el.requestFullscreen) { const r = el.requestFullscreen({ navigationUI: 'hide' }); if (r && r.then) r.then(() => { if (screen.orientation && screen.orientation.lock) return screen.orientation.lock('landscape'); }).catch(() => {}); } else if (screen.orientation && screen.orientation.lock && coarse) screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* not supported */ } }
+if (window.matchMedia) { const mq = matchMedia('(orientation: portrait)'); const f = () => { if (coarse && mq.matches && G.mode === 'game' && !G.over) pause(true); }; if (mq.addEventListener) mq.addEventListener('change', f); }
+$('gate-go').onclick = () => { landscape(); overlay('gate', false); Sound.unlock(); applyAudio(); Sound.scene({ menu: true }); Sound.play('ui'); };
 /* settings */
 function openSettings() { syncSettings(); overlay('settings', true); }
 $('s-close').onclick = () => { overlay('settings', false); persist(); };
 qa('#s-tabs button').forEach(b => { b.onclick = () => { qa('#s-tabs button').forEach(x => x.classList.toggle('on', x === b)); qa('.spage').forEach(p => p.classList.toggle('on', p.id === 'sp-' + b.getAttribute('data-t'))); }; });
 function seg(id, key, fn) { qa('#' + id + ' button').forEach(b => { b.onclick = () => { save.set[key] = b.getAttribute('data-v'); syncSettings(); fn && fn(); persist(); Sound.play('ui'); }; }); }
 function syncSettings() { const s = save.set; qa('#set-gfx button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.gfx)); qa('#set-aq button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.aq)); qa('#set-diff button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.diff)); $('set-bright').value = s.bright; $('set-vibe').checked = s.vibe; $('set-hints').checked = s.hints; $('set-vol').value = s.vol; $('set-mvol').value = s.mvol; $('v-vol').textContent = s.vol + '%'; $('v-mvol').textContent = s.mvol + '%'; $('set-sound').checked = s.sound; $('set-music').checked = s.music; $('set-sens').value = s.sens; $('set-inv').checked = s.inv; }
-function applyGfx() { const g = save.set.gfx, v = G.view; v.autoQ = g === 'auto'; v.setQuality(g === 'auto' ? (isMobile ? 'medium' : 'high') : g); v.brightness = save.set.bright / 100; }
+function applyGfx() { const g = save.set.gfx, v = G.view; v.autoQ = g === 'auto' && (!TEST || /[?&]adapt=1\b/.test(location.search)); v.setQuality(g === 'auto' ? (isMobile ? 'medium' : 'high') : g); v.brightness = save.set.bright / 100; }
 seg('set-gfx', 'gfx', () => { applyGfx(); if (G.world) G.view.loadLevel(G.world); else startMenuScene(); }); seg('set-diff', 'diff', () => { if (G.world && !G.over) G.world.diff = { easy: { sight: 0.75, alert: 0.7, speed: 0.9 }, normal: { sight: 1, alert: 1, speed: 1 }, hard: { sight: 1.2, alert: 1.3, speed: 1.12 } }[save.set.diff]; }); seg('set-aq', 'aq', () => { Sound.setQuality(save.set.aq); Sound.unlock(); applyAudio(); });
 const bindR = (id, key, fn) => { $(id).oninput = () => { save.set[key] = +$(id).value; fn && fn(); syncSettings(); }; $(id).onchange = persist; }, bindC = (id, key, fn) => { $(id).onchange = () => { save.set[key] = $(id).checked; fn && fn(); persist(); }; };
 bindR('set-bright', 'bright', () => { G.view.brightness = save.set.bright / 100; }); bindR('set-vol', 'vol', applyAudio); bindR('set-mvol', 'mvol', applyAudio); bindR('set-sens', 'sens'); bindC('set-vibe', 'vibe', applyAudio); bindC('set-hints', 'hints'); bindC('set-sound', 'sound', applyAudio); bindC('set-music', 'music', applyAudio); bindC('set-inv', 'inv');
@@ -223,13 +252,13 @@ function frame(ts) {
   if (G.mode === 'game' && G.world) {
     const w = G.world;
     if (!G.paused && !G.modal) { G.acc += dt; let n = 0; while (G.acc >= DT && n++ < 8) { const i = tickInput(); w.update(DT, i); if (!G.over || w.over === 'dead') G.timeSpent += DT; G.acc -= DT; handleEvents(w, DT); } if (n >= 8) G.acc = 0; }
-    hud(w, dt); v.frame(w, G.paused || G.modal ? 0 : dt, now);
+    hud(w, dt); const pl = w.player, free = pl.alive && pl.hidden < 0 && !pl.vent && !G.paused && !G.modal; v.frame(w, G.paused || G.modal ? 0 : dt, now, { alpha: G.paused || G.modal ? 1 : clamp(G.acc / DT, 0, 1), look: free ? { yaw: pl.yaw + inp.dyaw, pitch: clamp(pl.pitch + inp.dpitch, -1.25, 1.25) } : null });
   } else if (G.menuWorld) { G.menuT += dt; const w = G.menuWorld; w.update(dt, {}); w.drainEvents(); v.setMenuCamera(w, G.menuT); v.camera.updateMatrixWorld(true); v.flashRig.position.copy(v.camera.position); v.flashRig.quaternion.copy(v.camera.quaternion); v.flash.intensity = 200; v.cone.visible = true; v.coneMat.uniforms.uInt.value = 0.1; v.handRoot.visible = false; v.menuFrame(w, dt, now); Sound.tick && Sound.tick(dt, 0, false); }
 }
 async function boot() {
-  const v = G.view = new View($('view'), isMobile ? 'medium' : 'high'); v.onQuality = (q) => { save.set.gfx = save.set.gfx === 'auto' ? 'auto' : save.set.gfx; }; applyGfx(); applyAudio(); window.addEventListener('resize', () => v.resize());
+  const v = G.view = new View($('view'), isMobile ? 'medium' : 'high', { aa: !isMobile }); v.onQuality = (q) => { save.set.gfx = save.set.gfx === 'auto' ? 'auto' : save.set.gfx; }; if (isMobile) v.resScale = 0.85; applyGfx(); applyAudio(); window.addEventListener('resize', () => v.resize());
   setLoading(true, 'Preparing the facility', 30); await nextFrame(); for (let i = 0; i < 30; i++) { gen(i); if (i % 6 === 0) { setLoading(true, null, 30 + i); await nextFrame(); } }
   await startMenuScene(); G.mode = 'home'; show('home'); syncSettings(); setLoading(false, null, 100); overlay('gate', !TEST); requestAnimationFrame(frame); Sound.setQuality(save.set.aq);
 }
 boot();
-if (TEST) { window.HUSH = { G, save, inp, startLevel, toMenu, pause, view: () => G.view, world: () => G.world, LEVELS, runBot: (n) => runBot(G.world, n || 600), gen, step: (n, i) => { for (let k = 0; k < (n || 1); k++) { G.world.update(DT, i || {}); G.timeSpent += DT; handleEvents(G.world, DT); } }, unlockAll: () => { save.stars = LEVELS.map(() => 1); persist(); }, buildLevels, buildChapters, show }; }
+if (TEST) { window.HUSH = { G, save, inp, tapAt, proj: (o) => { const v = G.view, r = $('view').getBoundingClientRect(), t = v.camera.position.clone(); v.camera.updateMatrixWorld(true); t.set((o.x + 0.5) * 2, REACH_H[o.type] || 1, (o.y + 0.5) * 2).project(v.camera); return [(t.x * 0.5 + 0.5) * r.width + r.left, (-t.y * 0.5 + 0.5) * r.height + r.top]; }, startLevel, toMenu, pause, view: () => G.view, world: () => G.world, LEVELS, runBot: (n) => runBot(G.world, n || 600), gen, step: (n, i) => { for (let k = 0; k < (n || 1); k++) { G.world.update(DT, i || {}); G.timeSpent += DT; handleEvents(G.world, DT); } }, unlockAll: () => { save.stars = LEVELS.map(() => 1); persist(); }, buildLevels, buildChapters, show }; }

@@ -28,3 +28,10 @@
 
 ## Bugs found and fixed while testing
 Wall normals were inverted (black walls); a creature opening a door heard itself and looped forever; creatures spawned behind locked doors could not roam; guards spawned in the exit room or where a vent comes out; the vent exit could land on a prop; the start room had no locker.
+
+## Round 2 - smoothness, sharpness, landscape, tap to use
+- **Smooth:** the renderer now interpolates the player and creatures between the 30 Hz logic ticks and applies look input at display rate (before, the picture only moved 30 times a second, which feels laggy on 60/90/120 Hz screens). Costly CSS effects were removed (an animated blended film-grain layer over the canvas, backdrop blur), the HUD only touches the DOM when a value changes, lights per pixel were cut (1 lamp light + flashlight on phones instead of 3 + head light + 2 monster lights), phones use cheaper lit materials with no shadow pass.
+- **Sharp:** render resolution is now up to 2x device pixels (2.5x on High) instead of 1.5x, textures are 512 px with 8x anisotropy and are cached per chapter. Dynamic resolution keeps the frame rate: if frames get slow the resolution steps down (never below 0.6x), with headroom it climbs back; only then does the quality tier drop.
+- **Landscape only on phones:** fullscreen + orientation lock on the first tap, and a rotate screen with auto-pause in portrait.
+- **No Use button:** tap or click an object to use it (nearest to the finger within reach); tapping the prompt also works; E still works on keyboard. Tests added for tapping a door and a locker, tapping to leave, and for interpolation. `tests/ui.cjs` 41/41.
+- Still unmeasured on a real phone. SwiftShader (CPU) timings are not a guide to a phone GPU.

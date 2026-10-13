@@ -96,9 +96,15 @@ export class World {
     }
     return null;
   }
-  interact() {
+  /* tap / click on a thing: use it if it is within reach and in view (no separate Use button needed) */
+  interactWith(o) {
+    const p = this.player; if (!p.alive || p.vent || this.over) return false; if (p.hidden >= 0) { this.leaveLocker(); return true; }
+    const d = Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y); if (d > (o.type === 'door' ? 2.3 : 2.6)) { this.events.push({ type: 'toofar', text: 'Too far: get closer' }); return false; }
+    const t = this.describe(o); if (!t) return false; this.interact(t); return true;
+  }
+  interact(forced) {
     const p = this.player; if (!p.alive || p.vent || this.over) return;
-    const t = this.interactTarget(); if (!t) return; const o = t.obj;
+    const t = forced || this.interactTarget(); if (!t) return; const o = t.obj;
     if (t.kind === 'unhide') return this.leaveLocker();
     switch (t.kind) {
       case 'door':
@@ -120,12 +126,12 @@ export class World {
   enterCode(doorId, code) { const d = this.objById.get(doorId); if (!d || !this.keypad) return false; if (String(code) === d.code) { d.codeOk = true; this.keypad = null; this.refreshLocks(); this.openDoor(d, true); this.events.push({ type: 'unlock', x: d.x + 0.5, y: d.y + 0.5 }); return true; } this.events.push({ type: 'denied', text: 'Wrong code' }); emitNoise(this, d.x + 0.5, d.y + 0.5, 4, 'keypad'); return false; }
   pickup(o) { o.taken = true; this.player.inv[o.kind]++; this.events.push({ type: 'pickup', kind: o.kind, x: o.x + 0.5, y: o.y + 0.5 }); }
   enterLocker(L) {
-    const p = this.player; p.hidden = L.id; p.x = L.x + 0.5 - Math.cos(L.face) * 0.15; p.y = L.y + 0.5 - Math.sin(L.face) * 0.15; p.yaw = L.face; p.vx = p.vy = 0; p.hideT = 0; p.crouch = false;
+    const p = this.player; p.hidden = L.id; p.x = L.x + 0.5 - Math.cos(L.face) * 0.15; p.y = L.y + 0.5 - Math.sin(L.face) * 0.15; p.px = p.x; p.py = p.y; p.yaw = L.face; p.vx = p.vy = 0; p.hideT = 0; p.crouch = false;
     this.events.push({ type: 'hide', x: L.x + 0.5, y: L.y + 0.5 }); emitNoise(this, L.x + 0.5, L.y + 0.5, 2.2, 'locker');
     /* creatures that are hunting and can see the locker door remember where you went */
     for (const c of this.creatures) if (c.state === 'hunt' && Math.hypot(c.x - L.x, c.y - L.y) < 6.5 && lineOfSight(this, c.x, c.y, L.x + 0.5, L.y + 0.5)) c.knowsLocker = L.id;
   }
-  leaveLocker() { const p = this.player, L = this.objById.get(p.hidden); if (!L) return; p.hidden = -1; p.x = L.x + 0.5 + Math.cos(L.face) * 0.62; p.y = L.y + 0.5 + Math.sin(L.face) * 0.62; this.events.push({ type: 'hide', x: p.x, y: p.y, out: true }); }
+  leaveLocker() { const p = this.player, L = this.objById.get(p.hidden); if (!L) return; p.hidden = -1; p.x = L.x + 0.5 + Math.cos(L.face) * 0.62; p.y = L.y + 0.5 + Math.sin(L.face) * 0.62; p.px = p.x; p.py = p.y; this.events.push({ type: 'hide', x: p.x, y: p.y, out: true }); }
   enterVent(v) {
     const p = this.player, pr = this.objById.get(v.pair); if (!pr) return;
     p.vent = { t: 0, dur: 2.4, from: v, to: pr }; this.events.push({ type: 'vent', x: v.x + 0.5, y: v.y + 0.5 }); emitNoise(this, v.x + 0.5, v.y + 0.5, 3, 'vent');
@@ -145,7 +151,7 @@ export class World {
   catchPlayer(c) { if (this.god || !this.player.alive) { if (this.god) { c.state = 'search'; c.searchT = 3; c.target = null; } return; } this.player.alive = false; this.over = 'dead'; this.caughtBy = c; this.events.push({ type: 'caught', id: c.id }); }
   /* ---------- the tick ---------- */
   update(dt, inp) {
-    inp = inp || {}; const p = this.player; this.time += dt; this.noiseLevel = Math.max(0, this.noiseLevel - dt * 0.9);
+    inp = inp || {}; const p = this.player; p.px = p.x; p.py = p.y; for (const c of this.creatures) { c.px = c.x; c.py = c.y; c.pyaw = c.yaw; } this.time += dt; this.noiseLevel = Math.max(0, this.noiseLevel - dt * 0.9);
     if (this.over && this.over !== 'win') { for (const c of this.creatures) c.moving = false; return; }
     if (this.over === 'win') return;
     if (p.alive) this.updatePlayer(dt, inp);
@@ -164,7 +170,7 @@ export class World {
     const p = this.player;
     if (inp.flash) this.toggleFlash(); if (inp.pulse) this.pulse(); if (inp.radio) this.useRadio(); if (inp.interact) this.interact();
     p.yaw += (inp.dyaw || 0); p.pitch = clamp(p.pitch + (inp.dpitch || 0), -1.25, 1.25);
-    if (p.vent) { p.vent.t += dt; p.moving = false; if (p.vent.t >= p.vent.dur) { const v = p.vent.to; p.x = v.x + 0.5 + Math.cos(v.face) * 0.9; p.y = v.y + 0.5 + Math.sin(v.face) * 0.9; p.yaw = v.face; p.vent = null; this.events.push({ type: 'vent', x: p.x, y: p.y, out: true }); } return; }
+    if (p.vent) { p.vent.t += dt; p.moving = false; if (p.vent.t >= p.vent.dur) { const v = p.vent.to; p.x = v.x + 0.5 + Math.cos(v.face) * 0.9; p.y = v.y + 0.5 + Math.sin(v.face) * 0.9; p.px = p.x; p.py = p.y; p.yaw = v.face; p.vent = null; this.events.push({ type: 'vent', x: p.x, y: p.y, out: true }); } return; }
     if (p.hidden >= 0) { p.hideT += dt; p.moving = false; p.yaw = angDiff(0, p.yaw); const L = this.objById.get(p.hidden); p.yaw = L.face + clamp(angDiff(L.face, p.yaw), -0.7, 0.7); if (inp.crouchPress) this.leaveLocker(); return; }
     if (inp.crouchPress) p.crouch = !p.crouch; if (inp.crouchSet !== undefined) p.crouch = !!inp.crouchSet;
     const fw = clamp(inp.fwd || 0, -1, 1), st = clamp(inp.str || 0, -1, 1), mag = Math.min(1, Math.hypot(fw, st)); p.moving = mag > 0.08;
