@@ -18,6 +18,7 @@ const tick = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)
   game.getFighter(0, 'kai'); game.getFighter(1, 'draven'); game.getFighter(1, 'kai'); game.getFighter(0, 'draven');
   await tick(); ldr(1, 'Ready');
   document.getElementById('loading').classList.add('hide');
+  { let fsDone = false; const goFs = () => { if (fsDone) return; fsDone = true; try { const el = document.documentElement; const p = el.requestFullscreen ? el.requestFullscreen() : (el.webkitRequestFullscreen && el.webkitRequestFullscreen()); const lock = () => { try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} }; if (p && p.then) p.then(lock).catch(() => {}); else lock(); } catch (e) {} }; if (matchMedia('(pointer:coarse)').matches) addEventListener('pointerdown', goFs, { once: true }); }
   initTouch(game); initViewerControls(game, canvas); game.toMenu();
   window.__sc = { gfx, game, AI, kaiTextures };
   let last = performance.now();

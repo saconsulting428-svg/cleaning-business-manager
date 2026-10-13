@@ -8,6 +8,8 @@
 #c{position:fixed;inset:0;width:100%;height:100%;display:block}
 #ui{position:fixed;inset:0;pointer-events:none}
 #ui>*{position:absolute;pointer-events:none}
+#ui>.screen.show{pointer-events:auto}
+#rotate{position:fixed;inset:0;z-index:90;background:#05030a;color:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:18px;font-size:5vw;padding:0 8vw}#rotate i{font-size:22vw;font-style:normal;display:block;animation:rot 1.6s ease-in-out infinite}@keyframes rot{0%,30%{transform:rotate(0)}70%,100%{transform:rotate(-90deg)}}#rotate small{font-size:3.6vw;color:#9fb1ff}@media (orientation:portrait) and (pointer:coarse){#rotate{display:flex}}
 .screen{inset:0;opacity:0;visibility:hidden;transition:opacity .35s,visibility .35s;background:linear-gradient(90deg,rgba(5,2,12,.85) 0%,rgba(5,2,12,.35) 45%,transparent 75%)}
 .screen.show{opacity:1;visibility:visible;pointer-events:auto}
 .logo{position:absolute;left:6vw;top:9vh;font-size:min(13vw,17vh);line-height:.85;font-style:italic;transform:skewX(-8deg)}
@@ -72,6 +74,7 @@
 #touch{position:fixed;inset:0;pointer-events:none;display:none;z-index:20}#touch.show{display:block}.tb{position:absolute;pointer-events:auto;width:11vh;height:11vh;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;font-size:4vh;color:#fff;opacity:.8;touch-action:none}.tb.on{background:rgba(255,62,165,.55)}.tb.p1{display:none;width:9vh;height:9vh;font-size:3.2vh;border-color:rgba(34,212,255,.5)}#touch.vs .tb.p1{display:flex}
 @media(max-width:700px){.cols{grid-template-columns:1fr}}
 </style></head><body>
+<div id="rotate"><i>📱</i><div>Game landscape mein khelo<br>Phone ko aadha (side mein) ghumao</div><small>Auto-rotate ON rakho</small></div>
 <canvas id="c"></canvas><div id="ui"></div>
 <script type="module" src="./src/main.js"></script>
 </body></html>
