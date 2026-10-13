@@ -1,0 +1,17 @@
+  const CHAPTERS = [
+    { title: 'The Living Room', room: 'living', unlock: [], tasks: ['liv_floor', 'liv_wall', 'liv_sofa', 'liv_rug', 'liv_table', 'liv_curtains', 'liv_lamp', 'liv_art'],
+      intro: [['ben', 'Ten years in the city… and I finally came back home.'], ['ben', 'The old house survived last year\'s storm, but look at it. Dust sheets, rotten floors, peeling walls…'], ['alex', 'Ben! Good to see you. The bones are good — it just needs love. Room by room.'], ['zoe', 'Hi neighbor! I\'m Zoe — I design interiors. I\'ll help you pick the styles.'], ['alex', 'Win repair puzzles to earn stars. Then tap a bubble, try each style on the spot, and confirm to renovate.']],
+      outro: [['zoe', 'Look at that sofa! This living room belongs in a magazine.'], ['ben', 'Mom always loved sunlight and a big comfy couch. Next: the kitchen.']] },
+    { title: 'Kitchen Corner', room: 'kitchen', unlock: [], tasks: ['kit_floor', 'kit_wall', 'kit_cabinets', 'kit_hood', 'kit_fridge', 'kit_dining', 'kit_pendant'],
+      intro: [['ben', 'Mom\'s kitchen. I can still smell her Sunday pancakes.'], ['parker', 'Well, well. Mr. Parker, property developer. Nice little house. I\'ll buy the land — cash, today.'], ['ben', 'It\'s not for sale, Mr. Parker.'], ['parker', 'Hmph. We\'ll see how long that lasts.']],
+      outro: [['mom', '(On the phone) Ben, Alex sent me a photo. A real kitchen again… I\'m going to cook for the whole street!']] },
+    { title: 'Sweet Dreams', room: 'bedroom', unlock: [], tasks: ['bed_floor', 'bed_wall', 'bed_bed', 'bed_wardrobe', 'bed_stands', 'bed_rug', 'bed_curtains'],
+      intro: [['ben', 'Upstairs now. Every kid needs a cozy room — Dad built mine himself.'], ['zoe', 'Tip: soft colors and warm lamps make a bedroom feel like a hug.']],
+      outro: [['ben', 'I found Dad\'s old letter behind the wardrobe: "This house is yours. Never let it go."'], ['alex', 'He would be so proud of you.']] },
+    { title: 'Bath Time', room: 'bath', unlock: [], tasks: ['bath_floor', 'bath_wall', 'bath_tub', 'bath_vanity', 'bath_mirror', 'bath_toilet', 'bath_mat'],
+      intro: [['alex', 'The bathroom is next. Hot water, bright tiles — a proper modern bath.'], ['parker', 'Still here, Ben? My offer gets smaller every day.']],
+      outro: [['ben', 'Hot water, bright lights. Take that, Mr. Parker.']] },
+    { title: 'Garden Party', room: 'garden', unlock: [], tasks: ['gar_lawn', 'gar_path', 'gar_fence', 'gar_tree', 'gar_beds', 'gar_bench', 'gar_fountain'],
+      intro: [['zoe', 'A home needs a garden. A fence, flowers, a bench, maybe a fountain?'], ['ben', 'And plenty of room for Tommy to run around!']],
+      outro: [['mom', 'Ben…? Is this… our home?'], ['ben', 'Welcome home, Mom.'], ['parker', '…Fine. FINE. It\'s a beautiful house. Congratulations.'], ['zoe', 'Housewarming party tonight! Everyone is invited!']] },
+  ];

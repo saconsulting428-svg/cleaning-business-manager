@@ -1,0 +1,44 @@
+
+/* ---------- 3D renovation (Homescapes-style) */
+#reno3d{position:absolute;inset:0;display:block}
+#reno3d canvas{display:block;touch-action:none}
+#game{visibility:hidden;pointer-events:none}
+#app.puzzle #game,#app.no3d #game{visibility:visible;pointer-events:auto}
+#app.puzzle #reno3d{display:none!important}
+.layer .rpanel,.layer .rtop .res{pointer-events:auto}
+/* home layout: nav buttons move to a bottom row so the room stays visible */
+#home .side.left{left:0;right:0;top:auto;bottom:calc(var(--safe-b) + 96px);flex-direction:row;justify-content:center;gap:10px;pointer-events:none}
+#home .side.right{left:auto;right:10px;top:calc(var(--safe-t) + 152px);flex-direction:row;gap:8px}
+#home .side.right .nb.sm{width:42px;height:42px}
+#bubbles{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.bub{position:absolute;left:0;top:0;width:0;height:0;will-change:transform}
+.bb{pointer-events:auto;position:absolute;left:-30px;top:-62px;width:60px;height:60px;border-radius:50%;background:#fff;border:3px solid #fff;box-shadow:0 4px 0 rgba(58,46,37,.3),0 10px 18px rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;transition:transform .12s}
+.bb::after{content:'';position:absolute;left:50%;bottom:-11px;width:16px;height:16px;background:#fff;transform:translateX(-50%) rotate(45deg);border-radius:0 0 4px 0;box-shadow:3px 3px 3px rgba(58,46,37,.2);z-index:-1}
+.bb img{width:46px;height:46px;object-fit:contain;display:block}
+.bb:active{transform:scale(.92)}
+.bub.can .bb{animation:bubbob 1.3s ease-in-out infinite;background:linear-gradient(#fff,#fff6d6)}
+@keyframes bubbob{50%{transform:translateY(-6px)}}
+.bub.cant .bb img{opacity:.6;filter:grayscale(.4)}
+.bub.done .bb{width:50px;height:50px;left:-25px;top:-52px;opacity:.95}
+.bub.done .bb img{width:38px;height:38px}
+.bc{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(#FFC15A,#F59E2B);color:#fff;font-weight:700;font-size:12px;border-radius:11px;padding:1px 8px 1px 5px;display:flex;align-items:center;gap:2px;box-shadow:0 2px 0 #C96A12;white-space:nowrap;line-height:18px}
+.bc .ico{width:14px;height:14px}
+.bub.cant .bc{background:linear-gradient(#BDB3A3,#9E9486);box-shadow:0 2px 0 #7a7266}
+.bub.done .bc{background:linear-gradient(#7BD36A,#3E9D3A);box-shadow:0 2px 0 #2A7027;padding:1px 8px}
+/* task picker */
+.rtop{display:flex;align-items:center;gap:10px;padding:10px}
+.rtitle{flex:1;text-align:center;color:#fff;text-shadow:0 2px 5px rgba(0,0,0,.55);line-height:1.15}
+.rtitle small{display:block;font-size:12px;font-weight:600;opacity:.95}.rtitle b{font-size:21px}
+.rpanel{position:absolute;left:0;right:0;bottom:0;background:var(--cream);border-radius:24px 24px 0 0;padding:14px 12px calc(14px + var(--safe-b));box-shadow:0 -6px 22px rgba(0,0,0,.22);animation:slideup .25s}
+.rhead{text-align:center;font-size:13px;color:var(--mute);font-weight:500;margin:0 0 10px}.rhead b{color:var(--orange-d)}.rhead .ico{width:16px;height:16px}
+.rcards{display:flex;gap:9px;justify-content:center}
+.rc{position:relative;flex:1;max-width:132px;background:#fff;border-radius:18px;padding:8px 6px;box-shadow:0 3px 0 var(--line);display:flex;flex-direction:column;align-items:center;gap:3px;border:3px solid transparent;transition:transform .12s}
+.rc img{width:100%;aspect-ratio:1;object-fit:contain;display:block}
+.rc .nm{font-size:11.5px;font-weight:700;text-align:center;line-height:1.2;min-height:28px;display:flex;align-items:center}
+.rc.on{border-color:var(--green);background:#F3FBEE;transform:translateY(-3px)}
+.rc .ck{position:absolute;top:-9px;right:-7px;width:26px;height:26px;border-radius:50%;background:var(--green);color:#fff;font-size:15px;font-weight:700;display:none;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 0 #2A7027}
+.rc.on .ck{display:flex}
+.rc .cur{position:absolute;top:6px;left:6px;font-size:9.5px;font-weight:700;background:var(--cream2);color:var(--green-d);padding:1px 6px;border-radius:8px}
+.ract{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+#rPlay.btn{min-height:40px;font-size:14px}
+@media (max-height:690px){#home .side.right{top:calc(var(--safe-t) + 146px)}.rpanel{padding-top:10px}.rhead{margin-bottom:6px}}
