@@ -80,15 +80,16 @@ export class Fighter {
     const I = this.input, spd = this.stats.speed;
     this.blocking = false; this.crouchBlock = false;
     if (!this.canAct) { this.vel.multiplyScalar(.7); return; }
-    if (this.state === 'dash') { this.st--; if (this.st <= 0) this.state = 'idle'; else { this.vel.copy(this.dashVel); this.tryAttack(opp); return; } }
+    if (this.state === 'dash') { this.st--; if (this.st <= 0) { if (this.sprint && this.fwdHeld) { this.st = 2; this.dashVel.copy(this.face).multiplyScalar(6 * spd); } else { this.state = 'idle'; this.sprint = false; } } if (this.state === 'dash') { this.vel.copy(this.dashVel); if (this.sprint) this.walkPh += .34; this.tryAttack(opp); return; } }
     // block
     if (I.block) { this.blocking = true; this.crouchBlock = !!I.crouch; this.vel.set(0, 0, 0); this.walkPh += 0; return; }
     if (this.tryAttack(opp)) return;
     if (this.sideUp || this.sideDown) { this.startDodge(this.sideUp ? -1 : 1); return; }
     if (this.buf.jump > 0) { this.consume('jump'); this.vy = 6.9; this.y = .001; this.airAtk = false; const ax = ((I.right ? 1 : 0) - (I.left ? 1 : 0)); this.vel.set(ax * 2.4 * spd, 0, 0); this.state = 'jump'; this.game.sfx('jump'); this.game.fx.dust(this.pos, 4); return; }
-    if (this.tapF || this.tapB) { this.state = 'dash'; this.st = 10; const s = this.tapF ? 1 : -1; this.dashVel = this.face.clone().multiplyScalar(s * (this.tapF ? 8 : 6.5) * spd); this.game.fx.dust(this.pos, 3); this.game.sfx('whoosh'); return; }
+    if (this.tapF || this.tapB) { this.state = 'dash'; this.st = 10; this.sprint = !!this.tapF; const s = this.tapF ? 1 : -1; this.dashVel = this.face.clone().multiplyScalar(s * (this.tapF ? 8 : 6.5) * spd); this.game.fx.dust(this.pos, 3); this.game.sfx('whoosh'); return; }
     // walk
     const ax = (I.right ? 1 : 0) - (I.left ? 1 : 0);
+    if (I.run && !I.crouch && ax !== 0 && ax * Math.sign(this.face.x || 1) > 0) { this.state = 'dash'; this.st = 2; this.sprint = true; this.dashVel = this.face.clone().multiplyScalar(6 * spd); this.game.fx.dust(this.pos, 2); return; }
     if (!I.crouch && ax !== 0) {
       const f = ax * Math.sign(this.face.x || 1), v = f > 0 ? 2.2 * spd : 1.8 * spd;
       this.vel.copy(this.face).multiplyScalar(f * v); this.walkPh += f * v * DT * 3.4; this.walking = f;
@@ -114,6 +115,7 @@ export class Fighter {
   tryAttack(opp) {
     const I = this.input, b = this.buf, down = I.crouch, df = down && this.fwdHeld;
     let m = null, btn = null;
+    if (this.state === 'dash' && this.sprint && (b.hp > 0 || b.lp > 0 || b.lk > 0 || b.hk > 0)) { const pu = b.hp > 0 || b.lp > 0; btn = b.hp > 0 ? 'hp' : b.lp > 0 ? 'lp' : b.lk > 0 ? 'lk' : 'hk'; this.consume(btn); this.sprint = false; this.startMove(pu ? 'runPunch' : 'runKick'); return true; }
     if (b.hp > 0 && df && this.spec.specials.df_hp) { m = this.spec.specials.df_hp; btn = 'hp'; }
     else if (b.hk > 0 && df && this.spec.specials.df_hk) { m = this.spec.specials.df_hk; btn = 'hk'; }
     else if (b.hp > 0) { m = down ? BASIC.d_hp : (this.spec.basic?.hp || BASIC.hp); btn = 'hp'; }
@@ -195,7 +197,11 @@ export class Fighter {
       T.hip[1] += bob; T.hL[1] += breath * .01;
       if (this.blocking) { lerpPose(T, this.crouchBlock ? POSE.crouchBlock : POSE.block, 1, T); alpha = .4; }
       else if (this.walking && st === 'idle') this.walkPose(T);
-      if (st === 'dash') { T.pitch += 12; T.hip[0] += .12 * Math.sign(this.dashVel.dot(this.face) || 1); }
+      if (st === 'dash') {
+        const sg = Math.sign(this.dashVel.dot(this.face) || 1);
+        if (this.sprint && sg > 0) { const ph = this.walkPh; T.pitch += 24; T.hip[0] += .2; T.hip[1] -= .05 - Math.abs(Math.sin(ph)) * .03; T.fL[0] += Math.sin(ph) * .5; T.fL[1] = Math.max(0, Math.cos(ph)) * .34; T.fR[0] += -Math.sin(ph) * .5; T.fR[1] = Math.max(0, -Math.cos(ph)) * .34; T.hL[0] = .3 + Math.sin(ph) * .3; T.hL[1] = 1.15; T.hR[0] = .3 - Math.sin(ph) * .3; T.hR[1] = 1.15; T.twist = (T.twist || 0) + Math.sin(ph) * 8; }
+        else { T.pitch += 12; T.hip[0] += .12 * sg; }
+      }
     } else if (st === 'block') { lerpPose(T, this.crouchBlock ? POSE.crouchBlock : POSE.block, 1, T); T.pitch += 4; alpha = .5; }
     else if (st === 'jump') { lerpPose(T, POSE.air, 1, T); lerpPose(T, POSE.airFall, clamp(.5 - this.vy / 8, 0, 1), T); alpha = .3; }
     else if (st === 'attack') { this.attackPose(T); alphaOverride = 1; }

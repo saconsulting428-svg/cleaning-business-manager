@@ -42,12 +42,12 @@ export function brawlerKit(o = {}) {
     // back emblem + front chest patch on the torso
     const em = new THREE.Mesh(new THREE.PlaneGeometry(.36 * b, .36 * b), new THREE.MeshBasicMaterial({ map: emblemTex(emb, col, trim), transparent: true, toneMapped: false, opacity: .95, polygonOffset: true, polygonOffsetFactor: -2 }));
     em.position.set(-.205 * b, L.spine * .6, 0); em.rotation.y = -Math.PI / 2; em.scale.set(1, 1, 1); addT(em);
-    const patch = new THREE.Mesh(new THREE.PlaneGeometry(.075, .075), new THREE.MeshBasicMaterial({ map: emblemTex(emb, col, trim), transparent: true, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+    const patch = o.noPatch ? new THREE.Object3D() : new THREE.Mesh(new THREE.PlaneGeometry(.075, .075), new THREE.MeshBasicMaterial({ map: emblemTex(emb, col, trim), transparent: true, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2 }));
     patch.position.set(.138 * b, L.spine * .8, .075 * b); patch.rotation.y = Math.PI / 2; addT(patch);
     // belt + knot + hanging tails (lagged cloth)
     const belt = shadow(new THREE.Mesh(new THREE.TorusGeometry(.158 * b, .02, 8, 28).rotateX(Math.PI / 2), leather)); belt.scale.set(1, 1, .8); belt.position.y = .012; addT(belt);
-    const knot = shadow(new THREE.Mesh(new THREE.BoxGeometry(.03, .045, .06), leather)); knot.position.set(.16 * b, .012, .02); addT(knot);
-    const tails = [-.5, .5].map((z, i) => { const geo = new THREE.PlaneGeometry(.045, .42, 1, 6); geo.translate(0, -.21, 0); const m = shadow(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#0d0c0e', roughness: .7, side: THREE.DoubleSide }))); addB(m); return { m, dir: new V3(0, -1, 0), z: z * .12, ph: i * 2 }; });
+    const knot = o.noTails ? new THREE.Object3D() : shadow(new THREE.Mesh(new THREE.BoxGeometry(.03, .045, .06), leather)); knot.position.set(.16 * b, .012, .02); addT(knot);
+    const tails = o.noTails ? [] : [-.5, .5].map((z, i) => { const geo = new THREE.PlaneGeometry(.045, .42, 1, 6); geo.translate(0, -.21, 0); const m = shadow(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#0d0c0e', roughness: .7, side: THREE.DoubleSide }))); addB(m); return { m, dir: new V3(0, -1, 0), z: z * .12, ph: i * 2 }; });
     // shoulder pad plates + heavy gloves
     rig.fist.forEach(f => {
       const kp = shadow(new THREE.Mesh(new THREE.BoxGeometry(.06, .02, .1), plate)); kp.position.set(.014, .045, 0); kp.rotation.z = -.15; f.add(kp);
@@ -56,12 +56,13 @@ export function brawlerKit(o = {}) {
       f.scale.multiplyScalar(1.12);
     });
     // flame-hem pant cuffs + boots
-    const hemMat = new THREE.MeshStandardMaterial({ map: flameHemTex(spec.pants.color, '#ff5a14', '#ffd24a'), roughness: .85, side: THREE.DoubleSide });
+    const hemMat = new THREE.MeshStandardMaterial({ map: flameHemTex(spec.pants.color, o.hem1 || '#ff5a14', o.hem2 || '#ffd24a'), roughness: .85, side: THREE.DoubleSide });
     const leg = [0, 1].map(() => ({
       hem: addB(shadow(new THREE.Mesh(tubeGeo(.074 * b * (spec.legs || 1), .066 * b * (spec.legs || 1), .02, .5), hemMat))),
       sh: addB(shadow(new THREE.Mesh(tubeGeo(.064, .068, .02, .5), clothMat('#0a090b', 'leather')))),
       bt: addB(shadow(new THREE.Mesh(new THREE.TorusGeometry(.068, .009, 6, 18).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#b5b5bd', metalness: .8, roughness: .3 }))))
     }));
+    if (o.noBoots) for (const g of leg) { g.sh.visible = false; g.bt.visible = false; }
     const _v = new V3(), _v2 = new V3(), _up = new V3(0, 1, 0), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
     const along = (mesh, a, bb, o0, o1) => { _v.copy(bb).sub(a); const l = _v.length(); _v.multiplyScalar(1 / (l || 1)); mesh.position.copy(a).addScaledVector(_v, l * o0); mesh.quaternion.setFromUnitVectors(_up, _v); mesh.scale.set(1, l * (o1 - o0), 1); };
     let t = 0;

@@ -12,7 +12,7 @@ const ARENA_NAMES = { rooftop: 'NEON ROOFTOP', dojo: 'TOURNAMENT DOJO', bunker: 
 const FPS = 60, DT = 1 / FPS, ROUNDS_TO_WIN = 2, ROUND_TIME = 60;
 const $ = (s, r = document) => r.querySelector(s);
 const LEVELS = ['easy', 'normal', 'hard', 'expert'];
-const ACTION_LABEL = { left: 'Move Left', right: 'Move Right', crouch: 'Crouch', sideUp: 'Sidestep (away)', sideDown: 'Sidestep (near)', jump: 'Jump', block: 'Block', lp: 'Light Punch', hp: 'Heavy Punch', lk: 'Light Kick', hk: 'Heavy Kick' };
+const ACTION_LABEL = { left: 'Move Left', right: 'Move Right', crouch: 'Crouch', sideUp: 'Sidestep (away)', sideDown: 'Sidestep (near)', jump: 'Jump', block: 'Block', run: 'Run (hold + forward)', lp: 'Light Punch', hp: 'Heavy Punch', lk: 'Light Kick', hk: 'Heavy Kick' };
 const keyName = c => c.replace('Key', '').replace('Arrow', '↑↓←→'.includes('x') ? '' : '').replace('Numpad', 'Num ').replace('ShiftLeft', 'L-Shift').replace('Space', 'Space').replace('Digit', '');
 
 export class Game {
@@ -399,10 +399,10 @@ export function initTouch(game) {
     b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off); wrap.appendChild(b); };
   // Player 1 (bottom): d-pad left, buttons right
   const P1 = [['◀', 'left', 'left:2vw;bottom:14vh'], ['▶', 'right', 'left:15vw;bottom:14vh'], ['▼', 'crouch', 'left:8.5vw;bottom:3vh'], ['▲', 'sideUp', 'left:8.5vw;bottom:26vh'],
-    ['P', 'lp', 'right:20vw;bottom:22vh'], ['P+', 'hp', 'right:9vw;bottom:26vh'], ['K', 'lk', 'right:20vw;bottom:6vh'], ['K+', 'hk', 'right:9vw;bottom:10vh'], ['BLK', 'block', 'right:1vw;bottom:20vh'], ['JMP', 'jump', 'right:1vw;bottom:36vh']];
+    ['P', 'lp', 'right:20vw;bottom:22vh'], ['P+', 'hp', 'right:9vw;bottom:26vh'], ['K', 'lk', 'right:20vw;bottom:6vh'], ['K+', 'hk', 'right:9vw;bottom:10vh'], ['BLK', 'block', 'right:1vw;bottom:20vh'], ['JMP', 'jump', 'right:1vw;bottom:36vh'], ['RUN', 'run', 'left:28vw;bottom:14vh']];
   for (const [l, a, c] of P1) mk(0, l, a, c);
   const P2 = [['◀', 'left', 'left:2vw;top:12vh'], ['▶', 'right', 'left:11vw;top:12vh'], ['▼', 'crouch', 'left:2vw;top:24vh'], ['BLK', 'block', 'left:11vw;top:24vh'],
-    ['P', 'lp', 'right:2vw;top:12vh'], ['P+', 'hp', 'right:11vw;top:12vh'], ['K', 'lk', 'right:2vw;top:24vh'], ['K+', 'hk', 'right:11vw;top:24vh'], ['JMP', 'jump', 'right:20vw;top:18vh']];
+    ['P', 'lp', 'right:2vw;top:12vh'], ['P+', 'hp', 'right:11vw;top:12vh'], ['K', 'lk', 'right:2vw;top:24vh'], ['K+', 'hk', 'right:11vw;top:24vh'], ['JMP', 'jump', 'right:20vw;top:18vh'], ['RUN', 'run', 'left:20vw;top:18vh']];
   for (const [l, a, c] of P2) mk(1, l, a, c);
   const upd = () => { const g = game.screen === 'game' && !game.paused && game.phase !== 'match'; wrap.classList.toggle('show', g); wrap.classList.toggle('vs', game.mode === 'versus'); requestAnimationFrame(upd); }; upd();
 }
