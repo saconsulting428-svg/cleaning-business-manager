@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#07030f">
+  <meta name="description" content="Pink Bounce: Survival - a neon arcade survival brick-breaker built with Phaser 3.">
+  <title>Pink Bounce: Survival</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="hud">
+      <div class="stat"><span class="label">Score</span><span class="value" id="hud-score">0</span></div>
+      <div class="stat"><span class="label">Best</span><span class="value" id="hud-best">0</span></div>
+      <div class="stat"><span class="label">Level</span><span class="value" id="hud-level">1</span></div>
+      <div class="stat lives"><span class="label">Lives</span><span class="value" id="hud-lives" aria-label="3 lives"></span></div>
+      <div class="btns">
+        <button id="btn-pause" class="icon-btn" title="Pause (P)" aria-label="Pause" aria-pressed="false"><svg viewBox="0 0 24 24"><path class="i-pause" d="M7 5h3v14H7zM14 5h3v14h-3z"/><path class="i-play" d="M8 5l11 7-11 7z"/></svg></button>
+        <button id="btn-restart" class="icon-btn" title="Restart (R)" aria-label="Restart"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg></button>
+        <button id="btn-mute" class="icon-btn" title="Mute (M)" aria-label="Toggle sound" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="i-wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="i-x" d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+    </header>
+
+    <main id="stage">
+      <div id="game"></div>
+      <div id="effects" aria-label="Active power-ups"></div>
+      <div id="combo"></div>
+      <div id="live" class="sr-only" aria-live="polite"></div>
+
+      <section id="menu" class="overlay">
+        <div class="panel">
+          <h1 class="title"><span class="t-pink">Pink</span> <span class="t-blue">Bounce</span><small>Survival</small></h1>
+          <p class="tag">Smash blocks. Dodge the slit. Survive forever.</p>
+          <button id="btn-play" class="btn primary">Play</button>
+          <p class="best-line">Best score <b id="menu-best">0</b></p>
+          <div class="help">
+            <p><b>Move</b> mouse / touch drag / <kbd>A</kbd><kbd>D</kbd> / <kbd>&larr;</kbd><kbd>&rarr;</kbd><br>
+               <b>Launch</b> click / tap / <kbd>Space</kbd> &nbsp; <b>Pause</b> <kbd>P</kbd> &nbsp; <b>Restart</b> <kbd>R</kbd> &nbsp; <b>Mute</b> <kbd>M</kbd></p>
+            <ul class="legend">
+              <li style="--c:#ff3df2"><i>X3</i>Triple balls</li>
+              <li style="--c:#ff4d6d"><i>+3</i>Three lives</li>
+              <li style="--c:#ff8a1f"><i>FIRE</i>One-hit burn</li>
+              <li style="--c:#22d3ee"><i>BIG</i>Big, strong ball</li>
+              <li style="--c:#3b82ff"><i>WALL</i>Safety barrier</li>
+              <li style="--c:#4ade80"><i>SHLD</i>Saves one life</li>
+              <li style="--c:#a78bfa"><i>SLOW</i>Slow motion</li>
+              <li style="--c:#fde047"><i>WIDE</i>Wide paddle</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="pause" class="overlay hidden">
+        <div class="panel">
+          <h2>Paused</h2>
+          <button id="btn-resume" class="btn primary">Resume</button>
+          <button id="btn-pause-restart" class="btn">Restart</button>
+          <button id="btn-pause-menu" class="btn ghost">Main menu</button>
+        </div>
+      </section>
+
+      <section id="gameover" class="overlay hidden">
+        <div class="panel">
+          <h2 class="over">Game Over</h2>
+          <p class="final">Final score<b id="go-score">0</b></p>
+          <p id="go-new" class="new-best hidden">&#9733; New best score! &#9733;</p>
+          <p class="sub">Best <b id="go-best">0</b> &nbsp;&middot;&nbsp; Reached level <b id="go-level">1</b></p>
+          <button id="btn-replay" class="btn primary">Play again</button>
+          <button id="btn-over-menu" class="btn ghost">Main menu</button>
+        </div>
+      </section>
+    </main>
+  </div>
+  <noscript><p style="color:#fff;padding:2rem">Pink Bounce needs JavaScript enabled.</p></noscript>
+
+  <script src="lib/phaser.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/textures.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/scenes.js"></script>
+  <script src="js/gamescene.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

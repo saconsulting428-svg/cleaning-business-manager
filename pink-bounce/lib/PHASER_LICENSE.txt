@@ -1,0 +1,2 @@
+Phaser 3.80.1 - https://phaser.io - MIT License (c) Photon Storm Ltd.
+Full license: https://github.com/phaserjs/phaser/blob/master/LICENSE.md
