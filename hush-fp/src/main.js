@@ -51,7 +51,7 @@ function buildChapters() {
   CHAPTERS.forEach((c, ci) => {
     const lock = !unlocked(ci * 10), el = document.createElement('button'); el.className = 'chap' + (G.chapterView === ci ? ' on' : '') + (lock ? ' lock' : '');
     el.style.backgroundImage = ['radial-gradient(ellipse at 50% 38%, #4a3a22 0%, #1a130b 55%, #050403 100%)', 'radial-gradient(ellipse at 50% 38%, #1d4a66 0%, #0a1a26 55%, #03070a 100%)', 'radial-gradient(ellipse at 50% 38%, #8a1a22 0%, #2a0709 55%, #060102 100%)'][ci];
-    el.innerHTML = (lock ? '<svg class="lk"><use href="#i-lock"/></svg>' : '') + '<small>Chapter ' + (ci + 1) + '</small><b>' + c.name + '</b><em><svg><use href="#i-star"/></svg>' + chapterStars(ci) + ' / 30</em>';
+    el.innerHTML = '<i class="art"></i>' + (lock ? '<svg class="lk"><use href="#i-lock"/></svg>' : '') + '<small>Chapter ' + (ci + 1) + '</small><b>' + c.name + '</b><em><svg><use href="#i-star"/></svg>' + chapterStars(ci) + ' / 30</em>';
     el.onclick = () => { if (lock) return Sound.play('denied'); Sound.play('ui'); G.chapterView = ci; buildLevels(); show('levels'); }; list.appendChild(el);
   });
 }
