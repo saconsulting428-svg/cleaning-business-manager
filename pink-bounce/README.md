@@ -1,4 +1,4 @@
-# Pink Bounce: Survival
+# Neon Ricochet
 
 A neon arcade survival brick-breaker built with **Phaser 3.80.1** (bundled locally in `lib/`), plain HTML/CSS/JS - no build step, no other dependencies.
 
@@ -13,6 +13,13 @@ cd pink-bounce
 python3 -m http.server 8080      # or: npx http-server -p 8080
 # open http://localhost:8080
 ```
+
+## Modes, themes and skins
+
+- **Classic Mode** - endless levels of blocks, barriers and moving obstacles.
+- **Fortress Mode** - an unbreakable spiked vault with a single gate (the opening moves and narrows as levels rise). Everything inside is tough, destroyable blocks.
+- **Shop** - spend coins (1 coin per 50 points) on 6 ball skins and 5 colour themes. **Achievements** pay coin rewards. **Leaderboard** keeps your 10 best local runs.
+- All progress is saved in `localStorage` (`neonRicochet.v1`).
 
 ## Controls
 
@@ -29,7 +36,7 @@ python3 -m http.server 8080      # or: npx http-server -p 8080
 - 3 lives (max 9). Losing the ball through the red **slit** below the paddle costs a life only when *all* balls are gone. A fresh ball gets 2.5 s of protection after launch.
 - Blocks: normal, reinforced (2-3 hits), bonus (guaranteed power-up), unbreakable barriers, and moving red obstacles that appear from level 4.
 - Combo multiplier (up to x8) grows with each block hit and resets when the ball touches the paddle. Level clear bonus = 500 x level + 100 x lives. Levels are endless and get faster/denser; the paddle slowly narrows.
-- Best score is stored in `localStorage` (`pinkBounceBest`).
+- Best score is tracked separately per mode.
 
 ## Power-ups
 
@@ -56,7 +63,8 @@ js/config.js     constants, power-up table, localStorage helpers
 js/audio.js      synthesised WebAudio sound effects (no audio files)
 js/levels.js     hand-made + endless procedural level generator
 js/textures.js   canvas-generated art
-js/ui.js         HUD / overlay helpers
+js/progress.js   stats, coins, achievements, leaderboard
+js/ui.js         HUD, home screen, shop and sheets
 js/scenes.js     Boot + Menu scenes
 js/gamescene.js  gameplay scene (Arcade Physics)
 ```

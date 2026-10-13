@@ -19,7 +19,10 @@
       this.state = 'ready';            // ready | playing | lost | levelclear | over
       this.score = 0; this.level = 1; this.lives = C.START_LIVES;
       this.combo = 0; this.mult = 1;
-      this.best = PB.loadBest(); this.startBest = this.best; this.newBest = false;
+      this.mode = PB.Save.data.mode;
+      this.skin = PB.skin(); this.theme = PB.theme();
+      this.best = PB.loadBest(this.mode); this.startBest = this.best; this.newBest = false;
+      this.run = { blocks: 0, powerups: 0, maxMult: 1, fortressClears: 0 };
       this.effects = {};               // key -> { left, total }  (left = Infinity for shield)
       this.protectMs = 0; this.readyMs = 0; this.wallOn = false;
       this.fx = []; this.killQueue = []; this.pendingClear = false;
@@ -82,7 +85,7 @@
 
       this.loadLevel();
       this.spawnReadyBall();
-      this.banner('LEVEL 1', 'Break every block');
+      this.banner('LEVEL 1', PB.MODES[this.mode].name);
       this.syncHud(true);
       PB.UI.announce('Level 1');
     }
@@ -100,7 +103,7 @@
       this.obstacles.clear(true, true);
       this.drops.clear(true, true);
 
-      const L = PB.buildLevel(this.level);
+      const L = PB.buildLevel(this.level, this.mode);
       this.ballSpeed = L.ballSpeed;
       this.baseW = L.paddleW;
       this.remaining = 0;
@@ -258,7 +261,7 @@
 
     styleBall(b) {
       const big = this.has('big'), fire = this.has('fire');
-      const key = 'ball' + (big ? '_big' : '') + (fire ? '_fire' : '');
+      const key = fire ? (big ? 'ball_big_fire' : 'ball_fire') : (big ? 'ball_big_' : 'ball_') + this.skin.id;
       if (b.styleKey === key) return;
       b.styleKey = key;
       b.setTexture(key);
@@ -302,7 +305,7 @@
       [-0.38, 0.38].slice(0, room).forEach((off) => {
         const nb = this.createBall(src.x, src.y);
         nb.body.setVelocity(Math.cos(base + off) * sp, Math.sin(base + off) * sp);
-        this.burst(nb.x, nb.y, 0xff3df2, 8, 120);
+        this.burst(nb.x, nb.y, this.skin.trail, 8, 120);
       });
       PB.Audio.play('split');
       return true;
@@ -342,9 +345,10 @@
       blk.dead = true;
       blk.body.enable = false;
       this.combo++; this.mult = this.calcMult();
+      this.run.blocks++; this.run.maxMult = Math.max(this.run.maxMult, this.mult);
       const pts = BASE_POINTS[blk.kind] * this.mult;
       this.addScore(pts, blk.x, blk.y);
-      const col = blk.kind === 'b' ? 0xfde047 : (blk.kind === 'r' ? 0xc084fc : PB.NORMAL_TINTS[blk.row % 4]);
+      const col = blk.kind === 'b' ? 0xfde047 : (blk.kind === 'r' ? 0xc084fc : this.theme.tints[blk.row % 4]);
       this.burst(blk.x, blk.y, col, blk.kind === 'b' ? 20 : 12, 190);
       const ghost = this.add.rectangle(blk.x, blk.y, C.BLOCK_W, C.BLOCK_H, col).setDepth(7).setBlendMode(Phaser.BlendModes.ADD);
       this.tweens.add({ targets: ghost, scaleX: 1.7, scaleY: 2.2, alpha: 0, duration: 230, onComplete: () => ghost.destroy() });
@@ -444,12 +448,16 @@
       this.prompt.setVisible(false);
       this.best = Math.max(this.best, this.score);
       this.newBest = this.score > this.startBest;
-      PB.saveBest(this.best);
+      PB.saveBest(this.mode, this.best);
+      const coins = PB.Progress.coinsFor(this.score);
+      PB.Save.data.coins += coins;
+      PB.Progress.addBoardEntry(this.score, this.mode, this.level);
+      const unlocked = PB.Progress.record(this.run, { level: this.level, score: this.score, gameOver: true });
       PB.setMode('over');
       PB.Audio.play('over');
       this.hudDirty = true; this.syncHud(true);
       PB.UI.announce('Game over. Score ' + this.score);
-      PB.UI.gameOver(this.score, this.best, this.newBest, this.level);
+      PB.UI.gameOver({ score: this.score, best: this.best, isNew: this.newBest, level: this.level, coins, mode: this.mode, unlocked });
     }
 
     /* ============================ level flow ============================= */
@@ -460,7 +468,10 @@
       this.drops.clear(true, true);
       const bonus = 500 * this.level + 100 * this.lives;
       this.addScore(bonus);
-      PB.saveBest(this.best);
+      PB.saveBest(this.mode, this.best);
+      if (this.mode === 'fortress') this.run.fortressClears++;
+      PB.Progress.record(this.run, { level: this.level + 1, score: this.score, gameOver: false })
+        .forEach((a) => PB.UI.toast('Achievement: ' + a.name + ' (+' + a.reward + ' coins)'));
       PB.Audio.play('level');
       this.banner('LEVEL ' + this.level + ' CLEAR', '+' + bonus.toLocaleString('en-US') + ' bonus');
       this.cameras.main.flash(250, 255, 61, 242);
@@ -471,7 +482,7 @@
         this.loadLevel();
         this.spawnReadyBall();
         this.cameras.main.fadeIn(300, 7, 3, 15);
-        this.banner('LEVEL ' + this.level, this.level % 4 === 0 ? 'Obstacles speed up!' : 'Get ready');
+        this.banner('LEVEL ' + this.level, PB.MODES[this.mode].name);
         this.hudDirty = true;
         PB.UI.announce('Level ' + this.level);
       });
@@ -520,7 +531,7 @@
 
     collect(key, x, y) {
       const def = P[key];
-      this.addScore(50);
+      this.addScore(50); this.run.powerups++;
       this.floatText(x, y - 14, def.name.toUpperCase(), def.css);
       this.burst(x, y, def.color, 16, 200);
       if (key === 'life') {
@@ -596,14 +607,11 @@
       const sec = dt / 1000;
       // --- slit (danger zone) ---
       const g = this.slitGfx; g.clear();
-      const pulse = 0.65 + 0.35 * Math.sin(time / 180);
+      const pulse = 0.7 + 0.3 * Math.sin(time / 180);
       g.fillStyle(0x000000, 1).fillRect(0, C.SLIT_Y, C.W, C.H - C.SLIT_Y);
-      g.fillStyle(0xff2d55, 0.10 * pulse).fillRect(0, C.SLIT_Y - 22, C.W, 22);
-      g.fillStyle(0xff2d55, 0.18 * pulse).fillRect(0, C.SLIT_Y - 9, C.W, 9);
       g.lineStyle(3, 0xff2d55, pulse).lineBetween(0, C.SLIT_Y, C.W, C.SLIT_Y);
-      g.fillStyle(0xff2d55, 0.35);
-      const off = (time / 40) % 30;
-      for (let x = -30 + off; x < C.W; x += 30) g.fillTriangle(x, C.SLIT_Y + 6, x + 14, C.SLIT_Y + 6, x + 7, C.SLIT_Y + 20);
+      g.fillStyle(0xff2d55, 0.55);
+      for (let x = 0; x < C.W; x += 22) g.fillTriangle(x + 2, C.SLIT_Y + 6, x + 18, C.SLIT_Y + 6, x + 10, C.SLIT_Y + 20);
       // --- safety wall ---
       if (this.wallOn) {
         const left = this.effects.wall.left;
@@ -616,10 +624,10 @@
       const p = this.padGfx; p.clear();
       const px = this.paddle.x - this.padW / 2, py = C.PADDLE_Y - C.PADDLE_H / 2;
       const wide = this.has('wide'), fl = this.padFlash || 0;
-      const edge = wide ? 0xfde047 : 0xff3df2;
+      const edge = wide ? 0xfde047 : this.theme.paddle;
       p.fillStyle(edge, 0.12 + 0.1 * fl).fillRoundedRect(px - 8, py - 8, this.padW + 16, C.PADDLE_H + 16, 14);
       p.fillStyle(edge, 0.25 + 0.15 * fl).fillRoundedRect(px - 4, py - 4, this.padW + 8, C.PADDLE_H + 8, 11);
-      p.fillStyle(0x7a1c9e, 1).fillRoundedRect(px, py, this.padW, C.PADDLE_H, 8);
+      p.fillStyle(this.theme.paddleDark, 1).fillRoundedRect(px, py, this.padW, C.PADDLE_H, 8);
       p.fillStyle(edge, 1).fillRoundedRect(px, py, this.padW, 6, { tl: 8, tr: 8, bl: 0, br: 0 });
       p.fillStyle(0xffffff, 0.8).fillRoundedRect(px + 8, py + 1.5, this.padW - 16, 2, 1);
       if (this.has('shield')) {
@@ -635,7 +643,7 @@
           b.trail.push(b.x, b.y);
           if (b.trail.length > 24) b.trail.splice(0, 2);
         } else b.trail.length = 0;
-        const n = b.trail.length / 2, col = this.has('fire') ? 0xff8a1f : 0xff3df2;
+        const n = b.trail.length / 2, col = this.has('fire') ? 0xff8a1f : this.skin.trail;
         for (let i = 0; i < n - 1; i++) {
           const k = i / n;
           t.fillStyle(col, k * 0.4);

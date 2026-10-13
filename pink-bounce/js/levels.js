@@ -92,22 +92,52 @@
     return g.map((row, r) => row.split('').map((ch, c) => (ch !== '.' && ch !== 'u' && !seen[r][c]) ? '.' : ch).join(''));
   }
 
-  PB.buildLevel = function (n) {
-    let pattern = n <= HAND.length ? HAND[n - 1].slice() : generate(n);
+  /* Fortress: an unbreakable spiked vault with a single gate; tough blocks inside, wings outside. */
+  function fortress(n) {
+    const rows = 9, K = C.GRID_COLS;
+    const g = Array.from({ length: rows }, () => new Array(K).fill('.'));
+    const rnd = rng(n * 104729 + 7);
+    for (let c = 2; c <= 7; c++) { g[1][c] = 'u'; g[7][c] = 'u'; }
+    for (let r = 1; r <= 7; r++) { g[r][2] = 'u'; g[r][7] = 'u'; }
+    // the gate in the bottom wall: 2 cells wide early on, then a single cell that moves around
+    if (n <= 2) { g[7][4] = '.'; g[7][5] = '.'; }
+    else { g[7][[4, 5, 3, 6][n % 4]] = '.'; }
+    // tough interior
+    const hpChar = n <= 2 ? '2' : (n <= 5 ? (n % 2 ? '3' : '2') : '3');
+    for (let r = 2; r <= 6; r++) for (let c = 3; c <= 6; c++) g[r][c] = (rnd() < 0.5 && n > 5 && r === 2) ? '3' : hpChar;
+    g[4][4] = 'b'; g[4][5] = 'b';
+    // roof row and wings (mirrored)
+    for (let c = 0; c < K; c++) g[0][c] = (c >= 2 && c <= 7) ? 'n' : '.';
+    const density = Math.min(0.9, 0.6 + n * 0.03);
+    for (let r = 1; r < rows; r++) {
+      for (let c = 0; c < 2; c++) {
+        if (rnd() > density) continue;
+        let ch = rnd() < 0.12 ? 'b' : (rnd() < Math.min(0.5, 0.15 + n * 0.04) ? 'r' : 'n');
+        if (c === 1 && r > 1 && r < 7 && rnd() < 0.2) ch = 'u';
+        g[r][c] = ch; g[r][K - 1 - c] = ch;
+      }
+    }
+    return g.map((row) => row.join(''));
+  }
+
+  PB.buildLevel = function (n, mode) {
+    const fort = mode === 'fortress';
+    let pattern = fort ? fortress(n) : (n <= HAND.length ? HAND[n - 1].slice() : generate(n));
     pattern = pruneUnreachable(pattern);
 
     const cells = [];
     pattern.forEach((row, r) => row.split('').forEach((ch, c) => {
       if (ch === '.') return;
       let hp = 1;
-      if (ch === 'r') hp = n >= 12 ? 3 : (n >= 6 && ((r + c) % 3 === 0) ? 3 : 2);
+      if (ch === '2' || ch === '3') { hp = +ch; ch = 'r'; }
+      else if (ch === 'r') hp = n >= 12 ? 3 : (n >= 6 && ((r + c) % 3 === 0) ? 3 : 2);
       cells.push({ c, r, kind: ch, hp });
     }));
     if (!cells.some(k => k.kind !== 'u')) cells.push({ c: 4, r: 0, kind: 'n', hp: 1 });
 
     const rows = pattern.length;
     const bottom = C.GRID_Y + rows * C.CELL_H;
-    const obsCount = n < 4 ? 0 : Math.min(3, 1 + Math.floor((n - 4) / 4));
+    const obsCount = n < 4 ? 0 : (fort ? Math.min(2, 1 + Math.floor((n - 4) / 5)) : Math.min(3, 1 + Math.floor((n - 4) / 4)));
     const obstacles = [];
     for (let i = 0; i < obsCount; i++) {
       obstacles.push({

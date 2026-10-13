@@ -1,11 +1,11 @@
-/* Pink Bounce: Survival - bootstrap and global controls (pause, restart, mute, focus handling). */
+/* Neon Ricochet - bootstrap and global controls (pause, restart, mute, focus handling). */
 (function () {
   'use strict';
   const C = PB.CFG;
   const $ = (id) => document.getElementById(id);
 
+  PB.applyThemeCss();
   PB.UI.init();
-  PB.UI.setMenuBest(PB.loadBest());
 
   const game = new Phaser.Game({
     type: Phaser.AUTO,
@@ -44,7 +44,6 @@
   PB.toMenu = function () {
     if (game.scene.isActive('Game') || game.scene.isPaused('Game')) game.scene.stop('Game');
     PB.UI.reset(); PB.UI.setPaused(false);
-    PB.UI.setMenuBest(PB.loadBest());
     game.scene.start('Menu');
   };
 
@@ -54,7 +53,7 @@
     PB.setMode('paused');
     PB.UI.showOnly('pause'); PB.UI.setPaused(true);
     PB.Audio.play('pause');
-    const gs = gameScene(); if (gs) PB.saveBest(gs.best);
+    const gs = gameScene(); if (gs) PB.saveBest(gs.mode, gs.best);
     setTimeout(() => { const b = $('btn-resume'); if (b && PB.mode === 'paused') b.focus(); }, 30);
   };
 
@@ -75,6 +74,16 @@
     PB.UI.refreshMute();
   };
 
+  /* Change the colour theme: rebuild themed textures while no scene is using them, then reopen the menu. */
+  PB.setTheme = function (id) {
+    PB.Save.data.theme = id; PB.Save.save();
+    const wasMenu = game.scene.isActive('Menu');
+    if (wasMenu) game.scene.stop('Menu');
+    PB.makeThemeTextures(game);
+    PB.applyThemeCss();
+    if (wasMenu) game.scene.start('Menu');
+  };
+
   /* ---------------- buttons ---------------- */
   const on = (id, fn) => $(id).addEventListener('click', (e) => { e.currentTarget.blur(); fn(); });
   on('btn-play', PB.start);
@@ -86,12 +95,22 @@
   on('btn-pause-menu', PB.toMenu);
   on('btn-over-menu', PB.toMenu);
   on('btn-mute', PB.toggleMute);
+  on('btn-settings', () => PB.UI.openSheet('settings'));
+  on('sheet-close', PB.UI.closeSheet);
+  $('sheet-body').addEventListener('click', PB.UI.sheetClick);
+  $('sheet').addEventListener('click', (e) => { if (e.target === e.currentTarget) PB.UI.closeSheet(); });
+  document.querySelectorAll('.dock-btn').forEach((b) => b.addEventListener('click', () => { b.blur(); PB.UI.openSheet(b.dataset.sheet); }));
+  document.querySelectorAll('.mode-card').forEach((b) => b.addEventListener('click', () => {
+    PB.Save.data.mode = b.dataset.mode; PB.Save.save(); PB.UI.renderHome(); PB.Audio.unlock(); PB.Audio.play('pause');
+  }));
 
   /* ---------------- keyboard shortcuts (one listener, registered once) ---------------- */
   window.addEventListener('keydown', (e) => {
     PB.Audio.unlock();
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key;
+    if (k === 'Escape' && PB.UI.sheetOpen()) { PB.UI.closeSheet(); return; }
+    if (PB.UI.sheetOpen()) return;
     if (k === 'p' || k === 'P' || k === 'Escape') { if (inRun()) { e.preventDefault(); PB.togglePause(); } }
     else if (k === 'r' || k === 'R') { if (inRun() || PB.mode === 'over') { e.preventDefault(); PB.start(); } }
     else if (k === 'm' || k === 'M') { PB.toggleMute(); }
@@ -105,7 +124,7 @@
   /* ---------------- focus loss / tab hidden -> auto pause ---------------- */
   document.addEventListener('visibilitychange', () => { if (document.hidden) PB.pause(); });
   window.addEventListener('blur', () => PB.pause());
-  window.addEventListener('pagehide', () => { const gs = gameScene(); if (gs && gs.best) PB.saveBest(gs.best); });
+  window.addEventListener('pagehide', () => { const gs = gameScene(); if (gs && gs.best) PB.saveBest(gs.mode, gs.best); });
 
   /* ---------------- resize (mobile browser chrome / orientation) ---------------- */
   const refresh = () => requestAnimationFrame(() => game.scale.refresh());
