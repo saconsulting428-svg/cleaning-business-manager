@@ -231,7 +231,9 @@ export class CamRig {
   update(dt, F, aspect) {
     this.t += dt; const a = F[0], b = F[1], mid = new V3((a.pos.x + b.pos.x) / 2, 0, (a.pos.z + b.pos.z) / 2), sep = Math.hypot(a.pos.x - b.pos.x, a.pos.z - b.pos.z);
     let tp = new V3(), tl = new V3(), fov = 34; const k = 1 - Math.exp(-dt * 5);
-    const ax = new V3(b.pos.x - a.pos.x, 0, b.pos.z - a.pos.z).normalize(), perp = new V3(-ax.z, 0, ax.x); if (perp.z < 0) perp.negate();
+    if (!this.axS) this.axS = new V3(1, 0, 0);
+    if (sep > .6) { const n = new V3(b.pos.x - a.pos.x, 0, b.pos.z - a.pos.z).normalize(); if (n.x < 0) n.negate(); this.axS.lerp(n, 1 - Math.exp(-dt * 6)).normalize(); } // fighters swapping sides / overlapping never flip the view
+    const ax = this.axS.clone(), perp = new V3(-ax.z, 0, ax.x); if (perp.z < 0) perp.negate();
     if (this.mode === 'fight' || this.mode === 'training') {
       const th = Math.tan(fov * Math.PI / 360), D = Math.max(3.9, (sep + 2.6) / (2 * th * aspect), 3.2 / (2 * th));
       tp.copy(mid).addScaledVector(perp, D).addScaledVector(ax, -.25 + Math.sin(this.t * .3) * .15); tp.y = 1.45 + D * .045; tl.set(mid.x, 1.12 + Math.max(a.y, b.y) * .35, mid.z);

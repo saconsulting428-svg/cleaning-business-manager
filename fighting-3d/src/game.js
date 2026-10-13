@@ -164,6 +164,7 @@ export class Game {
     // push apart (3D) + keep inside arena
     const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z, d = Math.hypot(dx, dz), min = .62;
     if (d < min && a.y < .5 && b.y < .5 && d > 1e-4 && a.state !== 'down' && b.state !== 'down') { const p = (min - d) / 2, nx = dx / d, nz = dz / d; a.pos.x -= nx * p; a.pos.z -= nz * p; b.pos.x += nx * p; b.pos.z += nz * p; }
+    if (d <= 1e-4 && a.state !== 'down' && b.state !== 'down') { a.pos.x -= .31; b.pos.x += .31; } // never stack on the same spot
     for (const f of F) f.computePose();
     for (const f of F) f.shownHp += (f.hp - f.shownHp) * .08;
     if (this.phase === 'fight' && this.frame % 70 === 0 && F.some(f => f.hp > 0 && f.hp < 22)) sfx('heartbeat');
