@@ -263,6 +263,7 @@ export class Game {
     else if (code === 'Escape') { if (this.sel.step === 1) { this.sel.step = 0; this.previewSel(); } else { this.previewFighter && (this.previewFighter.rig.root.visible = false); this.toMenu(); } }
   }
   confirmSel() {
+    if (this.screen !== 'select') return;
     const ids = Object.keys(ROSTER), id = ids[this.sel.idx]; sfx('ok');
     if (this.sel.step === 0) {
       this.sel.p1 = id;
@@ -320,7 +321,7 @@ export class Game {
     // ----- select
     ui.showSelect = () => { for (const e of $$('.screen')) e.classList.toggle('show', e.id === 'select');
       const ids = Object.keys(ROSTER); $('#selList').innerHTML = ids.map((id, i) => { const R = ROSTER[id]; return `<div class="card" data-i="${i}" style="--c:${R.color}">${PORTRAITS[id] ? `<img src="${PORTRAITS[id]}" alt="${R.name}">` : `<span class="ph">${R.name[0]}</span>`}<b>${R.name}</b></div>`; }).join('');
-      $$('#selList .card').forEach(c => { c.onclick = () => { const i = +c.dataset.i; if (i === G.sel.last) G.confirmSel(); G.sel.last = i; G.sel.idx = i; G.previewSel(); sfx('ui'); }; }); };
+      $$('#selList .card').forEach(c => { c.onclick = () => { if (G.screen !== 'select') return; const i = +c.dataset.i; if (i === G.sel.last && i === G.sel.idx) { G.confirmSel(); return; } G.sel.last = i; G.sel.idx = i; G.previewSel(); sfx('ui'); }; }); };
     ui.refreshSelect = (id) => { const s = ROSTER[id], st = s.stats, step = G.sel.step;
       $('#selTitle').innerHTML = (G.mode === 'versus' ? `PLAYER ${step + 1} — ` : G.mode === 'training' ? 'TRAINING — ' : 'ARCADE — ') + 'SELECT FIGHTER';
       $$('#selList .card').forEach((c, i) => c.classList.toggle('on', i === G.sel.idx));
