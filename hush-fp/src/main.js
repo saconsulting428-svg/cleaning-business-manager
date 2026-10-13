@@ -15,8 +15,8 @@ $('app').classList.toggle('touch', coarse);
 
 /* ---------------- save ---------------- */
 const KEY = 'hush.fp.v1';
-const save = { v: 1, stars: [], best: [], set: { gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false }, last: 0 };
-try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.v === 1) { Object.assign(save, s); save.set = Object.assign({ gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false }, s.set || {}); } } catch (e) { /* private mode */ }
+const save = { v: 1, stars: [], best: [], set: { gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal' }, last: 0 };
+try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.v === 1) { Object.assign(save, s); save.set = Object.assign({ gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal' }, s.set || {}); } } catch (e) { /* private mode */ }
 const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } };
 const unlocked = (i) => UNLOCK || i === 0 || (save.stars[i - 1] || 0) > 0;
 const chapterStars = (c) => { let s = 0; for (let i = c * 10; i < c * 10 + 10; i++) s += save.stars[i] || 0; return s; };
@@ -69,7 +69,7 @@ function setLoading(on, text, pct) { overlay('load', on); if (text) $('load-text
 function nextFrame() { return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))); }
 async function startLevel(i) {
   setLoading(true, 'Entering ' + LEVELS[i].name, 20); ['pause', 'win', 'dead', 'note', 'keypad', 'settings', 'how', 'credits'].forEach(o => overlay(o, false)); await nextFrame();
-  G.level = i; save.last = i; persist(); G.chapterView = LEVELS[i].ch; const w = new World(gen(i), {}); G.world = w; setLoading(true, null, 55); await nextFrame(); G.view.loadLevel(w); setLoading(true, null, 95); await nextFrame();
+  G.level = i; save.last = i; persist(); G.chapterView = LEVELS[i].ch; const w = new World(gen(i), { diff: save.set.diff }); G.world = w; setLoading(true, null, 55); await nextFrame(); G.view.loadLevel(w); setLoading(true, null, 95); await nextFrame();
   G.mode = 'game'; show('game'); G.paused = false; G.modal = false; G.over = false; G.ended = 0; G.timeSpent = 0; G.acc = 0; G.hintT = 8; G.shownHint = -1; G.lastInv = ''; G.menu = false; inp.sprintBtn = false; $('b-sprint').classList.remove('on');
   $('hint').textContent = save.set.hints ? LEVELS[i].hint : ''; $('hint').classList.toggle('show', save.set.hints); G.chapterAudio = LEVELS[i].ch; applyAudio(); Sound.unlock(); buildHotbar(true);
   setLoading(false, null, 100); G.last = performance.now(); $('fx-hurt').style.opacity = 0; if (!coarse) lockPointer();
@@ -205,9 +205,9 @@ function openSettings() { syncSettings(); overlay('settings', true); }
 $('s-close').onclick = () => { overlay('settings', false); persist(); };
 qa('#s-tabs button').forEach(b => { b.onclick = () => { qa('#s-tabs button').forEach(x => x.classList.toggle('on', x === b)); qa('.spage').forEach(p => p.classList.toggle('on', p.id === 'sp-' + b.getAttribute('data-t'))); }; });
 function seg(id, key, fn) { qa('#' + id + ' button').forEach(b => { b.onclick = () => { save.set[key] = b.getAttribute('data-v'); syncSettings(); fn && fn(); persist(); Sound.play('ui'); }; }); }
-function syncSettings() { const s = save.set; qa('#set-gfx button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.gfx)); qa('#set-aq button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.aq)); $('set-bright').value = s.bright; $('set-vibe').checked = s.vibe; $('set-hints').checked = s.hints; $('set-vol').value = s.vol; $('set-mvol').value = s.mvol; $('v-vol').textContent = s.vol + '%'; $('v-mvol').textContent = s.mvol + '%'; $('set-sound').checked = s.sound; $('set-music').checked = s.music; $('set-sens').value = s.sens; $('set-inv').checked = s.inv; }
+function syncSettings() { const s = save.set; qa('#set-gfx button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.gfx)); qa('#set-aq button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.aq)); qa('#set-diff button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.diff)); $('set-bright').value = s.bright; $('set-vibe').checked = s.vibe; $('set-hints').checked = s.hints; $('set-vol').value = s.vol; $('set-mvol').value = s.mvol; $('v-vol').textContent = s.vol + '%'; $('v-mvol').textContent = s.mvol + '%'; $('set-sound').checked = s.sound; $('set-music').checked = s.music; $('set-sens').value = s.sens; $('set-inv').checked = s.inv; }
 function applyGfx() { const g = save.set.gfx, v = G.view; v.autoQ = g === 'auto'; v.setQuality(g === 'auto' ? (isMobile ? 'medium' : 'high') : g); v.brightness = save.set.bright / 100; }
-seg('set-gfx', 'gfx', () => { applyGfx(); if (G.world) G.view.loadLevel(G.world); else startMenuScene(); }); seg('set-aq', 'aq', () => { Sound.setQuality(save.set.aq); Sound.unlock(); applyAudio(); });
+seg('set-gfx', 'gfx', () => { applyGfx(); if (G.world) G.view.loadLevel(G.world); else startMenuScene(); }); seg('set-diff', 'diff', () => { if (G.world && !G.over) G.world.diff = { easy: { sight: 0.75, alert: 0.7, speed: 0.9 }, normal: { sight: 1, alert: 1, speed: 1 }, hard: { sight: 1.2, alert: 1.3, speed: 1.12 } }[save.set.diff]; }); seg('set-aq', 'aq', () => { Sound.setQuality(save.set.aq); Sound.unlock(); applyAudio(); });
 const bindR = (id, key, fn) => { $(id).oninput = () => { save.set[key] = +$(id).value; fn && fn(); syncSettings(); }; $(id).onchange = persist; }, bindC = (id, key, fn) => { $(id).onchange = () => { save.set[key] = $(id).checked; fn && fn(); persist(); }; };
 bindR('set-bright', 'bright', () => { G.view.brightness = save.set.bright / 100; }); bindR('set-vol', 'vol', applyAudio); bindR('set-mvol', 'mvol', applyAudio); bindR('set-sens', 'sens'); bindC('set-vibe', 'vibe', applyAudio); bindC('set-hints', 'hints'); bindC('set-sound', 'sound', applyAudio); bindC('set-music', 'music', applyAudio); bindC('set-inv', 'inv');
 $('set-reset').onclick = () => { if ($('set-reset').dataset.sure) { save.stars = []; save.best = []; save.last = 0; persist(); delete $('set-reset').dataset.sure; $('set-reset').textContent = 'Reset'; } else { $('set-reset').dataset.sure = 1; $('set-reset').textContent = 'Sure?'; setTimeout(() => { delete $('set-reset').dataset.sure; $('set-reset').textContent = 'Reset'; }, 2500); } };
@@ -219,10 +219,10 @@ function tickInput() {
   inp.dyaw = 0; inp.dpitch = 0; inp.edge = {}; if (out.interact && G.world.prompt) G.view.reach(); return out;
 }
 function frame(ts) {
-  requestAnimationFrame(frame); const now = ts / 1000, dt = Math.min(0.1, now - (G.lastTs || now)); G.lastTs = now; G.now = now; const v = G.view; if (!v || !v.built) return;
+  requestAnimationFrame(frame); const now = ts / 1000, dt = Math.min(0.25, now - (G.lastTs || now)); G.lastTs = now; G.now = now; const v = G.view; if (!v || !v.built) return;
   if (G.mode === 'game' && G.world) {
     const w = G.world;
-    if (!G.paused && !G.modal) { G.acc += dt; let n = 0; while (G.acc >= DT && n++ < 4) { const i = tickInput(); w.update(DT, i); if (!G.over || w.over === 'dead') G.timeSpent += DT; G.acc -= DT; handleEvents(w, DT); } if (n >= 4) G.acc = 0; }
+    if (!G.paused && !G.modal) { G.acc += dt; let n = 0; while (G.acc >= DT && n++ < 8) { const i = tickInput(); w.update(DT, i); if (!G.over || w.over === 'dead') G.timeSpent += DT; G.acc -= DT; handleEvents(w, DT); } if (n >= 8) G.acc = 0; }
     hud(w, dt); v.frame(w, G.paused || G.modal ? 0 : dt, now);
   } else if (G.menuWorld) { G.menuT += dt; const w = G.menuWorld; w.update(dt, {}); w.drainEvents(); v.setMenuCamera(w, G.menuT); v.camera.updateMatrixWorld(true); v.flashRig.position.copy(v.camera.position); v.flashRig.quaternion.copy(v.camera.quaternion); v.flash.intensity = 200; v.cone.visible = true; v.coneMat.uniforms.uInt.value = 0.1; v.handRoot.visible = false; v.menuFrame(w, dt, now); Sound.tick && Sound.tick(dt, 0, false); }
 }

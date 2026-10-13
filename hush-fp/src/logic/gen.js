@@ -110,7 +110,9 @@ function tryGenerate(spec, seed) {
       reserve.add(key(x + fx, y + fy)); return { x, y, face: Math.atan2(fy, fx) };
     } return null;
   };
-  for (let i = 0; i < spec.lockers; i++) { const ri_ = pick(rooms.map(r => r.idx)); const p = wallSpot(ri_); if (p) { O({ type: 'locker', x: p.x, y: p.y, face: p.face, room: ri_ }); blocked.add(key(p.x, p.y)); } }
+  /* hiding places: every room gets a locker (the start room first), then extras up to the spec; hiding is the core answer to the creature, so one is always close */
+  const lockerRooms = order.map(r => r.idx).slice(0, Math.max(spec.lockers, Math.min(n, spec.creatures.length ? n : 1)));
+  for (const ri_ of lockerRooms) { const p = wallSpot(ri_); if (p) { O({ type: 'locker', x: p.x, y: p.y, face: p.face, room: ri_ }); blocked.add(key(p.x, p.y)); } }
   for (let v = 0; v < spec.vents; v++) {                                               // vent pairs stay inside one zone so they never bypass a lock
     let done = false; for (let t = 0; t < 40 && !done; t++) { const a = ri(0, n - 1), b = ri(0, n - 1); if (a === b || zoneOf(a) !== zoneOf(b) || Math.abs(a - b) < 2) continue;
       const pa = wallSpot(a), pb = wallSpot(b); if (!pa || !pb) continue; const va = O({ type: 'vent', x: pa.x, y: pa.y, face: pa.face, room: a }), vb = O({ type: 'vent', x: pb.x, y: pb.y, face: pb.face, room: b }); va.pair = vb.id; vb.pair = va.id; blocked.add(key(pa.x, pa.y)); blocked.add(key(pb.x, pb.y)); done = true; }
@@ -135,11 +137,15 @@ function tryGenerate(spec, seed) {
   for (const e of edges) for (let i = 2; i < e.cells.length; i += 5) lights.push({ x: e.cells[i][0] + 0.5, y: e.cells[i][1] + 0.5, kind: R() < 0.3 ? 'dead' : R() < 0.35 ? 'flicker' : 'ok', ph: R() * 100 });
   /* creatures */
   const creatures = []; const used = new Set();
-  const farRooms = order.filter(r => r.idx >= 1);
+  const itemRooms = new Set(objs.filter(o => o.type === 'item' || o.type === 'note' || o.type === 'generator' || o.type === 'valve').map(o => o.room).filter(r => r !== undefined));
+  const ventRooms = new Set(objs.filter(o => o.type === 'vent').map(o => o.room));
   for (const t of spec.creatures) {
-    let r = null; for (let q = 0; q < 30 && !r; q++) { const c = pick(farRooms.filter(f => !used.has(f.idx)).length ? farRooms.filter(f => !used.has(f.idx)) : farRooms); if (c) r = c; }
-    if (!r) return null; used.add(r.idx); const x = r.cx + 0.5, y = r.cy + 0.5;
-    creatures.push({ t, x, y, roomIdx: r.idx, yaw: R() * Math.PI * 2, hunted: !!spec.hunted && creatures.length === 0 });
+    let pool = order.filter(r => r.idx >= 1 && !used.has(r.idx) && (t !== 'sentinel' || r.idx <= n - 2));
+    if (!pool.length) pool = order.filter(r => r.idx >= 1); if (!pool.length) return null;
+    const noVent = pool.filter(r => !ventRooms.has(r.idx)); if (noVent.length) pool = noVent;                    // nothing waits where a vent comes out
+    if (t === 'sentinel') { const guard = pool.filter(r => itemRooms.has(r.idx)); if (guard.length) pool = guard; }
+    const r = pick(pool); used.add(r.idx); let x = r.cx, y = r.cy; if (blocked.has(key(x, y)) || objs.some(o => o.x === x && o.y === y)) { const f = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([dx, dy]) => isFree(x + dx, y + dy)); if (!f) return null; x += f[0]; y += f[1]; }
+    creatures.push({ t, x: x + 0.5, y: y + 0.5, roomIdx: r.idx, yaw: R() * Math.PI * 2, hunted: !!spec.hunted && creatures.length === 0 });
   }
   const world = { spec, W, H, cells, rooms: order, edges, gates, gateEdge, objs, start: { x: st.x + 0.5, y: st.y + 0.5, yaw: 0 }, exit, lights, creatures, blocked: [...blocked], seed };
   /* start facing the first corridor */

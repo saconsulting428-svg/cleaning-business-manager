@@ -28,7 +28,7 @@ export function patchPulse(mat) {
           vec3 g = abs(fract(vPW * 1.0 - 0.5) - 0.5) / max(fwidth(vPW), vec3(0.0001));
           float line = 1.0 - clamp(min(min(g.x, g.y), g.z), 0.0, 1.0);
           float fade = uPulseA * (1.0 - pd / uPulseMax);
-          gl_FragColor.rgb += vec3(0.08, 0.62, 1.0) * (line * 0.85 + 0.16) * inside * fade + vec3(0.35, 0.85, 1.0) * ring * uPulseA * 1.6;
+          gl_FragColor.rgb += vec3(0.08, 0.62, 1.0) * (line * 0.9 + 0.06) * inside * fade + vec3(0.35, 0.85, 1.0) * ring * uPulseA * 1.6;
         }
         #include <dithering_fragment>`);
   };

@@ -3,9 +3,9 @@ import { clamp, angDiff, TAU } from './rng.js';
 import { T } from './gen.js';
 
 export const KINDS = {
-  stalker: { roam: 1.1, invest: 1.5, hunt: 2.25, hear: 1.0, sight: 9, fov: 1.75, turn: 3.5, cycle: 1.15, label: 'stalker' },
-  sentinel: { roam: 0, invest: 1.3, hunt: 2.1, hear: 0.85, sight: 13, fov: 0.95, turn: 2.2, cycle: 1.3, label: 'sentinel', leash: 7 },
-  listener: { roam: 0.95, invest: 1.6, hunt: 2.0, hear: 1.7, sight: 3.2, fov: 2.4, turn: 3.2, cycle: 1.0, label: 'listener' }
+  stalker: { roam: 1.1, invest: 1.5, hunt: 2.1, hear: 1.0, sight: 8.5, fov: 1.75, turn: 3.5, cycle: 1.15, label: 'stalker' },
+  sentinel: { roam: 0, invest: 1.3, hunt: 2.0, hear: 0.85, sight: 11, fov: 0.95, turn: 2.2, cycle: 1.3, label: 'sentinel', leash: 7 },
+  listener: { roam: 0.95, invest: 1.6, hunt: 1.95, hear: 1.7, sight: 3.2, fov: 2.4, turn: 3.2, cycle: 1.0, label: 'listener' }
 };
 const DIRS8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 const BLOCK_SIGHT = { crate: 1, shelf: 1, pod: 1, barrel: 1 };
@@ -41,6 +41,12 @@ export function findPath(world, sx, sy, tx, ty, limit) {
   }
   return null;
 }
+/* every tile a creature standing at (x,y) can walk to right now (locked doors are walls) */
+export function reachFrom(world, x, y) {
+  const W = world.W, seen = new Set(), q = [[Math.floor(x), Math.floor(y)]]; seen.add(q[0][1] * W + q[0][0]); let qi = 0;
+  while (qi < q.length) { const [cx, cy] = q[qi++]; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = cx + dx, ny = cy + dy, i = ny * W + nx; if (seen.has(i) || solidForAI(world, nx, ny)) continue; seen.add(i); q.push([nx, ny]); } }
+  return seen;
+}
 /* walk-distance field from a point, closed doors cost extra (they muffle sound) */
 export function distField(world, x, y, maxR) {
   const W = world.W, out = new Map(), start = Math.floor(y) * W + Math.floor(x); out.set(start, 0); const q = [[Math.floor(x), Math.floor(y)]]; let qi = 0;
@@ -59,8 +65,8 @@ export function lineOfSight(world, ax, ay, bx, by) {
 /* ---- perception ---- */
 function sightRange(world, c) {
   const p = world.player; if (p.hidden >= 0 || !p.alive) return 0; const hunting = c.state === 'hunt';
-  let r = c.k.sight * (p.crouch ? 0.55 : 1) * (p.flash ? 1.3 : 0.75) * (p.moving && p.sprint ? 1.2 : 1) * (hunting ? 1.35 : 1);
-  if (world.spec.lightsOut) r *= p.flash ? 1.0 : 0.6; return r;
+  let r = c.k.sight * world.diff.sight * (p.crouch ? 0.45 : 1) * (p.flash ? 1.15 : 0.65) * (p.moving && p.sprint ? 1.2 : 1) * (hunting ? 1.25 : 1);
+  if (world.spec.lightsOut) r *= p.flash ? 0.9 : 0.6; return r;
 }
 export function canSee(world, c) {
   const p = world.player, dx = p.x - c.x, dy = p.y - c.y, d = Math.hypot(dx, dy), r = sightRange(world, c); if (d > r || d < 1e-4) return d < 0.9 && r > 0;
@@ -68,11 +74,11 @@ export function canSee(world, c) {
   return lineOfSight(world, c.x, c.y, p.x, p.y);
 }
 /* a sound at (x,y) with a reach in tiles: every creature compares it with its own hearing along the walkable distance */
-export function emitNoise(world, x, y, radius, kind) {
+export function emitNoise(world, x, y, radius, kind, except) {
   world.noiseLevel = Math.max(world.noiseLevel, clamp(radius / 14, 0, 1)); world.events.push({ type: 'noise', x, y, radius, kind });
   if (!world.creatures.length) return;
   const field = distField(world, x, y, radius * 1.8);
-  for (const c of world.creatures) { if (c.dead) continue; const d = field.get(Math.floor(c.y) * world.W + Math.floor(c.x)); if (d === undefined) continue; if (d <= radius * c.k.hear) hear(world, c, x, y, d, radius, kind); }
+  for (const c of world.creatures) { if (c.dead || c === except) continue; const d = field.get(Math.floor(c.y) * world.W + Math.floor(c.x)); if (d === undefined) continue; if (d <= radius * c.k.hear) hear(world, c, x, y, d, radius, kind); }
 }
 function hear(world, c, x, y, d, radius, kind) {
   if (c.state === 'hunt') { c.lastSeen = { x, y }; return; }
@@ -113,7 +119,7 @@ export function updateCreature(world, c, dt) {
   const prevX = c.x, prevY = c.y;
   /* awareness */
   if (seen && c.state !== 'attack') {
-    const r = sightRange(world, c); c.alert += dt * (1.1 + 3.2 * clamp(1 - dist / r, 0, 1)) * (c.state === 'hunt' ? 3 : 1);
+    const r = sightRange(world, c); c.alert += dt * (0.4 + 1.05 * clamp(1 - dist / r, 0, 1)) * (world.diff.alert) * (c.state === 'hunt' ? 3 : 1);
     c.lastSeen = { x: p.x, y: p.y };
     if (c.alert >= 1 && c.state !== 'hunt') { startHunt(world, c); }
     else if (c.alert > 0.35 && c.state !== 'hunt' && c.state !== 'suspicious') { if (c.state !== 'investigate') { c.state = 'suspicious'; c.wait = 0; world.events.push({ type: 'suspicious', id: c.id }); } }
@@ -166,8 +172,8 @@ export function updateCreature(world, c, dt) {
       if (p.hidden >= 0 && !seen && c.knowsLocker >= 0) { c.lastSeen = null; }
       const near = Math.hypot(gx - c.x, gy - c.y);
       if (seen && dist < 0.85 && p.alive) { world.catchPlayer(c); break; }
-      if (near > 0.5) goTo(world, c, gx, gy, dt, k.hunt, 0.25); else { c.moving = false; if (!seen) { c.state = c.knowsLocker >= 0 ? 'search' : 'search'; c.searchT = 7; c.searchOrigin = { x: c.x, y: c.y }; c.target = null; c.path = null; if (c.knowsLocker >= 0) { const L = world.objById.get(c.knowsLocker); if (L) { c.checkLocker = L; c.target = { x: L.x + 0.5 + Math.cos(L.face) * 0.9, y: L.y + 0.5 + Math.sin(L.face) * 0.9 }; } } } }
-      if (c.lostT > 6) { c.state = 'search'; c.searchT = 7; c.searchOrigin = c.lastSeen ? { x: c.lastSeen.x, y: c.lastSeen.y } : { x: c.x, y: c.y }; c.target = null; c.path = null; }
+      if (near > 0.5) goTo(world, c, gx, gy, dt, k.hunt * world.diff.speed, 0.25); else { c.moving = false; if (!seen) { c.state = c.knowsLocker >= 0 ? 'search' : 'search'; c.searchT = 7; c.searchOrigin = { x: c.x, y: c.y }; c.target = null; c.path = null; if (c.knowsLocker >= 0) { const L = world.objById.get(c.knowsLocker); if (L) { c.checkLocker = L; c.target = { x: L.x + 0.5 + Math.cos(L.face) * 0.9, y: L.y + 0.5 + Math.sin(L.face) * 0.9 }; } } } }
+      if (c.lostT > 4.2) { c.state = 'search'; c.searchT = 7; c.searchOrigin = c.lastSeen ? { x: c.lastSeen.x, y: c.lastSeen.y } : { x: c.x, y: c.y }; c.target = null; c.path = null; }
       break;
     }
   }

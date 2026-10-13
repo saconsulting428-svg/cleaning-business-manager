@@ -2,9 +2,10 @@
    Pure logic (no DOM, no Three): the renderer and the UI read its state and its event queue; tests drive it directly. Units: tiles (1 tile = 2 m in the renderer). */
 import { rng32, clamp, angDiff, TAU } from './rng.js';
 import { T, generate } from './gen.js';
-import { makeCreature, updateCreature, emitNoise, KINDS, lineOfSight } from './ai.js';
+import { makeCreature, updateCreature, emitNoise, KINDS, lineOfSight, reachFrom } from './ai.js';
 
 export const DT = 1 / 30;
+export const DIFF = { easy: { sight: 0.75, alert: 0.7, speed: 0.9 }, normal: { sight: 1, alert: 1, speed: 1 }, hard: { sight: 1.2, alert: 1.3, speed: 1.12 } };
 export const SPEED = { walk: 1.55, sprint: 2.7, crouch: 0.8 };
 const PR = 0.3;                                                    // player radius in tiles
 const TALL = { crate: 1, shelf: 1, pod: 1, barrel: 1 };
@@ -12,7 +13,7 @@ const TALL = { crate: 1, shelf: 1, pod: 1, barrel: 1 };
 export class World {
   constructor(gen, opts) {
     opts = opts || {}; this.gen = gen; this.lights = gen.lights; this.spec = gen.spec; this.W = gen.W; this.H = gen.H; this.cells = gen.cells; this.rooms = gen.rooms; this.rnd = rng32(gen.seed * 3 + 1);
-    this.god = !!opts.god; this.time = 0; this.events = []; this.noiseLevel = 0; this.huntCount = 0; this.over = null; this.threat = 0; this.pulseState = null; this.radioLures = [];
+    this.god = !!opts.god; this.diff = DIFF[opts.diff || 'normal'] || DIFF.normal; this.time = 0; this.events = []; this.noiseLevel = 0; this.huntCount = 0; this.over = null; this.threat = 0; this.pulseState = null; this.radioLures = [];
     this.solid = new Set(gen.blocked); this.tall = new Set(); this.doorAt = new Map(); this.objById = new Map(); this.doors = [];
     this.objs = gen.objs.map(o => Object.assign({}, o)); for (const o of this.objs) { this.objById.set(o.id, o); if (o.type === 'prop' && TALL[o.kind]) this.tall.add(o.y * this.W + o.x); }
     for (const o of this.objs) if (o.type === 'door') { o.open = 0; o.want = 0; o.locked = !!o.lock; o.revealed = !o.hidden; o.codeOk = false; this.doorAt.set(o.y * this.W + o.x, o); this.doors.push(o); this.solid.add(o.y * this.W + o.x); }
@@ -31,10 +32,9 @@ export class World {
     const d = this.doorAt.get(i); if (d) return d.open < 0.7 || (d.hidden && !d.revealed); return this.solid.has(i);
   }
   pickRoamRoom(c) {
-    const cand = this.rooms.filter(r => r.idx >= 0 && this.reachableForCreature(r)); const far = cand.filter(r => Math.hypot(r.cx - c.x, r.cy - c.y) > 7);
-    const list = far.length ? far : cand; return list[Math.floor(this.rnd() * list.length)] || this.rooms[0];
+    const seen = reachFrom(this, c.x, c.y), cand = this.rooms.filter(r => seen.has(r.cy * this.W + r.cx) || seen.has((r.cy + 1) * this.W + r.cx)); let far = cand.filter(r => Math.hypot(r.cx - c.x, r.cy - c.y) > 6); if (this.time < 40) { const q = far.filter(r => Math.hypot(r.cx - this.player.x, r.cy - this.player.y) > 10); if (q.length) far = q; }   // nothing wanders into the start room in the first seconds
+    const list = far.length ? far : cand.length ? cand : this.rooms; return list[Math.floor(this.rnd() * list.length)];
   }
-  reachableForCreature(r) { const gateIdx = this.gen.gateEdge.filter((e, k) => this.gateOpen(k)).length; let zone = 0; for (let k = 0; k < this.gen.gateEdge.length; k++) if (this.gen.gateEdge[k] < r.idx) zone++; return zone <= gateIdx; }
   gateOpen(k) { const d = this.objs.find(o => o.type === 'door' && o.gate === k); return !d.locked; }
   nearestLocker(x, y, maxD) { let b = null, bd = maxD; for (const o of this.objs) if (o.type === 'locker') { const d = Math.hypot(o.x + 0.5 - x, o.y + 0.5 - y); if (d < bd) { bd = d; b = o; } } return b; }
   /* ---------- locks ---------- */
@@ -49,7 +49,7 @@ export class World {
     }
   }
   openDoor(d, open, by) {
-    if (open && d.locked) return false; d.want = open ? 1 : 0; if (open && d.open < 0.2) { this.events.push({ type: 'door', x: d.x + 0.5, y: d.y + 0.5, by: by ? 'creature' : 'player' }); emitNoise(this, d.x + 0.5, d.y + 0.5, by ? 3 : 5, 'door'); }
+    if (open && d.locked) return false; d.want = open ? 1 : 0; if (open && d.open < 0.2) { this.events.push({ type: 'door', x: d.x + 0.5, y: d.y + 0.5, by: by ? 'creature' : 'player' }); emitNoise(this, d.x + 0.5, d.y + 0.5, by ? 3 : 5, 'door', by); }
     if (!open && d.open > 0.8) this.events.push({ type: 'door', x: d.x + 0.5, y: d.y + 0.5, by: by ? 'creature' : 'player' }); return true;
   }
   /* ---------- objective ---------- */
@@ -123,7 +123,7 @@ export class World {
     const p = this.player; p.hidden = L.id; p.x = L.x + 0.5 - Math.cos(L.face) * 0.15; p.y = L.y + 0.5 - Math.sin(L.face) * 0.15; p.yaw = L.face; p.vx = p.vy = 0; p.hideT = 0; p.crouch = false;
     this.events.push({ type: 'hide', x: L.x + 0.5, y: L.y + 0.5 }); emitNoise(this, L.x + 0.5, L.y + 0.5, 2.2, 'locker');
     /* creatures that are hunting and can see the locker door remember where you went */
-    for (const c of this.creatures) if (c.state === 'hunt' && Math.hypot(c.x - L.x, c.y - L.y) < 9 && lineOfSight(this, c.x, c.y, L.x + 0.5, L.y + 0.5)) c.knowsLocker = L.id;
+    for (const c of this.creatures) if (c.state === 'hunt' && Math.hypot(c.x - L.x, c.y - L.y) < 6.5 && lineOfSight(this, c.x, c.y, L.x + 0.5, L.y + 0.5)) c.knowsLocker = L.id;
   }
   leaveLocker() { const p = this.player, L = this.objById.get(p.hidden); if (!L) return; p.hidden = -1; p.x = L.x + 0.5 + Math.cos(L.face) * 0.62; p.y = L.y + 0.5 + Math.sin(L.face) * 0.62; this.events.push({ type: 'hide', x: p.x, y: p.y, out: true }); }
   enterVent(v) {
@@ -169,7 +169,7 @@ export class World {
     if (inp.crouchPress) p.crouch = !p.crouch; if (inp.crouchSet !== undefined) p.crouch = !!inp.crouchSet;
     const fw = clamp(inp.fwd || 0, -1, 1), st = clamp(inp.str || 0, -1, 1), mag = Math.min(1, Math.hypot(fw, st)); p.moving = mag > 0.08;
     p.sprint = !!inp.sprint && !p.crouch && p.moving && !p.tired && fw > 0.3;
-    if (p.sprint) { p.stamina -= dt * 0.28; if (p.stamina <= 0) { p.stamina = 0; p.tired = true; p.sprint = false; } } else { p.stamina = Math.min(1, p.stamina + dt * (p.moving ? 0.1 : 0.22)); if (p.tired && p.stamina > 0.35) p.tired = false; }
+    if (p.sprint) { p.stamina -= dt * 0.2; if (p.stamina <= 0) { p.stamina = 0; p.tired = true; p.sprint = false; } } else { p.stamina = Math.min(1, p.stamina + dt * (p.moving ? 0.1 : 0.22)); if (p.tired && p.stamina > 0.35) p.tired = false; }
     const sp = p.crouch ? SPEED.crouch : p.sprint ? SPEED.sprint : SPEED.walk, c = Math.cos(p.yaw), s = Math.sin(p.yaw);
     const tvx = ((c * fw - s * st) * sp) * (mag ? 1 : 0), tvy = ((s * fw + c * st) * sp) * (mag ? 1 : 0), k = Math.min(1, dt * 10); p.vx += (tvx - p.vx) * k; p.vy += (tvy - p.vy) * k;
     if (!p.moving && Math.hypot(p.vx, p.vy) < 0.05) { p.vx = p.vy = 0; }
