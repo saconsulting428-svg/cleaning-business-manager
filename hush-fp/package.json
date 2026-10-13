@@ -1,0 +1,1 @@
+{ "name": "hush-fp", "private": true, "version": "1.0.0", "type": "module", "scripts": { "build": "node tools/build.mjs", "test": "node tests/logic.mjs" }, "devDependencies": { "three": "0.170.0", "esbuild": "0.24.0" } }
