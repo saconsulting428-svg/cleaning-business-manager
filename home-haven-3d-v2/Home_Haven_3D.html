@@ -1692,7 +1692,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const rectOf = (a, b) => ({ x0: clamp(Math.min(a.cx, b.cx), 0, N - 1), z0: clamp(Math.min(a.cz, b.cz), 0, N - 1), x1: clamp(Math.max(a.cx, b.cx), 0, N - 1) + 1, z1: clamp(Math.max(a.cz, b.cz), 0, N - 1) + 1 });
     dom.addEventListener('pointerdown', (e) => {
       dom.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (ptrs.size === 1) { drag = { sx: e.clientX, sy: e.clientY, moved: false }; if (W3.mode === 'build' && W3.roomMode) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); if (c.cx >= 0 && c.cz >= 0 && c.cx < N && c.cz < N) drag.room = c; } else if (W3.mode === 'build' && isPaintKind()) drag.paint = true; }
+      if (ptrs.size === 1) { drag = { sx: e.clientX, sy: e.clientY, moved: false }; if (W3.mode === 'build' && W3.roomMode) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); if (c.cx >= 0 && c.cz >= 0 && c.cx < N && c.cz < N && !(W3.cb.cellFree && !W3.cb.cellFree(c.cx, c.cz))) drag.room = c; } else if (W3.mode === 'build' && isPaintKind()) drag.paint = true; }
       else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: goal.dist, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; if (drag && drag.room) W3.setRoomPreview(null); drag = null; }
     });
     dom.addEventListener('pointermove', (e) => {
@@ -3302,7 +3302,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   function renderItems() {
     const I = $('#items'); I.innerHTML = ''; syncTool(); const room = buildMode() === 'room';
     if (room && curCat === 'rooms') {
-      ROOM_TYPES.forEach(t => { const fp = PART[t.floor]; I.appendChild(mkCard(`<span class="th">${thumb(`p:${t.part}:0`, 72, 62)}</span><span class="nm">${t.name}</span><span class="pr" style="color:var(--mute)">${fp.name.replace(' Floor', '')} floor</span>`, roomTool.type === t.id, () => { sfx('click'); roomTool.type = t.id; renderItems(); refreshRoomPlan(); hint(`Drag on the grid to size your ${t.name}`); tutEvent('type'); }, t.name)); });
+      ROOM_TYPES.forEach(t => { const fp = PART[t.floor]; I.appendChild(mkCard(`<span class="th">${thumb(`p:${t.part}:0`, 72, 62)}</span><span class="nm">${t.name}</span><span class="pr" style="color:var(--mute)">${fp.name.replace(' Floor', '')} floor</span>`, roomTool.type === t.id, () => { sfx('click'); roomTool.type = t.id; renderItems(); refreshRoomPlan(); hint(`Drag on an empty spot of the grid to size your ${t.name} (tap a built room to edit it)`); tutEvent('type'); }, t.name)); });
       return;
     }
     if (room && curCat === 'roof') {
@@ -3322,7 +3322,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   $$('.sg').forEach(b => b.addEventListener('click', () => setTimeout(() => { roomTool.rect = null; refreshRoomPlan(); }, 0)));
   function bindRoomWorld() {
     WORLD.cb.roomRect = (r, fin) => { roomTool.rect = r; refreshRoomPlan(); if (fin) tutEvent('rect'); };
-    const prev = WORLD.cb.selected; WORLD.cb.selected = (o) => { prev(o); $('#sRoom').classList.toggle('hidden', !(o && buildMode() === 'room' && ['floor', 'wall'].includes(PART[o.part].kind) && o.part !== 'path_stone' && PART[o.part].cat !== 'garden')); };
+    WORLD.cb.cellFree = (cx, cz) => buildMode() !== 'room' || roomEdit || curCat !== 'rooms' || !WORLD.hasFloor(cx, cz, WORLD.level);
+    const prev = WORLD.cb.selected; WORLD.cb.selected = (o) => {
+      if (o && buildMode() === 'room' && !roomEdit && !WORLD.place) { // tapping a built room opens the room editor instead of selecting a single tile
+        const rm = GAME_DATA.detectRooms(S.layout).find(r => r.lvl === o.lvl && (r.floors.includes(o) || r.walls.includes(o) || r.items.includes(o) || r.cells.some(c => c[0] === o.x && c[1] === o.z)));
+        if (rm) { setTimeout(() => { WORLD.deselect(); enterRoomEdit(rm); }, 0); return; }
+      }
+      prev(o); $('#sRoom').classList.toggle('hidden', !(o && buildMode() === 'room' && ['floor', 'wall'].includes(PART[o.part].kind) && o.part !== 'path_stone' && PART[o.part].cat !== 'garden')); };
   }
 
   // ---- first-time tutorial (where to tap and drag)

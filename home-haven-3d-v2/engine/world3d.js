@@ -443,7 +443,7 @@
     const rectOf = (a, b) => ({ x0: clamp(Math.min(a.cx, b.cx), 0, N - 1), z0: clamp(Math.min(a.cz, b.cz), 0, N - 1), x1: clamp(Math.max(a.cx, b.cx), 0, N - 1) + 1, z1: clamp(Math.max(a.cz, b.cz), 0, N - 1) + 1 });
     dom.addEventListener('pointerdown', (e) => {
       dom.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (ptrs.size === 1) { drag = { sx: e.clientX, sy: e.clientY, moved: false }; if (W3.mode === 'build' && W3.roomMode) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); if (c.cx >= 0 && c.cz >= 0 && c.cx < N && c.cz < N) drag.room = c; } else if (W3.mode === 'build' && isPaintKind()) drag.paint = true; }
+      if (ptrs.size === 1) { drag = { sx: e.clientX, sy: e.clientY, moved: false }; if (W3.mode === 'build' && W3.roomMode) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); if (c.cx >= 0 && c.cz >= 0 && c.cx < N && c.cz < N && !(W3.cb.cellFree && !W3.cb.cellFree(c.cx, c.cz))) drag.room = c; } else if (W3.mode === 'build' && isPaintKind()) drag.paint = true; }
       else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: goal.dist, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; if (drag && drag.room) W3.setRoomPreview(null); drag = null; }
     });
     dom.addEventListener('pointermove', (e) => {

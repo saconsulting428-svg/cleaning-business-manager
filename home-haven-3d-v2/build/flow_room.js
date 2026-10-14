@@ -122,7 +122,7 @@
   function renderItems() {
     const I = $('#items'); I.innerHTML = ''; syncTool(); const room = buildMode() === 'room';
     if (room && curCat === 'rooms') {
-      ROOM_TYPES.forEach(t => { const fp = PART[t.floor]; I.appendChild(mkCard(`<span class="th">${thumb(`p:${t.part}:0`, 72, 62)}</span><span class="nm">${t.name}</span><span class="pr" style="color:var(--mute)">${fp.name.replace(' Floor', '')} floor</span>`, roomTool.type === t.id, () => { sfx('click'); roomTool.type = t.id; renderItems(); refreshRoomPlan(); hint(`Drag on the grid to size your ${t.name}`); tutEvent('type'); }, t.name)); });
+      ROOM_TYPES.forEach(t => { const fp = PART[t.floor]; I.appendChild(mkCard(`<span class="th">${thumb(`p:${t.part}:0`, 72, 62)}</span><span class="nm">${t.name}</span><span class="pr" style="color:var(--mute)">${fp.name.replace(' Floor', '')} floor</span>`, roomTool.type === t.id, () => { sfx('click'); roomTool.type = t.id; renderItems(); refreshRoomPlan(); hint(`Drag on an empty spot of the grid to size your ${t.name} (tap a built room to edit it)`); tutEvent('type'); }, t.name)); });
       return;
     }
     if (room && curCat === 'roof') {
@@ -142,7 +142,13 @@
   $$('.sg').forEach(b => b.addEventListener('click', () => setTimeout(() => { roomTool.rect = null; refreshRoomPlan(); }, 0)));
   function bindRoomWorld() {
     WORLD.cb.roomRect = (r, fin) => { roomTool.rect = r; refreshRoomPlan(); if (fin) tutEvent('rect'); };
-    const prev = WORLD.cb.selected; WORLD.cb.selected = (o) => { prev(o); $('#sRoom').classList.toggle('hidden', !(o && buildMode() === 'room' && ['floor', 'wall'].includes(PART[o.part].kind) && o.part !== 'path_stone' && PART[o.part].cat !== 'garden')); };
+    WORLD.cb.cellFree = (cx, cz) => buildMode() !== 'room' || roomEdit || curCat !== 'rooms' || !WORLD.hasFloor(cx, cz, WORLD.level);
+    const prev = WORLD.cb.selected; WORLD.cb.selected = (o) => {
+      if (o && buildMode() === 'room' && !roomEdit && !WORLD.place) { // tapping a built room opens the room editor instead of selecting a single tile
+        const rm = GAME_DATA.detectRooms(S.layout).find(r => r.lvl === o.lvl && (r.floors.includes(o) || r.walls.includes(o) || r.items.includes(o) || r.cells.some(c => c[0] === o.x && c[1] === o.z)));
+        if (rm) { setTimeout(() => { WORLD.deselect(); enterRoomEdit(rm); }, 0); return; }
+      }
+      prev(o); $('#sRoom').classList.toggle('hidden', !(o && buildMode() === 'room' && ['floor', 'wall'].includes(PART[o.part].kind) && o.part !== 'path_stone' && PART[o.part].cat !== 'garden')); };
   }
 
   // ---- first-time tutorial (where to tap and drag)
