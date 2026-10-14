@@ -262,7 +262,7 @@
   const debrisAt = (x, z) => W3.debris.some(i => DEBRIS_SPOTS[i][0] === x && DEBRIS_SPOTS[i][1] === z);
   // ---------------------------------------------------------------- picking
   const ray = new T.Raycaster(), ndc = new T.Vector2(), plane = new T.Plane(new T.Vector3(0, 1, 0), 0);
-  function setRay(cx, cy) { const r = renderer.domElement.getBoundingClientRect(); const x = (cx - r.left), y = (cy - r.top); ndc.set(((x - cam.sx) / r.width) * 2 - 1, -((y + cam.sy) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera); }
+  function setRay(cx, cy) { const r = renderer.domElement.getBoundingClientRect(); const x = (cx - r.left), y = (cy - r.top); ndc.set((x / r.width) * 2 - 1, -(y / r.height) * 2 + 1); ray.setFromCamera(ndc, camera); }
   W3.cellAt = (cx, cy, kind) => { setRay(cx, cy); const h = W3.level * H + (kind === 'roof' ? H : 0); plane.constant = -h; const p = new T.Vector3(); if (!ray.ray.intersectPlane(plane, p)) return { x: -9, z: -9, cx: -9, cz: -9 }; return { x: p.x, z: p.z, cx: Math.floor(p.x), cz: Math.floor(p.z) }; };
   W3.pick = (cx, cy) => {
     setRay(cx, cy); const list = []; objs.forEach(e => { if (!e.g.visible) return; const o = e.o; if (W3.mode === 'build' && !(o.lvl === W3.level || (PART[o.part].kind === 'roof' && o.lvl === W3.level))) return; if ((e.a ?? 1) < .2 && !(PART[o.part].kind === 'roof' && (e.a ?? 1) > 0)) return; list.push(e.g); });
@@ -286,7 +286,7 @@
     return false;
   };
   W3.confirmGhost = () => {
-    const c = W3.ghostCand; if (!c || !W3.canPlace(c)) { W3.cb.sfx && W3.cb.sfx('bad'); if (c && W3.blockedByDebris) { W3.blockedByDebris = false; W3.cb.blocked && W3.cb.blocked('debris'); } if (c && PART[c.part].kind !== 'item') setTimeout(() => { if (W3.ghostCand === c) W3.cancelGhostOnly(); }, 350); return false; }
+    const c = W3.ghostCand; if (!c || !W3.canPlace(c)) { if (!W3._dragPaint) W3.cb.sfx && W3.cb.sfx('bad'); if (c && W3.blockedByDebris) { W3.blockedByDebris = false; W3.cb.blocked && W3.cb.blocked('debris'); } if (c && PART[c.part].kind !== 'item') setTimeout(() => { if (W3.ghostCand === c) W3.cancelGhostOnly(); }, 350); return false; }
     if (W3.place.moving) { const o = W3.place.moving; Object.assign(o, { x: c.x, z: c.z, rot: c.rot, lvl: c.lvl }); o.hidden = false; W3.cancelPlace(); W3.redraw(); W3.cb.changed && W3.cb.changed(); W3.cb.moved && W3.cb.moved(o); return true; }
     const rep = c.replace; delete c.replace; const ok = W3.cb.place ? W3.cb.place(c, rep) : false; if (!ok) return false;
     if (rep) { const e = objs.get(rep.id); if (e) { objGroup.remove(e.g); objs.delete(rep.id); } }
@@ -420,16 +420,46 @@
     new ResizeObserver(() => { if (active) resize(); }).observe(el);
     W3.ready = true; window.onWorldReady && window.onWorldReady();
   };
+  // ---------------------------------------------------------------- room tool: drag a rectangle on the grid, translucent preview
+  let roomPrev; W3.roomMode = false;
+  W3.setRoomMode = (on) => { W3.roomMode = !!on; if (!on) W3.setRoomPreview(null); };
+  W3.setRoomPreview = (r, ok, label) => {
+    if (roomPrev) { root.remove(roomPrev); roomPrev = null; } dirty = 2; if (!r) return;
+    const g = new T.Group(), w = r.x1 - r.x0, d = r.z1 - r.z0, y = W3.level * H, col = ok ? 0x58d86a : 0xff5a5a;
+    const fl = new T.Mesh(new T.PlaneGeometry(w, d), new T.MeshBasicMaterial({ color: ok ? 0x37e05a : 0xff4040, transparent: true, opacity: .55, depthWrite: false })); fl.rotation.x = -Math.PI / 2; fl.position.set(r.x0 + w / 2, y + .08, r.z0 + d / 2); g.add(fl);
+    const wm = new T.MeshBasicMaterial({ color: col, transparent: true, opacity: .2, depthWrite: false }), hh = H * .85, t = .12;
+    [[w, t, r.x0 + w / 2, r.z0], [w, t, r.x0 + w / 2, r.z1], [t, d, r.x0, r.z0 + d / 2], [t, d, r.x1, r.z0 + d / 2]].forEach(([bw, bd, cx, cz]) => { const m = new T.Mesh(new T.BoxGeometry(bw, hh, bd), wm); m.position.set(cx, y + hh / 2, cz); g.add(m); });
+    const ol = new T.LineLoop(new T.BufferGeometry().setFromPoints([[r.x0, r.z0], [r.x1, r.z0], [r.x1, r.z1], [r.x0, r.z1]].map(([x, z]) => new T.Vector3(x, y + hh, z))), new T.LineBasicMaterial({ color: col })); g.add(ol);
+    for (let i = 1; i < w; i++) g.add(new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(r.x0 + i, y + .09, r.z0), new T.Vector3(r.x0 + i, y + .09, r.z1)]), new T.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: .55 })));
+    for (let i = 1; i < d; i++) g.add(new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(r.x0, y + .09, r.z0 + i), new T.Vector3(r.x1, y + .09, r.z0 + i)]), new T.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: .55 })));
+    const txt = label || `${w} × ${d}`, c = cvs(256, 96, (x, W_, H_) => { x.font = 'bold 54px Poppins, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 12; x.strokeStyle = ok ? '#2E7D32' : '#A8321F'; x.strokeText(txt, W_ / 2, H_ / 2); x.fillStyle = '#fff'; x.fillText(txt, W_ / 2, H_ / 2); });
+    const sp = new T.Sprite(new T.SpriteMaterial({ map: toTex(c), transparent: true, depthTest: false })); sp.scale.set(2.2, .83, 1); sp.position.set(r.x0 + w / 2, y + hh + .5, r.z0 + d / 2); sp.renderOrder = 60; g.add(sp);
+    root.add(g); roomPrev = g;
+  };
+  const isPaintKind = () => W3.place && !W3.place.moving && ['floor', 'wall'].includes(PART[W3.place.part].kind);
   function bindInput() {
     const dom = renderer.domElement, ptrs = new Map(); let drag = null, pinch = null;
-    dom.addEventListener('pointerdown', (e) => { dom.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptrs.size === 1) drag = { sx: e.clientX, sy: e.clientY, moved: false }; else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: goal.dist }; drag = null; } });
+    const panBy = (dx, dy) => { const upp = 2 * goal.dist * Math.tan(FOV * Math.PI / 360) / Hd, ya = cam.yaw, rx = [Math.cos(ya), -Math.sin(ya)], fz = [-Math.sin(ya), -Math.cos(ya)]; goal.tx = clamp(goal.tx - (dx * rx[0] + dy * fz[0] * -1.2) * upp, -2, N + 2); goal.tz = clamp(goal.tz - (dx * rx[1] + dy * fz[1] * -1.2) * upp, -2, N + 2); cam.tx = goal.tx; cam.tz = goal.tz; dirty = 1; };
+    const rectOf = (a, b) => ({ x0: clamp(Math.min(a.cx, b.cx), 0, N - 1), z0: clamp(Math.min(a.cz, b.cz), 0, N - 1), x1: clamp(Math.max(a.cx, b.cx), 0, N - 1) + 1, z1: clamp(Math.max(a.cz, b.cz), 0, N - 1) + 1 });
+    dom.addEventListener('pointerdown', (e) => {
+      dom.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (ptrs.size === 1) { drag = { sx: e.clientX, sy: e.clientY, moved: false }; if (W3.mode === 'build' && W3.roomMode) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); if (c.cx >= 0 && c.cz >= 0 && c.cx < N && c.cz < N) drag.room = c; } else if (W3.mode === 'build' && isPaintKind()) drag.paint = true; }
+      else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: goal.dist, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; if (drag && drag.room) W3.setRoomPreview(null); drag = null; }
+    });
     dom.addEventListener('pointermove', (e) => {
       if (!ptrs.has(e.pointerId)) return; const p = ptrs.get(e.pointerId), dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
-      if (pinch && ptrs.size >= 2) { const [a, b] = [...ptrs.values()]; const n = W3._fit || 24; goal.dist = clamp(pinch.z * pinch.d / Math.hypot(a.x - b.x, a.y - b.y), n * .3, n * 1.5); return; }
+      if (pinch && ptrs.size >= 2) { const [a, b] = [...ptrs.values()], n = W3._fit || 24, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2; goal.dist = clamp(pinch.z * pinch.d / Math.hypot(a.x - b.x, a.y - b.y), n * .3, n * 1.5); panBy(mx - pinch.mx, my - pinch.my); pinch.mx = mx; pinch.my = my; return; }
       if (!drag) return; if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 9) drag.moved = true;
-      if (drag.moved) { const upp = 2 * goal.dist * Math.tan(FOV * Math.PI / 360) / Hd, ya = cam.yaw, rx = [Math.cos(ya), -Math.sin(ya)], fz = [-Math.sin(ya), -Math.cos(ya)]; goal.tx = clamp(goal.tx - (dx * rx[0] + dy * fz[0] * -1.2) * upp, -2, N + 2); goal.tz = clamp(goal.tz - (dx * rx[1] + dy * fz[1] * -1.2) * upp, -2, N + 2); cam.tx = goal.tx; cam.tz = goal.tz; dirty = 1; }
+      if (!drag.moved) return;
+      if (drag.room) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); drag.rect = rectOf(drag.room, c); W3.cb.roomRect && W3.cb.roomRect(drag.rect, false); return; }
+      if (drag.paint) { const c = W3.cellAt(e.clientX, e.clientY, PART[W3.place.part].kind); const k = c.cx + ',' + c.cz; if (k !== drag.lastKey && c.cx >= 0 && c.cz >= 0 && c.cx < N && c.cz < N) { drag.lastKey = k; W3._dragPaint = true; W3.tap(e.clientX, e.clientY); W3._dragPaint = false; } return; }
+      panBy(dx, dy);
     });
-    const up = (e) => { const was = ptrs.has(e.pointerId); ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!was) return; if (drag && !drag.moved && e.type === 'pointerup') W3.tap(e.clientX, e.clientY); if (!ptrs.size) drag = null; };
+    const up = (e) => {
+      const was = ptrs.has(e.pointerId); ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!was) return;
+      if (drag && e.type === 'pointerup') { if (drag.room && drag.moved && drag.rect) W3.cb.roomRect && W3.cb.roomRect(drag.rect, true); else if (!drag.moved) W3.tap(e.clientX, e.clientY); }
+      if (!ptrs.size) drag = null;
+    };
     dom.addEventListener('pointerup', up); dom.addEventListener('pointercancel', up);
     dom.addEventListener('wheel', (e) => { e.preventDefault(); W3.zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1); }, { passive: false });
   }

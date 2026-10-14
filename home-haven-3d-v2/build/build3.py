@@ -76,7 +76,7 @@ rep("prop: 'home', props: {},","autoRot: false, prop: 'home', props: {},")
 # extension block + bindings
 marker="  // ------------------------------------------------------------ SHOP"
 assert s.count(marker)==1
-s=s.replace(marker,R('flow_ext.js')+"""
+s=s.replace(marker,R('flow_ext.js')+R('flow_room.js')+"""
   function buildInsets() { const land = innerWidth > innerHeight, dr = $('#build .drawer'); if (roomEdit) return; if (land) { WORLD.setInset(dr ? dr.offsetWidth : 0); WORLD.focus(0, (dr ? dr.offsetWidth : 0) / 2); } else { WORLD.setInset(0); WORLD.focus(60, 0); } }
   window.addEventListener('resize', () => { if ($('#build').classList.contains('on')) buildInsets(); });
 """+"\n"+marker)
@@ -91,5 +91,20 @@ rep("window.__game = { get S() { return S; }, set S(v) { S = v; }, save,","windo
 import base64
 a=s.index('<script>window.TITLE_ART="'); b=s.index('</script>',a)
 s=s[:a]+'<script>window.TITLE_ART="data:image/webp;base64,'+base64.b64encode(open('art.webp','rb').read()).decode()+'";'+s[b:]
+# ---- room-based building
+rep("<button class=\"btn secondary sm noedit\" id=\"bRooms\">Rooms</button>","<button class=\"btn secondary sm noedit\" id=\"bRooms\">Rooms</button>")
+rep('<p class="bhint" id="buildTip">','<div class="mrow noedit"><div class="seg" id="modeSeg"><button class="mg on" data-m="room">Rooms</button><button class="mg" data-m="adv">Advanced</button></div><button class="nb sm" id="bHelp" aria-label="Show the tutorial">?</button></div>\n    <p class="bhint" id="buildTip">')
+rep('<div class="actbar hidden" id="ghostBar">','<div class="actbar hidden" id="roomBar"><div class="rinfo" id="rInfo"></div><button id="rbOk" class="ab ok"><span class="ic" data-ic="check"></span>Build</button><button id="rbNo" class="ab"><span class="ic" data-ic="close"></span>Cancel</button></div>\n    <div class="actbar hidden" id="ghostBar">')
+rep('<button id="sStore" class="ab warn">','<button id="sRoom" class="ab hidden">🏠<br>Room</button><button id="sStore" class="ab warn">')
+rep('<button class="btn accent" id="reSave">Save room</button>','<button class="btn accent" id="reNew">＋ Room</button><button class="btn blue" id="reFloorS">Floor style</button><button class="btn blue" id="reWallS">Wall style</button><button class="btn accent" id="reAuto">Auto doors &amp; windows</button><button class="btn accent" id="reSave">Save room</button>')
+rep('<div class="drawer">','<div id="tut" class="tut hidden"><div class="tbub"><b id="tutT"></b><p id="tutP"></p><div class="trow"><span id="tutDots"></span><span><button class="btn secondary sm" id="tutSkip">Skip</button> <button class="btn primary sm" id="tutNext">Next</button></span></div></div><div class="hand" id="tutHand"></div></div>\n    <div class="drawer">')
+rep("autoRot: false, prop: 'home',","adv: false, autoRot: false, prop: 'home',")
+rep("'Pick a part below, or tap a placed part to edit'","(buildMode() === 'room' ? 'Pick a room type, then drag on the grid' : 'Pick a part below, or tap a placed part to edit')")
+rep("    renderTabs(); renderItems(); updateHud(); hint(); renderHome();\n  }","    renderTabs(); renderItems(); updateHud(); hint(); renderHome(); refreshRoomPlan(); tutMaybe();\n  }")
+rep("  function exitBuild() { lockOri('portrait'); if (roomEdit) exitRoomEdit();","  function exitBuild() { lockOri('portrait'); tutStop(false); WORLD.setRoomMode(false); $('#roomBar').classList.add('hidden'); if (roomEdit) exitRoomEdit();")
+rep("S.chapter++; S.stats.chapters = S.chapter; S.chBefore = null; save();\n","S.chapter++; S.stats.chapters = S.chapter; S.chBefore = null; save(); if (typeof refreshBuildUI === 'function') refreshBuildUI();\n")
+rep("    if (op.t === 'multi') op.ops.forEach","    if (op.t === 'bulk') bulkUndo(op); else\n    if (op.t === 'multi') op.ops.forEach")
+rep("Open <b>Build</b> to place them. Every puzzle you win earns more.","Open <b>Build</b>, pick a room type and drag on the grid. Every puzzle you win earns more.")
+rep("bindWorld(); bindWorldExt();","bindWorld(); bindWorldExt(); bindRoomWorld();")
 open(sys.argv[1] if len(sys.argv)>1 else '../Home_Haven_3D.html','w',encoding='utf-8').write(s)
 print('built',len(s)//1024,'KB')

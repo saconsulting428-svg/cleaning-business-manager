@@ -13,6 +13,8 @@ android/             Capacitor 6 wrapper scaffold (NOT built/tested here, see an
 docs/                features, bugs fixed (with root causes), tests performed, known limitations
 ```
 
+**Build Mode UX update:** building is now room-based (pick a room type → drag on the grid → preview → Build → walls/floor appear automatically, then auto doors/windows, auto roof, furniture). Per-piece placement lives in *Advanced Build* (unlocked in Dream Home Mode). A first-time tutorial explains drag-to-build. Details and tests: `docs/FEATURES_BUGS_TESTS.md`.
+
 ## Technology decision
 The original architecture was kept and extended instead of migrating to Unity:
 

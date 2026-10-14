@@ -18,9 +18,11 @@
 .reonly{display:none!important}
 #build.roomedit .reonly{display:flex!important}
 #build.roomedit .noedit{display:none!important}
-#build.roomedit .bhint{top:calc(var(--safe-t) + 108px)}
-.retools{position:absolute;left:10px;right:10px;top:calc(var(--safe-t) + 58px);display:flex;gap:6px;flex-wrap:wrap;pointer-events:none}
-.retools .btn{pointer-events:auto;min-height:38px;padding:6px 12px;font-size:13px}
+#build.roomedit .bhint{top:calc(var(--safe-t) + 150px)}
+.retools{position:absolute;left:10px;right:64px;top:calc(var(--safe-t) + 62px);display:flex;gap:6px;flex-wrap:wrap;pointer-events:none}
+.retools .btn{pointer-events:auto;min-height:34px;padding:5px 10px;font-size:12px}
+#build.roomedit header .seg{display:none!important}
+.rename{max-width:36vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rename{background:rgba(255,255,255,.96);border-radius:14px;padding:4px 12px;font-weight:700;font-size:14px;box-shadow:0 3px 0 rgba(58,46,37,.18)}
 /* landscape: big build workspace with the item panel on the left (~70% for the viewport) */
 @media (orientation:landscape){
@@ -62,4 +64,26 @@
   #menu .menu-btns{grid-column:2;grid-row:1/3;max-width:320px;gap:8px}
   #loading .ld-bottom{grid-column:2;grid-row:1/3;max-width:340px}
   .brand .b1{font-size:36px}.brand .b2{font-size:30px}.brand.sm .b1{font-size:36px}.brand.sm .b2{font-size:30px}
+}
+
+/* ---------- room-based building */
+.mrow{position:absolute;left:10px;top:calc(var(--safe-t) + 58px);display:flex;gap:8px;align-items:center;pointer-events:none}
+.mrow .seg,.mrow .nb{pointer-events:auto}
+.mg{padding:6px 12px;border-radius:11px;font-size:12.5px;font-weight:700;color:var(--mute)}.mg.on{background:linear-gradient(#FFB74D,#F08A1C);color:#fff}.mg.lockd{opacity:.55}
+#build .bhint{top:calc(var(--safe-t) + 104px)}
+#build.roomedit .bhint{top:calc(var(--safe-t) + 150px)}
+#roomBar{align-items:center;width:max-content;max-width:96%}
+.rinfo{color:#fff;font-size:12px;line-height:1.35;padding:2px 8px;text-align:left;max-width:210px}.rinfo b{font-size:12.5px}
+#sRoom{font-size:10px;line-height:1.1}
+.stylepop{grid-template-columns:repeat(4,64px)!important}
+.stl{width:64px;background:#fff;border-radius:12px;padding:4px 2px;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:10px;font-weight:700;box-shadow:0 2px 0 var(--line)}.stl small{font-size:9.5px;color:var(--orange-d)}
+.tut{position:absolute;inset:0;pointer-events:none;z-index:30}
+.tbub{position:absolute;left:12px;right:12px;margin:0 auto;max-width:380px;background:#fff;border-radius:18px;padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.3);pointer-events:auto}
+.tbub b{font-size:16px;color:var(--green-d)}.tbub p{margin:4px 0 8px;font-size:13px;line-height:1.4;color:var(--ink)}
+.trow{display:flex;justify-content:space-between;align-items:center}#tutDots{color:var(--orange);letter-spacing:3px;font-size:12px}
+.hand{position:absolute;left:-28px;top:-28px;width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.55);border:4px solid #fff;box-shadow:0 0 0 4px rgba(76,175,80,.85),0 8px 16px rgba(0,0,0,.35);pointer-events:none}
+.hand::after{content:'';position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px;border-radius:50%;background:var(--green-d)}
+@media (orientation:landscape){
+  #build .mrow{left:calc(min(34%,320px) + 10px)}
+  #build .tbub{left:calc(min(34%,320px) + 12px);margin:0}
 }
