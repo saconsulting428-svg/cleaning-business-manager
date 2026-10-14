@@ -1,0 +1,8 @@
+{
+  "appId": "com.oconsulting.homehaven3d",
+  "appName": "Home Haven 3D",
+  "webDir": "www",
+  "backgroundColor": "#2A2018",
+  "android": { "allowMixedContent": false },
+  "plugins": { "ScreenOrientation": {} }
+}

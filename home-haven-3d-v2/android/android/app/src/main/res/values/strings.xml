@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Home Haven 3D</string>
+    <string name="title_activity_main">Home Haven 3D</string>
+    <string name="package_name">com.oconsulting.homehaven3d</string>
+    <string name="custom_url_scheme">com.oconsulting.homehaven3d</string>
+</resources>

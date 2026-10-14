@@ -1,0 +1,24 @@
+const { chromium } = require('playwright');
+const H = require('./helpers.js');
+(async()=>{
+  const b = await chromium.launch({executablePath:process.env.CHROMIUM || undefined, args:['--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--no-sandbox']});
+  const state = require('fs').readFileSync('state_end.json','utf8');
+  const [w,h]=(process.argv[3]||'420x820').split('x').map(Number);
+  const p = await b.newPage({viewport:{width:w,height:h}});
+  const errs=[]; p.on('pageerror',e=>{errs.push(e.message);console.log('PAGEERR',e.message)}); p.on('console',m=>{ if(m.type()==='error') console.log('CON',m.text().slice(0,300))});
+  await p.addInitScript((st)=>{ if(!localStorage.getItem('homehaven3d_save')) localStorage.setItem('homehaven3d_save', st); }, state);
+  await p.goto('file://'+process.cwd()+'/'+process.argv[2]); await p.waitForSelector('#menu.on',{timeout:60000});
+  await p.screenshot({path:'g13_menu.png'});
+  await p.click('#btnContinue'); await p.waitForTimeout(1500); await p.evaluate(H.install); await p.evaluate(()=>window.skipDialogs()); await p.evaluate(()=>window.closeModal());
+  await p.waitForTimeout(3500); await p.screenshot({path:'g13_home.png'});
+  await p.evaluate(()=>__game.openRooms()); await p.waitForTimeout(2500); await p.screenshot({path:'g13_rooms.png'});
+  await p.click('[data-edit="0"]'); await p.waitForTimeout(4000); await p.screenshot({path:'g13_edit.png'});
+  await p.click('#reWalls'); await p.waitForTimeout(400); await p.click('#palette .sw:nth-child(4)'); await p.waitForTimeout(1500); await p.screenshot({path:'g13_edit2.png'});
+  console.log('edit state', await p.evaluate(()=>({roomedit:document.getElementById('build').classList.contains('roomedit'), name:document.getElementById('reName').textContent})));
+  await p.click('#reSave'); await p.waitForTimeout(500);
+  console.log('saved rooms', await p.evaluate(()=>JSON.stringify(Object.keys(__game.S.rooms))));
+  await p.click('#btnBuildDone'); await p.waitForTimeout(800); await p.screenshot({path:'g13_after.png'});
+  await p.click('#navBuild'); await p.waitForTimeout(2500); await p.screenshot({path:'g13_build.png'});
+  console.log('ERRORS', JSON.stringify(errs));
+  await b.close();
+})();

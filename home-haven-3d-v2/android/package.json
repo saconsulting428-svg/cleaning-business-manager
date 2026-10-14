@@ -1,0 +1,17 @@
+{
+  "name": "home-haven-3d-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capacitor wrapper that packages Home_Haven_3D.html as an Android app",
+  "scripts": {
+    "prep": "node -e \"require('fs').mkdirSync('www',{recursive:true});require('fs').copyFileSync('../Home_Haven_3D.html','www/index.html')\"",
+    "sync": "npm run prep && cap sync android",
+    "apk": "npm run sync && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.2",
+    "@capacitor/cli": "^6.2.2",
+    "@capacitor/core": "^6.2.2",
+    "@capacitor/screen-orientation": "^6.0.4"
+  }
+}
