@@ -17,6 +17,7 @@ Everything below was done in a headless Chromium (software GL / SwiftShader) via
 * Build creates the floor and the connected walls at once (shared walls are not doubled) with a construction animation: floor tiles pop in one by one, walls rise, furniture drops in. A floating name tag marks the room.
 * **Guided steps** (card at the top of the room editor): 🚪 Door → 🪟 Windows → 🛋 Furniture → ✔ Done. One big button does each step (door on a sensible wall, ≤2 windows on outside walls, "Furnish for me" places the room's required furniture along the walls facing in, keeping the door free) — or pick furniture yourself from the tray. When all chapter goals are met a **Complete chapter ▶** button appears (also available early if the chapter's goals are already satisfied). "✎ Style" opens wall/floor colour & style tools.
 * Pieces you own are used first; missing ones are bought at shop price automatically. One Undo removes a whole room, door/window step or furnishing step (refunds exact).
+* **Keep building loop:** when a room is finished the big button becomes **＋ Next room: <what the chapter asks for>** (the matching card shows a *Next* tag, and Floor 2 is selected automatically for bedroom/bathroom once stairs exist); once all chapter goals are met it becomes **Complete chapter ▶** with **＋ More rooms** beside it. The header **Done** asks "Leave building?" only if the open room still lacks a door/windows/furniture. If coins are short, a sheet says how many are missing and offers **▶ Play a puzzle** (the room/ghost is kept).
 * Auto roof (Roof tab), tap a built room to reopen its editor, 3-step first-time tutorial (pick a room → ✓ Build → follow the steps; **?** replays it).
 * **Advanced Build** (Dream Home Mode only; locked before the story ends): free-size room dragging (Rooms tab), per-piece Floors/Walls tabs, drag-painting, all other tabs.
 
@@ -83,8 +84,10 @@ Per-level coins 100/125/150, daily quest 150, chapter rewards 500–1000, plus g
 * **Orientation:** portrait/landscape screenshots of loading, title, home, build (panel, ghost, selection, palette), rooms, sheets, dialogues, all 7 puzzles.
 * **Render cost** (finished house, home view): ~170 draw calls and ~22 k triangles per frame, 452 geometries, 16 textures (renderer.info). Shadows are re-rendered only when something changes or a character walks.
 
-* **Characters:** Ben was redrawn as a grown-up builder (taller, small head, short hair, tool belt) in the 3D world and the dialogue portrait is rendered from that model at start-up (`RENO.benPortrait`); the other portraits are the original art, so Ben's style differs slightly from theirs.
+* **Characters:** Ben was redrawn (round friendly face with swept hair, blue work shirt with rolled sleeves, tool belt) in the 3D world and the dialogue portrait is rendered from that model at start-up (`RENO.benPortrait`); the other portraits are the original art, so Ben's style differs slightly from theirs.
 * **Responsive audit** (`tests/responsive_audit.js`) at 320×568, 360×640, 740×360: menu, home, shop, story, projects, rewards, build tutorial/ghost/guide/style panel, puzzle modal — remaining flags are only decorative clouds and the horizontally scrolling shop tabs.
+
+* **Next-room flow (`tests/room_next_flow.js`):** early Done → confirmation; finish room → "Complete chapter"/"More rooms"; More rooms → Kitchen suggested with ghost; coin shortage → sheet with Play a puzzle.
 
 ## 4. Not done / not tested / limits
 * **No Android build or device test.** Orientation lock, WebView WebGL performance, memory use, touch feel and real FPS on phones are unverified. Software-rendered headless frame rates say nothing about devices.

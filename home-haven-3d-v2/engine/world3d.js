@@ -354,15 +354,15 @@
   // ---------------------------------------------------------------- characters
   function mkChar(kind) {
     const g = new T.Group();
-    if (kind === 'ben') { // grown-up builder: long legs, broad shoulders, small head, short hair, light stubble, tool belt
-      const skin = M('#e8b88c', { r: .6 }), shirt = M('#3f8fe0', { r: .8 }), vest = M('#c98a3d', { r: .85 }), jeans = M('#2b3a67', { r: .8 }), hair = M('#3a2616', { r: .7 }), boot = M('#4a3524', { r: .8 }), belt = M('#6b4423', { r: .8 }), dark = M('#222'), white = M('#fff');
-      const legL = grp(g, -.085, .66, 0), legR = grp(g, .085, .66, 0); [legL, legR].forEach(l => { box(l, .14, .64, .15, jeans, 0, -.64, 0, .05); box(l, .16, .1, .24, boot, 0, -.66, .035, .03); });
-      box(g, .43, .6, .25, shirt, 0, .64, 0, .1); box(g, .45, .34, .27, vest, 0, .82, 0, .09); box(g, .45, .07, .27, belt, 0, .64, 0, .02); box(g, .035, .26, .035, M('#8a5a2b'), .25, .46, .05, 0); box(g, .12, .06, .05, M('#777'), .25, .72, .05, 0);
-      const armL = grp(g, -.3, 1.2, 0), armR = grp(g, .3, 1.2, 0); [armL, armR].forEach(a => { box(a, .11, .58, .11, shirt, 0, -.54, 0, .04); sph(a, .065, skin, 0, -.6, 0); });
-      box(g, .1, .1, .1, skin, 0, 1.22, 0, .02); sph(g, .16, skin, 0, 1.43, 0, .93, 1.1, .97, 22); sph(g, .04, skin, -.16, 1.42, 0, .6, 1, .8, 8); sph(g, .04, skin, .16, 1.42, 0, .6, 1, .8, 8);
-sph(g, .168, hair, 0, 1.54, -.03, .96, .62, 1.05, 18); box(g, .04, .09, .07, hair, -.155, 1.4, -.01, .01); box(g, .04, .09, .07, hair, .155, 1.4, -.01, .01);
-      [-1, 1].forEach(s => { sph(g, .03, dark, s * .062, 1.46, .15, 1, 1.25, .5, 10); sph(g, .009, white, s * .057, 1.472, .165, 1, 1, .6, 6); box(g, .07, .014, .025, hair, s * .062, 1.51, .15, 0); sph(g, .028, M('#f0a090'), s * .1, 1.41, .135, 1, .7, .4, 8); });
-      sph(g, .028, skin, 0, 1.42, .17, 1, 1, 1, 8); box(g, .08, .014, .012, M('#8a3f2a'), 0, 1.345, .165, 0);
+    if (kind === 'ben') { // friendly young builder: round face, swept hair, blue work shirt, rolled sleeves, tool belt
+      const skin = M('#f1c09a', { r: .6 }), shirt = M('#3f8fe0', { r: .8 }), jeans = M('#2b3a67', { r: .8 }), hair = M('#4a2f1a', { r: .6 }), boot = M('#4a3524', { r: .8 }), belt = M('#7a4a22', { r: .8 }), dark = M('#1d1a1a', { r: .3 }), white = M('#fff'), gold = M('#d9a93a', { r: .4, m: .5 });
+      const legL = grp(g, -.085, .62, 0), legR = grp(g, .085, .62, 0); [legL, legR].forEach(l => { box(l, .14, .6, .15, jeans, 0, -.6, 0, .06); box(l, .16, .1, .24, boot, 0, -.62, .035, .04); });
+      sph(g, .22, shirt, 0, .93, 0, 1, 1.3, .76, 22); box(g, .4, .14, .25, jeans, 0, .56, 0, .06); box(g, .42, .07, .27, belt, 0, .62, 0, .025); box(g, .06, .05, .02, gold, 0, .625, .14, .01); box(g, .035, .26, .035, M('#8a5a2b'), .25, .42, .05, 0); box(g, .12, .06, .05, M('#777'), .25, .68, .05, 0);
+      const armL = grp(g, -.255, 1.14, 0), armR = grp(g, .255, 1.14, 0); [armL, armR].forEach(a => { box(a, .12, .3, .12, shirt, 0, -.27, 0, .05); box(a, .1, .27, .1, skin, 0, -.54, 0, .04); sph(a, .062, skin, 0, -.58, 0); });
+      box(g, .11, .09, .11, skin, 0, 1.2, 0, .02); sph(g, .17, skin, 0, 1.42, 0, 1, 1.07, 1, 26); sph(g, .036, skin, -.168, 1.41, 0, .6, 1, .8, 8); sph(g, .036, skin, .168, 1.41, 0, .6, 1, .8, 8);
+      sph(g, .18, hair, 0, 1.5, -.04, 1, .8, 1.08, 20); sph(g, .1, hair, .06, 1.57, .06, 1.35, .5, 1, 12); box(g, .035, .09, .07, hair, -.168, 1.43, -.02, .01); box(g, .035, .09, .07, hair, .168, 1.43, -.02, .01);
+      [-1, 1].forEach(s => { sph(g, .033, dark, s * .066, 1.435, .152, 1, 1.3, .55, 12); sph(g, .011, white, s * .06, 1.45, .17, 1, 1, .6, 6); const br = box(g, .08, .017, .026, hair, s * .066, 1.5, .155, .01); br.rotation.z = -s * .14; sph(g, .03, M('#f0948a'), s * .105, 1.395, .14, 1, .7, .4, 8); });
+      sph(g, .03, skin, 0, 1.4, .175, 1, 1, 1, 10); const sm = new T.Mesh(new T.TorusGeometry(.04, .0075, 6, 18, Math.PI), M('#9a3f2c')); sm.rotation.z = Math.PI; sm.position.set(0, 1.375, .165); g.add(sm);
       g.userData.limbs = [legL, legR, armL, armR]; g.scale.setScalar(.8);
     } else {
       const fur = M('#f0963c', { r: .9 }), light = M('#fbe3c0', { r: .9 });

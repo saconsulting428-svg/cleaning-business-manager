@@ -42,7 +42,7 @@
     const bar = $('#roomBar'); if (!roomTool.rect || curCat !== 'rooms' || roomEdit) { bar.classList.add('hidden'); WORLD.setRoomPreview(null); roomTool.plan = null; return; }
     const t = ROOM_TYPES.find(x => x.id === roomTool.type), p = roomTool.plan = planRoom(roomTool.rect, t), w = p.r.x1 - p.r.x0, d = p.r.z1 - p.r.z0;
     const free = buildMode() === 'adv'; WORLD.setRoomPreview(roomTool.rect, p.ok, free ? `${w} × ${d}` : t.name); bar.classList.remove('hidden'); bar.classList.toggle('story', !free); $('#rbRot').style.display = !free && w !== d ? '' : 'none';
-    $('#rInfo').innerHTML = p.ok ? `<b>${t.name}${free ? ` ${w}×${d}` : ''}</b><br>${costText(p.cost)}` : `<b>${p.reason}</b>`; $('#rbOk').disabled = !p.ok;
+    $('#rInfo').innerHTML = p.ok ? `<b>${t.name}${free ? ` ${w}×${d}` : ''}</b><br>${costText(p.cost)}` : `<b>${p.reason}</b>`; $('#rbOk').disabled = !p.ok && !/^Need/.test(p.reason);
     hint(p.ok ? (free ? 'Looks good — tap ✓ Build, or drag again to resize' : 'Tap ✓ Build — or tap another spot to move the room') : p.reason);
   }
   WORLD.cb.roomRect = null; // bound in bindWorldExt
@@ -69,7 +69,7 @@
   const storyRooms = () => $('#build').classList.contains('on') && buildMode() === 'room' && curCat === 'rooms' && !roomEdit;
   function ensureGhost() { if (storyRooms() && !roomTool.rect) autoSpot(); }
   function buildRoomNow() {
-    const p = roomTool.plan; if (!p || !p.ok) return; const t = p.t; pay(p.cost);
+    const p = roomTool.plan; if (!p) return; if (!p.ok) { if (/^Need/.test(p.reason)) needCoins(p.cost.coins - S.coins); return; } const t = p.t; pay(p.cost);
     const objs = [...p.floors.map(([x, z]) => mkObj(p.floorPart, x, z, 0, p.lvl, { rt: t.id })), ...p.walls.map(w => mkObj('wall_plaster', w.x, w.z, w.rot, p.lvl))];
     objs.forEach(o => S.layout.push(o)); S.stats.placed += objs.length; undoStack.push({ t: 'bulk', ids: objs.map(o => o.id), inv: p.cost.inv, coins: p.cost.coins });
     const r0 = p.r; roomTool.rect = null; roomTool.plan = null; $('#roomBar').classList.add('hidden'); WORLD.setRoomPreview(null);
@@ -80,7 +80,7 @@
   // ---- customizing a room
   const boundaryInfo = (r) => { const set = new Set(r.cells.map(c => c.join())), fl = new Set(S.layout.filter(o => o.lvl === r.lvl && PART[o.part].kind === 'floor' && o.part !== 'path_stone').map(o => o.x + ',' + o.z)); return roomWallPieces(r).map(o => { const a = [o.x, o.z], b = [o.x + DIRS4[o.rot][0], o.z + DIRS4[o.rot][1]], out = set.has(a.join()) ? b : a; return { o, outside: out, exterior: !fl.has(out.join()) }; }); };
   function swapPieces(list, part) {
-    const n = list.length; if (!n) return toast('Nothing to change'); const c = costOf({ [part]: n }); if (S.coins < c.coins) { sfx('bad'); return toast(`Need ${c.coins - S.coins} more coins`); }
+    const n = list.length; if (!n) return toast('Nothing to change'); const c = costOf({ [part]: n }); if (S.coins < c.coins) return needCoins(c.coins - S.coins);
     pay(c); const rec = list.map(o => ({ id: o.id, part: o.part, color: o.color })); list.forEach(o => { addInv(o.part, 1); o.part = part; o.color = PART[part].color; }); S.stats.placed += n; undoStack.push({ t: 'bulk', ids: [], swap: rec, inv: c.inv, coins: c.coins }); save(); WORLD.redraw(); renderItems(); updateHud(); renderQuest(); sfx('pop'); return true;
   }
   function autoOpenings(which) {
@@ -89,7 +89,7 @@
     if (!doors && plain.length && which !== 'windows') { const sorted = plain.slice().sort((a, b) => (a.exterior - b.exterior) || (Math.abs(a.o.x - roomEdit.cells[0][0]) - Math.abs(b.o.x - roomEdit.cells[0][0]))); const inner = sorted.find(x => !x.exterior), front = plain.filter(x => x.exterior && x.o.rot === 2)[0], d = inner || front || plain[Math.floor(plain.length / 2)]; pick.push([d, 'door_wood']); nd = 1; }
     if (!wins && which !== 'door') { const ext = plain.filter(x => x.exterior && !pick.some(p => p[0] === x)); const bySide = {}; ext.forEach(x => (bySide[x.o.rot] = bySide[x.o.rot] || []).push(x)); Object.values(bySide).sort((a, b) => b.length - a.length).slice(0, 2).forEach(arr => { arr.sort((a, b) => (a.o.x + a.o.z) - (b.o.x + b.o.z)); if (arr.length >= 3) { pick.push([arr[Math.floor(arr.length / 2)], 'window_small']); nw++; } else if (arr.length === 2) { pick.push([arr[0], 'window_small']); nw++; } }); }
     if (!pick.length) return toast(which === 'door' ? (doors ? 'This room already has a door' : 'No free wall for a door') : which === 'windows' ? (wins ? 'This room already has windows' : 'No free outside wall for windows') : (doors || wins ? 'This room already has doors and windows' : 'No free wall to use'));
-    const counts = {}; pick.forEach(([, part]) => counts[part] = (counts[part] || 0) + 1); const c = costOf(counts); if (S.coins < c.coins) { sfx('bad'); return toast(`Need ${c.coins - S.coins} more coins`); }
+    const counts = {}; pick.forEach(([, part]) => counts[part] = (counts[part] || 0) + 1); const c = costOf(counts); if (S.coins < c.coins) return needCoins(c.coins - S.coins);
     pay(c); const rec = pick.map(([x]) => ({ id: x.o.id, part: x.o.part, color: x.o.color })); pick.forEach(([x, part]) => { addInv(x.o.part, 1); x.o.part = part; }); S.stats.placed += pick.length; undoStack.push({ t: 'bulk', ids: [], swap: rec, inv: c.inv, coins: c.coins }); save(); WORLD.redraw(); renderQuest(); renderItems(); updateHud(); checkQuestToast(); sfx('fix'); toast(`Added ${nd ? '1 door' : ''}${nd && nw ? ' and ' : ''}${nw ? nw + ' window' + (nw > 1 ? 's' : '') : ''}`);
   }
   function stylePopup(kind) {
@@ -150,7 +150,7 @@
   function renderItems0() {
     const I = $('#items'); I.innerHTML = ''; syncTool(); const room = buildMode() === 'room';
     if (curCat === 'rooms') {
-      ROOM_TYPES.forEach(t => { const fp = PART[t.floor]; I.appendChild(mkCard(`<span class="th">${thumb(`p:${t.part}:0`, 72, 62)}</span><span class="nm">${t.name}</span><span class="pr" style="color:var(--mute)">${fp.name.replace(' Floor', '')} floor</span>`, roomTool.type === t.id, () => { sfx('click'); roomTool.type = t.id; roomTool.flip = false; roomTool.rect = null; if (buildMode() === 'room') autoSpot(); else hint(`Drag on the grid to size your ${t.name}`); renderItems(); tutEvent('type'); }, t.name)); });
+      ROOM_TYPES.forEach(t => { const fp = PART[t.floor]; I.appendChild(mkCard(`<span class="th">${thumb(`p:${t.part}:0`, 72, 62)}</span><span class="nm">${t.name}</span><span class="pr" style="color:var(--mute)">${fp.name.replace(' Floor', '')} floor</span>${roomTool.suggest === t.id && buildMode() === 'room' ? '<span class="sugg">Next</span>' : ''}`, roomTool.type === t.id, () => { sfx('click'); roomTool.type = t.id; roomTool.flip = false; roomTool.rect = null; if (buildMode() === 'room') autoSpot(); else hint(`Drag on the grid to size your ${t.name}`); renderItems(); tutEvent('type'); }, t.name)); });
       if (room) { const sc = mkCard(`<span class="th">${thumb('p:stairs:0', 72, 62)}</span><span class="nm">Stairs</span><span class="pr" style="color:var(--mute)">to Floor 2</span>`, false, () => { sfx('click'); autoStairs(); }, 'Add stairs'); I.appendChild(sc); }
       if (room) ensureGhost(); guideRefresh(); return;
     }
@@ -175,7 +175,7 @@
     WORLD.cb.roomRect = (r, fin) => { roomTool.rect = r; refreshRoomPlan(); if (fin) tutEvent('rect'); };
     WORLD.cb.roomTap = (cx, cz) => {
       if (!storyRooms() || cx < 0 || cz < 0 || cx >= GRID || cz >= GRID) return false; const r = roomTool.rect;
-      if (r && cx >= r.x0 && cx < r.x1 && cz >= r.z0 && cz < r.z1) { if (roomTool.plan && roomTool.plan.ok) buildRoomNow(); else toast(roomTool.plan ? roomTool.plan.reason : 'Pick a spot'); return true; }
+      if (r && cx >= r.x0 && cx < r.x1 && cz >= r.z0 && cz < r.z1) { if (roomTool.plan && (roomTool.plan.ok || /^Need/.test(roomTool.plan.reason))) buildRoomNow(); else toast(roomTool.plan ? roomTool.plan.reason : 'Pick a spot'); return true; }
       if (WORLD.hasFloor(cx, cz, WORLD.level)) return false; // a built room: tap opens its editor
       const t = ROOM_TYPES.find(x => x.id === roomTool.type), [bw, bd] = ROOM_SIZE[t.id], w = roomTool.flip ? bd : bw, d = roomTool.flip ? bw : bd;
       const x0 = Math.max(0, Math.min(GRID - w, cx - Math.floor(w / 2))), z0 = Math.max(0, Math.min(GRID - d, cz - Math.floor(d / 2))); roomTool.rect = { x0, z0, x1: x0 + w, z1: z0 + d }; sfx('tick'); refreshRoomPlan(); return true;
@@ -205,18 +205,33 @@
     if (step === 0) { tx.textContent = `Your ${r.name} needs a door. We will pick a good spot.`; go.textContent = '🚪 Add door'; }
     else if (step === 1) { tx.textContent = 'Let some light in — add windows on the outside walls.'; go.textContent = '🪟 Add windows'; }
     else if (step === 2) { tx.textContent = `Furnish it: ${st.missing.map(id => PART[id].name).join(', ')}. Tap the button, or pick items below.`; go.textContent = '🛋 Furnish for me'; }
-    else { tx.textContent = allDone ? 'All chapter goals are done — time to complete the chapter!' : `${r.name} is ready!${nxt ? ' Next goal: ' + nxt.q.text : ''}`; go.textContent = allDone ? 'Complete chapter ▶' : 'Next room ＋'; if (roomEdit && !roomEdit.cheered) { roomEdit.cheered = 1; sfx('win'); confetti(45); toast(`${r.name} complete!`); } }
-    $('#gdDone').classList.toggle('hidden', !(allDone && step < 3)); g.classList.remove('hidden'); const key = r.key + ':' + step;
+    else { const sg = suggestNext(), sgn = sg && (ROOM_TYPES.find(t => t.id === sg) || {}).name; tx.textContent = allDone ? 'All chapter goals are done — complete the chapter, or keep building more rooms.' : `${r.name} is ready!${nxt ? ' Next goal: ' + nxt.q.text : ''}`; go.textContent = allDone ? 'Complete chapter ▶' : `＋ Next room${sgn ? ': ' + sgn : ''}`; if (roomEdit && !roomEdit.cheered) { roomEdit.cheered = 1; sfx('win'); confetti(45); toast(`${r.name} complete!`); } }
+    const gd = $('#gdDone'); gd.classList.toggle('hidden', !(allDone)); gd.textContent = step < 3 ? 'Complete ▶' : '＋ More rooms'; g.classList.remove('hidden'); const key = r.key + ':' + step;
     if (key !== guideLast.key) { guideLast.key = key; if (step === 2) { const tab = FURN_TAB[st.t]; if (tab && unlockedCats().includes(tab) && curCat !== tab) { curCat = tab; renderTabs(); renderItems(); return; } } }
     if (step === 3 && typeof tutEvent === 'function') tutEvent('done');
   }
+  function needCoins(n) {
+    sfx('bad'); sheet({ ribbon: [`${n} more coins needed`], html: '<p class="body">Win a puzzle to earn coins (about 100–150 each), then come back and keep building. Your room is saved just as it is.</p>', actions: [{ text: '▶ Play a puzzle', fn: () => { exitBuild(); setTimeout(startLevel, 350); } }, { text: 'Not now', cls: 'secondary' }] });
+  }
+  // the room the current chapter asks for next (kitchen, bedroom…), so the ghost is already on the right card
+  function suggestNext() {
+    const have = detectRooms(S.layout).map(rtOf), rules = [[/kitchen/i, 'kitchen'], [/bedroom/i, 'bedroom'], [/bathroom|bath\b/i, 'bath'], [/living/i, 'living'], [/study/i, 'study']];
+    for (const p of questProgress()) { if (p.have >= p.q.n) continue; for (const [re, id] of rules) if (re.test(p.q.text) && !have.includes(id)) return id; }
+    return ['living', 'kitchen', 'bedroom', 'bath', 'study'].find(id => !have.includes(id)) || null;
+  }
+  function nextRoom() {
+    const nxt = questProgress().find(p => p.have < p.q.n), sg = suggestNext(); exitRoomEdit(); curCat = 'rooms'; roomTool.rect = null; roomTool.flip = false; if (sg) { roomTool.type = sg; roomTool.suggest = sg; }
+    if (sg && (sg === 'bedroom' || sg === 'bath') && S.chapter >= 2 && S.layout.some(o => o.part === 'stairs')) { const b = $$('.sg')[1]; b && b.click(); }
+    renderTabs(); renderItems(); buildInsets(); WORLD.resetFocus(); hint(nxt ? 'Next goal: ' + nxt.q.text : 'Pick your next room');
+  }
+  const completeNow = () => { exitBuild(); setTimeout(() => completeChapter(), 500); };
   function finishRoom() {
     const goals = questProgress(), allDone = goals.every(p => p.have >= p.q.n), nxt = goals.find(p => p.have < p.q.n);
     if (allDone) { exitBuild(); setTimeout(() => completeChapter(), 500); return; }
     exitRoomEdit(); curCat = 'rooms'; roomTool.rect = null; renderTabs(); renderItems(); buildInsets(); WORLD.resetFocus(); hint(nxt ? 'Next goal: ' + nxt.q.text : 'Pick your next room');
   }
-  $('#gdGo').onclick = () => { sfx('click'); const r = curRoom(); if (!r) return; const st = roomState(r); if (!st.door) autoOpenings('door'); else if (!st.win) autoOpenings('windows'); else if (!st.furn) autoFurnish(); else finishRoom(); guideRefresh(); tutEvent('guide'); };
-  $('#gdDone').onclick = () => { sfx('click'); finishRoom(); };
+  $('#gdGo').onclick = () => { sfx('click'); const r = curRoom(); if (!r) return; const st = roomState(r); if (!st.door) autoOpenings('door'); else if (!st.win) autoOpenings('windows'); else if (!st.furn) autoFurnish(); else if (questProgress().every(p => p.have >= p.q.n)) completeNow(); else nextRoom(); guideRefresh(); tutEvent('guide'); };
+  $('#gdDone').onclick = () => { sfx('click'); const r = curRoom(), st = r && roomState(r); if (st && st.door && st.win && st.furn) nextRoom(); else completeNow(); };
   $('#reMore').onclick = () => { sfx('click'); $('.retools').classList.toggle('open'); };
   // furniture is placed along walls, facing into the room (rot 0 faces +z, 1 faces -x, 2 faces -z, 3 faces +x), never in front of a door
   const FACE = [[0, 1], [-1, 0], [0, -1], [1, 0]];
@@ -225,7 +240,7 @@
     const cellSet = new Set(r.cells.map(c => c.join())), blocked = new Set();
     S.layout.filter(o => o.lvl === r.lvl && PART[o.part].kind === 'item' && PART[o.part].layer !== 'rug').forEach(o => WORLD.cellsOf(o).forEach(c => blocked.add(c.join())));
     boundaryInfo(r).filter(x => /^door_|^arch$/.test(x.o.part)).forEach(x => { const a = [x.o.x, x.o.z], b = [x.o.x + DIRS4[x.o.rot][0], x.o.z + DIRS4[x.o.rot][1]], ins = cellSet.has(a.join()) ? a : b; blocked.add(ins.join()); const dx = ins[0] - (cellSet.has(a.join()) ? b[0] : a[0]), dz = ins[1] - (cellSet.has(a.join()) ? b[1] : a[1]); blocked.add([ins[0] + dx, ins[1] + dz].join()); });
-    const counts = {}; missing.forEach(p => counts[p] = (counts[p] || 0) + 1); const c = costOf(counts); if (S.coins < c.coins) { sfx('bad'); return toast(`Need ${c.coins - S.coins} more coins`); }
+    const counts = {}; missing.forEach(p => counts[p] = (counts[p] || 0) + 1); const c = costOf(counts); if (S.coins < c.coins) return needCoins(c.coins - S.coins);
     const objs = []; let prev = null;
     for (const part of missing) {
       let best = null;
@@ -268,3 +283,10 @@
   $('#tutSkip').onclick = () => { sfx('click'); tutStop(true); };
   $('#tutNext').onclick = () => { sfx('click'); if (!tut) return; if (tut.step >= TUT_N) tutStop(true); else tutStep(tut.step + 1); };
   $('#bHelp').onclick = () => { sfx('click'); if (buildMode() !== 'room') { toast('The tutorial covers the story building mode'); return; } if (roomEdit) exitRoomEdit(); curCat = 'rooms'; renderTabs(); renderItems(); tutMaybe(true); };
+
+  $('#btnBuildDone').addEventListener('click', (e) => {
+    if (buildMode() !== 'room' || finished() || !roomEdit) return; const r = curRoom(), st = r && roomState(r); if (!st) return;
+    const miss = [!st.door && 'a door', !st.win && 'windows', !st.furn && 'furniture'].filter(Boolean); if (!miss.length) return;
+    e.stopImmediatePropagation(); e.preventDefault(); sfx('click');
+    sheet({ ribbon: ['Leave building?'], html: `<p class="body">Your ${r.name} still needs ${miss.length > 1 ? miss.slice(0, -1).join(', ') + ' and ' + miss[miss.length - 1] : miss[0]}. Everything you built is saved.</p>`, actions: [{ text: 'Keep building', cls: 'primary' }, { text: 'Back to home', cls: 'secondary', fn: () => exitBuild() }] });
+  }, true);

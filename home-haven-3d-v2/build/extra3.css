@@ -147,3 +147,4 @@
   .guide .grow{flex-wrap:nowrap}.guide .grow #gdGo{flex:2 1 0;min-height:36px;font-size:14px}.guide .grow #gdDone,.guide .grow #reMore{flex:1 1 0;min-height:36px;font-size:12px}
   #build.guided .retools{top:calc(var(--safe-t) + 150px)}
 }
+.it{position:relative}.sugg{position:absolute;top:4px;left:4px;background:#FFB04A;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;box-shadow:0 2px 0 rgba(0,0,0,.15)}
