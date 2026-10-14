@@ -194,18 +194,19 @@
   const rtOf = (r) => { const f = r.floors.find(o => o.rt); if (f) return f.rt; const n = r.name; return /Kitchen/.test(n) ? 'kitchen' : /Bed/.test(n) ? 'bedroom' : /Bath/.test(n) ? 'bath' : /Living/.test(n) ? 'living' : /Hall/.test(n) ? 'hall' : 'study'; };
   function roomState(r) {
     const info = boundaryInfo(r), has = (re) => info.some(x => re.test(x.o.part)), t = rtOf(r), need = ROOM_FURN[t] || [], parts = r.items.map(o => o.part), missing = need.filter(id => !parts.includes(id));
-    return { t, door: has(/^door_|^arch$/), win: has(/^window_|wall_glass/), furn: !missing.length, missing };
+    const un = unlockedCats(), openLock = !un.includes('openings'), furnLock = !un.includes(FURN_TAB[t] || 'furniture'); // parts that are not unlocked yet in this chapter are not asked for
+    return { t, door: has(/^door_|^arch$/) || openLock, win: has(/^window_|wall_glass/) || openLock, furn: !missing.length || furnLock, missing, openLock, furnLock };
   }
   const guideLast = { key: '', step: -2 };
   function guideRefresh() {
     const g = $('#guide'), B = $('#build'), on = B.classList.contains('on') && roomEdit && buildMode() === 'room'; B.classList.toggle('guided', !!on); if (!on) { g.classList.add('hidden'); guideLast.key = ''; return; }
     const r = curRoom(); if (!r) return; const st = roomState(r), flags = [st.door, st.win, st.furn], cur = flags.findIndex(x => !x), step = cur < 0 ? 3 : cur;
-    $$('.gs', g).forEach((el, i) => { el.classList.toggle('done', i < 3 ? flags[i] : cur < 0); el.classList.toggle('cur', i === step); });
+    $$('.gs', g).forEach((el, i) => { el.classList.toggle('lock', i === 0 || i === 1 ? st.openLock : i === 2 ? st.furnLock : false); el.classList.toggle('done', i < 3 ? flags[i] : cur < 0); el.classList.toggle('cur', i === step); });
     const goals = questProgress(), allDone = goals.every(p => p.have >= p.q.n), nxt = goals.find(p => p.have < p.q.n), go = $('#gdGo'), tx = $('#gdTxt');
     if (step === 0) { tx.textContent = `Your ${r.name} needs a door. We will pick a good spot.`; go.textContent = '🚪 Add door'; }
     else if (step === 1) { tx.textContent = 'Let some light in — add windows on the outside walls.'; go.textContent = '🪟 Add windows'; }
     else if (step === 2) { tx.textContent = `Furnish it: ${st.missing.map(id => PART[id].name).join(', ')}. Tap the button, or pick items below.`; go.textContent = '🛋 Furnish for me'; }
-    else { const sg = suggestNext(), sgn = sg && (ROOM_TYPES.find(t => t.id === sg) || {}).name; tx.textContent = allDone ? 'All chapter goals are done — complete the chapter, or keep building more rooms.' : `${r.name} is ready!${nxt ? ' Next goal: ' + nxt.q.text : ''}`; go.textContent = allDone ? 'Complete chapter ▶' : `＋ Next room${sgn ? ': ' + sgn : ''}`; if (roomEdit && !roomEdit.cheered) { roomEdit.cheered = 1; sfx('win'); confetti(45); toast(`${r.name} complete!`); } }
+    else { const sg = suggestNext(), sgn = sg && (ROOM_TYPES.find(t => t.id === sg) || {}).name; tx.textContent = allDone ? 'All chapter goals are done — complete the chapter, or keep building more rooms.' : `${r.name} is ready!${st.openLock || st.furnLock ? ' Doors, windows and furniture unlock in the next chapter.' : ''}${nxt ? ' Next goal: ' + nxt.q.text : ''}`; go.textContent = allDone ? 'Complete chapter ▶' : `＋ Next room${sgn ? ': ' + sgn : ''}`; if (roomEdit && !roomEdit.cheered) { roomEdit.cheered = 1; sfx('win'); confetti(45); toast(`${r.name} complete!`); } }
     const gd = $('#gdDone'); gd.classList.toggle('hidden', !(allDone)); gd.textContent = step < 3 ? 'Complete ▶' : '＋ More rooms'; g.classList.remove('hidden'); const key = r.key + ':' + step;
     if (key !== guideLast.key) { guideLast.key = key; if (step === 2) { const tab = FURN_TAB[st.t]; if (tab && unlockedCats().includes(tab) && curCat !== tab) { curCat = tab; renderTabs(); renderItems(); return; } } }
     if (step === 3 && typeof tutEvent === 'function') tutEvent('done');
@@ -217,7 +218,7 @@
   function suggestNext() {
     const have = detectRooms(S.layout).map(rtOf), rules = [[/kitchen/i, 'kitchen'], [/bedroom/i, 'bedroom'], [/bathroom|bath\b/i, 'bath'], [/living/i, 'living'], [/study/i, 'study']];
     for (const p of questProgress()) { if (p.have >= p.q.n) continue; for (const [re, id] of rules) if (re.test(p.q.text) && !have.includes(id)) return id; }
-    return ['living', 'kitchen', 'bedroom', 'bath', 'study'].find(id => !have.includes(id)) || null;
+    return null;
   }
   function nextRoom() {
     const nxt = questProgress().find(p => p.have < p.q.n), sg = suggestNext(); exitRoomEdit(); curCat = 'rooms'; roomTool.rect = null; roomTool.flip = false; if (sg) { roomTool.type = sg; roomTool.suggest = sg; }
