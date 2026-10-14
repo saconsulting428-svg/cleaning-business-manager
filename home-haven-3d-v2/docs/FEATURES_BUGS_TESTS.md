@@ -58,6 +58,8 @@ Per-level coins 100/125/150, daily quest 150, chapter rewards 500–1000, plus g
 | Walls replaced by windows lowered the "walls" objective | opening pieces replace wall pieces | objectives count wall-kind pieces incl. doors/windows |
 | Taps/drags landed offset from the finger whenever the build screen shifted the camera (panels, room editor, landscape drawer) | `setRay` subtracted the camera screen-shift **in addition to** the projection view-offset, so picking was double-shifted | removed the extra shift; picking and drawing now agree (verified `toScreen` ↔ `cellAt` round-trip) |
 | Room-size dragging was confusing on a phone (second recording): players dragged over built rooms and got stuck previews | story mode no longer uses dragging: ghost room of a fixed size + tap to place/move; free dragging is Advanced-only |
+| Phone recording: tutorial bubbles covered the screen, build header's Done button was cut off, guide chips/buttons clipped, six home buttons wrapped | compact tutorial + ring that does not hide the target; header/guide/home-nav CSS for 320–420 px and short landscape; modal scrolls (`tests/responsive_audit.js` flags off-screen / clipped elements) |
+| Title logo looked doubled on desktop | stacked 9 px solid text-shadow + blur on both logo lines | single thin shadow, line-height 1 |
 | Chapter-4 Roof/Garden tabs stayed locked after completing a chapter without leaving Build | tab list was not re-rendered on chapter change | `refreshBuildUI()` after the chapter counter advances |
 | Auto doors/windows and style swaps could not be undone and corrupted refunds when the room was undone | swaps pushed no undo step | swap undo records (restore parts, refund coins/materials) |
 | On a real phone (screen recording) a second room could not be started: the drag began on the existing room, the tap selected a single floor tile and the toolbar covered the tray | room drag was allowed to start on occupied cells; taps in room mode selected pieces | a drag that starts on a built room now pans the camera; tapping a built room opens its room editor; hint says to drag on an empty spot (`tests/room_existing_drag.js`) |
@@ -80,6 +82,9 @@ Per-level coins 100/125/150, daily quest 150, chapter rewards 500–1000, plus g
 * **Rooms/editor:** room detection (4 rooms in the finished house), list thumbnails, edit, recolour, save.
 * **Orientation:** portrait/landscape screenshots of loading, title, home, build (panel, ghost, selection, palette), rooms, sheets, dialogues, all 7 puzzles.
 * **Render cost** (finished house, home view): ~170 draw calls and ~22 k triangles per frame, 452 geometries, 16 textures (renderer.info). Shadows are re-rendered only when something changes or a character walks.
+
+* **Characters:** Ben was redrawn as a grown-up builder (taller, small head, short hair, tool belt) in the 3D world and the dialogue portrait is rendered from that model at start-up (`RENO.benPortrait`); the other portraits are the original art, so Ben's style differs slightly from theirs.
+* **Responsive audit** (`tests/responsive_audit.js`) at 320×568, 360×640, 740×360: menu, home, shop, story, projects, rewards, build tutorial/ghost/guide/style panel, puzzle modal — remaining flags are only decorative clouds and the horizontally scrolling shop tabs.
 
 ## 4. Not done / not tested / limits
 * **No Android build or device test.** Orientation lock, WebView WebGL performance, memory use, touch feel and real FPS on phones are unverified. Software-rendered headless frame rates say nothing about devices.

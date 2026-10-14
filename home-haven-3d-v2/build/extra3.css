@@ -108,3 +108,42 @@
   .gtxt{font-size:12px;margin-bottom:5px}.grow .btn:first-child{min-height:38px;font-size:14px}
 }
 @media (orientation:portrait){#roomBar{bottom:calc(246px + var(--safe-b));flex-wrap:wrap;justify-content:center;width:auto;max-width:94%}#roomBar .rinfo{flex:1 0 100%;text-align:center;max-width:none}#roomBar .ab{flex:1}}
+/* title logo: no stacked 9px shadow / blur that makes the two lines look doubled */
+.brand{line-height:1}
+.brand .b1,.brand .b2{text-shadow:-3px -3px 0 #fff,3px -3px 0 #fff,-3px 3px 0 #fff,3px 3px 0 #fff,0 3px 0 #fff,0 -3px 0 #fff,3px 0 0 #fff,-3px 0 0 #fff,0 5px 0 #fff;-webkit-text-stroke:0}
+.brand .b2{margin-top:2px}
+/* compact tutorial bubble + ring that does not hide the target */
+.tbub{padding:8px 12px;border-radius:16px;max-width:340px}
+.tbub b{font-size:14px}.tbub p{margin:2px 0 6px;font-size:12.5px;line-height:1.3}
+.hand{left:-22px;top:-22px;width:44px;height:44px;background:rgba(255,255,255,.1);border:3px solid #fff;box-shadow:0 0 0 3px rgba(76,175,80,.9),0 4px 10px rgba(0,0,0,.3)}
+.hand::after{left:auto;right:-6px;top:auto;bottom:-6px;margin:0;width:16px;height:16px;border:3px solid #fff}
+/* ---- narrow phones (320-420px): nothing may be cut off */
+.btop .seg button,.btop .btn{white-space:nowrap}
+.guide .grow{flex-wrap:wrap}.guide .grow #gdGo{flex:1 1 100%;min-height:46px}.guide .grow #gdDone,.guide .grow #reMore{flex:1 1 0;min-height:36px}
+.gs.done::after{content:""}.gs{font-size:10.5px;padding:4px 1px;overflow:hidden;text-overflow:clip}
+.gs.done{background:#BFE8B8}.gs.done::before{content:"✓";margin-right:2px}
+@media (max-width:420px){
+  .btop{gap:5px!important;padding-left:8px!important;padding-right:8px!important}
+  .btop .seg button{padding:6px 9px;font-size:12.5px}.btop .btn.sm{padding:6px 10px;font-size:12.5px}.btop .res.sm{padding:3px 8px;font-size:13px}
+  .btop #btnBuildDone{margin-left:auto}
+  .rename{max-width:27vw;font-size:12.5px;padding:4px 9px}
+  #home .side.left{flex-wrap:nowrap;gap:5px;padding:0 6px}
+  #home .side.left .nb{width:calc((100vw - 12px - 25px) / 6);max-width:58px;height:56px;font-size:10px}
+  .guide{padding:7px 8px 8px}.gtxt{font-size:12.5px}
+  .tab{font-size:11px}
+}
+@media (max-width:340px){
+  .btop{gap:3px!important;padding-left:5px!important;padding-right:5px!important}
+  .btop .seg button{padding:5px 7px;font-size:11.5px}.btop .btn.sm{padding:5px 7px;font-size:11.5px}.btop .res.sm{padding:3px 6px;font-size:12px}
+  .rename{max-width:26vw;font-size:11.5px}
+  .hud .res{padding:4px 7px;gap:4px;font-size:13px}.hud .res .plus{width:20px;height:20px;font-size:14px}
+  .gs{font-size:9.5px}
+}
+.hud .res b{overflow:visible!important;max-width:none!important;text-overflow:clip!important}
+@media (max-width:340px){.hud{gap:4px!important}.hud .res{padding:3px 5px;gap:3px}}
+#mbox{max-height:calc(100vh - 24px);overflow-y:auto}
+@media (orientation:landscape) and (max-height:520px){
+  .gtxt{display:none}
+  .guide .grow{flex-wrap:nowrap}.guide .grow #gdGo{flex:2 1 0;min-height:36px;font-size:14px}.guide .grow #gdDone,.guide .grow #reMore{flex:1 1 0;min-height:36px;font-size:12px}
+  #build.guided .retools{top:calc(var(--safe-t) + 150px)}
+}
