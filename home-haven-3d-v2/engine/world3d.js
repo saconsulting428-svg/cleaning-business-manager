@@ -325,7 +325,7 @@
   W3.fitCamera = (reset) => { const t = Math.tan(FOV * Math.PI / 360), build = W3.mode === 'build', availW = Math.max(120, Wd - (W3._insetW || 0)), asp = availW / Hd, plot = build ? 18 : 16; const need = Math.max(plot / (2 * t * asp), (build ? 18 : 16.5) / (2 * t)); W3._fit = need; if (reset) { goal.dist = need; goal.tx = N / 2; goal.tz = N / 2 + .5; goal.ty = 1; if (reset === 'now') cam.dist = need; } };
   W3.setInset = (w) => { W3._insetW = w; W3.fitCamera(true); };
 
-  W3.focusRoom = (cells, lvl) => { const xs = cells.map(c => c[0]), zs = cells.map(c => c[1]), x0 = Math.min(...xs), x1 = Math.max(...xs) + 1, z0 = Math.min(...zs), z1 = Math.max(...zs) + 1; goal.tx = (x0 + x1) / 2; goal.tz = (z0 + z1) / 2 + .6; goal.ty = lvl * H + .5; const span = Math.max(x1 - x0, z1 - z0, 4); const n = W3._fit || 24; goal.dist = clamp(span * 3.3 + 4, n * .22, n * 1.2); };
+  W3.focusRoom = (cells, lvl) => { const xs = cells.map(c => c[0]), zs = cells.map(c => c[1]), x0 = Math.min(...xs), x1 = Math.max(...xs) + 1, z0 = Math.min(...zs), z1 = Math.max(...zs) + 1; goal.tx = (x0 + x1) / 2; goal.tz = (z0 + z1) / 2 + .6; goal.ty = lvl * H + .5; const span = Math.max(x1 - x0, z1 - z0, 4); const n = W3._fit || 24; goal.dist = clamp(span * 5.6 + 6, n * .22, n * 1.25); };
   W3.resetFocus = () => { goal.ty = 1; W3.fitCamera(true); };
   W3.shot = (cells, lvl, w = 320, h = 220) => {
     if (!renderer) return null; const sv = { cam: Object.assign({}, cam), W: Wd, H: Hd, pr: renderer.getPixelRatio(), i: W3.interior, vl: W3._vl, m: W3.mode };
@@ -400,11 +400,22 @@
     // yaw changes toggle which walls are "in front"
     const key = Math.round(((cam.yaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI / 2) * 4); if (key !== W3._yk) { W3._yk = key; if (W3.interior) W3.applyAlpha(); }
     tickChars(dt * 1000);
+    if (anims.length) { const tn = performance.now(); for (let i = anims.length - 1; i >= 0; i--) { const a = anims[i], k = Math.min(1, Math.max(0, (tn - a.t0) / a.dur)), e = a.e; if (!e.g.parent) { anims.splice(i, 1); continue; } const s = k <= 0 ? .001 : 1 + 1.70158 * Math.pow(k - 1, 3) + .70158 * Math.pow(k - 1, 2); if (a.wall) e.g.scale.set(1, Math.max(.001, s), 1); else e.g.scale.setScalar(Math.max(.001, s)); if (k >= 1) { e.g.scale.set(1, 1, 1); anims.splice(i, 1); } } dirty = Math.max(dirty, 2); }
+    if (roomPrev) { const f = roomPrev.children[0]; if (f && f.material) f.material.opacity = .42 + .16 * Math.sin(performance.now() / 260); dirty = Math.max(dirty, 1); }
     for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t += dt; f.s.position.x += f.v[0] * dt; f.s.position.y += f.v[1] * dt; f.s.position.z += f.v[2] * dt; f.s.scale.setScalar(.4 + f.t * 1.6); f.s.material.opacity = Math.max(0, .8 - f.t * 1.4); if (f.t > .6) { root.remove(f.s); f.s.material.dispose(); fx.splice(i, 1); } }
     if (foundation && foundation.visible && foundation.userData.label) foundation.userData.label.position.y = .06;
     if (dirty > 0 || W3.chars.some(c => c.moving) || fx.length) { renderer.shadowMap.needsUpdate = true; if (dirty > 0) dirty--; }
     renderer.render(scene, camera); W3.cb.frame && W3.cb.frame();
   }
+  const anims = [];
+  // construction animation: floors pop in one after another, then walls rise, then furniture
+  W3.buildIn = (ids) => { const t0 = performance.now(); let nf = 0, nw = 0; const list = ids.map(id => objs.get(id)).filter(Boolean); list.forEach(e => { const k = PART[e.o.part].kind; if (k === 'floor') { anims.push({ e, t0: t0 + (nf++) * 28, dur: 380 }); e.g.scale.setScalar(.001); } }); const base = t0 + nf * 28 + 120; list.forEach(e => { const k = PART[e.o.part].kind; if (k === 'wall') { anims.push({ e, t0: base + (nw++) * 45, dur: 520, wall: true }); e.g.scale.set(1, .001, 1); } else if (k !== 'floor') { anims.push({ e, t0: base + nw * 45 + 200, dur: 420 }); e.g.scale.setScalar(.001); } }); dirty = 3; return base + nw * 45 + 600 - t0; };
+  let roomLbl; W3.setRoomLabel = (cells, lvl, text) => {
+    if (roomLbl) { root.remove(roomLbl); roomLbl = null; } dirty = 2; if (!cells || !cells.length) return;
+    const xs = cells.map(c => c[0]), zs = cells.map(c => c[1]), x0 = Math.min(...xs), x1 = Math.max(...xs) + 1, z0 = Math.min(...zs), z1 = Math.max(...zs) + 1;
+    const c = cvs(320, 96, (x, W_, H_) => { x.fillStyle = 'rgba(255,255,255,.95)'; const r = 40; x.beginPath(); x.moveTo(r, 8); x.arcTo(W_ - 8, 8, W_ - 8, H_ - 8, r); x.arcTo(W_ - 8, H_ - 8, 8, H_ - 8, r); x.arcTo(8, H_ - 8, 8, 8, r); x.arcTo(8, 8, W_ - 8, 8, r); x.fill(); x.font = 'bold 44px Poppins, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#3A2E25'; x.fillText(text, W_ / 2, H_ / 2 + 2); });
+    const sp = new T.Sprite(new T.SpriteMaterial({ map: toTex(c), transparent: true, depthTest: false })); sp.scale.set(2.6, .78, 1); sp.position.set((x0 + x1) / 2, lvl * H + H + .7, (z0 + z1) / 2); sp.renderOrder = 61; root.add(sp); roomLbl = sp;
+  };
   W3.start = () => { if (!renderer) return; active = true; resize(); last = performance.now(); dirty = 3; };
   W3.stop = () => { active = false; };
   W3.init = (container) => {
@@ -421,18 +432,18 @@
     W3.ready = true; window.onWorldReady && window.onWorldReady();
   };
   // ---------------------------------------------------------------- room tool: drag a rectangle on the grid, translucent preview
-  let roomPrev; W3.roomMode = false;
+  let roomPrev; W3.roomMode = false; W3.roomDrag = false;
   W3.setRoomMode = (on) => { W3.roomMode = !!on; if (!on) W3.setRoomPreview(null); };
   W3.setRoomPreview = (r, ok, label) => {
     if (roomPrev) { root.remove(roomPrev); roomPrev = null; } dirty = 2; if (!r) return;
     const g = new T.Group(), w = r.x1 - r.x0, d = r.z1 - r.z0, y = W3.level * H, col = ok ? 0x58d86a : 0xff5a5a;
     const fl = new T.Mesh(new T.PlaneGeometry(w, d), new T.MeshBasicMaterial({ color: ok ? 0x37e05a : 0xff4040, transparent: true, opacity: .55, depthWrite: false })); fl.rotation.x = -Math.PI / 2; fl.position.set(r.x0 + w / 2, y + .08, r.z0 + d / 2); g.add(fl);
-    const wm = new T.MeshBasicMaterial({ color: col, transparent: true, opacity: .2, depthWrite: false }), hh = H * .85, t = .12;
+    const wm = new T.MeshBasicMaterial({ color: col, transparent: true, opacity: .3, depthWrite: false }), hh = H * .85, t = .12;
     [[w, t, r.x0 + w / 2, r.z0], [w, t, r.x0 + w / 2, r.z1], [t, d, r.x0, r.z0 + d / 2], [t, d, r.x1, r.z0 + d / 2]].forEach(([bw, bd, cx, cz]) => { const m = new T.Mesh(new T.BoxGeometry(bw, hh, bd), wm); m.position.set(cx, y + hh / 2, cz); g.add(m); });
     const ol = new T.LineLoop(new T.BufferGeometry().setFromPoints([[r.x0, r.z0], [r.x1, r.z0], [r.x1, r.z1], [r.x0, r.z1]].map(([x, z]) => new T.Vector3(x, y + hh, z))), new T.LineBasicMaterial({ color: col })); g.add(ol);
     for (let i = 1; i < w; i++) g.add(new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(r.x0 + i, y + .09, r.z0), new T.Vector3(r.x0 + i, y + .09, r.z1)]), new T.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: .55 })));
     for (let i = 1; i < d; i++) g.add(new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(r.x0, y + .09, r.z0 + i), new T.Vector3(r.x1, y + .09, r.z0 + i)]), new T.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: .55 })));
-    const txt = label || `${w} × ${d}`, c = cvs(256, 96, (x, W_, H_) => { x.font = 'bold 54px Poppins, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 12; x.strokeStyle = ok ? '#2E7D32' : '#A8321F'; x.strokeText(txt, W_ / 2, H_ / 2); x.fillStyle = '#fff'; x.fillText(txt, W_ / 2, H_ / 2); });
+    const txt = label || `${w} × ${d}`, c = cvs(256, 96, (x, W_, H_) => { x.font = `bold ${txt.length > 8 ? 38 : 54}px Poppins, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineWidth = 10; x.strokeStyle = ok ? '#2E7D32' : '#A8321F'; x.strokeText(txt, W_ / 2, H_ / 2); x.fillStyle = '#fff'; x.fillText(txt, W_ / 2, H_ / 2); });
     const sp = new T.Sprite(new T.SpriteMaterial({ map: toTex(c), transparent: true, depthTest: false })); sp.scale.set(2.2, .83, 1); sp.position.set(r.x0 + w / 2, y + hh + .5, r.z0 + d / 2); sp.renderOrder = 60; g.add(sp);
     root.add(g); roomPrev = g;
   };
@@ -443,7 +454,7 @@
     const rectOf = (a, b) => ({ x0: clamp(Math.min(a.cx, b.cx), 0, N - 1), z0: clamp(Math.min(a.cz, b.cz), 0, N - 1), x1: clamp(Math.max(a.cx, b.cx), 0, N - 1) + 1, z1: clamp(Math.max(a.cz, b.cz), 0, N - 1) + 1 });
     dom.addEventListener('pointerdown', (e) => {
       dom.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (ptrs.size === 1) { drag = { sx: e.clientX, sy: e.clientY, moved: false }; if (W3.mode === 'build' && W3.roomMode) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); if (c.cx >= 0 && c.cz >= 0 && c.cx < N && c.cz < N && !(W3.cb.cellFree && !W3.cb.cellFree(c.cx, c.cz))) drag.room = c; } else if (W3.mode === 'build' && isPaintKind()) drag.paint = true; }
+      if (ptrs.size === 1) { drag = { sx: e.clientX, sy: e.clientY, moved: false }; if (W3.mode === 'build' && W3.roomMode && W3.roomDrag) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); if (c.cx >= 0 && c.cz >= 0 && c.cx < N && c.cz < N && !(W3.cb.cellFree && !W3.cb.cellFree(c.cx, c.cz))) drag.room = c; } else if (W3.mode === 'build' && isPaintKind()) drag.paint = true; }
       else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: goal.dist, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; if (drag && drag.room) W3.setRoomPreview(null); drag = null; }
     });
     dom.addEventListener('pointermove', (e) => {
@@ -457,7 +468,7 @@
     });
     const up = (e) => {
       const was = ptrs.has(e.pointerId); ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!was) return;
-      if (drag && e.type === 'pointerup') { if (drag.room && drag.moved && drag.rect) W3.cb.roomRect && W3.cb.roomRect(drag.rect, true); else if (!drag.moved) W3.tap(e.clientX, e.clientY); }
+      if (drag && e.type === 'pointerup') { if (drag.room && drag.moved && drag.rect) W3.cb.roomRect && W3.cb.roomRect(drag.rect, true); else if (!drag.moved) { let used = false; if (W3.mode === 'build' && W3.roomMode && !W3.roomDrag && W3.cb.roomTap) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); used = W3.cb.roomTap(c.cx, c.cz); } if (!used) W3.tap(e.clientX, e.clientY); } }
       if (!ptrs.size) drag = null;
     };
     dom.addEventListener('pointerup', up); dom.addEventListener('pointercancel', up);

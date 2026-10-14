@@ -1,0 +1,22 @@
+const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const H = require('./helpers.js');
+(async()=>{
+  const b = await chromium.launch({executablePath:'/opt/pw-browsers/chromium', args:['--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--no-sandbox']});
+  const [w,h]=(process.argv[2]||'360x800').split('x').map(Number), tag=process.argv[3]||'p';
+  const p = await b.newPage({viewport:{width:w,height:h}});
+  p.on('pageerror',e=>console.log('PAGEERR',e.message));
+  await p.goto('file:///home/user/cleaning-business-manager/home-haven-3d-v2/Home_Haven_3D.html'); await p.waitForSelector('#menu.on',{timeout:60000});
+  await p.click('#btnContinue'); await p.waitForTimeout(1000); await p.evaluate(H.install); await p.evaluate(()=>window.skipDialogs()); await p.waitForTimeout(300); await p.evaluate(()=>window.closeModal());
+  await p.evaluate(()=>{ for(let i=0;i<8;i++){ if(!__game.S.cleared.includes(i)){ __game.S.cleared.push(i); WORLD.clearDebris(i);} } __game.S.coins=3000; __game.save(); });
+  await p.evaluate(()=>{ document.getElementById('navBuild').click(); }); await p.waitForTimeout(1500); await p.evaluate(()=>{const t=document.getElementById('tutSkip'); t&&t.click();});
+  const click=(id)=>p.evaluate(i=>document.getElementById(i).click(),id);
+  const go=async(n)=>{ for(let i=0;i<n;i++){ await click('gdGo'); await p.waitForTimeout(1200);} };
+  await p.evaluate(()=>document.querySelectorAll('#items .it')[0].click()); await p.waitForTimeout(600); await click('rbOk'); await p.waitForTimeout(1800); await go(3); await p.waitForTimeout(2500);
+  await p.screenshot({path:`v_${tag}_living.png`});
+  await click('reNew'); await p.waitForTimeout(1200); await p.evaluate(()=>document.querySelectorAll('#items .it')[1].click()); await p.waitForTimeout(700); await click('rbOk'); await p.waitForTimeout(1800); await go(3); await p.waitForTimeout(3500);
+  await p.screenshot({path:`v_${tag}_kitchen.png`});
+  await click('reNew'); await p.waitForTimeout(1200); await p.evaluate(()=>document.querySelectorAll('#items .it')[2].click()); await p.waitForTimeout(700); await click('rbOk'); await p.waitForTimeout(1800); await go(3); await p.waitForTimeout(3000);
+  await p.screenshot({path:`v_${tag}_bed.png`});
+  await click('btnBuildDone'); await p.waitForTimeout(5000); await p.evaluate(()=>{WORLD.setMode('view');}); await p.waitForTimeout(3000); await p.screenshot({path:`v_${tag}_house.png`});
+  await b.close();
+})();

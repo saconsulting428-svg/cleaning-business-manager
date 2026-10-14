@@ -43,8 +43,9 @@
     roomEdit = { key: r.key, name: r.name, lvl: r.lvl, cells: r.cells, room: r }; $('#build').classList.add('roomedit'); enterBuild();
     $$('.sg').forEach(b => b.classList.toggle('on', +b.dataset.l === r.lvl)); WORLD.setLevel(r.lvl); WORLD.setInterior(true); WORLD.focusRoom(r.cells, r.lvl);
     curCat = ['furniture', 'decor', 'kitchen', 'bath', 'bedroom'].find(c => unlockedCats().includes(c)) || curCat; renderTabs(); renderItems(); $('#reName').textContent = r.name; hint(`Designing the ${r.name}`);
+    WORLD.setRoomLabel(r.cells, r.lvl, r.name); if (typeof guideRefresh === 'function') guideRefresh();
   }
-  function exitRoomEdit() { roomEdit = null; $('#build').classList.remove('roomedit'); WORLD.setInterior(S.interior); WORLD.resetFocus(); }
+  function exitRoomEdit() { roomEdit = null; $('#build').classList.remove('roomedit', 'guided'); $('#guide').classList.add('hidden'); WORLD.setRoomLabel(null); WORLD.setInterior(S.interior); WORLD.resetFocus(); }
   function roomRecolor(kind, col) {
     const r = roomEdit.room, list = kind === 'walls' ? roomWallPieces(r) : S.layout.filter(o => o.lvl === r.lvl && PART[o.part].kind === 'floor' && o.part !== 'path_stone' && r.cells.some(c => c[0] === o.x && c[1] === o.z));
     const ops = list.filter(o => (o.color || PART[o.part].color) !== col).map(o => { const old = o.color; o.color = col; return { t: 'paint', id: o.id, old }; });
