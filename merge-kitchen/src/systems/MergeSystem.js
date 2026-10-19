@@ -1,16 +1,17 @@
 // Pure board logic (no rendering). Views listen to the events it emits on state.bus:
 //   board:spawn {idx,id,source}  board:merge {from,to,id,prevId,combo,bonus}
 //   board:move {from,to}  board:swap {a,b}  board:remove {idx,reason}  board:full
-import { ITEMS, CHAINS, unlockedChains, tier1Of, itemOf } from '../data/items.js';
+import { ITEMS, CHAINS, FUSIONS, unlockedChains, tier1Of, itemOf, fusionOf } from '../data/items.js';
 import { BOARD } from '../ui/layout.js';
 
 const COMBO_WINDOW = 2600;
 const BONUS_CHANCE = 0.22;
 
 export class MergeSystem {
-  constructor(state, energy) {
+  constructor(state, energy, gen) {
     this.state = state;
     this.energy = energy;
+    this.gen = gen;
     this.combo = 0;
     this.lastMergeAt = 0;
   }
@@ -27,19 +28,38 @@ export class MergeSystem {
   countOf(id) { return this.board.reduce((n, v) => n + (v === id ? 1 : 0), 0); }
   has(id) { return this.board.includes(id); }
 
-  /** Merge is valid when both are the same item and a next tier exists */
-  canMerge(a, b) {
-    if (a === b) return false;
-    const x = this.board[a], y = this.board[b];
-    return !!x && x === y && !!ITEMS[x].next;
+  /** Result id of merging two item ids: next tier (same item) or a FUSION recipe (two different dishes) */
+  mergeResult(x, y) {
+    if (!x || !y) return null;
+    if (x === y) return ITEMS[x].next;
+    return fusionOf(x, y)?.id ?? null;
   }
 
-  /** Random tier-1 ingredient from an unlocked chain (rarely tier 2 at higher levels) */
+  /** Merge is valid for two identical items (next tier exists) or a fusion pair */
+  canMerge(a, b) {
+    if (a === b) return false;
+    return !!this.mergeResult(this.board[a], this.board[b]);
+  }
+
+  /** Is there ANY merge / fusion available on the board? (stuck detection) */
+  hasMoves() {
+    const counts = {};
+    this.board.forEach((id) => { if (id) counts[id] = (counts[id] || 0) + 1; });
+    for (const id in counts) if (counts[id] >= 2 && ITEMS[id].next) return true;
+    return FUSIONS.some((f) => counts[f.a] && counts[f.b]);
+  }
+
+  /** Free generator output: always a tier-1 ingredient from an unlocked food line */
   rollSpawnId() {
     const chains = unlockedChains(this.state.level);
+    return tier1Of(chains[Math.floor(Math.random() * chains.length)].id);
+  }
+
+  /** Premium spawn: random tier 2-3 dish (costs energy) */
+  rollPremiumId() {
+    const chains = unlockedChains(this.state.level);
     const c = chains[Math.floor(Math.random() * chains.length)];
-    const lucky = this.state.level >= 5 && Math.random() < 0.1;
-    return lucky ? itemOf(c.id, 2) : tier1Of(c.id);
+    return itemOf(c.id, Math.random() < 0.35 ? 3 : 2);
   }
 
   randomEmpty() {
@@ -58,12 +78,12 @@ export class MergeSystem {
     return idx;
   }
 
-  /** Spend 1 energy and spawn an ingredient. Result: {ok, reason?, idx?, id?} */
-  trySpawn() {
-    this.energy.sync();
+  /** Tap the free Potato Basket: costs 1 generator charge, never energy. -> {ok, reason?: 'full'|'empty'} */
+  tapBasket(now = Date.now()) {
+    this.gen.sync(now);
     if (this.isFull()) { this.bus.emit('board:full'); return { ok: false, reason: 'full' }; }
-    if (this.energy.value < 1) return { ok: false, reason: 'energy' };
-    this.energy.consume(1);
+    if (this.gen.charges < 1) return { ok: false, reason: 'empty' };
+    this.gen.consume(now);
     const id = this.rollSpawnId();
     const idx = this.place(id, 'button');
     this.state.data.stats.spawned += 1;
@@ -71,12 +91,36 @@ export class MergeSystem {
     return { ok: true, idx, id };
   }
 
+  /** Premium spawn (count 1) / double spawn (count 2): `count` energy -> `count` tier 2-3 dishes. */
+  premium(count = 1) {
+    this.energy.sync();
+    if (this.emptyCells().length < count) { this.bus.emit('board:full'); return { ok: false, reason: 'full' }; }
+    if (this.energy.value < count) return { ok: false, reason: 'energy' };
+    this.energy.consume(count);
+    for (let i = 0; i < count; i++) {
+      const id = this.rollPremiumId();
+      const idx = this.place(id, 'premium');
+      this.state.data.stats.spawned += 1;
+      this.bus.emit('spawned', { id, idx, premium: true });
+    }
+    return { ok: true };
+  }
+
+  /** Sell up to n cheapest items (stuck helper). -> { n, coins } */
+  sellCheapest(n = 4) {
+    const idxs = this.board.map((id, i) => (id ? i : -1)).filter((i) => i >= 0)
+      .sort((a, b) => ITEMS[this.board[a]].value - ITEMS[this.board[b]].value).slice(0, n);
+    let coins = 0;
+    idxs.forEach((i) => { coins += this.sell(i); });
+    return { n: idxs.length, coins };
+  }
+
   /** Try to merge board[from] into board[to]. */
   tryMerge(from, to, now = Date.now()) {
     if (!this.canMerge(from, to)) return null;
     const prevId = this.board[from];
-    const def = ITEMS[prevId];
-    const id = def.next;
+    const fusion = this.board[from] !== this.board[to];
+    const id = this.mergeResult(this.board[from], this.board[to]);
     this.board[to] = id;
     this.board[from] = null;
 
@@ -89,12 +133,12 @@ export class MergeSystem {
     const isNew = this.state.discover(id);
 
     this.state.save();
-    const ev = { from, to, id, prevId, combo: this.combo, isNew, tier: ITEMS[id].tier };
+    const ev = { from, to, id, prevId, combo: this.combo, isNew, tier: ITEMS[id].tier, fusion };
     this.bus.emit('board:merge', ev);
 
     // Lucky bonus: sometimes a merge leaves a free ingredient behind. Placed AFTER the merge
     // event so the view has already released the source cell.
-    if (ITEMS[id].tier >= 2 && Math.random() < BONUS_CHANCE && !this.isFull()) {
+    if (!fusion && ITEMS[id].tier >= 2 && Math.random() < BONUS_CHANCE && !this.isFull()) {
       const bid = itemOf(ITEMS[id].chain, Math.max(1, ITEMS[id].tier - 1));
       const bidx = this.place(bid, 'bonus');
       if (bidx >= 0) ev.bonus = { idx: bidx, id: bid };

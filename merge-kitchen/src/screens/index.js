@@ -9,6 +9,7 @@ import { leaderboardScreen } from './leaderboard.js';
 import { settingsScreen } from './settings.js';
 import { levelupScreen, dishScreen } from './celebration.js';
 import { rivalScreen } from './rival.js';
+import { stuckScreen } from './stuck.js';
 import { adMockScreen, confirmScreen, energyScreen } from './misc.js';
 
 export function registerScreens(popups) {
@@ -27,6 +28,7 @@ export function registerScreens(popups) {
     adMock: adMockScreen,
     confirm: confirmScreen,
     energy: energyScreen,
+    stuck: stuckScreen,
   };
   Object.entries(screens).forEach(([name, def]) => popups.register(name, def));
 }

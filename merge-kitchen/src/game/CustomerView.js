@@ -5,6 +5,7 @@ import { T, E } from '../ui/text.js';
 import { ProgressBar } from '../ui/ProgressBar.js';
 import { SLOT_X, CUSTOMER } from '../ui/layout.js';
 import { itemTexture } from './textures.js';
+import { ITEMS, chainById } from '../data/items.js';
 import { STAGES } from '../data/levels.js';
 import { t, getLang } from '../data/i18n.js';
 
@@ -56,6 +57,11 @@ class Avatar {
       g.lineStyle(6, COLORS.white, 1).beginPath().moveTo(22, 30).lineTo(28, 37).lineTo(39, 22).strokePath();
     });
     this.check = scene.add.image(44, -44, 'bubble_check').setVisible(false);
+    // small "how do I get this?" hint chip under the bubble, e.g. 🥔 ➜ 🍟
+    this.hintChip = scene.add.container(CUSTOMER.bubbleDX + 34, CUSTOMER.bubbleY + 80).setVisible(false);
+    this.hintText = T(scene, 0, -2, '', 34, COLORS.white);
+    this.hintChip.add([boxImage(scene, 168, 50, 22, COLORS.boardFrame, { lip: 4, ow: 4, shine: false, shadow: false }), this.hintText]);
+    this.root.add(this.hintChip);
     this.bubble.add([this.glow, bg, this.item, this.check]);
     this.root.add(this.bubble);
 
@@ -101,6 +107,11 @@ class Avatar {
     this.ready = ready;
     this.check.setVisible(ready);
     if (ready) this.scene.tweens.add({ targets: this.check, scale: { from: 0.2, to: 1 }, duration: 260, ease: 'Back.easeOut' });
+  }
+
+  setHint(text) {
+    this.hintChip.setVisible(!!text);
+    if (text) this.hintText.setText(text);
   }
 
   highlight(on) {
@@ -171,6 +182,7 @@ export class CustomersView {
     this.app = app;
     this.fx = fx;
     this.avatars = [null, null, null];
+    this.board = null; // set by GameScene (guide glows on the board)
     this.locks = [];
     this.readyTimer = 0;
     this.buildLocks();
@@ -212,6 +224,19 @@ export class CustomersView {
 
   faceWorldPos(slot) { return { x: SLOT_X[slot] + CHAR_DX, y: CUSTOMER.headY }; }
 
+  /** Emoji hint for an order that is not on the board yet: best ingredient you have ➜ the dish */
+  hintFor(orderId) {
+    const def = ITEMS[orderId];
+    if (def.fusion) return `${ITEMS[def.fusion[0]].emoji}+${ITEMS[def.fusion[1]].emoji}`; // fusion recipe: show the two parents
+    const chain = chainById(def.chain);
+    let best = null;
+    for (const tr of chain.tiers) {
+      if (ITEMS[tr.id].tier >= def.tier) break;
+      if (this.app.merge.has(tr.id)) best = tr; // highest tier of this line already on the board
+    }
+    return `${best ? best.emoji : '🧺'}➜${def.emoji}`;
+  }
+
   /** pulse every bubble that wants `itemId` while it is being dragged */
   highlightFor(itemId) {
     this.avatars.forEach((a) => a && !a.done && a.highlight(a.c.order === itemId));
@@ -223,10 +248,17 @@ export class CustomersView {
     this.readyTimer -= 1;
     const checkReady = this.readyTimer <= 0;
     if (checkReady) this.readyTimer = 12;
+    const wanted = new Set();
     this.avatars.forEach((a, i) => {
       if (!a || a.done) return;
       a.update(sys.patienceLeft(i, now));
-      if (checkReady) a.setReady(this.app.merge.has(a.c.order));
+      if (checkReady) {
+        const have = this.app.merge.has(a.c.order);
+        a.setReady(have);
+        a.setHint(have ? '' : this.hintFor(a.c.order));
+        if (have) wanted.add(a.c.order);
+      }
     });
+    if (checkReady) this.board?.setGuide(wanted);
   }
 }

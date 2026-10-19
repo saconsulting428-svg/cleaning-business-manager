@@ -43,13 +43,26 @@ __app.state.data.lastSeen -= 3 * 3600e3        // pretend you were away 3 h (rel
 
 ## 2. How to play
 
-1. **Spawn** (big orange button, costs ⚡1) puts an ingredient on a random empty cell of the 6×6 board.
+1. **Potato Basket** (big orange button) is a **free generator**: tap it for a tier-1 ingredient on a random empty cell.
+   Max 8 charges, **+1 charge every 6 s** (also while the app is closed), no energy needed. You can finish the whole
+   game with the basket alone, and you can never get stuck waiting: the next charge is always seconds away.
+   **Premium ✨ (⚡1)** and **Double 💫 (⚡2)** spawn random tier 2-3 dishes using energy (the *bonus* currency).
 2. **Drag two identical items together** to merge them into the next tier (Potato → Fries → Burger → …).
    Valid targets glow while you drag.
 3. **Customers** wait at the counter with an order bubble and a patience bar. **Drag the right dish onto
    the customer** to serve: coins + XP + sometimes gems. A ✔ appears on a bubble when you already have the dish.
    A wrong dish costs patience; an expired order makes the customer storm off angry.
 4. Drag any item to the **trash/Sell** zone to sell it. A full board shows a friendly toast (never a crash).
+   If nothing at all can be done (full board without merges, or no charges and no energy) a friendly **"Need a hand?"** popup
+   offers *Sell items*, a live countdown to the next free charge and an optional rewarded ad (+4 charges).
+5. **🎯 Next goal bar** (always under the HUD): serve N orders → make a specific dish → reach the next level → repeat, bigger.
+   Each goal pays coins + gems + basket charges and the next goal starts immediately. Tap the bar for a hint.
+6. **Customer guide:** items a customer ordered pulse with a gold glow on the board (and the bubble gets a ✔);
+   if you don't have the dish yet the bubble shows a hint chip such as `🍟➜🍔` ("merge your fries up to a burger").
+7. **FUSION recipes (the twist):** drag two *different* dishes from different food lines together, e.g.
+   🍟 Fries + 🍞 Dough = 🥨 Fry Bread, 🍔 Burger + 🥖 Naan = 🥪 Naan Burger, 🍕 Pizza + 🥞 Paratha = 🥟 Pizza Pocket.
+   Fusion dishes are worth far more, fill their own Album row and customers start ordering them once you know the recipe.
+   Valid partners glow gold while you drag.
 5. **Level up** to unlock new food lines (Bakery at Lv 4, Chef Kitchen at Lv 7), new restaurant stages
    (Street Cart → Dhaba → Cafe → Restaurant → Hotel → Global Chain) and more customer slots.
 6. Every 3 levels **Chef Kaleem** challenges you to a 60-second **Rival Battle** (⚔️ button).
@@ -58,7 +71,8 @@ __app.state.data.lastSeen -= 3 * 3600e3        // pretend you were away 3 h (rel
 
 | System | Behaviour |
 | --- | --- |
-| Energy | Max 5, +1 / 30 min in real time (also offline), countdown in the HUD. Refill by rewarded ad (+2), coins or gems |
+| Energy (bonus currency) | Max 20, +1 / 5 min in real time (also offline). Only premium / double spawns use it. Refill by rewarded ad (+2), coins or gems |
+| Free basket | 8 charges, +1 / 6 s, works offline, bonus charges from goals and customer tips (up to 16) |
 | Daily gift | 7-day streak calendar; missing a day resets it; **Day 7 = Golden Chef skin** |
 | Idle earnings | Coins/minute while the app is closed (cap 4 h) → *Welcome back* popup with **Collect** / **Collect x2 (ad)** |
 | Lunch / Dinner Rush | 12:00-14:00 and 19:00-21:00 local time: **2x coins**, slide-in banner + live countdown tag |
@@ -70,7 +84,9 @@ __app.state.data.lastSeen -= 3 * 3600e3        // pretend you were away 3 h (rel
 
 ### Manual test checklist
 
-- [ ] New game: tutorial hand shows merge → serve → spawn within ~30 s; **Skip** works; first order is Fries.
+- [ ] New game: the board starts with 10 items; tutorial hand shows merge → serve → basket within ~30 s; the first goal (serve 2) completes; **Skip** works; first order is Fries.
+- [ ] Basket: 8 taps empty it, a charge returns every 6 s; premium ✨ / double 💫 use energy and give tier 2-3 dishes.
+- [ ] Fusion: drag Fries onto Dough (needs Lv 4) → Fry Bread + celebration.
 - [ ] Merge: pop, sparkles, floating `+coins`, coins fly to the HUD, haptic (on a phone), COMBO banner on 3 fast merges, screen shake on tier ≥ 5.
 - [ ] Serve right/wrong dish; let a customer expire (angry exit).
 - [ ] Fill the board → toast. Drag to **Sell**.
@@ -132,7 +148,7 @@ scroll pane. Optional tuning lives in:
 * `TIER_VALUES` (items.js) - coin value per tier (selling, order rewards)
 * `maxOrderTier`, `patienceFor`, `xpForLevel`, `STAGES`, `idlePerMinute` (levels.js)
 * `ALBUM_MILESTONES`, `DAILY_REWARDS`, `SKINS` (rewards.js) · `GEM_PACKS`, `COIN_PACKS` (shop.js)
-* `ENERGY_MAX`, `ENERGY_INTERVAL` (EnergySystem.js)
+* `ENERGY_MAX`, `ENERGY_INTERVAL` (EnergySystem.js) · `GEN_MAX`, `GEN_INTERVAL` (GeneratorSystem.js) · goal rewards (GoalSystem.js) · `FUSIONS` (items.js)
 
 Adding a language: add a dictionary to `src/data/i18n.js` + an entry in `LANGS`, and the `name`
 translations in `items.js` / `levels.js` / `rewards.js`.

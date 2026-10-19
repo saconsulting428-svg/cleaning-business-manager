@@ -29,7 +29,7 @@ export class Tutorial {
 
     const on = (ev, fn) => { bus.on(ev, fn, this); scene.events.once('shutdown', () => bus.off(ev, fn, this)); };
     on('board:merge', () => this.step === 1 && this.next());
-    on('customer:served', () => this.step === 2 && this.next());
+    on('customer:served', () => { if (this.step === 1 || this.step === 2) this.setStep(3); });
     on('spawned', () => this.step === 3 && this.finish());
     on('board:spawn', () => this.refresh());
     on('board:move', () => this.refresh());

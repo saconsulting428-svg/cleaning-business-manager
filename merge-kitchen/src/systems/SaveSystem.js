@@ -1,28 +1,32 @@
 // Versioned localStorage persistence with safe defaults and corrupt-save recovery.
 import { isValidItem } from '../data/items.js';
 import { BOARD } from '../ui/layout.js';
+import { ENERGY_CAP } from './EnergySystem.js';
+import { GEN_CAP } from './GeneratorSystem.js';
 
 export const SAVE_KEY = 'mergeKitchen.save';
 export const SAVE_VERSION = 1;
 
-/** Cells (board indices) that hold the starter potatoes. Several adjacent pairs for the tutorial. */
-const STARTER_CELLS = [13, 14, 15, 19, 20, 26, 27, 28];
+/** Starter board: 8 potatoes (adjacent pairs => first merge in seconds) + 2 fries (first customer can be served at once). */
+const STARTER = { potato: [13, 14, 15, 19, 20, 26, 27, 28], fries: [21, 22] };
 
 export function defaultData(now = Date.now()) {
   const board = new Array(BOARD.size).fill(null);
-  STARTER_CELLS.forEach((i) => { board[i] = 'potato'; });
+  Object.entries(STARTER).forEach(([id, cells]) => cells.forEach((i) => { board[i] = id; }));
   return {
     v: SAVE_VERSION,
     createdAt: now,
     lastSeen: now,
     coins: 60,
     gems: 30,
-    energy: 5,
+    energy: 10,
     energyAt: now,
+    gen: { charges: 8, at: now },
+    goal: { i: 0, p: 0, item: '', lv: 0, target: 0 },
     xp: 0,
     level: 1,
     board,
-    discovered: ['potato'],
+    discovered: ['potato', 'fries'],
     unlockedChains: ['potato'],
     settings: { sound: true, music: true, vibration: true, lang: 'en' },
     tutorial: { done: false },
@@ -64,11 +68,14 @@ function sanitize(data, now) {
   const d = data;
   d.coins = Math.max(0, Math.floor(d.coins));
   d.gems = Math.max(0, Math.floor(d.gems));
-  d.energy = Math.min(10, Math.max(0, Math.floor(d.energy)));
+  d.energy = Math.min(ENERGY_CAP, Math.max(0, Math.floor(d.energy)));
+  d.gen.charges = Math.min(GEN_CAP, Math.max(0, Math.floor(d.gen.charges)));
+  if (d.gen.at > now) d.gen.at = now;
   d.level = Math.max(1, Math.floor(d.level));
   d.xp = Math.max(0, Math.floor(d.xp));
   if (d.lastSeen > now) d.lastSeen = now; // clock moved backwards
   if (d.energyAt > now) d.energyAt = now;
+  d.goal.i = Math.max(0, Math.floor(d.goal.i));
   const board = new Array(BOARD.size).fill(null);
   for (let i = 0; i < BOARD.size; i++) if (isValidItem(d.board[i])) board[i] = d.board[i];
   d.board = board;

@@ -51,7 +51,7 @@ export class AudioSystem {
 
   // ---- sound effects ---------------------------------------------------
   tone({ freq = 440, to = null, dur = 0.12, type = 'sine', vol = 0.3, delay = 0 }) {
-    if (!this.ctx || !this.soundOn) return;
+    if (!this.ctx || !this.soundOn || !Number.isFinite(freq) || (to !== null && !Number.isFinite(to))) return; // never feed NaN to WebAudio
     const t0 = this.ctx.currentTime + delay;
     const osc = this.ctx.createOscillator();
     const g = this.ctx.createGain();

@@ -2,6 +2,8 @@
 import { SaveSystem } from './SaveSystem.js';
 import { GameState } from './GameState.js';
 import { EnergySystem } from './EnergySystem.js';
+import { GeneratorSystem } from './GeneratorSystem.js';
+import { GoalSystem } from './GoalSystem.js';
 import { MergeSystem } from './MergeSystem.js';
 import { EventSystem } from './EventSystem.js';
 import { Economy } from './Economy.js';
@@ -29,13 +31,16 @@ export function createSystems() {
 
   const energy = new EnergySystem(state);
   energy.sync();
+  const gen = new GeneratorSystem(state);
+  gen.sync();
   const events = new EventSystem(state);
   const economy = new Economy(state, events);
-  const merge = new MergeSystem(state, energy);
+  const merge = new MergeSystem(state, energy, gen);
   const audio = new AudioSystem(state);
   const customers = new CustomerSystem(state, merge, economy);
   const progression = new ProgressionSystem(state, merge);
   const rival = new RivalSystem(state, merge, customers);
+  const goals = new GoalSystem(state, gen);
   const quests = new QuestSystem(state, energy);
   const daily = new DailyReward(state, energy);
   const idle = new IdleEarnings(state);
@@ -48,5 +53,5 @@ export function createSystems() {
 
   state.bus.on('settings', (key, value) => { if (key === 'vibration') setHapticsEnabled(value); });
 
-  return { saves, state, energy, events, economy, merge, audio, customers, progression, rival, quests, daily, idle, chest, leaderboard, notify, ads, iap, ui: null, toast: null };
+  return { saves, state, energy, gen, goals, events, economy, merge, audio, customers, progression, rival, quests, daily, idle, chest, leaderboard, notify, ads, iap, ui: null, toast: null };
 }

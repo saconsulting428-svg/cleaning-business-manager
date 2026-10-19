@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
 import { COLORS, DEPTH } from '../ui/theme.js';
 import { boxImage } from '../ui/draw.js';
-import { BOARD, BOTTOM, SELL } from '../ui/layout.js';
+import { BOARD, BOTTOM, SELL, STRIP_Y, STRIP_X } from '../ui/layout.js';
 import { itemTexture } from './textures.js';
-import { ITEMS } from '../data/items.js';
+import { ITEMS, fusionOf } from '../data/items.js';
 
 const ITEM_SCALE = 0.94;
 
@@ -16,6 +16,7 @@ export class BoardView {
     this.merge = app.merge;
     this.sprites = new Array(BOARD.size).fill(null);
     this.glows = [];
+    this.guide = new Map(); // idx -> pulsing glow for items a customer is waiting for
     this.dragging = -1;
 
     const cx = BOARD.x + (BOARD.cols * BOARD.cell) / 2, cy = BOARD.y + (BOARD.rows * BOARD.cell) / 2;
@@ -72,8 +73,9 @@ export class BoardView {
     const s = this.makeSprite(id, idx);
     this.sprites[idx] = s;
     const p = this.cellCenter(idx);
-    if (source === 'button') {
-      s.setPosition(BOTTOM.spawn.x, BOTTOM.spawn.y).setScale(0.35);
+    if (source === 'button' || source === 'premium') {
+      const from = source === 'premium' ? { x: STRIP_X.premium, y: STRIP_Y } : BOTTOM.spawn;
+      s.setPosition(from.x, from.y).setScale(0.35);
       this.scene.tweens.add({ targets: s, x: p.x, y: p.y, duration: 340, ease: 'Cubic.easeOut' });
       this.scene.tweens.add({ targets: s, scale: ITEM_SCALE, duration: 340, ease: 'Back.easeOut', onComplete: () => this.fx.sparkle(p.x, p.y, 6, COLORS.white) });
     } else {
@@ -84,6 +86,7 @@ export class BoardView {
   }
 
   onMerge({ from, to, id, tier }) {
+    this.clearGuide();
     const src = this.sprites[from], dst = this.sprites[to];
     this.sprites[from] = null;
     const p = this.cellCenter(to);
@@ -102,7 +105,10 @@ export class BoardView {
     this.clearHighlights();
   }
 
+  clearGuide() { this.setGuide(new Set()); }
+
   onMove({ from, to }) {
+    this.clearGuide();
     const s = this.sprites[from];
     this.sprites[from] = null;
     this.sprites[to] = s;
@@ -113,6 +119,7 @@ export class BoardView {
   }
 
   onSwap({ a, b }) {
+    this.clearGuide();
     const sa = this.sprites[a], sb = this.sprites[b];
     this.sprites[a] = sb; this.sprites[b] = sa;
     [[sa, b], [sb, a]].forEach(([s, i]) => {
@@ -124,6 +131,7 @@ export class BoardView {
   }
 
   onRemove({ idx, reason, to }) {
+    this.clearGuide();
     const s = this.sprites[idx];
     this.sprites[idx] = null;
     if (!s) return;
@@ -162,11 +170,13 @@ export class BoardView {
   highlightMatches(i) {
     this.clearHighlights();
     const id = this.merge.board[i];
-    if (!id || !ITEMS[id].next) return;
+    if (!id) return;
     this.merge.board.forEach((other, j) => {
-      if (j === i || other !== id) return;
+      if (j === i || !other) return;
+      if (other !== id ? !fusionOf(id, other) : !ITEMS[id].next) return; // same item (merge) or recipe partner (fusion)
       const p = this.cellCenter(j);
       const g = this.scene.add.image(p.x, p.y, 'cell_glow').setDepth(DEPTH.item - 1);
+      if (other !== id) g.setTint(COLORS.gold); // fusion partners glow gold
       this.scene.tweens.add({ targets: g, scale: { from: 0.94, to: 1.1 }, alpha: { from: 1, to: 0.6 }, duration: 320, yoyo: true, repeat: -1 });
       this.glows.push(g);
     });
@@ -175,6 +185,22 @@ export class BoardView {
   clearHighlights() {
     this.glows.forEach((g) => { this.scene.tweens.killTweensOf(g); g.destroy(); });
     this.glows.length = 0;
+  }
+
+  /** Pulse a gold glow under every item that a waiting customer ordered. wanted: Set of item ids */
+  setGuide(wanted) {
+    const want = new Set();
+    this.merge.board.forEach((id, i) => { if (id && wanted.has(id) && i !== this.dragging) want.add(i); });
+    for (const [i, g] of this.guide) {
+      if (!want.has(i)) { this.scene.tweens.killTweensOf(g); g.destroy(); this.guide.delete(i); }
+    }
+    want.forEach((i) => {
+      if (this.guide.has(i)) return;
+      const p = this.cellCenter(i);
+      const g = this.scene.add.image(p.x, p.y, 'cell_glow').setTint(COLORS.gold).setDepth(DEPTH.item - 1);
+      this.scene.tweens.add({ targets: g, scale: { from: 0.92, to: 1.12 }, alpha: { from: 1, to: 0.55 }, duration: 420, yoyo: true, repeat: -1 });
+      this.guide.set(i, g);
+    });
   }
 
   setHover(i) {

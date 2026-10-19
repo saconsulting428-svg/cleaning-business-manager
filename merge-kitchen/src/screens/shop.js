@@ -7,6 +7,7 @@ import { GEM_PACKS, COIN_PACKS, NO_ADS, ENERGY_REFILL_GEMS, energyCoinCost } fro
 import { SKINS } from '../data/rewards.js';
 import { t, getLang } from '../data/i18n.js';
 import { card } from './kit.js';
+import { ENERGY_MAX } from '../systems/EnergySystem.js';
 
 /** Shop: gem packs (IAP stub), energy, coins, chef skins, No Ads (VIP). */
 export const shopScreen = {
@@ -57,7 +58,7 @@ export const shopScreen = {
       body.add(scene.add.image(56, cy, 'ico_bolt').setScale(1.4));
       body.add(T(scene, 102, cy - 4, t('shop.refill'), 40, COLORS.ink, { ox: 0, stroke: false }));
       body.add(new Button(scene, 490, cy, { w: 170, h: 78, r: 26, color: COLORS.gem, label: `${ENERGY_REFILL_GEMS} 💎`, fontSize: 34, onClick: () => {
-        if (state.spendGems(ENERGY_REFILL_GEMS)) { app.energy.refill(); app.audio.play('success'); app.toast(t('toast.energyAdded', { n: 5 })); } else app.toast(t('toast.noGems'));
+        if (state.spendGems(ENERGY_REFILL_GEMS)) { app.energy.refill(); app.audio.play('success'); app.toast(t('toast.energyAdded', { n: ENERGY_MAX })); } else app.toast(t('toast.noGems'));
       } }));
 
       cy = row();

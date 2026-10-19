@@ -27,9 +27,11 @@ export class GameScene extends Phaser.Scene {
     this.board = new BoardView(this, app, this.fx);
     this.sell = new SellZone(this);
     this.customersView = new CustomersView(this, app, this.fx);
+    this.customersView.board = this.board; // lets customers pulse the items they ordered
     this.drag = new DragController(this, app, this.board, this.customersView, this.sell);
 
     this.listen('ui:spawn', this.onSpawnRequest);
+    this.listen('ui:premium', this.onPremiumRequest);
     this.listen('board:merge', this.onMerge);
     this.listen('board:spawn', this.onSpawned);
     this.listen('board:full', () => app.toast?.(t('toast.boardFull')));
@@ -57,7 +59,7 @@ export class GameScene extends Phaser.Scene {
     this.customersView.update(now);
   }
 
-  onServed({ slot, coins, xp, gems, mult }) {
+  onServed({ slot, coins, xp, gems, mult, bonus }) {
     const p = this.customersView.faceWorldPos(slot);
     this.app.audio.play('success');
     haptic([15, 40, 20]);
@@ -65,6 +67,13 @@ export class GameScene extends Phaser.Scene {
     this.fx.float(p.x, p.y + 6, `+${xp} XP`, { color: COLORS.gem, size: 36, delay: 140 });
     if (mult > 1) this.fx.float(p.x + 70, p.y - 100, `x${mult} 🔥`, { color: COLORS.primary, size: 44, delay: 80 });
     this.bus.emit('fx:coins', { x: p.x, y: p.y, n: 7 });
+    if (bonus?.type === 'charges') {
+      this.fx.float(p.x, p.y + 110, t('bonus.charges', { n: bonus.n }), { color: COLORS.energy, size: 40, delay: 380 });
+      this.app.audio.play('combo');
+    } else if (bonus?.type === 'premium') {
+      this.fx.float(p.x, p.y + 110, t('bonus.premium'), { color: COLORS.grape, size: 40, delay: 380 });
+      this.app.audio.play('combo');
+    }
     if (gems) {
       this.fx.float(p.x, p.y + 56, `+${gems} 💎`, { color: COLORS.gem, size: 44, delay: 260 });
       this.bus.emit('fx:gems', { x: p.x, y: p.y, n: gems });
@@ -89,12 +98,25 @@ export class GameScene extends Phaser.Scene {
     this.app.toast?.(t('toast.wrong'), { duration: 1000 });
   }
 
+  /** Free Potato Basket: no energy needed, recharges every 6 s */
   onSpawnRequest() {
     if (this.blocked || this.scene.isPaused()) return;
-    const res = this.app.merge.trySpawn();
-    if (res.ok) { this.app.audio.play('spawn'); haptic(10); return; }
-    if (res.reason === 'energy') { this.app.audio.play('error'); this.app.ui.openPopup('energy'); }
+    const { audio, gen } = this.app;
+    const res = this.app.merge.tapBasket();
+    if (res.ok) { audio.play('spawn'); haptic(10); return; }
+    if (res.reason === 'empty') {
+      audio.play('error');
+      this.app.toast?.(t('gen.empty', { s: Math.ceil(gen.msToNext() / 1000) }), { duration: 1200 });
+    }
     // 'full' is announced through the board:full event
+  }
+
+  /** Premium (1 energy) / double (2 energy) spawn: random tier 2-3 dishes */
+  onPremiumRequest({ count = 1 } = {}) {
+    if (this.blocked || this.scene.isPaused()) return;
+    const res = this.app.merge.premium(count);
+    if (res.ok) { this.app.audio.play('success'); haptic([10, 30, 10]); return; }
+    if (res.reason === 'energy') { this.app.audio.play('error'); this.app.ui.openPopup('energy'); }
   }
 
   onSpawned({ id, source }) {
@@ -115,8 +137,12 @@ export class GameScene extends Phaser.Scene {
       audio.play('combo');
     }
     if (ev.tier >= 5) this.cameras.main.shake(240, 0.007);
+    if (ev.fusion) {
+      this.fx.bigText(t('toast.fusion', { name: itemName(ev.id) }), 520, COLORS.grape);
+      this.cameras.main.shake(200, 0.005);
+    }
     if (ev.isNew) {
-      if (ev.tier >= 4) this.app.ui.openPopup('dish', { id: ev.id });
+      if (ev.tier >= 4 || ev.fusion) this.app.ui.openPopup('dish', { id: ev.id });
       else this.app.toast?.(t('toast.newDish', { name: itemName(ev.id) }), { color: COLORS.gold });
     }
   }

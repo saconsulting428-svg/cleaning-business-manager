@@ -5,6 +5,7 @@ import { roundedBox } from '../ui/draw.js';
 import { Button } from '../ui/Button.js';
 import { t } from '../data/i18n.js';
 import { fmtClock } from '../systems/time.js';
+import { ENERGY_MAX } from '../systems/EnergySystem.js';
 import { ENERGY_REFILL_GEMS, energyCoinCost } from '../data/shop.js';
 import { popupTimer } from './kit.js';
 
@@ -68,14 +69,14 @@ export const energyScreen = {
       if (app.state.spendCoins(cost)) { app.energy.add(1); done(1); } else app.toast(t('toast.noCoins'));
     } });
     const gems = new Button(scene, 0, 200, { w: 480, h: 100, color: COLORS.gem, label: t('energy.gems', { n: ENERGY_REFILL_GEMS }), fontSize: 40, onClick: () => {
-      if (app.state.spendGems(ENERGY_REFILL_GEMS)) { app.energy.refill(); done(5); } else { app.toast(t('toast.noGems')); app.ui.openPopup('shop'); }
+      if (app.state.spendGems(ENERGY_REFILL_GEMS)) { app.energy.refill(); done(ENERGY_MAX); } else { app.toast(t('toast.noGems')); app.ui.openPopup('shop'); }
     } });
     const wait = T(scene, 0, 320, '', 36, COLORS.smoke, { stroke: false, wrap: 500 });
     c.add([ad, coins, gems, wait]);
     popupTimer(popup, scene, 500, () => {
       app.energy.sync();
       wait.setText(t('energy.wait', { t: fmtClock(app.energy.msToNext()) }));
-      wait.setVisible(app.energy.value < 5);
+      wait.setVisible(app.energy.value < ENERGY_MAX);
     });
   },
 };

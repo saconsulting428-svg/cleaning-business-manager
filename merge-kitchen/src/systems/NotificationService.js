@@ -1,6 +1,7 @@
 // Local notification stubs. In the Android build install @capacitor/local-notifications;
 // this service already calls it when present, and just logs in the browser.
 import { t } from '../data/i18n.js';
+import { ENERGY_MAX } from './EnergySystem.js';
 
 const IDS = { energy: 101, rush: 102, chest: 103, burning: 104, daily: 105 };
 
@@ -37,7 +38,7 @@ export class NotificationService {
     if (!this.state.data.tutorial.done) return;
     await this.cancelAll();
     const title = t('app.title');
-    if (this.energy.value < 5) await this.schedule('energy', title, t('notif.energy'), now + this.energy.msToFull(now));
+    if (this.energy.value < ENERGY_MAX) await this.schedule('energy', title, t('notif.energy'), now + this.energy.msToFull(now));
     const next = this.events.next(now);
     await this.schedule('rush', title, t('notif.rush', { name: t(next.nameKey) }), next.startsAt);
     await this.schedule('chest', title, t('notif.chest'), now + this.chest.msLeft(now));

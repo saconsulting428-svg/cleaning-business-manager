@@ -4,7 +4,7 @@ import { COLORS, TIER_COLORS, tierColor } from '../ui/theme.js';
 import { T, E } from '../ui/text.js';
 import { Button } from '../ui/Button.js';
 import { roundedCircle } from '../ui/draw.js';
-import { ITEMS, CHAINS, itemName, chainName } from '../data/items.js';
+import { ITEMS, chainById, itemName, chainName } from '../data/items.js';
 import { stageFor } from '../data/levels.js';
 import { t, getLang } from '../data/i18n.js';
 import { haptic } from '../systems/Platform.js';
@@ -100,7 +100,7 @@ export const dishScreen = {
     const name = T(scene, 0, 150, itemName(id), 80, COLORS.white, { wrap: 640 }).setAlpha(0);
     scene.tweens.add({ targets: name, alpha: 1, y: 160, duration: 400, delay: 500, ease: 'Quad.easeOut' });
     c.add(name);
-    const chain = CHAINS.find((ch) => ch.id === def.chain);
+    const chain = chainById(def.chain);
     c.add(T(scene, 0, 225, `${chainName(chain)} · ${t('tier', { n: def.tier })}`, 38, COLORS.cream2));
     for (let i = 0; i < def.tier; i++) {
       const s = scene.add.image((i - (def.tier - 1) / 2) * 56, 290, 'ico_star').setScale(0);

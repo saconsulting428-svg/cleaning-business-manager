@@ -1,7 +1,7 @@
 // Customer queue logic (no rendering). Emits on state.bus:
 //   customer:spawn {slot,c}  customer:served {slot,c,coins,xp,gems,mult}
 //   customer:wrong {slot,c}  customer:left {slot,c}  customer:clear
-import { ITEMS, unlockedChains, itemOf } from '../data/items.js';
+import { ITEMS, FUSIONS, unlockedChains, itemOf } from '../data/items.js';
 import { maxOrderTier, patienceFor, stageFor } from '../data/levels.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -75,12 +75,18 @@ export class CustomerSystem {
 
     const chains = unlockedChains(level);
     const lo = this.mode === 'battle' ? 1 : 2;
+
+    // Once a fusion recipe has been cooked, customers sometimes ask for it (big rewards)
+    if (this.mode === 'normal' && Math.random() < 0.12) {
+      const known = FUSIONS.filter((f) => d.discovered.includes(f.id) && !this.slots.some((c) => c?.order === f.id));
+      if (known.length) return known[Math.floor(Math.random() * known.length)].id;
+    }
     const hiCap = this.mode === 'battle' ? 3 : maxOrderTier(level);
 
     // Bias: 40% of the time ask for something the board can (nearly) produce, keeps pacing fluid.
     if (Math.random() < 0.4) {
       const onBoard = [...new Set(this.merge.board.filter(Boolean))]
-        .filter((id) => ITEMS[id].tier >= lo && ITEMS[id].tier <= hiCap && !this.slots.some((c) => c?.order === id));
+        .filter((id) => ITEMS[id].tier >= lo && ITEMS[id].tier <= hiCap + 1 && ITEMS[id].chain !== 'fusion' && !this.slots.some((c) => c?.order === id));
       if (onBoard.length) return onBoard[Math.floor(Math.random() * onBoard.length)];
     }
     let id = null;
@@ -146,8 +152,21 @@ export class CustomerSystem {
     this.state.addCoins(coins, { source: 'serve' });
     if (gems) this.state.addGems(gems, { source: 'serve' });
     this.state.addXp(xp);
-    this.bus.emit('customer:served', { slot, c, coins, xp, gems, mult });
-    return { ok: true, coins, xp, gems };
+    const bonus = this.rollBonus();
+    this.bus.emit('customer:served', { slot, c, coins, xp, gems, mult, bonus });
+    return { ok: true, coins, xp, gems, bonus };
+  }
+
+  /** Sometimes a served customer tips with extra basket charges or a free premium dish */
+  rollBonus() {
+    const r = Math.random();
+    if (r < 0.2) { this.merge.gen.add(3); return { type: 'charges', n: 3 }; }
+    if (r < 0.3 && !this.merge.isFull()) {
+      const id = this.merge.rollPremiumId();
+      this.merge.place(id, 'bonus');
+      return { type: 'premium', id };
+    }
+    return null;
   }
 
   expire(i, now) {

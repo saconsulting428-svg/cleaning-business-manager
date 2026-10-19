@@ -3,7 +3,7 @@ import { COLORS, DEPTH, STAGE_PALETTES, css } from '../ui/theme.js';
 import { W, H } from '../ui/layout.js';
 import { T, E } from '../ui/text.js';
 import { ProgressBar } from '../ui/ProgressBar.js';
-import { makeCoreTextures, itemTexture } from '../game/textures.js';
+import { makeCoreTextures, itemTexture, prebakeGameplay } from '../game/textures.js';
 import { ITEM_LIST } from '../data/items.js';
 import { t } from '../data/i18n.js';
 
@@ -34,6 +34,7 @@ export class BootScene extends Phaser.Scene {
     bar.setValue(0.35, true);
     await new Promise((r) => requestAnimationFrame(() => r()));
     ITEM_LIST.forEach((it) => itemTexture(this, it.id));
+    prebakeGameplay(this);
     bar.setValue(0.8, true);
     await new Promise((r) => setTimeout(r, 450));
     bar.setValue(1, true);

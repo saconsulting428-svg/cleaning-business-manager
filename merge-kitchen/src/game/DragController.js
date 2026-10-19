@@ -13,11 +13,11 @@ const LIFT = 44; // item floats above the finger so it stays visible
 export class SellZone {
   constructor(scene) {
     this.scene = scene;
-    this.rect = new Phaser.Geom.Rectangle(SELL.x - SELL.w / 2 - 14, SELL.y - SELL.h / 2 - 16, SELL.w + 28, SELL.h + 32);
+    this.rect = new Phaser.Geom.Rectangle(SELL.x - SELL.w / 2 - 8, SELL.y - SELL.h / 2 - 14, SELL.w + 12, SELL.h + 28);
     this.c = scene.add.container(SELL.x, SELL.y).setDepth(DEPTH.board + 2);
     this.bgIdle = boxImage(scene, SELL.w, SELL.h, 30, COLORS.smoke, { lip: 6 });
     this.bgActive = boxImage(scene, SELL.w, SELL.h, 30, COLORS.secondary, { lip: 6 }).setVisible(false);
-    this.icon = E(scene, -SELL.w / 2 + 42, -2, '🗑️', 46);
+    this.icon = E(scene, -SELL.w / 2 + 38, -2, '🗑️', 44);
     this.label = T(scene, 34, -3, t('btn.sell'), 36, COLORS.white);
     this.c.add([this.bgIdle, this.bgActive, this.icon, this.label]);
     this.draw(false);
@@ -30,10 +30,10 @@ export class SellZone {
 
   /** while dragging an item show what it will sell for */
   arm(value) {
-    this.label.setText(value ? t('sell.value', { n: value }) : t('btn.sell'));
-    this.label.setFontSize(value ? 32 : 36);
-    this.icon.setX(value ? -SELL.w / 2 + 36 : -SELL.w / 2 + 42);
-    this.label.setX(value ? 28 : 34);
+    this.label.setText(value ? `+${value} 🪙` : t('btn.sell'));
+    this.label.setFontSize(value ? 34 : 36);
+    this.icon.setX(-SELL.w / 2 + 38);
+    this.label.setX(value ? 30 : 32);
   }
 
   hover(on) {

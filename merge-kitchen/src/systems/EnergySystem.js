@@ -1,7 +1,8 @@
-// Energy: max 5, +1 every 30 minutes (real time, including offline). Rewards may overflow up to CAP.
-export const ENERGY_MAX = 5;
-export const ENERGY_CAP = 10;
-export const ENERGY_INTERVAL = 30 * 60 * 1000;
+// Energy is the BONUS currency (premium / double spawns). Max 20, +1 every 5 minutes (real time,
+// also offline). Rewards may overflow up to CAP. The free Potato Basket never needs energy.
+export const ENERGY_MAX = 20;
+export const ENERGY_CAP = 30;
+export const ENERGY_INTERVAL = 5 * 60 * 1000;
 
 export class EnergySystem {
   constructor(state) { this.state = state; }

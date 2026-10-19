@@ -5,7 +5,7 @@ import { Button } from '../ui/Button.js';
 import { ProgressBar } from '../ui/ProgressBar.js';
 import { ScrollPane } from '../ui/ScrollPane.js';
 import { roundedCircle } from '../ui/draw.js';
-import { CHAINS, ITEM_LIST, ITEMS, itemName, chainName } from '../data/items.js';
+import { ALBUM_CHAINS, ITEM_LIST, itemName, chainName } from '../data/items.js';
 import { ALBUM_MILESTONES } from '../data/rewards.js';
 import { t } from '../data/i18n.js';
 import { itemTexture, silhouetteTexture } from '../game/textures.js';
@@ -33,11 +33,11 @@ export const albumScreen = {
       mile.removeAll(true);
       const n = ALBUM_MILESTONES.length;
       ALBUM_MILESTONES.forEach((m, i) => {
-        const x = (i - (n - 1) / 2) * 118;
+        const x = (i - (n - 1) / 2) * 100;
         const claimed = state.data.album.claimed.includes(m.count);
         const reached = state.data.discovered.length >= m.count;
         const g = scene.add.graphics();
-        roundedCircle(g, 0, 0, 40, claimed ? COLORS.success : reached ? COLORS.gold : COLORS.locked, { lip: 5, ow: 5 });
+        roundedCircle(g, 0, 0, 36, claimed ? COLORS.success : reached ? COLORS.gold : COLORS.locked, { lip: 5, ow: 5 });
         const cell = scene.add.container(x, 0, [g, T(scene, 0, -2, claimed ? '✔' : String(m.count), 38, COLORS.white)]);
         cell.setSize(90, 90);
         cell.setInteractive(new Phaser.Geom.Rectangle(-6, -6, 102, 102), Phaser.Geom.Rectangle.Contains);
@@ -64,7 +64,7 @@ export const albumScreen = {
     // scrolling dish grid
     const pane = new ScrollPane(scene, popup, { x: 0, y: 180, w: 580, h: 640 });
     let y = 0;
-    CHAINS.forEach((ch) => {
+    ALBUM_CHAINS.forEach((ch) => {
       const have = ch.tiers.filter((tr) => state.data.discovered.includes(tr.id)).length;
       pane.content.add(T(scene, 8, y + 22, `${chainName(ch)}   ${have}/${ch.tiers.length}`, 36, COLORS.ink, { ox: 0, stroke: false }));
       y += 52;

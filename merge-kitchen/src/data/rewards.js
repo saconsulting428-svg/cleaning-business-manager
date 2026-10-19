@@ -18,6 +18,7 @@ export const ALBUM_MILESTONES = [
   { count: 12, coins: 600, energy: 2 },
   { count: 16, gems: 15 },
   { count: 21, gems: 40, coins: 2000 },
+  { count: 26, gems: 60, energy: 5 },
 ];
 
 /** Free chest cadence */

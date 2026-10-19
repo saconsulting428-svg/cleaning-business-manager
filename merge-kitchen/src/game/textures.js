@@ -1,6 +1,8 @@
 // All art is generated in code: no downloads, works offline.
 import { COLORS, FONT, css, shade, tierColor } from '../ui/theme.js';
 import { ITEMS } from '../data/items.js';
+import { SHIRTS } from '../ui/theme.js';
+import { boxImage, bakeTexture } from '../ui/draw.js';
 
 const TILE = 96;
 
@@ -167,4 +169,11 @@ export function makeCoreTextures(scene) {
     g.fillStyle(COLORS.gold, 1).fillPoints(pts.map((p) => ({ x: 24 + (p.x - 24) * 0.78, y: 25 + (p.y - 25) * 0.78 })), true);
   });
   gfx.destroy();
+}
+
+/** Pre-bake gameplay art at load time so nothing hitches when the first customers appear */
+export function prebakeGameplay(scene) {
+  SHIRTS.forEach((c) => boxImage(scene, 122, 100, 34, c, { lip: 6, ow: 5, shadow: false }).destroy());
+  boxImage(scene, 168, 50, 22, COLORS.boardFrame, { lip: 4, ow: 4, shine: false, shadow: false }).destroy();
+  void bakeTexture;
 }
