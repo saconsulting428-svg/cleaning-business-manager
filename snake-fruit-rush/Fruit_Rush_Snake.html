@@ -111,9 +111,12 @@
     { id: 'ice', name: 'Frost', cost: 120, a: '#bae6fd', b: '#38bdf8', head: '#ffffff', line: '#38bdf8' },
     { id: 'berry', name: 'Berry', cost: 200, a: '#f472b6', b: '#a21caf', head: '#fde68a', line: '#a21caf' },
     { id: 'bee', name: 'Bee', cost: 300, a: '#facc15', b: '#6b4423', head: '#facc15', line: '#6b4423' },
-    { id: 'galaxy', name: 'Galaxy', cost: 450, a: '#6d28d9', b: '#312e81', head: '#c4b5fd', line: '#312e81', pattern: 'stars' },
-    { id: 'rainbow', name: 'Rainbow', cost: 600, head: '#ffffff', line: '#a78bfa', pattern: 'rainbow' },
-    { id: 'gold', name: 'Golden', cost: 1000, a: '#fde047', b: '#d97706', head: '#fff7c2', line: '#d97706', pattern: 'shimmer' }
+    { id: 'panda', name: 'Panda', cost: 350, a: '#ffffff', b: '#374151', head: '#ffffff', line: '#9ca3af', animal: 'panda' },
+    { id: 'galaxy', name: 'Galaxy', cost: 450, a: '#6d28d9', b: '#312e81', head: '#c4b5fd', line: '#312e81', pattern: 'stars', trail: 'sparkle' },
+    { id: 'rainbow', name: 'Rainbow', cost: 600, head: '#ffffff', line: '#a78bfa', pattern: 'rainbow', trail: 'rainbow' },
+    { id: 'dragon', name: 'Dragon', cost: 700, a: '#4ade80', b: '#15803d', head: '#22c55e', line: '#15803d', animal: 'dragon', trail: 'fire' },
+    { id: 'unicorn', name: 'Unicorn', cost: 900, a: '#fbcfe8', b: '#c4b5fd', head: '#ffffff', line: '#c4b5fd', animal: 'unicorn', trail: 'rainbow' },
+    { id: 'gold', name: 'Golden', cost: 1000, a: '#fde047', b: '#d97706', head: '#fff7c2', line: '#d97706', pattern: 'shimmer', trail: 'sparkle' }
   ];
   const SKIN_BY_ID = {};
   SKINS.forEach((s) => { SKIN_BY_ID[s.id] = s; });
@@ -167,7 +170,7 @@
 
   function loadData() {
     const d = { high: 0, highs: {}, mode: 'classic', speed: 5, tab: 0, theme: 0, bg: 0, sound: true, save: null,
-      coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '' };
+      coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [] };
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       if (saved && typeof saved === 'object') Object.assign(d, saved);
@@ -176,7 +179,7 @@
     if (d.highs.classic === undefined) d.highs.classic = d.high | 0;   // old single high score
     if (!MODES[d.mode]) d.mode = 'classic';
     d.speed = Math.min(10, Math.max(1, d.speed | 0 || 5));
-    d.tab = Math.abs(d.tab | 0) % 4;
+    d.tab = Math.abs(d.tab | 0) % 5;
     d.theme = Math.abs(d.theme | 0) % THEMES.length;
     d.bg = Math.abs(d.bg | 0) % BACKGROUNDS.length;
     // coins + skins
@@ -189,6 +192,7 @@
     d.claimedDates = Array.isArray(d.claimedDates) ? d.claimedDates.filter((x) => typeof x === 'string' && DATE_RE.test(x)).slice(-120) : [];
     d.streak = num(d.streak, 0, 100000, 0);
     d.lastClaim = typeof d.lastClaim === 'string' && DATE_RE.test(d.lastClaim) ? d.lastClaim : '';
+    d.spinDates = Array.isArray(d.spinDates) ? d.spinDates.filter((x) => typeof x === 'string' && DATE_RE.test(x)).slice(-60) : [];
     d.daily = cleanDaily(d.daily);
     return d;
   }
@@ -256,8 +260,7 @@
     DATA.skins.push(id);
     DATA.skin = id;
     writeData();
-    beep(660, 0.12, 'triangle', 0.08);
-    setTimeout(() => beep(990, 0.18, 'triangle', 0.08), 90);
+    sfx.coin();
     return true;
   }
 
@@ -305,19 +308,31 @@
     if (G) G.dailyCoins = (G.dailyCoins | 0) + total;
     writeData();
     showBanner('DAILY DONE!  +' + total + ' coins', DATA.streak > 1 ? DATA.streak + ' day streak' : 'Challenge complete', '#facc15', 2200);
-    if (G) { const h = cellXY(G.snake[0][0], G.snake[0][1]); burst(h.x, h.y, '#facc15', 14); }
-    beep(523, 0.12, 'triangle', 0.08);
-    setTimeout(() => beep(784, 0.2, 'triangle', 0.08), 110);
+    if (G) { const h = cellXY(G.snake[0][0], G.snake[0][1]); burst(h.x, h.y, 'rand', 16); }
+    sfx.win();
     buzz(40);
   }
 
   // ---------- Short effects (kept small and cheap for low-end phones) ----------
   const MAX_FX = 48;
+  const CONFETTI = ['#f87171', '#fbbf24', '#4ade80', '#38bdf8', '#c084fc', '#f472b6'];
   function burst(x, y, color, n) {
     for (let i = 0; i < n && fxs.length < MAX_FX; i++) {
       const a = Math.random() * 6.283, v = 0.05 + Math.random() * 0.08;
-      fxs.push({ k: 0, x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: 2 + Math.random() * 2, color: color, life: 420, max: 420 });
+      fxs.push({ k: 0, x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: 2 + Math.random() * 2, color: color === 'rand' ? CONFETTI[rnd(CONFETTI.length)] : color, life: 420, max: 420 });
     }
+  }
+  // Little puffs behind the tail: skin trails (rainbow, fire, sparkle) and a sparkle while a combo is running.
+  function trailPuff() {
+    const sk = activeSkin(), t = G.snake[G.snake.length - 1];
+    let color = null;
+    if (sk.trail === 'rainbow') color = hsl(anim * 0.35, 90, 60);
+    else if (sk.trail === 'fire') color = Math.random() < 0.5 ? '#f97316' : '#fbbf24';
+    else if (sk.trail === 'sparkle') color = Math.random() < 0.5 ? '#fde68a' : '#ffffff';
+    else if (G.combo >= 3) color = th().accent;
+    if (!color || fxs.length >= MAX_FX - 8) return;
+    const p = cellXY(t[0], t[1]);
+    fxs.push({ k: 0, x: p.x + (Math.random() - 0.5) * 6, y: p.y + (Math.random() - 0.5) * 6, vx: (Math.random() - 0.5) * 0.02, vy: (Math.random() - 0.5) * 0.02, r: 3.2, color: color, life: 520, max: 520 });
   }
   function ring(x, y, color) {
     if (fxs.length < MAX_FX) fxs.push({ k: 1, x: x, y: y, vx: 0, vy: 0, r: 14, color: color, life: 380, max: 380 });
@@ -325,21 +340,93 @@
   function showBanner(s, sub, color, ms) { banner = { s: s, sub: sub || '', color: color, life: ms || 1100, max: ms || 1100 }; }
 
   // ---------- Sound + vibration ----------
-  let actx = null;
-  function beep(freq, dur, type, vol) {
-    if (!DATA.sound) return;
+  let actx = null, master = null, unlocked = false;
+  // The browser only allows sound after a tap/key, so audio starts on the first touch.
+  function audio() {
+    if (!unlocked) return null;
     try {
-      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (!actx) {
+        actx = new (window.AudioContext || window.webkitAudioContext)();
+        master = actx.createGain();
+        master.gain.value = 0.9;
+        master.connect(actx.destination);
+      }
       if (actx.state === 'suspended') actx.resume();
-      const o = actx.createOscillator(), gain = actx.createGain(), t = actx.currentTime;
+      return actx;
+    } catch (e) { return null; }
+  }
+  function unlockAudio() { if (!unlocked) { unlocked = true; audio(); } }
+  // One note: frequency (Hz), length (s), wave, volume, delay (s), optional glide target (Hz).
+  function tone(freq, dur, type, vol, delay, slide) {
+    if (!DATA.sound) return;
+    const c = audio();
+    if (!c) return;
+    try {
+      const o = c.createOscillator(), gn = c.createGain(), t = c.currentTime + (delay || 0);
       o.type = type || 'sine';
-      o.frequency.value = freq;
-      gain.gain.setValueAtTime(vol || 0.06, t);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      o.connect(gain); gain.connect(actx.destination);
-      o.start(t); o.stop(t + dur);
+      o.frequency.setValueAtTime(freq, t);
+      if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+      gn.gain.setValueAtTime(0.0001, t);
+      gn.gain.exponentialRampToValueAtTime(vol || 0.2, t + 0.01);
+      gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(gn); gn.connect(master);
+      o.start(t); o.stop(t + dur + 0.03);
     } catch (e) { /* no audio */ }
   }
+  function noise(dur, vol) {
+    if (!DATA.sound) return;
+    const c = audio();
+    if (!c) return;
+    try {
+      const n = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      const src = c.createBufferSource(), gn = c.createGain();
+      src.buffer = buf; gn.gain.value = vol;
+      src.connect(gn); gn.connect(master);
+      src.start();
+    } catch (e) { /* no audio */ }
+  }
+  // Cute sound effects
+  const sfx = {
+    click: () => tone(540, 0.05, 'triangle', 0.12),
+    eat: (combo) => { const f = 460 + Math.min(combo, 10) * 40; tone(f, 0.1, 'sine', 0.3, 0, f * 1.7); },       // "pop"
+    yum: () => { tone(660, 0.1, 'triangle', 0.25); tone(880, 0.16, 'triangle', 0.25, 0.08); },
+    gold: () => [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.15, 'triangle', 0.25, i * 0.07)),
+    combo: (n) => { tone(520 + n * 35, 0.1, 'triangle', 0.22); tone(780 + n * 35, 0.14, 'triangle', 0.22, 0.09); },
+    power: () => tone(380, 0.25, 'square', 0.14, 0, 1000),
+    coin: () => { tone(988, 0.08, 'square', 0.12); tone(1319, 0.22, 'square', 0.12, 0.07); },
+    win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.2, 'triangle', 0.25, i * 0.1)),
+    over: () => tone(440, 0.55, 'triangle', 0.28, 0, 160),
+    boom: () => { noise(0.5, 0.4); tone(130, 0.5, 'sawtooth', 0.28, 0, 40); },
+    near: () => tone(300, 0.14, 'square', 0.12, 0, 750),
+    err: () => { tone(230, 0.13, 'square', 0.14); tone(170, 0.2, 'square', 0.14, 0.1); },
+    revive: () => [440, 660, 880].forEach((f, i) => tone(f, 0.18, 'triangle', 0.25, i * 0.09))
+  };
+  // Happy background tune (pentatonic, so every note fits). Notes are scheduled a little ahead of time
+  // from the game loop - there are no timers, so nothing keeps playing after a pause, game over or Home.
+  const TUNE = [
+    [0, 4, 7, 9, 7, 4, 7, 4, 2, 5, 9, 12, 9, 5, 9, 5],
+    [0, 4, 7, 12, 9, 7, 4, 7, 5, 9, 12, 9, 7, 4, 2, 4],
+    [4, 7, 9, 7, 4, 2, 4, 0, 5, 9, 7, 5, 4, 2, 0, 2],
+    [0, 7, 4, 7, 9, 7, 12, 9, 7, 4, 7, 2, 4, 0, 4, 7]
+  ];
+  const BASS = [0, -3, -7, -5];
+  const MUSIC_STEP = 0.19;
+  let musicNext = 0, musicStep = 0;
+  function musicTick() {
+    if (!DATA.sound || !unlocked || (state !== 'play' && state !== 'menu')) { musicNext = 0; return; }
+    const c = audio();
+    if (!c || c.state !== 'running') return;
+    const now = c.currentTime;
+    if (musicNext < now) musicNext = now + 0.05;
+    while (musicNext < now + 0.3) {
+      const i = musicStep & 15, bar = (musicStep >> 4) % TUNE.length, d = musicNext - now, vol = state === 'menu' ? 0.06 : 0.08;
+      tone(261.63 * Math.pow(2, TUNE[bar][i] / 12), 0.24, 'triangle', vol, d);
+      if (i % 4 === 0) tone(130.81 * Math.pow(2, BASS[i >> 2] / 12), 0.6, 'sine', vol * 1.3, d);
+      musicStep++; musicNext += MUSIC_STEP;
+    }
+  }
+
   function buzz(ms) {
     try { if (DATA.sound && navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* ignore */ }
   }
@@ -527,15 +614,29 @@
       dot(pts[i].x, pts[i].y, r, segColor(sk, i, n));
       if (sk.pattern === 'stars' && i % 3 === 0) dot(pts[i].x + 2, pts[i].y - 2, 1.8, '#ffffff');
     }
-    // head
-    const hx = pts[0].x, hy = pts[0].y, dx = dir[0], dy = dir[1], px = -dy, py = dx;
-    line(hx + 10 * dx, hy + 10 * dy, hx + 19 * dx, hy + 19 * dy, '#ff4d6d', 3);
-    if (ringColor) dot(hx, hy, 16, ringColor);
-    dot(hx, hy, 12.5, headCol);
-    [1, -1].forEach((side) => {
-      const ex = hx + 4.5 * dx + 6.2 * px * side, ey = hy + 4.5 * dy + 6.2 * py * side;
-      dot(ex, ey, 4.6, '#ffffff');
-      dot(ex + 1.6 * dx, ey + 1.6 * dy, 2.1, '#111111');
+    drawHead(sk, pts[0].x, pts[0].y, dir[0], dir[1], 1, headCol, ringColor);
+  }
+  // Cute head: big shiny eyes, rosy cheeks, and the animal extras of a skin. k = size (1 in the game).
+  function drawHead(sk, hx, hy, dx, dy, k, headCol, ringColor) {
+    const px = -dy, py = dx, an = sk.animal;
+    const at = (f, sd) => ({ x: hx + f[0] * k * dx + f[1] * k * px * sd, y: hy + f[0] * k * dy + f[1] * k * py * sd });
+    if (an !== 'unicorn') line(hx + 10 * k * dx, hy + 10 * k * dy, hx + 19 * k * dx, hy + 19 * k * dy, '#ff4d6d', 3 * k);   // tongue
+    if (an === 'panda') [1, -1].forEach((sd) => { const e = at([-5, 10], sd); dot(e.x, e.y, 5.2 * k, '#1f2937'); });             // ears
+    if (an === 'dragon') [1, -1].forEach((sd) => { const a1 = at([-2, 8], sd), a2 = at([-11, 13], sd); line(a1.x, a1.y, a2.x, a2.y, '#f59e0b', 4.2 * k); });   // horns
+    if (ringColor) dot(hx, hy, 16 * k, ringColor);
+    dot(hx, hy, 12.5 * k, headCol);
+    if (an === 'panda') [1, -1].forEach((sd) => { const e = at([4.5, 6.2], sd); dot(e.x, e.y, 5.9 * k, '#1f2937'); });         // eye patches
+    if (an === 'unicorn') {                                                                                                     // horn + mane
+      line(hx + 7 * k * dx, hy + 7 * k * dy, hx + 18 * k * dx, hy + 18 * k * dy, '#fcd34d', 4.6 * k);
+      line(hx + 12 * k * dx, hy + 12 * k * dy, hx + 18 * k * dx, hy + 18 * k * dy, '#f59e0b', 2.4 * k);
+      const m = at([-6, 0], 1); dot(m.x, m.y, 3.6 * k, '#f472b6');
+    }
+    [1, -1].forEach((sd) => {
+      const e = at([4.5, 6.2], sd), c = at([1, 10], sd);
+      if (an !== 'panda') dot(c.x, c.y, 2.3 * k, '#ff8fab', 0.7);                                                              // cheek
+      dot(e.x, e.y, 4.9 * k, '#ffffff');
+      dot(e.x + 1.7 * k * dx, e.y + 1.7 * k * dy, 2.6 * k, '#111111');
+      dot(e.x + 0.4 * k * dx - 0.9 * k * px * sd, e.y + 0.4 * k * dy - 0.9 * k * py * sd, 1 * k, '#ffffff');                     // shine
     });
   }
   // Small horizontal snake used to preview a skin (head on the right).
@@ -543,9 +644,7 @@
     const t = th(), n = 5, lineCol = sk.id === 'default' ? t.b : sk.line, headCol = sk.id === 'default' ? t.head : sk.head;
     line(cx - 22, cy, cx + 18, cy, lineCol, 11);
     for (let i = n - 1; i >= 1; i--) dot(cx + 18 - i * 10, cy, i === n - 1 ? 4.5 : 7, segColor(sk, i, n));
-    dot(cx + 18, cy, 9, headCol);
-    dot(cx + 21, cy - 4, 2.6, '#ffffff'); dot(cx + 21, cy + 4, 2.6, '#ffffff');
-    dot(cx + 22, cy - 4, 1.2, '#111111'); dot(cx + 22, cy + 4, 1.2, '#111111');
+    drawHead(sk, cx + 18, cy, 1, 0, 0.72, headCol, null);
   }
 
   function snakePoints() {
@@ -670,6 +769,11 @@
     } else if (kind === 'skins') {
       [-9, -1, 7].forEach((o, i) => dot(x + o, y + 5 - i * 5, 5, i === 2 ? t.accent : c));
       dot(x + 9, y - 6, 2, '#111111');
+    } else if (kind === 'gifts') {
+      rrect(x - 12, y - 4, 24, 16, 3, c);
+      rrect(x - 14, y - 10, 28, 8, 3, c);
+      rrect(x - 3, y - 10, 6, 22, 1, t.accent);
+      dot(x - 6, y - 14, 4, t.accent); dot(x + 6, y - 14, 4, t.accent);
     } else if (kind === 'star') {
       g.fillStyle(C(t.accent), 1);
       const pts = [];
@@ -680,15 +784,16 @@
       g.fillPoints(pts, true);
     }
   }
-  function roundButton(x, y, kind, label, fn) {
+  function roundButton(x, y, kind, label, fn, badge) {
     const t = th();
     dot(x, y + 4, 31, shade(t.panel, -0.3));
     dot(x, y, 31, t.panel);
     drawIcon(kind, x, y);
     if (label) txt(x, y + 47, label, 13, t.text, 0.5, false);
-    buttons.push({ x: x - 48, y: y - 36, w: 96, h: label ? 100 : 72, fn: fn });
+    if (badge) { dot(x + 22, y - 22, 9, '#ef4444'); txt(x + 22, y - 22, '!', 12, '#ffffff'); }       // something new to collect
+    buttons.push({ x: x - 44, y: y - 36, w: 88, h: label ? 100 : 72, fn: fn });
   }
-  function openSheet(tab) { DATA.tab = tab; sheetOpen = true; }
+  function openSheet(tab) { DATA.tab = tab; sheetOpen = true; skinPick = null; skinErr = null; }
 
   // Daily challenge card on the home screen: objective, progress and reward.
   function drawDailyCard(cy) {
@@ -759,45 +864,157 @@
       button(W / 2, 672, 250, 40, 'Continue ' + MODES[DATA.save.mode || 'classic'].name.toLowerCase() + ' game', continueGame, { size: 15 });
     }
 
-    roundButton(W / 2 - 150, 738, 'modes', 'Modes', () => openSheet(0));
-    roundButton(W / 2 - 50, 738, 'themes', 'Themes', () => openSheet(1));
-    roundButton(W / 2 + 50, 738, 'background', 'Background', () => openSheet(2));
-    roundButton(W / 2 + 150, 738, 'skins', 'Skins', () => openSheet(3));
+    roundButton(W / 2 - 176, 738, 'modes', 'Modes', () => openSheet(0));
+    roundButton(W / 2 - 88, 738, 'themes', 'Themes', () => openSheet(1));
+    roundButton(W / 2, 738, 'background', 'Background', () => openSheet(2));
+    roundButton(W / 2 + 88, 738, 'skins', 'Skins', () => openSheet(3));
+    roundButton(W / 2 + 176, 738, 'gifts', 'Gifts', () => openSheet(4), !spinReady() ? 0 : 1);
   }
 
   // Skin picker: tap a skin to look at it, then Equip or Unlock.
   let skinPick = null;
+  let skinErr = null;                                  // {s, until}: short error message in the skin tab
+  function skinError(msg) { skinErr = { s: msg, until: anim + 2600 }; sfx.err(); buzz(40); }
+  // Closing the sheet while a locked skin is picked is an error: say so and go back to the skin in use.
+  function closeSheet() {
+    if (DATA.tab === 3 && skinPick && SKIN_BY_ID[skinPick] && !skinOwned(skinPick)) {
+      skinPick = DATA.skin;
+      skinError('Skin is locked! Back to ' + activeSkin().name + '.');
+      return;
+    }
+    sheetOpen = false;
+  }
   function drawSkinTab(top) {
-    const t = th(), cw = 104, ch = 92, gap = 8;
+    const t = th(), cw = 104, ch = 74, gap = 6;
     if (!skinPick || !SKIN_BY_ID[skinPick]) skinPick = DATA.skin;
-    drawCoin(W / 2 - 10 - String(coinText(DATA.coins)).length * 5, top + 98, 10);
-    txt(W / 2 + 4 - String(coinText(DATA.coins)).length * 5, top + 98, coinText(DATA.coins) + ' coins', 15, t.accent, 0);
+    if (skinErr && anim < skinErr.until) {
+      txt(W / 2, top + 96, skinErr.s, 15, '#f87171');
+    } else {
+      const ct = coinText(DATA.coins) + ' coins', ox = String(ct).length * 4;
+      drawCoin(W / 2 - ox - 12, top + 96, 10);
+      txt(W / 2 - ox + 2, top + 96, ct, 15, t.accent, 0);
+    }
     SKINS.forEach((sk, i) => {
-      const cx = W / 2 + ((i % 4) - 1.5) * (cw + gap), cy = top + 164 + Math.floor(i / 4) * (ch + gap);
+      const cx = W / 2 + ((i % 4) - 1.5) * (cw + gap), cy = top + 148 + Math.floor(i / 4) * (ch + gap), ct = cy - ch / 2;
       const owned = skinOwned(sk.id), sel = skinPick === sk.id;
-      if (sel) rrect(cx - cw / 2 - 3, cy - ch / 2 - 3, cw + 6, ch + 6, 16, t.accent);
-      rrect(cx - cw / 2, cy - ch / 2, cw, ch, 13, t.panel);
-      rrect(cx - cw / 2 + 5, cy - ch / 2 + 5, cw - 10, 38, 9, t.board1);
-      miniSnake(sk, cx, cy - ch / 2 + 24);
-      txt(cx, cy + 18, sk.name, 13, t.btnText);
-      if (DATA.skin === sk.id) txt(cx, cy + 35, 'Equipped', 10, t.accent);
-      else if (owned) txt(cx, cy + 35, 'Owned', 10, t.btnText, 0.5, false);
+      if (sel) rrect(cx - cw / 2 - 3, ct - 3, cw + 6, ch + 6, 16, skinErr && anim < skinErr.until && !owned ? '#f87171' : t.accent);
+      rrect(cx - cw / 2, ct, cw, ch, 13, t.panel);
+      rrect(cx - cw / 2 + 5, ct + 4, cw - 10, 30, 9, t.board1);
+      miniSnake(sk, cx, ct + 19);
+      txt(cx, ct + 46, sk.name, 12, t.btnText);
+      if (DATA.skin === sk.id) txt(cx, ct + 62, 'Equipped', 10, t.accent);
+      else if (owned) txt(cx, ct + 62, 'Owned', 10, t.btnText, 0.5, false);
       else {
-        drawCoin(cx - 14, cy + 35, 6);
-        txt(cx - 5, cy + 35, String(sk.cost), 11, DATA.coins >= sk.cost ? t.accent : t.btnText, 0);
+        drawCoin(cx - 14, ct + 62, 6);
+        txt(cx - 5, ct + 62, String(sk.cost), 11, DATA.coins >= sk.cost ? t.accent : t.btnText, 0);
       }
-      buttons.push({ x: cx - cw / 2, y: cy - ch / 2, w: cw, h: ch, fn: () => { skinPick = sk.id; } });
+      buttons.push({ x: cx - cw / 2, y: ct, w: cw, h: ch, fn: () => { skinPick = sk.id; } });
     });
-    const sk = SKIN_BY_ID[skinPick], by = top + 352;
+    const sk = SKIN_BY_ID[skinPick], by = top + 384;
     if (DATA.skin === sk.id) button(W / 2, by, 260, 44, 'Equipped', null, { disabled: true, dark: true, size: 17 });
     else if (skinOwned(sk.id)) button(W / 2, by, 260, 44, 'Equip ' + sk.name, () => selectSkin(sk.id), { primary: true, size: 17 });
     else if (DATA.coins >= sk.cost) button(W / 2, by, 260, 44, 'Unlock for ' + sk.cost + ' coins', () => buySkin(sk.id), { primary: true, size: 17 });
-    else button(W / 2, by, 260, 44, 'Need ' + (sk.cost - DATA.coins) + ' more coins', null, { disabled: true, dark: true, size: 16 });
+    else button(W / 2, by, 260, 44, 'Need ' + (sk.cost - DATA.coins) + ' more coins', () => skinError('Not enough coins for ' + sk.name + '!'), { dark: true, size: 16 });
+  }
+
+  // ---------- Gifts: daily spin + mystery egg ----------
+  const SPIN_VALUES = [10, 20, 15, 40, 10, 25, 60, 150];       // wedges, clockwise from the top
+  const SPIN_WEIGHTS = [20, 16, 18, 10, 20, 12, 3, 1];
+  const SPIN_COLORS = ['#f87171', '#fbbf24', '#4ade80', '#38bdf8', '#c084fc', '#f472b6', '#fb923c', '#facc15'];
+  const EGG_COST = 100;
+  const EGG_COINS = [40, 60, 80, 120, 200, 300], EGG_WEIGHTS = [30, 25, 20, 12, 8, 5];
+  const EGG_SKIN_CHANCE = 0.3;
+  const GIFT_MS = 1600;
+  let gift = null;                                     // {kind, idx, val, skin, t, done} the last spin / egg result
+  const pickWeighted = (w) => {
+    let r = Math.random() * w.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < w.length; i++) { r -= w[i]; if (r < 0) return i; }
+    return w.length - 1;
+  };
+  const giftBusy = () => !!gift && gift.t < GIFT_MS;
+  const spinReady = () => DATA.spinDates.indexOf(dateKey(new Date())) < 0;
+  // The prize is decided, paid and saved the moment the button is tapped; the animation only shows it.
+  function doSpin() {
+    if (giftBusy() || !spinReady()) return false;
+    const idx = pickWeighted(SPIN_WEIGHTS), val = SPIN_VALUES[idx];
+    DATA.spinDates.push(dateKey(new Date()));
+    if (DATA.spinDates.length > 60) DATA.spinDates.shift();
+    addCoins(val);
+    writeData();
+    gift = { kind: 'spin', idx: idx, val: val, t: 0, done: false };
+    return true;
+  }
+  function openEgg() {
+    if (giftBusy()) return false;
+    if (DATA.coins < EGG_COST) { skinError('Need ' + (EGG_COST - DATA.coins) + ' more coins for the egg!'); return false; }
+    DATA.coins -= EGG_COST;
+    const locked = SKINS.filter((s) => !skinOwned(s.id));
+    gift = { kind: 'egg', t: 0, done: false, val: 0, skin: null };
+    if (locked.length && Math.random() < EGG_SKIN_CHANCE) {
+      gift.skin = locked[rnd(locked.length)].id;
+      DATA.skins.push(gift.skin);
+      DATA.skin = gift.skin;
+    } else {
+      gift.val = EGG_COINS[pickWeighted(EGG_WEIGHTS)];
+      addCoins(gift.val);
+    }
+    writeData();
+    return true;
+  }
+  function drawWheel(cx, cy, r, rot) {
+    SPIN_VALUES.forEach((v, i) => {
+      const a0 = (-90 + rot + i * 45) * Math.PI / 180, a1 = a0 + Math.PI / 4;
+      g.fillStyle(C(SPIN_COLORS[i]), 1);
+      g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, r, a0, a1, false); g.closePath(); g.fillPath();
+    });
+    SPIN_VALUES.forEach((v, i) => {
+      const am = (-90 + rot + (i + 0.5) * 45) * Math.PI / 180;
+      txt(cx + Math.cos(am) * r * 0.66, cy + Math.sin(am) * r * 0.66, String(v), 10, '#1b1b1b');
+    });
+    dot(cx, cy, 8, '#ffffff');
+    g.fillStyle(0xffffff, 1);
+    g.fillTriangle(cx - 8, cy - r - 11, cx + 8, cy - r - 11, cx, cy - r + 3);
+  }
+  function drawGifts(top) {
+    const t = th(), lx = W / 2 - 112, rx = W / 2 + 112, cw = 212, ct = top + 100, chh = 206;
+    rrect(lx - cw / 2, ct, cw, chh, 16, t.panel);
+    rrect(rx - cw / 2, ct, cw, chh, 16, t.panel);
+    const p = gift ? Math.min(1, gift.t / GIFT_MS) : 1, ease = 1 - Math.pow(1 - p, 3);
+    // --- daily spin
+    txt(lx, ct + 20, 'Daily Spin', 16, t.accent);
+    const ready = spinReady(), sp = gift && gift.kind === 'spin';
+    drawWheel(lx, ct + 92, 50, sp ? -(gift.idx + 0.5) * 45 + (1 - ease) * 1080 : (ready ? anim / 30 : 0));
+    if (ready) button(lx, ct + 176, 176, 40, 'SPIN!', doSpin, { primary: true, size: 18 });
+    else button(lx, ct + 176, 176, 40, 'Come back tomorrow', null, { dark: true, disabled: true, size: 13 });
+    // --- mystery egg
+    txt(rx, ct + 20, 'Mystery Egg', 16, t.accent);
+    const eg = gift && gift.kind === 'egg', shake = eg && p < 1 ? Math.sin(gift.t / 35) * 5 * (0.4 + p) : 0;
+    if (eg && p >= 1) {                                          // opened: show the prize
+      if (gift.skin) miniSnake(SKIN_BY_ID[gift.skin], rx, ct + 92);
+      else { drawCoin(rx, ct + 92, 26); }
+    } else {
+      g.fillStyle(0xfef3c7, 1); g.fillEllipse(rx + shake, ct + 94, 62, 78);
+      [[-12, -10, '#f87171'], [10, 6, '#38bdf8'], [-8, 16, '#4ade80'], [8, -20, '#c084fc']].forEach((d) => dot(rx + shake + d[0], ct + 94 + d[1], 6, d[2]));
+      dot(rx + shake - 14, ct + 78, 4, '#ffffff', 0.8);
+    }
+    const afford = DATA.coins >= EGG_COST;
+    button(rx, ct + 176, 176, 40, 'Open egg  (' + EGG_COST + ')', openEgg, afford ? { primary: true, size: 16 } : { dark: true, size: 14 });
+    // --- result
+    if (skinErr && anim < skinErr.until) txt(W / 2, top + 330, skinErr.s, 15, '#f87171');
+    else if (gift && gift.done) {
+      const msg = gift.kind === 'spin' ? 'You won +' + gift.val + ' coins!' : (gift.skin ? 'New skin: ' + SKIN_BY_ID[gift.skin].name + '!  Equipped' : 'You got +' + gift.val + ' coins!');
+      txt(W / 2, top + 330, msg, 18, t.accent);
+      for (let i = 0; i < 12; i++) {                              // confetti
+        const k = Math.min(1, (gift.t - GIFT_MS) / 1200);
+        if (k < 1) dot(W / 2 + Math.sin(i * 7.3) * 190, top + 290 + (i % 4) * 8 + k * 60 * (0.6 + (i % 3) * 0.3), 3.2, CONFETTI[i % 6], 1 - k);
+      }
+    } else if (gift) txt(W / 2, top + 330, '...', 18, t.text);
+    else txt(W / 2, top + 330, 'Free spin every day  -  Egg: coins or a new skin!', 12, t.text, 0.5, false);
   }
 
   // Settings sheet that slides up over the home screen.
   function drawSheet() {
-    const t = th(), e = 1 - Math.pow(1 - sheetT, 3), sh = 470, top = H - sh * e;
+    const t = th(), e = 1 - Math.pow(1 - sheetT, 3), sh = 500, top = H - sh * e;
     g.fillStyle(0x000000, 0.45 * e);
     g.fillRect(0, 0, W, H);
     rrect(0, top - 3, W, sh + 40, 30, t.panel);
@@ -807,13 +1024,13 @@
     buttons = [];                                    // only the sheet reacts to taps now
 
     // tabs
-    const tabs = ['Modes', 'Themes', 'Background', 'Skins'], tw = BW / 4;
+    const tabs = ['Modes', 'Themes', 'Background', 'Skins', 'Gifts'], tw = BW / 5;
     rrect(BX, top + 32, BW, 46, 23, t.panel);
     tabs.forEach((name, i) => {
       const x = BX + i * tw;
-      if (DATA.tab === i) rrect(x + 3, top + 35, tw - 6, 40, 20, t.accent);
-      txt(x + tw / 2, top + 55, name, 15, DATA.tab === i ? '#1b1b1b' : t.btnText);
-      buttons.push({ x: x, y: top + 32, w: tw, h: 46, fn: () => { DATA.tab = i; writeData(); } });
+      if (DATA.tab === i) rrect(x + 2, top + 35, tw - 4, 40, 20, t.accent);
+      txt(x + tw / 2, top + 55, name, 12, DATA.tab === i ? '#1b1b1b' : t.btnText);
+      buttons.push({ x: x, y: top + 32, w: tw, h: 46, fn: () => { if (DATA.tab === 3 && i !== 3) skinPick = DATA.skin; DATA.tab = i; writeData(); } });
     });
 
     if (DATA.tab === 0) {
@@ -841,11 +1058,13 @@
     } else if (DATA.tab === 2) {
       bgPicker(top + 190, 80, 54);
       txt(W / 2, top + 262, BACKGROUNDS[DATA.bg], 20, t.accent);
-    } else {
+    } else if (DATA.tab === 3) {
       drawSkinTab(top);
+    } else {
+      drawGifts(top);
     }
-    button(W / 2, top + 410, 260, 54, 'Done', () => { sheetOpen = false; }, { primary: true, size: 20 });
-    buttons.push({ x: 0, y: 0, w: W, h: top, fn: () => { sheetOpen = false; } });   // tap above the sheet closes it
+    button(W / 2, top + (DATA.tab === 3 ? 450 : 410), 260, 54, 'Done', closeSheet, { primary: true, size: 20 });
+    buttons.push({ x: 0, y: 0, w: W, h: top, fn: closeSheet });   // tap above the sheet closes it
   }
 
   // Board background pattern. Used for the board itself and for the menu previews.
@@ -1047,12 +1266,14 @@
         const canRevive = (G.revives || 0) < REVIVES_PER_GAME && adAvailable();
         if (canRevive) btns.push(['Revive (watch ad)', watchAd, { primary: true, size: 19 }]);
         btns.push(['Play again', newGame, canRevive ? { dark: true } : { primary: true }]);
+        btns.push(['Share score', shareScore, { dark: true }]);
         btns.push(['Home', goMenu, { dark: true }]);
         lines.push(['+' + (G.coins | 0) + ' coins this game  (total ' + DATA.coins + ')', '#fbbf24']);
         const dd = dailyEnsure();
         if (G.dailyCoins) lines.push(['Daily challenge complete! +' + G.dailyCoins + ' coins', '#4ade80']);
         else if (!dd.claimed) lines.push(['Daily: ' + dailyText() + '  ' + dd.progress + '/' + dd.target]);
         if (G.adMsg) lines.push([G.adMsg, '#fca5a5']);
+        if (G.shareMsg) lines.push([G.shareMsg, '#86efac']);
         drawOverlay(G.boom ? 'Boom!' : 'Game over', 'Score ' + G.score + (G.new_high ? ', new best!' : ''), btns, lines);
       } else if (state === 'ad') {
         drawAd();
@@ -1118,11 +1339,12 @@
       snake: [[mc, mr], [mc - 1, mr], [mc - 2, mr]],
       dir: [1, 0], queue: [], score: 0, eaten: 0, food: null, bonus: null, new_high: false,
       grow: 0, combo: 0, combo_t: 0, power: null, fx: {},
-      gold: null, nextGold: 8 + rnd(6), coins: 0, dailyCoins: 0, playMs: 0, adMsg: '',
+      gold: null, nextGold: 8 + rnd(6), coins: 0, dailyCoins: 0, playMs: 0, adMsg: '', shareMsg: '',
       mode: DATA.mode, speed: DATA.speed
     };
     popups = []; fxs = []; banner = null; prevSnake = null; acc = 0;
     adToken++;                                 // forget any ad request from the previous game
+    gift = null;
     dailyEnsure(true);
     sheetOpen = false; sheetT = 0;
     placeBombs();
@@ -1143,7 +1365,7 @@
     // saves from older versions (or damaged ones) may miss the new fields
     G.coins = num(G.coins, 0, MAX_COINS, 0); G.dailyCoins = num(G.dailyCoins, 0, MAX_COINS, 0);
     G.playMs = num(G.playMs, 0, 1e9, 0); G.nextGold = num(G.nextGold, 0, 1e7, (G.eaten | 0) + 10);
-    G.adMsg = '';
+    G.adMsg = ''; G.shareMsg = '';
     if (!Array.isArray(G.gold) || G.gold.length < 3) G.gold = null;
     if (!Array.isArray(G.snake) || !G.snake.length || !Array.isArray(G.dir)) { DATA.save = null; newGame(); return; }
     if (modeOf().bombs && !G.bombs) placeBombs();
@@ -1165,9 +1387,26 @@
     G.adMsg = '';
     dailyEnsure();
     writeData();
-    beep(150, 0.45, 'sawtooth', 0.07);
+    if (!G.boom) sfx.over();
     buzz(120);
     setState('over');
+  }
+
+  // ---------- Share ----------
+  // The app can provide window.shareText(text) (e.g. an Android share sheet). Otherwise the browser's
+  // share sheet is used, then the clipboard, then a WhatsApp link.
+  function shareScore() {
+    const text = 'I scored ' + G.score + ' in Snake Fruit Rush! Can you beat me?' + (window.SHARE_URL ? ' ' + window.SHARE_URL : '');
+    const done = (msg) => { if (G) G.shareMsg = msg; };
+    try {
+      if (typeof window.shareText === 'function') { window.shareText(text); return; }
+      if (navigator.share) { navigator.share({ text: text }).catch(() => {}); return; }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => done('Score copied - paste it to a friend!'), () => window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank'));
+        return;
+      }
+      window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+    } catch (e) { done('Sharing is not available here.'); }
   }
 
   // ---------- Revive (rewarded ad) ----------
@@ -1224,7 +1463,7 @@
     placeBombs();                      // fresh bombs, away from the middle
     popups = []; fxs = []; banner = null; prevSnake = null; acc = 0;
     if (G.bonus && Math.abs(G.bonus[0] - mc) <= 2 && Math.abs(G.bonus[1] - mr) <= 2) G.bonus = null;
-    beep(700, 0.25, 'triangle', 0.08);
+    sfx.revive();
     setState('paused');                // waits for the player to press GO
     saveGame();
   }
@@ -1254,8 +1493,8 @@
     if (tier) {                                           // short, clear reward for a combo milestone
       const h = headXY();
       showBanner(tier + '  x' + G.combo, (1 + 0.5 * G.combo) + 'x points', th().accent, 1000);
-      ring(h.x, h.y, th().accent); burst(h.x, h.y, th().accent, 8);
-      beep(660 + G.combo * 30, 0.14, 'triangle', 0.07);
+      ring(h.x, h.y, th().accent); burst(h.x, h.y, 'rand', 10);
+      sfx.combo(G.combo);
     }
     if (G.combo % COMBO_POWER_EVERY === 0 && !G.power) {
       const p = freeCell(0);
@@ -1273,8 +1512,8 @@
       addScore(FRUIT_POINTS);
       addCoins(COIN_FRUIT);
       dailyAdd('fruits', 1); dailyAdd('ultimate', 1);
-      const fp = headXY(); burst(fp.x, fp.y, '#ffffff', 5);
-      beep(620 + Math.min(G.combo, 10) * 40, 0.09, 'sine');
+      const fp = headXY(); burst(fp.x, fp.y, 'rand', 6);
+      sfx.eat(G.combo);
       buzz(12);
       placeFood();
       if (G.eaten % BONUS_EVERY === 0 && !G.bonus) {
@@ -1286,7 +1525,7 @@
         G.gold = [p[0], p[1], GOLD_TICKS];
         G.nextGold = G.eaten + 10 + rnd(8);
         showBanner('GOLDEN FRUIT!', 'grab it fast', '#fde047', 900);
-        beep(900, 0.12, 'triangle', 0.05);
+        tone(1000, 0.12, 'triangle', 0.2);
       }
     }
     if (G.bonus && Math.abs(hc - G.bonus[0]) <= 1 && Math.abs(hr - G.bonus[1]) <= 1) {   // big fruit
@@ -1297,8 +1536,8 @@
       addScore(BONUS_POINTS);
       addCoins(COIN_BONUS);
       dailyAdd('bonus', 1); dailyAdd('fruits', 1); dailyAdd('ultimate', 1);
-      const bp = headXY(); burst(bp.x, bp.y, th().accent, 9); ring(bp.x, bp.y, th().accent);
-      beep(880, 0.18, 'triangle', 0.08);
+      const bp = headXY(); burst(bp.x, bp.y, 'rand', 12); ring(bp.x, bp.y, th().accent);
+      sfx.yum();
       buzz(30);
     }
     if (G.gold && hc === G.gold[0] && hr === G.gold[1]) {   // golden fruit
@@ -1308,10 +1547,9 @@
       addScore(GOLD_POINTS);
       addCoins(COIN_GOLD);
       dailyAdd('golden', 1); dailyAdd('fruits', 1); dailyAdd('ultimate', 1);
-      const gp = headXY(); burst(gp.x, gp.y, '#fde047', 14); ring(gp.x, gp.y, '#fde047');
+      const gp = headXY(); burst(gp.x, gp.y, 'rand', 16); ring(gp.x, gp.y, '#fde047');
       showBanner('GOLDEN!  +' + GOLD_POINTS + ' +' + COIN_GOLD + ' coins', '', '#fde047', 1000);
-      beep(784, 0.1, 'triangle', 0.08);
-      setTimeout(() => beep(1175, 0.2, 'triangle', 0.08), 80);
+      sfx.gold();
       buzz(40);
     }
     if (G.power && hc === G.power[0] && hr === G.power[1]) {   // ability icon
@@ -1321,7 +1559,7 @@
       popup(POWERS[kind].name + '!', POWERS[kind].color, 36);
       const pp = headXY(); ring(pp.x, pp.y, POWERS[kind].color); burst(pp.x, pp.y, POWERS[kind].color, 8);
       showBanner(POWERS[kind].name + '!', 'power-up active', POWERS[kind].color, 800);
-      beep(520, 0.22, 'square', 0.05);
+      sfx.power();
       buzz(30);
     }
   }
@@ -1355,7 +1593,7 @@
     // 2. bomb (Ultimate mode) - even a ghost snake explodes
     if (isBomb(nc, nr)) {
       G.boom = [nc, nr];
-      beep(90, 0.6, 'sawtooth', 0.09);
+      sfx.boom();
       return gameOver();
     }
     // 3. own body (GHOST: pass through)
@@ -1365,6 +1603,7 @@
 
     G.snake.unshift([nc, nr]);
     if (growing) G.grow -= 1; else G.snake.pop();
+    trailPuff();
     if (G.near) {
       G.near = false;
       G.score += NEAR_POINTS;
@@ -1373,7 +1612,7 @@
       const np = headXY();
       popup('CLOSE CALL! +' + NEAR_POINTS, '#f87171', 18);
       ring(np.x, np.y, '#f87171');
-      beep(480, 0.08, 'square', 0.04);
+      sfx.near();
     }
 
     // 3. food / abilities
@@ -1439,7 +1678,7 @@
   function toggleSound() {
     DATA.sound = !DATA.sound;
     writeData();
-    beep(660, 0.08);
+    tone(660, 0.1, 'triangle', 0.25);
   }
 
   // ---------- Phaser scene ----------
@@ -1463,6 +1702,7 @@
       };
       const touches = new Map();
       window.addEventListener('pointerdown', (e) => {
+        unlockAudio();
         touches.set(e.pointerId, { x: e.clientX, y: e.clientY, moved: false });
       }, { passive: true });
       window.addEventListener('pointermove', (e) => {
@@ -1477,28 +1717,33 @@
         const s = touches.get(e.pointerId);
         touches.delete(e.pointerId);
         if (!s || s.moved || cancelled) return;
+        unlockAudio();
         const w = toWorld(e);
         const b = buttons.find((q) => w.x >= q.x && w.x <= q.x + q.w && w.y >= q.y && w.y <= q.y + q.h);
-        if (b) b.fn();
+        if (b) { sfx.click(); b.fn(); }
         else if (state === 'play') tapTurn(w.x, w.y);
       };
       window.addEventListener('pointerup', (e) => end(e, false));
       window.addEventListener('pointercancel', (e) => end(e, true));
 
+      window.addEventListener('keydown', unlockAudio, { once: true });
       const kb = this.input.keyboard;
       if (kb) {
         const dirs = { UP: [0, -1], W: [0, -1], DOWN: [0, 1], S: [0, 1], LEFT: [-1, 0], A: [-1, 0], RIGHT: [1, 0], D: [1, 0] };
         Object.keys(dirs).forEach((k) => kb.on('keydown-' + k, () => turn(dirs[k])));
         kb.on('keydown-SPACE', togglePause);
         kb.on('keydown-ENTER', () => { if (state === 'menu' || state === 'over') newGame(); else if (state === 'paused') togglePause(); });
-        kb.on('keydown-ESC', () => { if (state !== 'menu') goMenu(); else sheetOpen = false; });
+        kb.on('keydown-ESC', () => { if (state !== 'menu') goMenu(); else closeSheet(); });
         kb.on('keydown-T', () => setTheme(DATA.theme + 1));
         kb.on('keydown-B', () => setBackground(DATA.bg + 1));
         kb.on('keydown-C', () => { if (state === 'menu') continueGame(); });
       }
 
       // Pause and save when the app goes to the background.
-      const away = () => { if (state === 'play') togglePause(); else if (state !== 'ad') saveGame(); };
+      const away = () => {
+        if (state === 'play') togglePause(); else if (state !== 'ad') saveGame();
+        try { if (actx && actx.state === 'running') actx.suspend(); } catch (e) { /* ignore */ }
+      };
       document.addEventListener('visibilitychange', () => { if (document.hidden) away(); else dailyEnsure(true); });
       window.addEventListener('pagehide', away);
     }
@@ -1510,6 +1755,10 @@
         demo.acc += delta;
         while (demo.acc >= DEMO.ms) { demo.acc -= DEMO.ms; demoStep(); }
         sheetT = sheetOpen ? Math.min(1, sheetT + delta / 240) : Math.max(0, sheetT - delta / 200);
+        if (gift && gift.t < 1e6) {
+          gift.t += delta;
+          if (!gift.done && gift.t >= GIFT_MS) { gift.done = true; if (gift.kind === 'egg' && !gift.skin) sfx.coin(); else sfx.win(); }
+        }
       }
       if (state === 'play') {
         acc += delta;
@@ -1540,6 +1789,7 @@
         adLeft -= delta;
         if (adLeft <= 0) revive();
       }
+      musicTick();
       draw();
     }
   }
@@ -1565,7 +1815,7 @@
 
   // test hook (not used by the game itself)
   window.__snake = { get G() { return G; }, get state() { return state; }, get buttons() { return buttons; }, step2: step, DATA: DATA, turn: turn, get acc() { return acc; }, get sheet() { return sheetOpen; }, placeBombs: placeBombs, step: step, newGame: newGame, POWER_KEYS: POWER_KEYS,
-    daily: { ensure: dailyEnsure, add: dailyAdd, max: dailyMax, make: makeDaily, load: loadData, addCoins: addCoins }, buySkin: buySkin, selectSkin: selectSkin, watchAd: watchAd, adAvailable: adAvailable, SKINS: SKINS, get fxs() { return fxs; }, eat: eatAtHead, gameOver: gameOver };
+    daily: { ensure: dailyEnsure, add: dailyAdd, max: dailyMax, make: makeDaily, load: loadData, addCoins: addCoins }, buySkin: buySkin, selectSkin: selectSkin, doSpin: doSpin, openEgg: openEgg, spinReady: spinReady, closeSheet: closeSheet, openSheet: openSheet, get skinPick() { return skinPick; }, set skinPick(v) { skinPick = v; }, get gift() { return gift; }, EGG_COST: EGG_COST, sfx: sfx, shareScore: shareScore, watchAd: watchAd, adAvailable: adAvailable, SKINS: SKINS, get fxs() { return fxs; }, eat: eatAtHead, gameOver: gameOver };
 })();
 </script>
 </body>

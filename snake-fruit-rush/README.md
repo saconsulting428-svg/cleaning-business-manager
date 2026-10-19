@@ -20,3 +20,10 @@ window.isRewardedAdReady = () => boolean;         // optional
 
 ## Saved data (localStorage `snakeFruitRush.v1`)
 Existing keys are unchanged (`highs`, `mode`, `theme`, `bg`, `sound`, `save`, …). New keys: `coins`, `skin`, `skins`, `daily`, `claimedDates`, `streak`, `lastClaim`. All are validated on load; old saves load fine.
+
+## Update 2
+- **Sound**: sound effects (pop, yum, golden, combo, power-up, boom, game over, button click) plus a happy background tune. Audio starts after the first tap (browser rule). In an Android WebView set `setMediaPlaybackRequiresUserGesture(false)`. The Sound button turns everything off. Music stops on pause, game over and Home.
+- **Locked skin fix**: pressing *Done* while a locked skin is picked now shows an error and goes back to the skin in use. Tapping an unaffordable skin's button also shows an error.
+- **Cute look**: bigger shiny eyes and cheeks; new Panda, Dragon and Unicorn skins; rainbow/fire/sparkle trails; confetti on big moments.
+- **Gifts tab** (home screen): free Daily Spin (once per date) and Mystery Egg (100 coins: coins or a new skin).
+- **Share score** on the game-over screen. The app can provide `window.shareText(text)`; otherwise the browser share sheet, clipboard or WhatsApp link is used. Optional `window.SHARE_URL` is added to the text.
