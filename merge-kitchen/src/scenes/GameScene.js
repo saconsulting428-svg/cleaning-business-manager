@@ -34,6 +34,7 @@ export class GameScene extends Phaser.Scene {
     this.listen('board:spawn', this.onSpawned);
     this.listen('board:full', () => app.toast?.(t('toast.boardFull')));
     this.listen('customer:served', this.onServed);
+    this.listen('progress:levelup', this.onLevelUp);
     this.listen('customer:left', this.onLeft);
     this.listen('customer:wrong', this.onWrong);
     app.customers.enter();
@@ -52,6 +53,7 @@ export class GameScene extends Phaser.Scene {
   update() {
     const now = Date.now();
     this.app.customers.update(now);
+    this.app.rival.update(now);
     this.customersView.update(now);
   }
 
@@ -66,6 +68,14 @@ export class GameScene extends Phaser.Scene {
     if (gems) {
       this.fx.float(p.x, p.y + 56, `+${gems} 💎`, { color: COLORS.gem, size: 44, delay: 260 });
       this.bus.emit('fx:gems', { x: p.x, y: p.y, n: gems });
+    }
+  }
+
+  /** new restaurant stage => new backdrop with a flash */
+  onLevelUp({ level, stage }) {
+    if (stage) {
+      this.cameras.main.flash(500, 255, 255, 255);
+      this.background.setStage(stage.id);
     }
   }
 

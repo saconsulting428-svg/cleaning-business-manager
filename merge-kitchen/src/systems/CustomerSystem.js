@@ -83,10 +83,15 @@ export class CustomerSystem {
         .filter((id) => ITEMS[id].tier >= lo && ITEMS[id].tier <= hiCap && !this.slots.some((c) => c?.order === id));
       if (onBoard.length) return onBoard[Math.floor(Math.random() * onBoard.length)];
     }
-    const chain = chains[Math.floor(Math.random() * chains.length)];
-    const hi = Math.min(hiCap, chain.tiers.length);
-    const tier = lo + Math.floor(Math.pow(Math.random(), 1.5) * (hi - lo + 1));
-    return itemOf(chain.id, tier);
+    let id = null;
+    for (let tries = 0; tries < 4; tries++) { // avoid two identical orders side by side
+      const chain = chains[Math.floor(Math.random() * chains.length)];
+      const hi = Math.min(hiCap, chain.tiers.length);
+      const tier = lo + Math.floor(Math.pow(Math.random(), 1.5) * (hi - lo + 1));
+      id = itemOf(chain.id, tier);
+      if (!this.slots.some((c) => c?.order === id)) break;
+    }
+    return id;
   }
 
   spawn(i, now = Date.now()) {

@@ -7,6 +7,8 @@ import { EventSystem } from './EventSystem.js';
 import { Economy } from './Economy.js';
 import { AudioSystem } from './AudioSystem.js';
 import { CustomerSystem } from './CustomerSystem.js';
+import { ProgressionSystem } from './ProgressionSystem.js';
+import { RivalSystem } from './RivalSystem.js';
 import { setHapticsEnabled } from './Platform.js';
 import { setLang } from '../data/i18n.js';
 
@@ -24,8 +26,10 @@ export function createSystems() {
   const merge = new MergeSystem(state, energy);
   const audio = new AudioSystem(state);
   const customers = new CustomerSystem(state, merge, economy);
+  const progression = new ProgressionSystem(state, merge);
+  const rival = new RivalSystem(state, merge, customers);
 
   state.bus.on('settings', (key, value) => { if (key === 'vibration') setHapticsEnabled(value); });
 
-  return { saves, state, energy, events, economy, merge, audio, customers, ui: null, toast: null };
+  return { saves, state, energy, events, economy, merge, audio, customers, progression, rival, ui: null, toast: null };
 }
