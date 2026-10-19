@@ -3,6 +3,7 @@ import { COLORS } from '../ui/theme.js';
 import { Background } from '../game/Background.js';
 import { BoardView } from '../game/BoardView.js';
 import { DragController, SellZone } from '../game/DragController.js';
+import { CustomersView } from '../game/CustomerView.js';
 import { FX } from '../ui/fx.js';
 import { stageFor } from '../data/levels.js';
 import { ITEMS, itemName } from '../data/items.js';
@@ -25,13 +26,18 @@ export class GameScene extends Phaser.Scene {
     this.fx = new FX(this);
     this.board = new BoardView(this, app, this.fx);
     this.sell = new SellZone(this);
-    this.customersView = null;
+    this.customersView = new CustomersView(this, app, this.fx);
     this.drag = new DragController(this, app, this.board, this.customersView, this.sell);
 
     this.listen('ui:spawn', this.onSpawnRequest);
     this.listen('board:merge', this.onMerge);
     this.listen('board:spawn', this.onSpawned);
     this.listen('board:full', () => app.toast?.(t('toast.boardFull')));
+    this.listen('customer:served', this.onServed);
+    this.listen('customer:left', this.onLeft);
+    this.listen('customer:wrong', this.onWrong);
+    app.customers.enter();
+    this.events.once('shutdown', () => app.customers.leave());
     this.cameras.main.fadeIn(220, 0, 0, 0);
   }
 
@@ -42,6 +48,36 @@ export class GameScene extends Phaser.Scene {
   }
 
   get blocked() { return this.app.state.uiBlocks > 0; }
+
+  update() {
+    const now = Date.now();
+    this.app.customers.update(now);
+    this.customersView.update(now);
+  }
+
+  onServed({ slot, coins, xp, gems, mult }) {
+    const p = this.customersView.faceWorldPos(slot);
+    this.app.audio.play('success');
+    haptic([15, 40, 20]);
+    this.fx.float(p.x, p.y - 50, `+${coins}`, { color: COLORS.gold, size: 60 });
+    this.fx.float(p.x, p.y + 6, `+${xp} XP`, { color: COLORS.gem, size: 36, delay: 140 });
+    if (mult > 1) this.fx.float(p.x + 70, p.y - 100, `x${mult} 🔥`, { color: COLORS.primary, size: 44, delay: 80 });
+    this.bus.emit('fx:coins', { x: p.x, y: p.y, n: 7 });
+    if (gems) {
+      this.fx.float(p.x, p.y + 56, `+${gems} 💎`, { color: COLORS.gem, size: 44, delay: 260 });
+      this.bus.emit('fx:gems', { x: p.x, y: p.y, n: gems });
+    }
+  }
+
+  onLeft() {
+    this.app.audio.play('error');
+    haptic([30, 40, 30]);
+  }
+
+  onWrong() {
+    this.app.audio.play('error');
+    this.app.toast?.(t('toast.wrong'), { duration: 1000 });
+  }
 
   onSpawnRequest() {
     if (this.blocked || this.scene.isPaused()) return;

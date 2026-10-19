@@ -134,7 +134,6 @@ export class DragController {
         merge.consume(d.idx, 'serve', to);
         return;
       }
-      audio.play('error');
       haptic([20, 30, 20]);
       this.finish(true);
       return;

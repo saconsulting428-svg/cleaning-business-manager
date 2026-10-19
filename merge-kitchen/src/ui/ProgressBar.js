@@ -40,6 +40,7 @@ export class ProgressBar extends Phaser.GameObjects.Container {
 
   setValue(v, animate = true) {
     v = Phaser.Math.Clamp(v, 0, 1);
+    if (!animate && Math.abs(v - this.shown) < 0.004 && v > 0.004 && v < 0.996) return this;
     this.value = v;
     this.scene.tweens.killTweensOf(this);
     if (!animate || Math.abs(v - this.shown) < 0.002) { this.shown = v; this.draw(); return this; }
