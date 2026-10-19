@@ -68,8 +68,7 @@ export class AudioSystem {
 
   /** name: pop | coin | success | error | click | levelup | spawn | whoosh | combo */
   play(name, pitch = 1) {
-    if (!this.soundOn) return;
-    this.unlock();
+    if (!this.soundOn || !this.ctx) return; // the context is created by the first user gesture (see constructor)
     switch (name) {
       case 'pop': this.tone({ freq: 320 * pitch, to: 760 * pitch, dur: 0.13, vol: 0.38 }); this.tone({ freq: 900 * pitch, to: 1400 * pitch, dur: 0.07, vol: 0.12, type: 'triangle', delay: 0.02 }); break;
       case 'spawn': this.tone({ freq: 500, to: 950, dur: 0.1, vol: 0.28, type: 'triangle' }); break;
