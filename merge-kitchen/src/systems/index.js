@@ -9,6 +9,14 @@ import { AudioSystem } from './AudioSystem.js';
 import { CustomerSystem } from './CustomerSystem.js';
 import { ProgressionSystem } from './ProgressionSystem.js';
 import { RivalSystem } from './RivalSystem.js';
+import { QuestSystem } from './QuestSystem.js';
+import { DailyReward } from './DailyReward.js';
+import { IdleEarnings } from './IdleEarnings.js';
+import { ChestSystem } from './ChestSystem.js';
+import { LeaderboardService } from './LeaderboardService.js';
+import { NotificationService } from './NotificationService.js';
+import { AdsService } from '../services/AdsService.js';
+import { IAPService } from '../services/IAPService.js';
 import { setHapticsEnabled } from './Platform.js';
 import { setLang } from '../data/i18n.js';
 
@@ -28,8 +36,17 @@ export function createSystems() {
   const customers = new CustomerSystem(state, merge, economy);
   const progression = new ProgressionSystem(state, merge);
   const rival = new RivalSystem(state, merge, customers);
+  const quests = new QuestSystem(state, energy);
+  const daily = new DailyReward(state, energy);
+  const idle = new IdleEarnings(state);
+  const chest = new ChestSystem(state, energy, merge);
+  const leaderboard = new LeaderboardService(state);
+  const notify = new NotificationService(state, energy, events, chest);
+  const ads = new AdsService(state);
+  const iap = new IAPService(state);
+  quests.ensureToday();
 
   state.bus.on('settings', (key, value) => { if (key === 'vibration') setHapticsEnabled(value); });
 
-  return { saves, state, energy, events, economy, merge, audio, customers, progression, rival, ui: null, toast: null };
+  return { saves, state, energy, events, economy, merge, audio, customers, progression, rival, quests, daily, idle, chest, leaderboard, notify, ads, iap, ui: null, toast: null };
 }

@@ -194,6 +194,11 @@ const en = {
   'xp': 'XP',
   'tier': 'Tier {n}',
   'sell.value': 'Sell +{n}',
+  'notif.energy': 'Your energy is full! Time to cook!',
+  'notif.burning': 'Your food is burning! Come back and serve!',
+  'notif.rush': '{name} started! Double coins!',
+  'notif.chest': 'Your free chest is ready!',
+  'notif.daily': 'Your daily gift is waiting!',
 };
 
 const ur = {
@@ -384,6 +389,11 @@ const ur = {
   'xp': 'XP',
   'tier': 'Tier {n}',
   'sell.value': 'Becho +{n}',
+  'notif.energy': 'Aapki energy full hai! Pakana shuru karo!',
+  'notif.burning': 'Aapka khana jal raha hai! Jaldi wapas aao!',
+  'notif.rush': '{name} shuru! Double sikkay!',
+  'notif.chest': 'Aapka free sandooq tayyar hai!',
+  'notif.daily': 'Aapka rozana tohfa intezar kar raha hai!',
 };
 
 const DICTS = { en, ur };
