@@ -51,3 +51,38 @@ export function roundedCircle(g, cx, cy, rad, color, o = {}) {
     g.fillEllipse(cx, cy - rad * 0.45, rad * 1.1, rad * 0.5);
   }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Baked variants. Phaser re-tessellates every Graphics object on every frame, which is costly on
+// low-end phones. These helpers render the same shapes ONCE into a cached texture and hand back
+// an Image instead - use them for everything that is always on screen.
+// ---------------------------------------------------------------------------------------------
+const PAD = 12;
+
+/** Render `draw(graphics)` into a texture once (no-op if the key already exists). */
+export function bakeTexture(scene, key, w, h, draw) {
+  if (scene.textures.exists(key)) return key;
+  const g = scene.make.graphics({ x: 0, y: 0, add: false });
+  draw(g);
+  g.generateTexture(key, Math.ceil(w), Math.ceil(h));
+  g.destroy();
+  return key;
+}
+
+const optsKey = (o) => `${o.ow ?? 6}.${o.lip ?? 8}.${o.shine === false ? 0 : 1}.${o.shadow === false ? 0 : 1}.${o.outline ?? 'i'}`;
+
+/** Cached roundedBox as an Image whose origin is the box centre. */
+export function boxImage(scene, w, h, r, color, o = {}) {
+  const key = `box:${w}x${h}:${r}:${color}:${optsKey(o)}`;
+  const tw = w + PAD * 2, th = h + PAD * 2 + 10;
+  bakeTexture(scene, key, tw, th, (g) => roundedBox(g, tw / 2, PAD + h / 2, w, h, r, color, o));
+  return scene.add.image(0, 0, key).setOrigin(0.5, (PAD + h / 2) / th);
+}
+
+/** Cached roundedCircle as an Image whose origin is the circle centre. */
+export function circleImage(scene, rad, color, o = {}) {
+  const key = `circ:${rad}:${color}:${optsKey(o)}`;
+  const size = rad * 2 + PAD * 2 + 10;
+  bakeTexture(scene, key, size, size, (g) => roundedCircle(g, size / 2, size / 2 - 4, rad, color, o));
+  return scene.add.image(0, 0, key).setOrigin(0.5, (size / 2 - 4) / size);
+}

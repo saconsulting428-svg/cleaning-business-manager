@@ -52,3 +52,10 @@ export function fmtAway(ms) {
   if (m < 60) return `${Math.max(1, m)}m`;
   return `${Math.floor(m / 60)}h ${m % 60}m`;
 }
+
+/** '6d 15h' for long spans, otherwise 'h:mm:ss' */
+export function fmtLong(ms) {
+  const m = Math.floor(ms / 60000);
+  if (m >= 1440) return `${Math.floor(m / 1440)}d ${Math.floor((m % 1440) / 60)}h`;
+  return fmtClock(ms);
+}

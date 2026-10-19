@@ -1,0 +1,36 @@
+<!doctype html>
+<!-- Source for the Play Store graphics. Render with tools/render-store-assets.mjs (Playwright) or
+     open in a browser and screenshot the #icon (512x512) and #feature (1024x500) elements. -->
+<html><head><meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Baloo 2'; font-weight: 800; src: url('../node_modules/@fontsource/baloo-2/files/baloo-2-latin-800-normal.woff2') format('woff2'); }
+  body { margin: 0; background: #222; font-family: 'Baloo 2', sans-serif; font-weight: 800; }
+  .emoji { font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif; font-weight: 400; }
+  .outline { color: #fff; -webkit-text-stroke: 10px #3B2314; paint-order: stroke fill; text-shadow: 0 8px 0 #3B2314; }
+  #icon { width: 512px; height: 512px; position: relative; overflow: hidden; background: radial-gradient(circle at 50% 35%, #FFC83D 0%, #FF8A1F 55%, #E8412C 100%); }
+  #icon .chef { position: absolute; left: 0; right: 0; top: 70px; text-align: center; font-size: 270px; line-height: 1; filter: drop-shadow(0 12px 0 rgba(59,35,20,.45)); }
+  #icon .row { position: absolute; left: 0; right: 0; bottom: 40px; text-align: center; font-size: 84px; line-height: 1; filter: drop-shadow(0 6px 0 rgba(59,35,20,.45)); }
+  #icon .merge { position: absolute; left: 36px; top: 40px; font-size: 80px; line-height: 1; }
+  #feature { width: 1024px; height: 500px; position: relative; overflow: hidden; background: linear-gradient(#8fd8ff 0%, #fff0c9 62%, #b06a3b 62%, #7a4526 100%); margin-top: 20px; }
+  #feature .awning { position: absolute; top: 0; left: 0; right: 0; height: 60px; background: repeating-linear-gradient(90deg, #E8412C 0 60px, #FFF4E0 60px 120px); border-bottom: 8px solid #3B2314; }
+  #feature h1 { position: absolute; left: 60px; top: 70px; margin: 0; font-size: 138px; line-height: .9; }
+  #feature h1 span { display: block; color: #FFC83D; }
+  #feature h2 { position: absolute; left: 66px; top: 340px; margin: 0; font-size: 56px; letter-spacing: 4px; }
+  #feature .chef { position: absolute; right: 70px; top: 90px; font-size: 270px; line-height: 1; filter: drop-shadow(0 12px 0 rgba(59,35,20,.4)); }
+  #feature .chain { position: absolute; right: 26px; bottom: 28px; font-size: 80px; display: flex; gap: 6px; align-items: center; filter: drop-shadow(0 6px 0 rgba(59,35,20,.45)); }
+  #feature .chain b { font-size: 50px; color: #fff; -webkit-text-stroke: 6px #3B2314; paint-order: stroke fill; }
+</style></head>
+<body>
+  <div id="icon">
+    <div class="chef emoji">👨‍🍳</div>
+    <div class="merge emoji">✨</div>
+    <div class="row emoji">🍟🍔🍕</div>
+  </div>
+  <div id="feature">
+    <div class="awning"></div>
+    <h1 class="outline">Merge<span>Kitchen</span></h1>
+    <h2 class="outline">CHEF EMPIRE</h2>
+    <div class="chef emoji">👨‍🍳</div>
+    <div class="chain emoji">🥔<b>→</b>🍟<b>→</b>🍔<b>→</b>🍕</div>
+  </div>
+</body></html>

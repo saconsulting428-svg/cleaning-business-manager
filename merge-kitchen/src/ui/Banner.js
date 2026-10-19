@@ -20,11 +20,11 @@ export class Banner {
     if (this.current) { s.tweens.killTweensOf(this.current); this.current.destroy(); }
     const c = s.add.container(W + 420, y).setDepth(DEPTH.toast);
     const g = s.add.graphics();
-    roundedBox(g, 0, 0, 640, sub ? 148 : 112, 36, color);
+    roundedBox(g, 0, 0, 640, sub ? 176 : 112, 36, color);
     c.add(g);
     c.add(E(s, -250, -2, icon, 70));
-    c.add(T(s, 28, sub ? -26 : 0, title, 52, COLORS.white, { wrap: 440 }));
-    if (sub) c.add(T(s, 28, 28, sub, 32, COLORS.cream2, { wrap: 440 }));
+    c.add(T(s, 28, sub ? -40 : 0, title, 52, COLORS.white, { wrap: 440 }));
+    if (sub) c.add(T(s, 28, 22, sub, 32, COLORS.cream2, { wrap: 440 }));
     this.current = c;
     s.tweens.add({ targets: c, x: W / 2, duration: 380, ease: 'Back.easeOut' });
     s.tweens.add({

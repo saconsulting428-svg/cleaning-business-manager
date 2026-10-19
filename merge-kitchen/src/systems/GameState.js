@@ -9,13 +9,14 @@ export class GameState {
     this.data = saves.load();
     this.bus = new Phaser.Events.EventEmitter();
     this.uiBlocks = 0; // >0 while a popup/celebration is open (gameplay input + timers pause)
+    this.frozen = false; // set while wiping progress so a late flush cannot rewrite the save
     this.mode = 'menu'; // 'menu' | 'game'
     this.rollWeek();
   }
 
   get level() { return this.data.level; }
-  save() { this.saves.queue(this.data); }
-  flush() { this.saves.flush(this.data); }
+  save() { if (!this.frozen) this.saves.queue(this.data); }
+  flush() { if (!this.frozen) this.saves.flush(this.data); }
 
   rollWeek() {
     const k = weekKey();

@@ -1,15 +1,18 @@
 import Phaser from 'phaser';
 import { COLORS } from './theme.js';
+import { bakeTexture } from './draw.js';
 import { T } from './text.js';
 
 /** Red notification dot (optionally with a number) that gently pulses. */
 export class Badge extends Phaser.GameObjects.Container {
   constructor(scene, x = 0, y = 0) {
     super(scene, x, y);
-    this.g = scene.add.graphics();
-    this.g.fillStyle(COLORS.ink, 1).fillCircle(0, 2, 20);
-    this.g.fillStyle(COLORS.white, 1).fillCircle(0, 0, 18);
-    this.g.fillStyle(COLORS.secondary, 1).fillCircle(0, 0, 13);
+    bakeTexture(scene, 'badge_dot', 48, 48, (g) => {
+      g.fillStyle(COLORS.ink, 1).fillCircle(24, 26, 20);
+      g.fillStyle(COLORS.white, 1).fillCircle(24, 24, 18);
+      g.fillStyle(COLORS.secondary, 1).fillCircle(24, 24, 13);
+    });
+    this.g = scene.add.image(0, 0, 'badge_dot');
     this.num = T(scene, 0, -1, '', 26, COLORS.white, { stroke: false });
     this.add([this.g, this.num]);
     this.setVisible(false);

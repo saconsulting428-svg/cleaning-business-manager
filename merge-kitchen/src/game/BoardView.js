@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLORS, DEPTH } from '../ui/theme.js';
-import { roundedBox } from '../ui/draw.js';
+import { boxImage } from '../ui/draw.js';
 import { BOARD, BOTTOM, SELL } from '../ui/layout.js';
 import { itemTexture } from './textures.js';
 import { ITEMS } from '../data/items.js';
@@ -19,8 +19,8 @@ export class BoardView {
     this.dragging = -1;
 
     const cx = BOARD.x + (BOARD.cols * BOARD.cell) / 2, cy = BOARD.y + (BOARD.rows * BOARD.cell) / 2;
-    const frame = scene.add.graphics().setDepth(DEPTH.board - 2);
-    roundedBox(frame, cx, cy + 4, BOARD.cols * BOARD.cell + 28, BOARD.rows * BOARD.cell + 28, 40, COLORS.boardFrame, { lip: 10, ow: 7, shine: false });
+    boxImage(scene, BOARD.cols * BOARD.cell + 28, BOARD.rows * BOARD.cell + 28, 40, COLORS.boardFrame, { lip: 10, ow: 7, shine: false })
+      .setPosition(cx, cy + 4).setDepth(DEPTH.board - 2);
     for (let i = 0; i < BOARD.size; i++) {
       const p = this.cellCenter(i);
       const parity = (i % BOARD.cols + Math.floor(i / BOARD.cols)) % 2;

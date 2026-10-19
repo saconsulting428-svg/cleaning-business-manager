@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLORS, DEPTH } from '../ui/theme.js';
-import { roundedBox } from '../ui/draw.js';
+import { boxImage } from '../ui/draw.js';
 import { T, E } from '../ui/text.js';
 import { SELL } from '../ui/layout.js';
 import { ITEMS } from '../data/items.js';
@@ -15,16 +15,17 @@ export class SellZone {
     this.scene = scene;
     this.rect = new Phaser.Geom.Rectangle(SELL.x - SELL.w / 2 - 14, SELL.y - SELL.h / 2 - 16, SELL.w + 28, SELL.h + 32);
     this.c = scene.add.container(SELL.x, SELL.y).setDepth(DEPTH.board + 2);
-    this.g = scene.add.graphics();
+    this.bgIdle = boxImage(scene, SELL.w, SELL.h, 30, COLORS.smoke, { lip: 6 });
+    this.bgActive = boxImage(scene, SELL.w, SELL.h, 30, COLORS.secondary, { lip: 6 }).setVisible(false);
     this.icon = E(scene, -SELL.w / 2 + 42, -2, '🗑️', 46);
     this.label = T(scene, 34, -3, t('btn.sell'), 36, COLORS.white);
-    this.c.add([this.g, this.icon, this.label]);
+    this.c.add([this.bgIdle, this.bgActive, this.icon, this.label]);
     this.draw(false);
   }
 
   draw(active) {
-    this.g.clear();
-    roundedBox(this.g, 0, 0, SELL.w, SELL.h, 30, active ? COLORS.secondary : COLORS.smoke, { lip: 6 });
+    this.bgIdle.setVisible(!active);
+    this.bgActive.setVisible(active);
   }
 
   /** while dragging an item show what it will sell for */

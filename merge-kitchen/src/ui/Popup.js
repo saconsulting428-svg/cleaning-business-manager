@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLORS, DEPTH } from './theme.js';
-import { roundedBox } from './draw.js';
+import { roundedBox, boxImage } from './draw.js';
 import { T } from './text.js';
 import { Button } from './Button.js';
 import { W, H } from './layout.js';
@@ -19,6 +19,8 @@ export class Popup extends Phaser.GameObjects.Container {
     this.closable = o.closable !== false;
     this.bare = !!o.bare;
     this.closing = false;
+    this.opened = false;
+    this.openCbs = [];
     this.setDepth(DEPTH.popup);
 
     this.dim = scene.add.rectangle(W / 2, H / 2, W, H, COLORS.ink, o.bare ? 0.82 : 0.66).setInteractive();
@@ -33,9 +35,7 @@ export class Popup extends Phaser.GameObjects.Container {
       g.fillStyle(COLORS.cream2, 1).fillRoundedRect(-this.w / 2 + 26, -this.h / 2 + 62, this.w - 52, this.h - 98, 30);
       this.panel.add(g);
       if (o.title) {
-        const rib = scene.add.graphics();
-        roundedBox(rib, 0, -this.h / 2 + 4, Math.min(this.w - 120, 460), 88, 30, o.ribbon ?? COLORS.secondary, { lip: 8 });
-        this.panel.add(rib);
+        this.panel.add(boxImage(scene, Math.min(this.w - 120, 460), 88, 30, o.ribbon ?? COLORS.secondary, { lip: 8 }).setPosition(0, -this.h / 2 + 4));
         this.panel.add(T(scene, 0, -this.h / 2 + 0, o.title, 46, COLORS.white, { wrap: Math.min(this.w - 160, 420) }));
       }
     }
@@ -53,8 +53,14 @@ export class Popup extends Phaser.GameObjects.Container {
     this.dim.setAlpha(0);
     this.panel.setScale(this.bare ? 1 : 0.55).setAlpha(0);
     scene.tweens.add({ targets: this.dim, alpha: 1, duration: 200 });
-    scene.tweens.add({ targets: this.panel, scale: 1, alpha: 1, duration: this.bare ? 260 : 340, ease: 'Back.easeOut' });
+    scene.tweens.add({
+      targets: this.panel, scale: 1, alpha: 1, duration: this.bare ? 260 : 340, ease: 'Back.easeOut',
+      onComplete: () => { this.opened = true; this.openCbs.splice(0).forEach((fn) => fn()); },
+    });
   }
+
+  /** run `fn` once the scale-in animation finished (masks need the final transform) */
+  whenOpen(fn) { if (this.opened) fn(); else this.openCbs.push(fn); }
 
   close() {
     if (this.closing) return;
@@ -68,8 +74,9 @@ export class Popup extends Phaser.GameObjects.Container {
 }
 
 /**
- * Opens popups by name. Popups queue up (Welcome back -> Daily gift -> ...) and each
- * open popup pauses gameplay input + customer timers.
+ * Opens popups by name. Normal popups queue up (Welcome back -> Daily gift -> ...); `urgent`
+ * popups (ad, confirm dialogs) stack on top of whatever is open. Every open popup pauses
+ * gameplay input and customer timers.
  * Screen definition: { size: (data, app) => ({ title, w, h, closable?, bare?, ribbon? }), build(popup, scene, app, data) }
  */
 export class PopupManager {
@@ -78,32 +85,34 @@ export class PopupManager {
     this.app = app;
     this.registry = {};
     this.queue = [];
-    this.current = null;
+    this.stack = [];
+    this.waiting = false;
   }
 
   register(name, def) { this.registry[name] = def; }
-  get isOpen() { return !!this.current; }
+  get current() { return this.stack[this.stack.length - 1] ?? null; }
+  get isOpen() { return this.stack.length > 0; }
   get name() { return this.current?.screenName ?? null; }
 
-  /** Returns a promise resolved when this popup closes. `urgent` jumps the queue. */
+  /** Returns a promise resolved when this popup closes. */
   open(name, data = {}, urgent = false) {
     return new Promise((resolve) => {
       const job = { name, data, resolve };
-      if (this.current || this.opening) {
-        if (this.queue.some((j) => j.name === name && !urgent && JSON.stringify(j.data) === JSON.stringify(data))) { resolve(); return; }
-        urgent ? this.queue.unshift(job) : this.queue.push(job);
-      } else this.show(job);
+      if (urgent || (!this.stack.length && !this.waiting)) { this.show(job); return; }
+      // ignore exact duplicates already waiting
+      if (this.queue.some((j) => j.name === name && JSON.stringify(j.data) === JSON.stringify(data))) { resolve(); return; }
+      this.queue.push(job);
     });
   }
 
   show(job) {
     const def = this.registry[job.name];
-    if (!def) { console.warn('[popup] unknown', job.name); job.resolve(); this.next(); return; }
+    if (!def) { console.warn('[popup] unknown screen', job.name); job.resolve(); return; }
     const cfg = def.size(job.data, this.app);
     const p = new Popup(this.scene, this, cfg);
     p.screenName = job.name;
     p.job = job;
-    this.current = p;
+    this.stack.push(p);
     this.block(+1);
     def.build(p, this.scene, this.app, job.data);
     this.app.state.bus.emit('popup:open', job.name);
@@ -113,22 +122,28 @@ export class PopupManager {
     const st = this.app.state;
     const before = st.uiBlocks;
     st.uiBlocks = Math.max(0, st.uiBlocks + delta);
-    if (before === 0 && st.uiBlocks > 0) this.app.customers?.pause();
-    if (before > 0 && st.uiBlocks === 0) this.app.customers?.resume();
+    if (before === 0 && st.uiBlocks > 0) this.app.customers?.pause('popup');
+    if (before > 0 && st.uiBlocks === 0) this.app.customers?.resume('popup');
   }
 
   closed(popup) {
-    if (this.current !== popup) return;
-    this.current = null;
+    const i = this.stack.indexOf(popup);
+    if (i < 0) return;
+    this.stack.splice(i, 1);
     this.block(-1);
     popup.job.resolve();
     this.app.state.bus.emit('popup:close', popup.screenName);
-    this.next();
+    if (!this.stack.length) this.next();
   }
 
   next() {
-    const job = this.queue.shift();
-    if (job) this.scene.time.delayedCall(120, () => { if (!this.current) this.show(job); else this.queue.unshift(job); });
+    if (!this.queue.length || this.waiting) return;
+    this.waiting = true;
+    this.scene.time.delayedCall(140, () => {
+      this.waiting = false;
+      const job = this.queue.shift();
+      if (job) this.show(job);
+    });
   }
 
   closeCurrent() { this.current?.close(); }

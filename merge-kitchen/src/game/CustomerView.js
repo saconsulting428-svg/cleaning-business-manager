@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLORS, DEPTH, SHIRTS } from '../ui/theme.js';
-import { roundedBox } from '../ui/draw.js';
+import { boxImage, bakeTexture, roundedBox } from '../ui/draw.js';
 import { T, E } from '../ui/text.js';
 import { ProgressBar } from '../ui/ProgressBar.js';
 import { SLOT_X, CUSTOMER } from '../ui/layout.js';
@@ -26,10 +26,14 @@ class Avatar {
 
     // body (shirt) + head + hat in one container so they bob together
     this.char = scene.add.container(CHAR_DX, 0);
-    const body = scene.add.graphics();
-    roundedBox(body, 0, CUSTOMER.headY + 78, 122, 100, 34, SHIRTS[c.look.shirt % SHIRTS.length], { lip: 6, ow: 5, shadow: false });
-    body.fillStyle(COLORS.white, 1).fillTriangle(-22, CUSTOMER.headY + 36, 22, CUSTOMER.headY + 36, 0, CUSTOMER.headY + 66);
-    body.lineStyle(4, COLORS.ink, 1).strokeTriangle(-22, CUSTOMER.headY + 36, 22, CUSTOMER.headY + 36, 0, CUSTOMER.headY + 66);
+    bakeTexture(scene, 'collar', 52, 42, (g) => {
+      g.fillStyle(COLORS.white, 1).fillTriangle(4, 4, 48, 4, 26, 34);
+      g.lineStyle(4, COLORS.ink, 1).strokeTriangle(4, 4, 48, 4, 26, 34);
+    });
+    const body = scene.add.container(0, 0, [
+      boxImage(scene, 122, 100, 34, SHIRTS[c.look.shirt % SHIRTS.length], { lip: 6, ow: 5, shadow: false }).setPosition(0, CUSTOMER.headY + 78),
+      scene.add.image(-26, CUSTOMER.headY + 32, 'collar').setOrigin(0, 0),
+    ]);
     this.face = E(scene, 0, CUSTOMER.headY, FACES[c.look.face % FACES.length], 104);
     const hat = HATS[c.look.hat % HATS.length];
     this.hat = hat ? E(scene, 8, CUSTOMER.headY - 56, hat, 58).setAngle(-12) : null;
@@ -39,15 +43,19 @@ class Avatar {
     // order bubble
     this.bubble = scene.add.container(CUSTOMER.bubbleDX, CUSTOMER.bubbleY);
     this.glow = scene.add.image(0, 0, 'glow').setTint(COLORS.energy).setScale(0.8).setAlpha(0);
-    const bg = scene.add.graphics();
-    bg.fillStyle(COLORS.ink, 1).fillTriangle(-32, 40, -50, 76, -6, 48);
-    bg.fillStyle(COLORS.white, 1).fillTriangle(-30, 38, -44, 66, -10, 46);
-    roundedBox(bg, 0, 0, 108, 108, 30, COLORS.white, { lip: 5, ow: 5, shadow: false, shine: false });
+    bakeTexture(scene, 'bubble', 140, 150, (g) => {
+      g.fillStyle(COLORS.ink, 1).fillTriangle(70 - 32, 62 + 40, 70 - 50, 62 + 76, 70 - 6, 62 + 48);
+      g.fillStyle(COLORS.white, 1).fillTriangle(70 - 30, 62 + 38, 70 - 44, 62 + 66, 70 - 10, 62 + 46);
+      roundedBox(g, 70, 62, 108, 108, 30, COLORS.white, { lip: 5, ow: 5, shadow: false, shine: false });
+    });
+    const bg = scene.add.image(0, 0, 'bubble').setOrigin(70 / 140, 62 / 150);
     this.item = scene.add.image(0, -2, itemTexture(scene, c.order)).setScale(0.8);
-    this.check = scene.add.graphics().setVisible(false);
-    this.check.fillStyle(COLORS.ink, 1).fillCircle(44, -44, 22);
-    this.check.fillStyle(COLORS.energy, 1).fillCircle(44, -44, 17);
-    this.check.lineStyle(6, COLORS.white, 1).beginPath().moveTo(36, -44).lineTo(42, -37).lineTo(53, -52).strokePath();
+    bakeTexture(scene, 'bubble_check', 60, 60, (g) => {
+      g.fillStyle(COLORS.ink, 1).fillCircle(30, 30, 22);
+      g.fillStyle(COLORS.energy, 1).fillCircle(30, 30, 17);
+      g.lineStyle(6, COLORS.white, 1).beginPath().moveTo(22, 30).lineTo(28, 37).lineTo(39, 22).strokePath();
+    });
+    this.check = scene.add.image(44, -44, 'bubble_check').setVisible(false);
     this.bubble.add([this.glow, bg, this.item, this.check]);
     this.root.add(this.bubble);
 

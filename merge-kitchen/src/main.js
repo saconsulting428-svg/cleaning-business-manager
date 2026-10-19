@@ -31,3 +31,8 @@ const game = new Phaser.Game({
 // handy for debugging / automated tests
 window.__game = game;
 window.__app = app;
+
+// Offline support for the web build (Capacitor serves local files, so it needs no worker).
+if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.Capacitor?.isNativePlatform?.()) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}

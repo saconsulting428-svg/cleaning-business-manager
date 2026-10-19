@@ -1,0 +1,10 @@
+{
+  "name": "Merge Kitchen: Chef Empire",
+  "short_name": "Merge Kitchen",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#3B2314",
+  "theme_color": "#3B2314",
+  "icons": [{ "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }]
+}

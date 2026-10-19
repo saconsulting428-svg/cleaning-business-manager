@@ -16,3 +16,6 @@ export const COIN_PACKS = [
 ];
 
 export const ENERGY_REFILL_GEMS = 15;
+
+/** Coins -> energy: gives idle earnings / coins a purpose (cost grows with level) */
+export const energyCoinCost = (level) => 100 + level * 40;

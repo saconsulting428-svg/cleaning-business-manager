@@ -1,0 +1,11 @@
+{
+  "appId": "com.yourstudio.mergekitchen",
+  "appName": "Merge Kitchen",
+  "webDir": "dist",
+  "backgroundColor": "#3B2314",
+  "android": { "allowMixedContent": false },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 0 },
+    "LocalNotifications": { "smallIcon": "ic_stat_icon", "iconColor": "#FF8A1F" }
+  }
+}

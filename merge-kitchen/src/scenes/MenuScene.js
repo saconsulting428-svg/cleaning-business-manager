@@ -42,7 +42,11 @@ export class MenuScene extends Phaser.Scene {
     this.playBtn = play;
 
     this.daily = new Button(this, 150, 1140, { w: 220, h: 96, r: 34, color: COLORS.gem, icon: '📅', label: t('menu.daily'), fontSize: 34, iconSize: 44, onClick: () => app.ui.openPopup('daily') });
-    this.daily.attachBadge();
+    const badge = this.daily.attachBadge();
+    const refreshBadge = () => badge.set(app.state.data.tutorial.done && app.daily.status().canClaim);
+    refreshBadge();
+    app.state.bus.on('daily:claimed', refreshBadge);
+    this.events.once('shutdown', () => app.state.bus.off('daily:claimed', refreshBadge));
     this.settings = new Button(this, 570, 1140, { w: 220, h: 96, r: 34, color: COLORS.smoke, icon: '⚙️', label: t('btn.settings'), fontSize: 34, iconSize: 44, onClick: () => app.ui.openPopup('settings') });
   }
 

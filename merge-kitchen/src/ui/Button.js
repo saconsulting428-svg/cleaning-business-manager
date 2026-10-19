@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLORS, shade } from './theme.js';
-import { roundedBox, roundedCircle } from './draw.js';
+import { boxImage, circleImage } from './draw.js';
 import { T, E } from './text.js';
 import { Badge } from './Badge.js';
 import { haptic } from '../systems/Platform.js';
@@ -15,8 +15,7 @@ export class Button extends Phaser.GameObjects.Container {
     this.o = { w: 260, h: 100, r: 30, color: COLORS.primary, shape: 'pill', fontSize: 44, iconSize: 52, hitPad: 8, ...o };
     this.enabled = true;
     this.onClick = o.onClick;
-    this.gfx = scene.add.graphics();
-    this.add(this.gfx);
+    this.face = null;
     this.iconText = null;
     this.labelText = null;
     this.captionText = null;
@@ -30,10 +29,10 @@ export class Button extends Phaser.GameObjects.Container {
 
   build() {
     const { w, h, r, color, shape, label, icon, caption, fontSize, iconSize } = this.o;
-    this.gfx.clear();
     const c = this.enabled ? color : COLORS.locked;
-    if (shape === 'circle') roundedCircle(this.gfx, 0, 0, w / 2, c);
-    else roundedBox(this.gfx, 0, 0, w, h, r, c);
+    this.face?.destroy();
+    this.face = shape === 'circle' ? circleImage(this.scene, w / 2, c) : boxImage(this.scene, w, h, r, c); // baked + cached
+    this.addAt(this.face, 0);
 
     [this.iconText, this.labelText, this.captionText].forEach((t) => t && t.destroy());
     this.iconText = this.labelText = this.captionText = null;
@@ -85,6 +84,9 @@ export class Button extends Phaser.GameObjects.Container {
   }
 
   click() {
+    for (let p = this.parentContainer; p; p = p.parentContainer) {
+      if (p.scrollPane && !p.scrollPane.inside(this.scene.input.activePointer)) return; // clipped by a scroll pane
+    }
     if (!this.o.silent) { this.app?.audio.play('click'); haptic(8); }
     this.onClick?.(this);
   }
