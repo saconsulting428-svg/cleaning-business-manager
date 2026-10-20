@@ -6,4 +6,4 @@ LEVELS.forEach((spec, i) => {
     console.log(String(i + 1).padStart(2), spec.name.padEnd(20), w.W + 'x' + w.H, 'rooms', w.rooms.length, 'attempt', w.attempt, 'sol', w.solution.length, (Date.now() - t) + 'ms', JSON.stringify(kinds)); }
   catch (e) { bad++; console.log('FAIL', i + 1, spec.name, e.message); }
 });
-console.log(bad ? bad + ' failed' : 'all ${LEVELS.length} generated + solved', (Date.now() - t0) + 'ms'); process.exit(bad ? 1 : 0);
+console.log(bad ? bad + ' failed' : 'all ' + LEVELS.length + ' generated + solved', (Date.now() - t0) + 'ms'); process.exit(bad ? 1 : 0);
