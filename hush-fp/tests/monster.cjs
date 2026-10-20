@@ -2,7 +2,7 @@
    inventory + objectives panels. Uses real world.update through HUSH.step and the real renderer. */
 const { chromium } = require('/opt/node-tools/node_modules/playwright'); const path = require('path');
 (async () => {
-  const file = path.resolve(__dirname, '../' + (process.env.BUILD || 'HUSH-FP-v3.html')); let ok = 0, bad = 0; const t = (n, c, d) => { c ? ok++ : bad++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : '  ' + JSON.stringify(d))); };
+  const file = path.resolve(__dirname, '../' + (process.env.BUILD || 'HUSH-FP-v4.html')); let ok = 0, bad = 0; const t = (n, c, d) => { c ? ok++ : bad++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : '  ' + JSON.stringify(d))); };
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const p = await (await b.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true })).newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
   await p.goto('file://' + file + '?test=1&unlock=1'); await p.waitForFunction(() => window.HUSH && HUSH.G.mode === 'home', null, { timeout: 90000 });
@@ -29,5 +29,11 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright'); const p
   await p.click('#b-bag'); t('inventory opens and pauses the game', await p.evaluate(() => document.getElementById('ov-inv').classList.contains('show') && HUSH.G.paused)); t('six inventory entries', await p.evaluate(() => document.querySelectorAll('#inv-grid .iv').length) === 6);
   await p.click('#inv-grid .iv:nth-child(2)'); t('selecting an item shows its description', (await p.textContent('#inv-desc')).includes('Sonar')); await p.click('#ov-inv [data-pclose]'); t('closing resumes the game', await p.evaluate(() => !HUSH.G.paused && !document.getElementById('ov-inv').classList.contains('show')));
   await p.click('#obj'); t('tapping the objective opens the checklist', await p.evaluate(() => document.getElementById('ov-obj').classList.contains('show') && document.querySelectorAll('#obj-list li').length > 0)); await p.click('#ov-obj [data-pclose]'); t('objective panel closes', await p.evaluate(() => !HUSH.G.paused));
+  /* 5. story log in the real page + scare-director beats + the ending */
+  const lgt = await p.evaluate(() => { const w = HUSH.world(), lg = w.objs.find(o => o.type === 'log'), pl = w.player; pl.x = lg.x + 0.5; pl.y = lg.y + 1.2; pl.yaw = -Math.PI / 2; HUSH.step(2, {}); w.interact(); HUSH.step(2, {}); return { shown: document.getElementById('ov-log').classList.contains('show'), title: document.getElementById('log-title').textContent, saved: !!HUSH.save.logs[HUSH.G.level] }; });
+  t('reading the log shows the story overlay and saves it', lgt.shown && lgt.title.length > 3 && lgt.saved, lgt); await p.click('#log-ok'); t('log closes and the game resumes', await p.evaluate(() => !HUSH.G.modal && !document.getElementById('ov-log').classList.contains('show')));
+  await p.evaluate(() => { HUSH.G.dirT = 0; HUSH.view().flashEyes(HUSH.world().player.x * 2 + 10, HUSH.world().player.y * 2, 1); HUSH.view().blackout(0.5); }); await p.waitForTimeout(600); t('eyes + blackout beats render without errors', errs.length === 0, errs);
+  await p.evaluate(() => HUSH.startLevel(39)); await p.waitForFunction(() => HUSH.G.mode === 'game' && !document.getElementById('ov-load').classList.contains('show'), null, { timeout: 90000 }); await p.evaluate(() => { HUSH.world().god = true; HUSH.runBot(900); }); await p.waitForFunction(() => document.getElementById('ov-win').classList.contains('show'), null, { timeout: 20000 }).catch(() => {});
+  t('level 40 ends with the epilogue', await p.evaluate(() => document.getElementById('win-title').textContent === 'The end' && /probe/i.test(document.getElementById('win-info').textContent)));
   t('no console errors', errs.length === 0, errs.slice(0, 4)); console.log(ok + ' passed, ' + bad + ' failed'); await b.close(); process.exit(bad ? 1 : 0);
 })();

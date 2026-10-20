@@ -157,6 +157,9 @@ function tryGenerate(spec, seed) {
     const r = pick(pool); used.add(r.idx); let x = r.cx, y = r.cy; if (blocked.has(key(x, y)) || objs.some(o => o.x === x && o.y === y)) { const f = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([dx, dy]) => isFree(x + dx, y + dy)); if (!f) return null; x += f[0]; y += f[1]; }
     creatures.push({ t, x: x + 0.5, y: y + 0.5, roomIdx: r.idx, yaw: R() * Math.PI * 2, hunted: !!spec.hunted && creatures.length === 0 });
   }
+  /* one optional story document per level (own random stream, so layouts and solvability are unaffected) */
+  { const LR = rng32(spec.seed * 977 + 13); const idxs = order.map((_, i) => i).filter(i => i > 0); for (let k = idxs.length - 1; k > 0; k--) { const j = Math.floor(LR() * (k + 1)); [idxs[k], idxs[j]] = [idxs[j], idxs[k]]; }
+    for (const ri_ of idxs) { const r = order[ri_]; let done = false; for (let t = 0; t < 40 && !done; t++) { const x = r.x0 + 1 + Math.floor(LR() * (r.w - 2)), y = r.y0 + 1 + Math.floor(LR() * (r.h - 2)); if (isFree(x, y) && !nearMouth(x, y) && cells[at(x, y)] === T.FLOOR) { O({ type: 'log', x, y, room: ri_, rot: Math.floor(LR() * 4) * Math.PI / 2 }); done = true; } } if (done) break; } }
   const world = { spec, W, H, cells, rooms: order, edges, gates, gateEdge, objs, start: { x: st.x + 0.5, y: st.y + 0.5, yaw: 0 }, exit, lights, creatures, blocked: [...blocked], seed };
   /* start facing the first corridor */
   { const e0 = edges[0].cells[0]; world.start.yaw = Math.atan2(e0[1] - st.y, e0[0] - st.x); }

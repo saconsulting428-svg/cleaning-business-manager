@@ -51,12 +51,12 @@ function farPoint(w, c, minD) { for (const r of w.rooms) if (Math.hypot(r.cx - c
   const u = mk(false); u.c.x = u.w.player.x + 5; u.c.y = u.w.player.y; if (u.w.tileAt(u.c.x, u.c.y) === 0) { u.c.x = u.w.player.x; u.c.y = u.w.player.y; } const caught2 = run(u.w, 8, {}, () => u.w.over === 'dead'); t('an unseen hide is safe for a while (8 s)', caught2 < 0 || u.w.over !== 'dead', u.c.state);
 }
 { // 6 sentinel: keeps its post, investigates close noise and comes back
-  const w = new World(lvl(2), {}); const c = w.creatures[0]; w.player.x = -100; t('level 3 has a sentinel', c.t === 'sentinel');
+  const w = new World(lvl(3), {}); const c = w.creatures[0]; w.player.x = -100; t("level 4 has a sentinel", c.t === 'sentinel');
   const px = c.x, py = c.y; emitNoise(w, c.x + 3, c.y, 12, 'test'); const inv = c.state === 'investigate'; run(w, 25, {}); const d = Math.hypot(c.x - c.post.x, c.y - c.post.y);
   t('sentinel investigates near noise then returns to its post', (inv || c.state === 'roam') && d < 1.2, 'dist to post ' + d.toFixed(1) + ' state ' + c.state);
 }
 { // 7 listener hears farther than a stalker
-  const g = lvl(12); const w = new World(g, {}); const c = w.creatures[0]; t('level 13 has a listener', c.t === 'listener'); const w2 = new World(lvl(4), {}); t('listener hearing > stalker hearing', c.k.hear > w2.creatures[0].k.hear);
+  const g = lvl(16); const w = new World(g, {}); const c = w.creatures[0]; t("level 17 has a listener", c.t === 'listener'); const w2 = new World(lvl(4), {}); t('listener hearing > stalker hearing', c.k.hear > w2.creatures[0].k.hear);
 }
 { // 8 doors: unlocked doors block sight until opened, the creature opens them (loud)
   const w = new World(lvl(4), {}); const d = w.doors.find(x => !x.lock); t('level has plain doors', !!d);

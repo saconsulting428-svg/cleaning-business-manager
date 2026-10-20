@@ -68,8 +68,12 @@ export class View {
     this.dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xd8e0e8, size: 0.028, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending })); this.dust.frustumCulled = false; sc.add(this.dust); this.dustBase = pos.slice();
     /* creatures: the body and its sonar silhouette */
     this.cr = world.creatures.map(c => { const mats = creatureMaterials(c.t), real = buildCreature(c.t, mats, true), gm = ghostMaterial(), ghost = buildCreature(c.t, { skin: gm, bone: gm, eye: gm }, false); ghost.traverse(o => { o.renderOrder = 999; }); ghost.visible = false; sc.add(real); sc.add(ghost); const blob = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, opacity: 0.8 })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; blob.renderOrder = 1; sc.add(blob); return { c, real, ghost, gm, mats, blob }; });
+    /* scare director props: a pair of eyes far down a corridor, and a lights-out timer */
+    const eg = new THREE.Group(); for (const sx of [-0.09, 0.09]) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff2a20, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, depthTest: true, opacity: 0 })); sp.scale.set(0.5, 0.5, 1); sp.position.x = sx; eg.add(sp); } eg.visible = false; sc.add(eg); this.eyeFx = { g: eg, t: 0, dur: 1 }; this.blackoutT = 0;
     this.bobPhase = 0; this.hurtT = 0; this.deadT = 0; this.winT = 0; this.updateCamera(world, 0, 0);
   }
+  flashEyes(x, z, dur) { this.eyeFx.g.position.set(x, 1.55, z); this.eyeFx.t = this.eyeFx.dur = dur || 1.6; this.eyeFx.g.visible = true; }
+  blackout(sec) { this.blackoutT = sec; }
   disposeLevel() {
     if (!this.built) return; const sc = this.built.scene; sc.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { for (const k of ['map', 'normalMap', 'emissiveMap']) if (m[k] && !(m[k].userData && m[k].userData.shared)) m[k].dispose(); m.dispose(); }); });
     this.built = null; this.cr = [];
@@ -81,8 +85,9 @@ export class View {
     if (!fx.menu) this.updateCamera(world, dt, now); this.updateDynamic(world, dt, now);
     /* pooled lamps: the three nearest live fixtures light the scene; flickering ones really flicker */
     const cx = this.camera.position.x, cz = this.camera.position.z; const near = [];
+    if (this.blackoutT > 0) this.blackoutT -= dt; const ef = this.eyeFx; if (ef.t > 0) { ef.t -= dt; const u = 1 - ef.t / ef.dur, o = ef.t <= 0 ? 0 : u < 0.15 ? u / 0.15 : (u > 0.55 && u < 0.62) || (u > 0.8 && u < 0.84) ? 0 : 1; ef.g.children.forEach(c => { c.material.opacity = o * 0.95; }); ef.g.visible = ef.t > 0; ef.g.lookAt(this.camera.position.x, ef.g.position.y, this.camera.position.z); }
     const awake = world.creatures.filter(c => c.state === 'hunt' || c.state === 'investigate' || c.state === 'suspicious');
-    for (const f of b.fixtures) { let k = f.kind === 'dead' ? 0 : f.kind === 'flicker' ? flick(f.ph, now) : 1; if (k && awake.length) for (const c of awake) if ((c.x * TS - f.x) ** 2 + (c.y * TS - f.z) ** 2 < 90) { k = Math.min(k, flick(f.ph + 3, now * 1.7)); break; } f.k = k; const fl = f.kind === 'flicker'; if (fl) f.mat.color.setHex(f.col).multiplyScalar(0.12 + 0.88 * k); if (f.kind === 'dead') continue; const d = (f.x - cx) ** 2 + (f.z - cz) ** 2; if (d < 200) near.push([d, f]); }
+    for (const f of b.fixtures) { let k = f.kind === 'dead' ? 0 : f.kind === 'flicker' ? flick(f.ph, now) : 1; if (k && awake.length) for (const c of awake) if ((c.x * TS - f.x) ** 2 + (c.y * TS - f.z) ** 2 < 90) { k = Math.min(k, flick(f.ph + 3, now * 1.7)); break; } if (this.blackoutT > 0) k = 0; f.k = k; const fl = f.kind === 'flicker'; if (fl) f.mat.color.setHex(f.col).multiplyScalar(0.12 + 0.88 * k); if (f.kind === 'dead') continue; const d = (f.x - cx) ** 2 + (f.z - cz) ** 2; if (d < 200) near.push([d, f]); }
     near.sort((a, c) => a[0] - c[0]);
     for (let i = 0; i < this.pool.length; i++) { const l = this.pool[i], e = near[i]; if (!e) { l.intensity = 0; continue; } l.position.set(e[1].x, WH - 0.45, e[1].z); l.color.setHex(e[1].col); l.intensity = (world.spec.lightsOut ? 6 : 30) * e[1].k * (1 - i * 0.12); }
     /* sonar pulse */
@@ -96,7 +101,7 @@ export class View {
       poseCreature(e.real, c, now, dt, c.seen || c.state === 'hunt' ? look : undefined); if (c.revealT > 0) poseCreature(e.ghost, c, now, dt, c.seen || c.state === 'hunt' ? look : undefined);
       e.ghost.visible = c.revealT > 0; if (e.ghost.visible) e.gm.opacity = Math.min(1, c.revealT * 1.1) * (0.55 + 0.1 * Math.sin(now * 20));
     }
-    for (const e of sorted.slice(0, 1)) { const l = this.mlights[li++], c = e.c, d = Math.hypot(c.x * TS - cx, c.y * TS - cz); l.position.set(c.x * TS, 1.6, c.y * TS); l.color.setHex(c.t === 'sentinel' ? 0x80c8ff : 0xff2a1a); l.intensity = d < 16 ? (c.state === 'hunt' ? 9 : 4) * (0.8 + 0.2 * Math.sin(now * 5 + c.id)) : 0; } for (; li < 1; li++) this.mlights[li].intensity = 0;
+    for (const e of sorted.slice(0, 1)) { const l = this.mlights[li++], c = e.c, d = Math.hypot(c.x * TS - cx, c.y * TS - cz); l.position.set(c.x * TS, 2.6, c.y * TS); l.color.setHex(c.t === 'sentinel' ? 0x80c8ff : 0xff2a1a); l.intensity = d < 16 ? (c.state === 'hunt' ? 5 : 1.1) * (0.8 + 0.2 * Math.sin(now * 5 + c.id)) : 0; } for (; li < 1; li++) this.mlights[li].intensity = 0;
     /* dust drifts around the camera */
     const pos = this.dust.geometry.attributes.position, base = this.dustBase; for (let i = 0; i < pos.count; i++) { const x = base[i * 3] + Math.sin(now * 0.2 + i) * 0.4 + now * 0.05, y = base[i * 3 + 1] + Math.sin(now * 0.3 + i * 1.7) * 0.3, z = base[i * 3 + 2] + Math.cos(now * 0.25 + i * 0.7) * 0.4; pos.setXYZ(i, cx + ((x + 6) % 12 + 12) % 12 - 6, ((y % 3) + 3) % 3, cz + ((z + 6) % 12 + 12) % 12 - 6); } pos.needsUpdate = true;
     if (this.head) { this.head.position.copy(this.camera.position); this.head.intensity = world.spec.lightsOut ? 1.2 : 3.2 * (world.player.flash ? 1 : 0.5); }

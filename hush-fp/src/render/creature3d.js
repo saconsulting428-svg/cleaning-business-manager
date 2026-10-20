@@ -15,9 +15,9 @@ const tube = (r1, r2, len, x, y, z, rx, rz) => { const g = new THREE.CylinderGeo
 const merge = list => { const m = mergeGeometries(list, false); list.forEach(g => g.dispose()); return m; };
 
 export const KIND = {
-  stalker: { scale: 1.0, skin: 0x0e0809, vein: 0x8a1414, eye: 0xff2a22, eyes: 2, ears: 0.5, spikes: 1.0, lean: 0, TL: 0.64, SL: 0.62, AL: 0.62, FL: 0.7, bw: 1.0, jaw: 1.0 },
-  sentinel: { scale: 1.0, skin: 0x0d1117, vein: 0x1c6c8c, eye: 0xbfeaff, eyes: 4, ears: 0.2, spikes: 0.6, lean: -0.12, TL: 0.8, SL: 0.78, AL: 0.8, FL: 0.9, bw: 0.82, jaw: 0.8 },
-  listener: { scale: 1.0, skin: 0x130a0e, vein: 0x7a2038, eye: 0x552020, eyes: 0, ears: 1.9, spikes: 0.8, lean: 0.1, TL: 0.6, SL: 0.58, AL: 0.68, FL: 0.74, bw: 1.05, jaw: 1.25 }
+  stalker: { scale: 1.0, skin: 0x050404, vein: 0x8a1414, eye: 0xff2a22, eyes: 2, ears: 0.5, spikes: 1.0, lean: 0, TL: 0.64, SL: 0.62, AL: 0.62, FL: 0.7, bw: 1.0, jaw: 1.0 },
+  sentinel: { scale: 1.0, skin: 0x040506, vein: 0x1c6c8c, eye: 0xbfeaff, eyes: 4, ears: 0.2, spikes: 0.6, lean: -0.12, TL: 0.8, SL: 0.78, AL: 0.8, FL: 0.9, bw: 0.82, jaw: 0.8 },
+  listener: { scale: 1.0, skin: 0x060505, vein: 0x7a2038, eye: 0x552020, eyes: 0, ears: 1.9, spikes: 0.8, lean: 0.1, TL: 0.6, SL: 0.58, AL: 0.68, FL: 0.74, bw: 1.05, jaw: 1.25 }
 };
 let glowTex = null;
 function glow() { if (glowTex) return glowTex; const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); glowTex = new THREE.CanvasTexture(c); return glowTex; }
@@ -55,7 +55,7 @@ function bodyGeometry(type) {
   const bones = [seg([0, H - 0.12, 0], [0, T, 0], 1.2), seg([0, T, 0], [0, T + 0.9, 0.05], 1.1), seg([0, T + 0.9, 0.08], [0, N[1] + 0.05, N[2] + 0.5], 0.8), seg([0, Jt[1] - 0.15, Jt[2]], [0, Jt[1] - 0.2, Jt[2] + 0.4], 0.5),
     seg(L(SH), L(EL), 1), seg(SH, EL, 1), seg(L(EL), L(WR), 1), seg(EL, WR, 1), seg(L(WR), L(wr2), 0.8), seg(WR, wr2, 0.8), seg(L(HP), L(KN), 1), seg(HP, KN, 1), seg(L(KN), L(AN), 1), seg(KN, AN, 1), seg(L(AN), [-AN[0], AN[1] - 0.04, AN[2] + 0.3], 0.8), seg(AN, [AN[0], AN[1] - 0.04, AN[2] + 0.3], 0.8)];
   const sk = skinWeights(mesh.positions, bones, 3.2), n = mesh.positions.length / 3, vein = new Float32Array(n), col = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) { const x = mesh.positions[i * 3], y = mesh.positions[i * 3 + 1], z = mesh.positions[i * 3 + 2]; const nz = fbm3(x * 5.5, y * 5.5, z * 5.5), vn = Math.abs(nz - 0.5); vein[i] = Math.max(0, 1 - vn / 0.028); vein[i] *= vein[i]; const m = 0.55 + 0.9 * fbm3(x * 11 + 3, y * 11, z * 11); col[i * 3] = m * (1 + (z > 0 && y < T ? 0.3 : 0)); col[i * 3 + 1] = m * 0.9; col[i * 3 + 2] = m * 0.9; }
+  for (let i = 0; i < n; i++) { const x = mesh.positions[i * 3], y = mesh.positions[i * 3 + 1], z = mesh.positions[i * 3 + 2]; const nz = fbm3(x * 5.5, y * 5.5, z * 5.5), vn = Math.abs(nz - 0.5); vein[i] = Math.max(0, 1 - vn / 0.011); vein[i] *= vein[i]; const m = 0.55 + 0.9 * fbm3(x * 11 + 3, y * 11, z * 11); col[i * 3] = m * (1 + (z > 0 && y < T ? 0.3 : 0)); col[i * 3 + 1] = m * 0.9; col[i * 3 + 2] = m * 0.9; }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(mesh.positions, 3)); g.setAttribute('normal', new THREE.BufferAttribute(mesh.normals, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('vein', new THREE.BufferAttribute(vein, 1));
   g.setAttribute('skinIndex', new THREE.BufferAttribute(sk.skinIndex, 4)); g.setAttribute('skinWeight', new THREE.BufferAttribute(sk.skinWeight, 4)); g.setIndex(new THREE.BufferAttribute(mesh.indices, 1)); g.userData = { H, T, N, Jt, SH, EL, WR, HP, KN, AN };
   return (GEO[type] = g);
@@ -75,11 +75,12 @@ export function buildCreature(type, mats, withEffects) {
   const skel = new THREE.Skeleton(bones); skin.bind(skel);
   /* rigid details: spikes along the spine, teeth, claws, eyes */
   const cone = (r, h, x, y, z, rx, rz) => { const g = new THREE.ConeGeometry(r, h, 6); g.translate(0, h / 2, 0); g.rotateX(rx || 0); g.rotateZ(rz || 0); g.translate(x, y, z); return g; };
-  const nS = Math.round(13 * K.spikes), sp = []; for (let i = 0; i < nS; i++) { const u = i / Math.max(1, nS - 1), len = (0.2 + 0.34 * Math.sin(u * Math.PI)) * K.spikes + 0.06; sp.push(cone(0.05, len, (i % 2 ? 0.07 : -0.07), 0.08 + u * 0.95, -0.28 * K.bw - u * 0.04, -2.15 + u * 0.4, 0)); }
+  const nS = Math.round(18 * K.spikes), sp = []; for (let i = 0; i < nS; i++) { const u = i / Math.max(1, nS - 1), len = (0.26 + 0.46 * Math.sin(u * Math.PI)) * K.spikes + 0.08; sp.push(cone(0.05, len, (i % 2 ? 0.07 : -0.07), 0.08 + u * 0.95, -0.28 * K.bw - u * 0.04, -2.15 + u * 0.4, 0)); }
   if (sp.length) rigid(sp, M.bone, J.torso);
   const ut = [], lt = []; for (let i = 0; i < 6; i++) for (const sx of [-1, 1]) { const z = 0.22 + i * 0.065; ut.push(cone(0.011, 0.075 - i * 0.004, sx * (0.06 - i * 0.004), 0.0, z, Math.PI, 0)); lt.push(cone(0.01, 0.065, sx * (0.045 - i * 0.003), -0.05, 0.05 + i * 0.06 * K.jaw, 0, 0)); }
   rigid(ut, M.bone, J.neck); rigid(lt, M.bone, J.jaw);
-  for (let s = 0; s < 2; s++) { const cl = []; for (let i = 0; i < 4; i++) cl.push(cone(0.016, 0.26, (i - 1.5) * 0.04, -0.14, 0.05 + (i === 0 || i === 3 ? -0.01 : 0), 2.9, 0)); rigid(cl, M.bone, J.arm[s].wr); const ft = []; for (let i = 0; i < 3; i++) ft.push(cone(0.016, 0.17, (i - 1) * 0.045, -0.05, 0.3, 1.9, 0)); rigid(ft, M.bone, J.leg[s].an); }
+  { const mane = []; for (let i = 0; i < 9; i++) { const u = i / 8; mane.push(cone(0.04 - 0.012 * u, (0.34 - 0.12 * u) * K.spikes + 0.05, (i % 2 ? 0.05 : -0.05) * (1 + u), 0.12 + 0.06 * Math.sin(u * 3), -0.1 - u * 0.17, -2.0 - u * 0.5, (i % 3 - 1) * 0.15)); } rigid(mane, M.bone, J.neck); }
+  for (let s = 0; s < 2; s++) { const cl = []; for (let i = 0; i < 4; i++) cl.push(cone(0.017, 0.46, (i - 1.5) * 0.045, -0.14, 0.05 + (i === 0 || i === 3 ? -0.01 : 0), 2.9, 0)); rigid(cl, M.bone, J.arm[s].wr); const ft = []; for (let i = 0; i < 3; i++) ft.push(cone(0.016, 0.24, (i - 1) * 0.045, -0.05, 0.3, 1.9, 0)); rigid(ft, M.bone, J.leg[s].an); }
   J.eyes = []; const ep = K.eyes === 4 ? [[0.1, 0.1, 0.34], [-0.1, 0.1, 0.34], [0.14, 0.18, 0.27], [-0.14, 0.18, 0.27]] : K.eyes === 2 ? [[0.085, 0.1, 0.36], [-0.085, 0.1, 0.36]] : [];
   for (const p of ep) { const e = new THREE.Mesh(SPH, M.eye); e.scale.setScalar(0.03); e.position.set(p[0], p[1], p[2]); J.neck.add(e); J.eyes.push(e); if (withEffects !== false) { const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow(), color: K.eye, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.9 })); spr.scale.setScalar(0.45); spr.position.copy(e.position); J.neck.add(spr); (J.glows = J.glows || []).push(spr); } }
   J.type = type; J.K = K; J.state = { mv: 0, run: 0, jaw: 0, headYaw: 0, headPitch: 0, lean: 0.4, seed: Math.random() * 10 };
@@ -97,7 +98,7 @@ function legIK(L, tz, ty) {                         // target (z forward, y up) 
 export function poseCreature(root, c, t, dt, look) {
   const J = root.userData.J, S = J.state, K = J.K; if (!J) return; const hunting = c.state === 'hunt', moving = c.moving && c.speed > 0.05;
   S.mv += ((moving ? 1 : 0) - S.mv) * Math.min(1, dt * 7); S.run += ((hunting && moving ? 1 : 0) - S.run) * Math.min(1, dt * 5); const w = S.mv, run = S.run;
-  const lunge = c.lunge || 0; const roar = Math.max(lunge * 0.85, c.roar > 0 ? ease(Math.min(1, c.roar * 2)) * (c.roar > 0.3 ? 1 : c.roar / 0.3) : 0);
+  const lunge = c.lunge || 0; const roar = Math.max(lunge * 0.45, c.roar > 0 ? ease(Math.min(1, c.roar * 2)) * (c.roar > 0.3 ? 1 : c.roar / 0.3) : 0);
   const phase = c.phase, hipBase = 1.18 - 0.2 * run - 0.08 * (c.state === 'search' || c.state === 'check' ? 1 : 0), stepL = lerp(0.8, 1.35, run) * w, lift = lerp(0.13, 0.3, run) * w, st = lerp(0.58, 0.44, run);
   const bob = (0.035 + 0.04 * run) * w * (0.5 + 0.5 * Math.cos(4 * Math.PI * phase)), breath = Math.sin(t * 1.6 + S.seed) * 0.012 * (1 - w);
   J.pelvis.position.y = hipBase - bob + breath;
@@ -132,12 +133,12 @@ export function poseCreature(root, c, t, dt, look) {
 }
 export function creatureMaterials(type) {
   const K = KIND[type] || KIND.stalker;
-  const skin = new THREE.MeshPhysicalMaterial({ color: K.skin, vertexColors: true, roughness: 0.78, metalness: 0.0, specularIntensity: 0.2, clearcoat: 0.0, emissive: new THREE.Color(K.vein), emissiveIntensity: 1.0 });
+  const skin = new THREE.MeshPhysicalMaterial({ color: K.skin, vertexColors: true, roughness: 0.78, metalness: 0.0, specularIntensity: 0.05, clearcoat: 0.0, emissive: new THREE.Color(K.vein), emissiveIntensity: 1.0 });
   skin.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float vein; varying float vVein;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvVein = vein;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVein;').replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= vVein * 1.6;');
   };
   skin.customProgramCacheKey = () => 'creatureskin';
-  return { skin, bone: new THREE.MeshStandardMaterial({ color: 0x3a2f2a, roughness: 0.55, emissive: new THREE.Color(K.vein), emissiveIntensity: 0.12 }), eye: new THREE.MeshBasicMaterial({ color: K.eye }) };
+  return { skin, bone: new THREE.MeshStandardMaterial({ color: 0x14100e, roughness: 0.6, emissive: new THREE.Color(K.vein), emissiveIntensity: 0.12 }), eye: new THREE.MeshBasicMaterial({ color: K.eye }) };
 }
 export function ghostMaterial() { return new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: 0, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending }); }

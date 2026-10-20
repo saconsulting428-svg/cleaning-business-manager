@@ -79,7 +79,7 @@ export class World {
       if (o.type === 'prop' || (o.type === 'item' && o.taken)) continue; if (o.type === 'door' && o.hidden && !o.revealed) continue;
       const cx = o.x + 0.5, cy = o.y + 0.5, dx = cx - p.x, dy = cy - p.y, d = Math.hypot(dx, dy), reach = o.type === 'door' ? 1.55 : 1.7; if (d > reach) continue;
       const dot = (dx * f[0] + dy * f[1]) / (d || 1); if (d > 0.9 && dot < 0.5) continue;
-      const score = d - dot * 0.5; if (score < bd) { bd = score; best = o; }
+      const score = d - dot * 0.5 + (o.type === 'log' ? 1.2 : 0); if (score < bd) { bd = score; best = o; }
     }
     if (!best) return null; return this.describe(best);
   }
@@ -89,6 +89,7 @@ export class World {
       case 'door': if (o.locked) { const need = o.lock === 'key' ? 'brass key' : o.lock === 'card' ? 'keycard' : o.lock === 'power' ? 'power' : o.lock === 'code' ? 'code' : o.lock === 'valve' ? 'bulkhead valve' : 'hidden'; return { obj: o, text: o.lock === 'code' ? 'Enter code' : (o.lock === 'key' || o.lock === 'card') && p.inv[o.lock] ? 'Unlock door' : 'Locked: needs ' + need, kind: 'door' }; } return { obj: o, text: o.want ? 'Close door' : 'Open door', kind: 'door' };
       case 'item': return { obj: o, text: 'Take ' + ({ key: 'brass key', card: 'keycard', fuse: 'fuse', radio: 'radio' }[o.kind]), kind: 'item' };
       case 'note': return { obj: o, text: 'Read note', kind: 'note' };
+      case 'log': return { obj: o, text: 'Read recovered log', kind: 'log' };
       case 'locker': return { obj: o, text: 'Hide', kind: 'locker' };
       case 'vent': return { obj: o, text: 'Crawl through vent', kind: 'vent' };
       case 'generator': return { obj: o, text: o.on ? 'Generator running' : p.inv.fuse >= o.need ? 'Insert fuses and start' : 'Generator: needs ' + o.need + (o.need > 1 ? ' fuses' : ' fuse') + ' (' + p.inv.fuse + ')', kind: 'generator' };
@@ -116,6 +117,7 @@ export class World {
         } else this.openDoor(o, !o.want);
         break;
       case 'item': this.pickup(o); break;
+      case 'log': o.done = true; this.events.push({ type: 'log', level: this.spec.story === undefined ? 0 : this.spec.story }); break;
       case 'note': o.done = true; p.noteSeen = o.code; this.events.push({ type: 'note', code: o.code }); break;
       case 'locker': this.enterLocker(o); break;
       case 'vent': this.enterVent(o); break;

@@ -124,6 +124,10 @@ export function updateCreature(world, c, dt) {
     if (c.alert >= 1 && c.state !== 'hunt') { startHunt(world, c); }
     else if (c.alert > 0.35 && c.state !== 'hunt' && c.state !== 'suspicious') { if (c.state !== 'investigate') { c.state = 'suspicious'; c.wait = 0; world.events.push({ type: 'suspicious', id: c.id }); } }
   } else c.alert = Math.max(0, c.alert - dt * (c.state === 'hunt' ? 0.15 : 0.35));
+  /* a creature that walks up to the locker you hide in stops, sniffs and listens, then moves on (it only opens it if it SAW you go in) */
+  if (p.hidden < 0) c.sniffFor = null;
+  if (p.hidden >= 0 && p.alive && c.state !== 'hunt' && c.state !== 'check' && c.sniffFor !== p.hidden) { const L = world.objById.get(p.hidden); if (L && Math.hypot(L.x + 0.5 - c.x, L.y + 0.5 - c.y) < 2.4) { c.sniffFor = p.hidden; c.sniffT = 2.8 + rnd() * 1.4; world.events.push({ type: 'sniff', x: c.x, y: c.y, id: c.id }); } }
+  if (c.sniffT > 0 && c.state !== 'hunt' && c.state !== 'check') { c.sniffT -= dt; c.moving = false; const L = world.objById.get(p.hidden); if (L) c.yaw += clamp(angDiff(c.yaw, Math.atan2(L.y + 0.5 - c.y, L.x + 0.5 - c.x)), -3 * dt, 3 * dt); return; }
   if (c.spawnHunt && !c.huntStarted) { c.huntStarted = true; c.alert = 1; startHunt(world, c); c.lastSeen = { x: p.x, y: p.y }; }
 
   switch (c.state) {

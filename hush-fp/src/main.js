@@ -3,7 +3,8 @@
 import { View } from './render/view.js';
 import { World, DT, PULSE_CD } from './logic/world.js';
 import { generate, T } from './logic/gen.js';
-import { LEVELS, CHAPTERS } from './logic/levels.js';
+import { LEVELS, CHAPTERS, CH_START } from './logic/levels.js';
+import { STORY, EPILOGUE } from './logic/story.js';
 import { Sound } from './audio.js';
 import * as AI from './logic/ai.js';
 import { runBot } from './test/bot.js';
@@ -16,11 +17,12 @@ $('app').classList.toggle('touch', coarse);
 
 /* ---------------- save ---------------- */
 const KEY = 'hush.fp.v1';
-const save = { v: 1, stars: [], best: [], set: { gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, last: 0 };
-try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.v === 1) { Object.assign(save, s); save.set = Object.assign({ gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal' }, s.set || {}); } } catch (e) { /* private mode */ }
+const save = { v: 1, stars: [], best: [], logs: {}, set: { gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, last: 0 };
+try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.v === 1) { Object.assign(save, s); save.logs = save.logs || {}; save.set = Object.assign({ gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal' }, s.set || {}); } } catch (e) { /* private mode */ }
 const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } };
 const unlocked = (i) => UNLOCK || i === 0 || (save.stars[i - 1] || 0) > 0;
-const chapterStars = (c) => { let s = 0; for (let i = c * 10; i < c * 10 + 10; i++) s += save.stars[i] || 0; return s; };
+const chapterStars = (c) => { let s = 0; for (let i = CH_START[c]; i < CH_START[c + 1]; i++) s += save.stars[i] || 0; return s; };
+const chapterLogs = (c) => { let s = 0; for (let i = CH_START[c]; i < CH_START[c + 1]; i++) s += (save.logs && save.logs[i]) ? 1 : 0; return s; };
 
 /* ---------------- state ---------------- */
 const G = { view: null, world: null, level: 0, mode: 'boot', paused: false, modal: false, acc: 0, last: 0, now: 0, t0: 0, timeSpent: 0, hintT: 0, shownHint: -1, bannerT: 0, hbT: 0, lastInv: '', noiseT: 0, ended: 0, chapterView: 0, menuWorld: null, genCache: {}, over: false };
@@ -49,18 +51,18 @@ function gen(i) { return G.genCache[i] || (G.genCache[i] = generate(LEVELS[i]));
 function buildChapters() {
   const list = $('chapter-list'); list.innerHTML = '';
   CHAPTERS.forEach((c, ci) => {
-    const lock = !unlocked(ci * 10), el = document.createElement('button'); el.className = 'chap' + (G.chapterView === ci ? ' on' : '') + (lock ? ' lock' : '');
+    const lock = !unlocked(CH_START[ci]), el = document.createElement('button'); el.className = 'chap' + (G.chapterView === ci ? ' on' : '') + (lock ? ' lock' : '');
     el.style.backgroundImage = ['radial-gradient(ellipse at 50% 38%, #4a3a22 0%, #1a130b 55%, #050403 100%)', 'radial-gradient(ellipse at 50% 38%, #1d4a66 0%, #0a1a26 55%, #03070a 100%)', 'radial-gradient(ellipse at 50% 38%, #8a1a22 0%, #2a0709 55%, #060102 100%)'][ci];
-    el.innerHTML = '<i class="art"></i>' + (lock ? '<svg class="lk"><use href="#i-lock"/></svg>' : '') + '<small>Chapter ' + (ci + 1) + '</small><b>' + c.name + '</b><em><svg><use href="#i-star"/></svg>' + chapterStars(ci) + ' / 30</em>';
+    el.innerHTML = '<i class="art"></i>' + (lock ? '<svg class="lk"><use href="#i-lock"/></svg>' : '') + '<small>Chapter ' + (ci + 1) + '</small><b>' + c.name + '</b><em><svg><use href="#i-star"/></svg>' + chapterStars(ci) + ' / ' + (CH_START[ci + 1] - CH_START[ci]) * 3 + ' &nbsp;&middot;&nbsp; logs ' + chapterLogs(ci) + ' / ' + (CH_START[ci + 1] - CH_START[ci]) + '</em>';
     el.onclick = () => { if (lock) return Sound.play('denied'); Sound.play('ui'); G.chapterView = ci; buildLevels(); show('levels'); }; list.appendChild(el);
   });
 }
 function buildLevels() {
   const tabs = $('level-tabs'), grid = $('level-grid'); tabs.innerHTML = ''; grid.innerHTML = '';
-  CHAPTERS.forEach((c, ci) => { const b = document.createElement('button'), lock = !unlocked(ci * 10); b.className = 'tab' + (ci === G.chapterView ? ' on' : '') + (lock ? ' lock' : ''); b.innerHTML = (lock ? '<svg><use href="#i-lock"/></svg>' : '') + 'Chapter ' + (ci + 1); b.onclick = () => { if (lock) return; G.chapterView = ci; buildLevels(); }; tabs.appendChild(b); });
-  for (let i = G.chapterView * 10; i < G.chapterView * 10 + 10; i++) {
+  CHAPTERS.forEach((c, ci) => { const b = document.createElement('button'), lock = !unlocked(CH_START[ci]); b.className = 'tab' + (ci === G.chapterView ? ' on' : '') + (lock ? ' lock' : ''); b.innerHTML = (lock ? '<svg><use href="#i-lock"/></svg>' : '') + 'Chapter ' + (ci + 1); b.onclick = () => { if (lock) return; G.chapterView = ci; buildLevels(); }; tabs.appendChild(b); });
+  for (let i = CH_START[G.chapterView]; i < CH_START[G.chapterView + 1]; i++) {
     const lock = !unlocked(i), g = gen(i), b = document.createElement('button'); b.className = 'lv' + (lock ? ' lock' : '') + (i === save.last && !lock ? ' on' : ''); b.appendChild(thumb(g, lock));
-    const st = save.stars[i] || 0; b.insertAdjacentHTML('beforeend', '<b>' + (i - G.chapterView * 10 + 1) + '</b><span class="nm">' + LEVELS[i].name + '</span>' + (lock ? '<svg class="lk"><use href="#i-lock"/></svg>' : '<span class="st">' + [0, 1, 2].map(k => '<svg class="' + (k < st ? 'f' : '') + '"><use href="#i-star"/></svg>').join('') + '</span>'));
+    const st = save.stars[i] || 0; b.insertAdjacentHTML('beforeend', '<b>' + (i - CH_START[G.chapterView] + 1) + '</b><span class="nm">' + LEVELS[i].name + '</span>' + (lock ? '<svg class="lk"><use href="#i-lock"/></svg>' : '<span class="st">' + [0, 1, 2].map(k => '<svg class="' + (k < st ? 'f' : '') + '"><use href="#i-star"/></svg>').join('') + '</span>'));
     b.onclick = () => { if (lock) return Sound.play('denied'); Sound.play('ui'); startLevel(i); }; grid.appendChild(b);
   }
 }
@@ -69,7 +71,7 @@ function buildLevels() {
 function setLoading(on, text, pct) { overlay('load', on); if (text) $('load-text').textContent = text; if (pct !== undefined) $('load-bar').style.width = pct + '%'; }
 function nextFrame() { return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))); }
 async function startLevel(i) {
-  setLoading(true, 'Entering ' + LEVELS[i].name, 20); ['pause', 'win', 'dead', 'note', 'keypad', 'settings', 'how', 'credits', 'inv', 'obj'].forEach(o => overlay(o, false)); await nextFrame();
+  setLoading(true, 'Entering ' + LEVELS[i].name, 20); ['pause', 'win', 'dead', 'note', 'log', 'keypad', 'settings', 'how', 'credits', 'inv', 'obj'].forEach(o => overlay(o, false)); await nextFrame();
   G.level = i; save.last = i; persist(); G.chapterView = LEVELS[i].ch; const w = new World(gen(i), { diff: save.set.diff }); G.world = w; setLoading(true, null, 55); await nextFrame(); G.view.loadLevel(w); setLoading(true, null, 95); await nextFrame();
   G.mode = 'game'; show('game'); G.paused = false; G.modal = false; G.over = false; G.ended = 0; G.timeSpent = 0; G.acc = 0; G.hintT = 8; G.shownHint = -1; G.lastInv = ''; G.menu = false; inp.sprintBtn = false; $('b-sprint').classList.remove('on');
   $('hint').textContent = save.set.hints ? LEVELS[i].hint : ''; $('hint').classList.toggle('show', save.set.hints); G.chapterAudio = LEVELS[i].ch; applyAudio(); Sound.unlock(); buildHotbar(true);
@@ -81,11 +83,11 @@ function winLevel() {
   const w = G.world; G.over = true; const t = G.timeSpent, par = w.gen.par; let stars = 1; if (w.huntCount <= 1) stars++; if (w.huntCount === 0 && t <= par * 1.25) stars++;
   const prev = save.stars[G.level] || 0; if (stars > prev) save.stars[G.level] = stars; if (!save.best[G.level] || t < save.best[G.level]) save.best[G.level] = Math.round(t); persist();
   Sound.play('win'); $('win-stars').innerHTML = [0, 1, 2].map(k => '<svg class="' + (k < stars ? 'f' : '') + '"><use href="#i-star"/></svg>').join(''); $('win-info').textContent = 'Time ' + fmt(t) + ' · par ' + fmt(par) + ' · ' + (w.huntCount ? 'hunted ' + w.huntCount + '×' : 'never seen');
-  $('w-next').style.display = G.level + 1 < LEVELS.length ? '' : 'none'; setTimeout(() => { overlay('win', true); if (document.pointerLockElement) document.exitPointerLock(); }, 900); G.winStars = stars;
+  $('w-next').style.display = G.level + 1 < LEVELS.length ? '' : 'none'; setTimeout(() => { overlay('win', true); if (document.pointerLockElement) document.exitPointerLock(); }, 900); G.winStars = stars; if (G.level === LEVELS.length - 1) { $('win-info').textContent = EPILOGUE; $('win-title').textContent = 'The end'; } else $('win-title').textContent = 'Escaped';
 }
 const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 function loseLevel() { G.over = true; vibe([80, 60, 160]); setTimeout(() => { overlay('dead', true); if (document.pointerLockElement) document.exitPointerLock(); }, 1700); }
-function toMenu() { ['pause', 'win', 'dead', 'note', 'keypad', 'inv', 'obj'].forEach(o => overlay(o, false)); G.mode = 'home'; G.world = null; startMenuScene(); show('home'); Sound.scene({ menu: true }); }
+function toMenu() { ['pause', 'win', 'dead', 'note', 'log', 'keypad', 'inv', 'obj'].forEach(o => overlay(o, false)); G.mode = 'home'; G.world = null; startMenuScene(); show('home'); Sound.scene({ menu: true }); }
 
 /* ---------------- menu scene: the first corridor, something far down it ---------------- */
 async function startMenuScene() {
@@ -125,7 +127,7 @@ function hud(w, dt) {
 
 
 /* ---------------- sonar markers + threat direction ---------------- */
-const MARKC = { item: '#ffd070', exit: '#3dff8a', door: '#ff8a5a', generator: '#ffcc22', valve: '#ff5533', note: '#fff0b0', locker: '#9ad', vent: '#9ad' };
+const MARKC = { item: '#ffd070', exit: '#3dff8a', door: '#ff8a5a', generator: '#ffcc22', valve: '#ff5533', note: '#fff0b0', log: '#46ff9a', locker: '#9ad', vent: '#9ad' };
 let marksOn = false;
 function drawMarks(w) {
   const cv = $('marks'), v = G.view, p = w.player; if (!cv || !v) return; const r = cv.getBoundingClientRect(), W = Math.round(r.width), H = Math.round(r.height); if (!W) return;
@@ -155,7 +157,7 @@ function drawInv() {
   ['flash', 'pulse', 'card', 'key', 'fuse', 'radio'].forEach(k => { const b = document.createElement('button'); b.className = 'iv' + (k === invSel ? ' sel' : '') + (k !== 'flash' && !cnt[k] ? ' empty' : ''); b.innerHTML = '<svg><use href="#' + (k === 'pulse' ? 'i-pulse' : ICON[k]) + '"/></svg><span>' + INVINFO[k][0] + '</span>' + (k === 'flash' ? '<i>' + (cnt.flash ? 'ON' : 'OFF') + '</i>' : '<i>' + cnt[k] + '</i>'); b.onclick = () => { invSel = k; Sound.play('ui'); drawInv(); }; g.appendChild(b); });
   $('inv-desc').textContent = INVINFO[invSel][0] + ' - ' + INVINFO[invSel][1]; const u = $('inv-use'); u.hidden = !(invSel === 'flash' || (invSel === 'radio' && inv.radio > 0)); u.textContent = invSel === 'flash' ? (w.player.flash ? 'Switch off' : 'Switch on') : 'Use radio';
 }
-function drawObj() { const o = G.world.objective(), l = $('obj-list'); l.innerHTML = ''; let cur = true; o.steps.forEach(st => { const li = document.createElement('li'); li.className = st.done ? 'done' : cur ? 'cur' : ''; if (!st.done) cur = false; li.innerHTML = '<svg><use href="#' + (st.done ? 'i-check' : 'i-bulb') + '"/></svg><span></span>'; li.lastChild.textContent = st.text; l.appendChild(li); }); $('obj-hint').textContent = 'Hint: ' + LEVELS[G.level].hint; }
+function drawObj() { const o = G.world.objective(), l = $('obj-list'); l.innerHTML = ''; let cur = true; o.steps.forEach(st => { const li = document.createElement('li'); li.className = st.done ? 'done' : cur ? 'cur' : ''; if (!st.done) cur = false; li.innerHTML = '<svg><use href="#' + (st.done ? 'i-check' : 'i-bulb') + '"/></svg><span></span>'; li.lastChild.textContent = st.text; l.appendChild(li); }); const lg = G.world.objs.find(o => o.type === 'log'); if (lg) { const li = document.createElement('li'); li.className = lg.done ? 'done' : ''; li.innerHTML = '<svg><use href="#' + (lg.done ? 'i-check' : 'i-book') + '"/></svg><span></span>'; li.lastChild.textContent = 'Optional: find the recovered log' + (lg.done ? ' (read)' : ''); l.appendChild(li); } $('obj-hint').textContent = 'Hint: ' + LEVELS[G.level].hint; }
 for (const [id, pn] of [['b-bag', 'inv'], ['obj', 'obj']]) $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); panel(pn, true); });
 $('inv-use').onclick = () => { const k = invSel; panel('inv', false); if (k === 'flash') inp.edge.flash = true; else inp.edge.radio = true; };
 qa('[data-pclose]').forEach(b => { b.onclick = () => { Sound.play('ui'); panel(b.getAttribute('data-pclose'), false); }; });
@@ -181,9 +183,11 @@ function handleEvents(w, dt) {
       case 'radio': Sound.play('radio'); break;
       case 'radioburst': { const s = spatial(e.x, e.y); if (s.d < 22) Sound.play('radio'); break; }
       case 'reveal': Sound.play('unlock'); break;
+      case 'log': { const st = STORY[e.level] || ['Log', '...']; $('log-title').textContent = st[0]; $('log-text').textContent = st[1]; if (!save.logs[e.level]) { save.logs[e.level] = 1; persist(); } G.modal = true; overlay('log', true); Sound.play('ui'); if (document.pointerLockElement) document.exitPointerLock(); break; }
       case 'note': $('note-code').textContent = e.code; G.modal = true; overlay('note', true); if (document.pointerLockElement) document.exitPointerLock(); break;
       case 'keypad': openKeypad(e.id); break;
       case 'heard': { const s = spatial(e.x, e.y); if (s.d < 20) { Sound.play('heard'); banner('IT HEARD THAT', 'heard', 1500); } break; }
+      case 'sniff': { const sp = spatial(e.x, e.y); Sound.play('breath', { v: Math.max(0.5, sp.v), pan: sp.pan }); setTimeout(() => Sound.play('growl', { v: 0.4, pan: sp.pan, kind: 'stalker' }), 900); break; }
       case 'suspicious': Sound.play('notice'); banner('SUSPICIOUS', 'sus', 1800); break;
       case 'hunt': { const s = spatial(e.x, e.y); Sound.play('hunt'); Sound.play('roar', { v: Math.max(0.35, s.v), pan: s.pan, kind: w.creatures[e.id].t }); banner('IT SEES YOU!', 'seen', 2400); vibe([60, 40, 60]); G.view.shake = 0.5; break; }
       case 'lost': Sound.play('lost'); banner('IT LOST YOU', 'heard', 1500); break;
@@ -193,6 +197,14 @@ function handleEvents(w, dt) {
     }
   }
   /* heartbeat and breathing follow the threat */
+  /* scare director: psychological beats while nothing is chasing you (visual and audio only, no effect on the rules) */
+  G.dirT = (G.dirT === undefined ? 20 + Math.random() * 15 : G.dirT) - dt;
+  if (G.dirT <= 0 && p.alive && p.hidden < 0 && !p.vent && w.threat < 0.5 && !w.creatures.some(c => c.state === 'hunt')) {
+    G.dirT = 28 + Math.random() * 30; const r = Math.random(), pan = Math.random() * 2 - 1;
+    if (r < 0.3) { G.view.blackout(1.1 + Math.random() * 0.8); Sound.duck && Sound.duck(); setTimeout(() => Sound.play('thump', { pan }), 1200); }
+    else if (r < 0.6) { Sound.play('thump', { pan }); setTimeout(() => Sound.play('creak', { pan }), 700 + Math.random() * 900); }
+    else { const yaw = p.yaw; let spot = null; for (let d = 16; d >= 9 && !spot; d -= 1) for (const da of [0, 0.12, -0.12, 0.25, -0.25]) { const x = p.x + Math.cos(yaw + da) * d, y = p.y + Math.sin(yaw + da) * d, k = Math.floor(y) * w.W + Math.floor(x); if (w.cells[k] !== 0 && !w.solid.has(k) && AI.lineOfSight(w, p.x, p.y, x, y)) { spot = [x, y]; break; } } if (spot) { G.view.flashEyes(spot[0] * 2, spot[1] * 2, 1.7); Sound.play('growl', { v: 0.25, pan: 0, kind: 'stalker' }); } else G.dirT = 6; }
+  }
   hbTimer -= dt; if (w.threat > 0.35 && hbTimer <= 0 && p.alive) { hbTimer = 1.05 - 0.55 * w.threat; Sound.play('heart', { v: Math.min(1, w.threat * 1.2) }); if (w.threat > 0.8 && Math.random() < 0.3) vibe(25); }
   const nearGen = w.gens.find(g => g.on); Sound.scene({ chapter: LEVELS[G.level].ch, threat: w.threat, hunted: w.creatures.some(c => c.state === 'hunt'), gen: nearGen ? clamp(1 - Math.hypot(nearGen.x - p.x, nearGen.y - p.y) / 22, 0, 1) : 0, genPan: nearGen ? spatial(nearGen.x + 0.5, nearGen.y + 0.5).pan : 0, paused: G.paused });
   Sound.tick(dt, LEVELS[G.level].ch, w.threat > 0.5);
@@ -203,6 +215,7 @@ let kpDoor = null, kpCode = '';
 function openKeypad(id) { kpDoor = id; kpCode = ''; $('kp-screen').textContent = '----'; G.modal = true; overlay('keypad', true); if (document.pointerLockElement) document.exitPointerLock(); }
 (function () { const g = $('kp-grid'); ['1', '2', '3', '4', '5', '6', '7', '8', '9', '<', '0', 'OK'].forEach(k => { const b = document.createElement('button'); b.textContent = k; b.onclick = () => { Sound.play('ui'); if (k === '<') kpCode = kpCode.slice(0, -1); else if (k === 'OK') { if (kpCode.length === 4 && G.world.enterCode(kpDoor, kpCode)) { overlay('keypad', false); G.modal = false; if (!coarse) lockPointer(); return; } kpCode = ''; } else if (kpCode.length < 4) kpCode += k; $('kp-screen').textContent = (kpCode + '----').slice(0, 4); }; g.appendChild(b); }); })();
 $('kp-cancel').onclick = () => { overlay('keypad', false); G.modal = false; G.world.keypad = null; if (!coarse) lockPointer(); };
+$('log-ok').onclick = () => { overlay('log', false); G.modal = false; if (!coarse) lockPointer(); };
 $('note-ok').onclick = () => { overlay('note', false); G.modal = false; if (!coarse) lockPointer(); };
 
 /* ---------------- input ---------------- */
@@ -218,7 +231,7 @@ document.addEventListener('pointerlockchange', () => { if (G.mode === 'game' && 
 document.addEventListener('mousemove', (e) => { if (!document.pointerLockElement || G.paused || G.modal) return; const s = 0.0022 * save.set.sens / 100; inp.dyaw += e.movementX * s; inp.dpitch += -e.movementY * s * (save.set.inv ? -1 : 1); });
 $('view').addEventListener('mousedown', (e) => { if (G.mode === 'game' && !G.paused && !G.modal && !coarse && !G.over) { if (document.pointerLockElement) { const r = $('view').getBoundingClientRect(); tapAt(r.left + r.width / 2, r.top + r.height / 2); } else lockPointer(); } });
 /* tap or click a thing to use it: the object nearest the tap on screen, within reach (doors, lockers, items, vents, generator, valve, exit) */
-const REACH_H = { door: 1.3, locker: 1.0, item: 0.95, generator: 0.9, valve: 1.2, note: 0.1, vent: 0.55, exit: 1.3 };
+const REACH_H = { door: 1.3, locker: 1.0, item: 0.95, generator: 0.9, valve: 1.2, note: 0.1, log: 1.1, vent: 0.55, exit: 1.3 };
 function tapAt(cx, cy) {
   const w = G.world, v = G.view; if (!w || G.paused || G.modal || G.over || !w.player.alive) return false; const p = w.player;
   if (p.hidden >= 0) { inp.edge.interact = true; return true; }
@@ -259,7 +272,7 @@ press('b-pulse', () => { inp.edge.pulse = true; }); press('b-crouch', () => { in
 $('b-pause').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); pause(true); });
 
 /* ---------------- menu wiring ---------------- */
-$('m-play').onclick = () => { landscape(); Sound.play('ui'); buildChapters(); show('chapters'); }; $('m-levels').onclick = () => { Sound.play('ui'); G.chapterView = Math.min(2, Math.floor(save.last / 10)); buildLevels(); show('levels'); };
+$('m-play').onclick = () => { landscape(); Sound.play('ui'); buildChapters(); show('chapters'); }; $('m-levels').onclick = () => { Sound.play('ui'); G.chapterView = LEVELS[Math.min(save.last, LEVELS.length - 1)].ch; buildLevels(); show('levels'); };
 $('m-settings').onclick = () => { Sound.play('ui'); openSettings(); }; $('m-how').onclick = () => { Sound.play('ui'); overlay('how', true); }; $('m-credits').onclick = () => { Sound.play('ui'); overlay('credits', true); };
 $('m-exit').onclick = () => { Sound.play('ui'); try { window.close(); } catch (e) { /* ignore */ } toMenu(); };
 qa('[data-go]').forEach(b => { b.onclick = () => { Sound.play('ui'); const g = b.getAttribute('data-go'); if (g === 'chapters') buildChapters(); show(g); }; });

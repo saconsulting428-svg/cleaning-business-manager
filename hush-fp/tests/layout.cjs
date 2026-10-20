@@ -1,7 +1,7 @@
 /* HUD layout on common Android viewports: nothing off-screen, touch targets >= 44 px, no overlaps between HUD controls, centre of the view stays free. */
 const { chromium } = require('/opt/node-tools/node_modules/playwright'); const path = require('path');
 (async () => {
-  const file = path.resolve(__dirname, '../' + (process.env.BUILD || 'HUSH-FP-v3.html')); let ok = 0, bad = 0; const t = (n, c, d) => { c ? ok++ : bad++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : '  ' + JSON.stringify(d))); };
+  const file = path.resolve(__dirname, '../' + (process.env.BUILD || 'HUSH-FP-v4.html')); let ok = 0, bad = 0; const t = (n, c, d) => { c ? ok++ : bad++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : '  ' + JSON.stringify(d))); };
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const sizes = [[640, 360], [720, 360], [780, 360], [851, 393], [915, 412], [960, 540], [1024, 600]];
   for (const [w, h] of sizes) {

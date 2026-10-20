@@ -2,7 +2,7 @@
    keyboard, death -> retry, win -> next level, keypad and note overlays. */
 const { chromium } = require('/opt/node-tools/node_modules/playwright'); const path = require('path');
 (async () => {
-  const file = path.resolve(__dirname, '../' + (process.env.BUILD || 'HUSH-FP-v3.html')); let ok = 0, bad = 0; const t = (n, c, d) => { c ? ok++ : bad++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : '  ' + (d === undefined ? '' : JSON.stringify(d)))); };
+  const file = path.resolve(__dirname, '../' + (process.env.BUILD || 'HUSH-FP-v4.html')); let ok = 0, bad = 0; const t = (n, c, d) => { c ? ok++ : bad++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : '  ' + (d === undefined ? '' : JSON.stringify(d)))); };
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const ctx = await b.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: false }); const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
   const open = async (q) => { await p.goto('file://' + file + '?test=1' + (q || '')); await p.waitForFunction(() => window.HUSH && window.HUSH.G.mode === 'home', null, { timeout: 90000 }); };
@@ -11,7 +11,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright'); const p
   await open(); await p.evaluate(() => localStorage.clear()); await open();
   t('title screen is shown', await vis('scr-home')); t('gate overlay is skipped in test mode', !(await vis('ov-gate')));
   await p.click('#m-play'); t('PLAY opens chapter selection', await vis('scr-chapters')); t('three chapters listed', await p.evaluate(() => document.querySelectorAll('#chapter-list .chap').length) === 3); t('chapters 2 and 3 are locked at first', await p.evaluate(() => document.querySelectorAll('#chapter-list .chap.lock').length) === 2);
-  await p.click('#chapter-list .chap:nth-child(1)'); t('chapter opens level selection', await vis('scr-levels')); t('ten levels in a chapter, only 1 playable', await p.evaluate(() => [document.querySelectorAll('#level-grid .lv').length, document.querySelectorAll('#level-grid .lv:not(.lock)').length]).then(a => a[0] === 10 && a[1] === 1));
+  await p.click('#chapter-list .chap:nth-child(1)'); t('chapter opens level selection', await vis('scr-levels')); t('13 levels in chapter 1, only 1 playable', await p.evaluate(() => [document.querySelectorAll('#level-grid .lv').length, document.querySelectorAll('#level-grid .lv:not(.lock)').length]).then(a => a[0] === 13 && a[1] === 1));
   await p.click('#level-grid .lv:nth-child(1)'); await inGame(); t('level 1 starts in the game screen', await vis('scr-game')); t('objective shown', (await p.textContent('#obj-text')).length > 3);
   /* keyboard */
   const pos0 = await p.evaluate(() => [HUSH.world().player.x, HUSH.world().player.y]); await p.keyboard.down('KeyW'); await p.waitForFunction((a) => Math.hypot(HUSH.world().player.x - a[0], HUSH.world().player.y - a[1]) > 0.6, pos0, { timeout: 15000 }).catch(() => {}); await p.keyboard.up('KeyW'); const pos1 = await p.evaluate(() => [HUSH.world().player.x, HUSH.world().player.y]); t('W key moves the player', Math.hypot(pos1[0] - pos0[0], pos1[1] - pos0[1]) > 0.4, [pos0, pos1]);
@@ -52,7 +52,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright'); const p
   await p.evaluate(() => { HUSH.world().god = true; HUSH.runBot(300); }); await p.waitForFunction(() => document.getElementById('ov-win').classList.contains('show'), null, { timeout: 8000 }); t('finishing the level shows the Escaped screen with stars', await p.evaluate(() => document.querySelectorAll('#win-stars svg.f').length) >= 1);
   await p.click('#w-next'); await inGame(); t('Next level loads level 2', await p.evaluate(() => HUSH.G.level === 1)); t('level 2 unlocked in the save', await p.evaluate(() => HUSH.save.stars[0] >= 1));
   /* keypad + note overlays through the real logic on a code level */
-  await p.evaluate(() => HUSH.startLevel(25)); await inGame();
+  await p.evaluate(() => HUSH.startLevel(7)); await inGame();
   const code = await p.evaluate(() => { const w = HUSH.world(); const d = w.objs.find(o => o.type === 'door' && o.lock === 'code'); const n = w.objs.find(o => o.type === 'note'); const p = w.player; p.x = n.x + 0.5; p.y = n.y + 1.1; p.yaw = -Math.PI / 2; w.update(1 / 30, {}); w.interact(); HUSH.step(2, {}); return { d: d.id, code: n.code, shown: document.getElementById('ov-note').classList.contains('show'), text: document.getElementById('note-code').textContent }; });
   t('reading a note shows the code', code.shown && code.text === code.code, code); await p.click('#note-ok');
   await p.evaluate((id) => { const w = HUSH.world(); const d = w.objById.get(id); w.player.x = d.x + 0.5 - (d.dir === 'x' ? 1.2 : 0); w.player.y = d.y + 0.5 - (d.dir === 'y' ? 1.2 : 0); w.player.yaw = d.dir === 'x' ? 0 : Math.PI / 2; HUSH.step(2, {}); w.interact(); HUSH.step(2, {}); }, code.d); t('using a code door opens the keypad', await vis('ov-keypad'));
