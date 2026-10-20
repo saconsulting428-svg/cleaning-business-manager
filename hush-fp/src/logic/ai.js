@@ -176,8 +176,8 @@ export function updateCreature(world, c, dt) {
       if (p.hidden >= 0 && !seen && c.knowsLocker >= 0) { c.lastSeen = null; }
       const near = Math.hypot(gx - c.x, gy - c.y);
       if (seen && dist < 0.85 && p.alive) { world.catchPlayer(c); break; }
-      if (near > 0.5) goTo(world, c, gx, gy, dt, k.hunt * world.diff.speed, 0.25); else { c.moving = false; if (!seen) { c.state = c.knowsLocker >= 0 ? 'search' : 'search'; c.searchT = 7; c.searchOrigin = { x: c.x, y: c.y }; c.target = null; c.path = null; if (c.knowsLocker >= 0) { const L = world.objById.get(c.knowsLocker); if (L) { c.checkLocker = L; c.target = { x: L.x + 0.5 + Math.cos(L.face) * 0.9, y: L.y + 0.5 + Math.sin(L.face) * 0.9 }; } } } }
-      if (c.lostT > 4.2) { c.state = 'search'; c.searchT = 7; c.searchOrigin = c.lastSeen ? { x: c.lastSeen.x, y: c.lastSeen.y } : { x: c.x, y: c.y }; c.target = null; c.path = null; }
+      if (near > 0.5) { goTo(world, c, gx, gy, dt, k.hunt * world.diff.speed, 0.25); c.noPathT = c.path ? 0 : (c.noPathT || 0) + dt; } else { c.moving = false; if (!seen) { c.state = c.knowsLocker >= 0 ? 'search' : 'search'; c.searchT = 7; c.searchOrigin = { x: c.x, y: c.y }; c.target = null; c.path = null; if (c.knowsLocker >= 0) { const L = world.objById.get(c.knowsLocker); if (L) { c.checkLocker = L; c.target = { x: L.x + 0.5 + Math.cos(L.face) * 0.9, y: L.y + 0.5 + Math.sin(L.face) * 0.9 }; } } } }
+      if (c.lostT > 4.2 || c.noPathT > 3) { c.noPathT = 0; c.state = 'search'; c.searchT = 7; c.searchOrigin = c.lastSeen ? { x: c.lastSeen.x, y: c.lastSeen.y } : { x: c.x, y: c.y }; c.target = null; c.path = null; }
       break;
     }
   }

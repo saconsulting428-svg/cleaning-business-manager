@@ -127,3 +127,10 @@ button.obj { font: inherit; color: inherit; text-align: left; cursor: pointer; t
 .logcard { width: min(92vw, 520px); max-height: calc(100% - 20px); overflow-y: auto; padding: 18px 22px; background: rgba(2,12,6,.94); border: 1px solid #1f6b43; border-radius: 4px; box-shadow: 0 0 40px rgba(40,255,140,.18), 0 12px 50px #000; color: #8dffc0; font-family: ui-monospace, Menlo, Consolas, monospace; display: grid; gap: 10px; }
 .logcard small { letter-spacing: .3em; color: #3dd68a; font-size: 11px; } .logcard h4 { margin: 0; font-size: 18px; color: #d5ffe8; letter-spacing: .04em; } .logcard p { margin: 0; font-size: 15px; line-height: 1.55; } .logcard .btn { justify-self: end; }
 .grid { overflow-y: auto; grid-auto-rows: minmax(104px, 1fr); }
+
+/* v6: the whole app is a game surface: no browser pan/zoom gestures on touch */
+html, body, #app, #view, .screen, .overlay { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+button { touch-action: manipulation; } .hud button, .hud .act, .stick { touch-action: none; }
+.grid, .card.wide, .logcard { touch-action: pan-y; }
+/* v6: the objective chip must never run into the noise meter, whatever the objective text */
+@media (orientation: landscape) { .obj, button.obj { max-width: calc(50vw - min(150px, 19vw) - 24px); } .obj b { white-space: normal; overflow-wrap: anywhere; } }

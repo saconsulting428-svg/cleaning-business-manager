@@ -2,7 +2,7 @@
    keyboard, death -> retry, win -> next level, keypad and note overlays. */
 const { chromium } = require('/opt/node-tools/node_modules/playwright'); const path = require('path');
 (async () => {
-  const file = path.resolve(__dirname, '../' + (process.env.BUILD || 'HUSH-FP-v5.html')); let ok = 0, bad = 0; const t = (n, c, d) => { c ? ok++ : bad++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : '  ' + (d === undefined ? '' : JSON.stringify(d)))); };
+  const file = path.resolve(__dirname, '../' + (process.env.BUILD || 'HUSH-FP-test.html')); let ok = 0, bad = 0; const t = (n, c, d) => { c ? ok++ : bad++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : '  ' + (d === undefined ? '' : JSON.stringify(d)))); };
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const ctx = await b.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: false }); const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
   const open = async (q) => { await p.goto('file://' + file + '?test=1' + (q || '')); await p.waitForFunction(() => window.HUSH && window.HUSH.G.mode === 'home', null, { timeout: 90000 }); };

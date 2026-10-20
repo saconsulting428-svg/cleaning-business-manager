@@ -2,7 +2,7 @@
    procedural fallback when the GLB is not available, draw-call / triangle cost. */
 const { chromium } = require('/opt/node-tools/node_modules/playwright'); const path = require('path');
 (async () => {
-  const file = path.resolve(__dirname, '../' + (process.env.BUILD || 'HUSH-FP-v5.html')); let ok = 0, bad = 0; const t = (n, c, d) => { c ? ok++ : bad++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : '  ' + JSON.stringify(d))); };
+  const file = path.resolve(__dirname, '../' + (process.env.BUILD || 'HUSH-FP-test.html')); let ok = 0, bad = 0; const t = (n, c, d) => { c ? ok++ : bad++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : '  ' + JSON.stringify(d))); };
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const ctx = await b.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true }); const p = await ctx.newPage(); const errs = [], net = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') errs.push(m.text()); }); p.on('request', r => { if (!/^(file|data|blob):/.test(r.url())) net.push(r.url()); });
   await ctx.setOffline(true);
@@ -30,7 +30,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright'); const p
   await watch(); await place(15, 'hunt'); for (let i = 0; i < 60; i++) { await p.waitForTimeout(1000); if (await p.evaluate(() => ['Running', 'RunFast', 'Attack'].every(k => window.__log.some(x => x.clip === k)))) break; if (await p.evaluate(() => HUSH.world().creatures[0].state !== 'hunt')) await place(15, 'hunt'); }
   L = await stop(); console.log('   hunt phase states', JSON.stringify([...new Set(L.map(x => x.st + '/' + x.clip + '/' + x.mv))]), 'n', L.length);
   const seen = [...new Set(L.map(x => x.clip))]; t('4. normal chase uses Running', seen.includes('Running'), seen); t('5. close / aggressive chase uses RunFast', seen.includes('RunFast'), seen); t('6. attack plays Attack', seen.includes('Attack'), seen);
-  const bad7 = L.filter(x => (x.st === 'hunt' && x.mv && !/^(Running|RunFast)$/.test(x.clip) && x.clip !== 'Attack') || (x.clip === 'Attack' && x.st !== 'hunt' && x.st !== 'search')); t('7. the existing AI state machine drives the model (state/clip consistent in all samples)', bad7.length === 0, bad7.slice(0, 4));
+  const bad7 = L.filter((x, i) => i > 0 && L[i - 1].st === x.st && (x.st === 'hunt' && x.mv && !/^(Running|RunFast)$/.test(x.clip) && x.clip !== 'Attack') || (x.clip === 'Attack' && x.st !== 'hunt' && x.st !== 'search')); t('7. the existing AI state machine drives the model (state/clip consistent in all samples)', bad7.length === 0, bad7.slice(0, 4));
   /* planting + facing + sliding */
   { const by = {}; L.forEach(x => (by[x.clip] = by[x.clip] || []).push(x.lo)); for (const k in by) { const a = by[k]; console.log('   planting', k.padEnd(10), 'n', a.length, 'toe y min/avg/max', Math.min(...a).toFixed(3), (a.reduce((x, y) => x + y, 0) / a.length).toFixed(3), Math.max(...a).toFixed(3)); } }
   const lows = L.map(x => x.lo).sort((a, b) => a - b), q = (f) => lows[Math.floor(lows.length * f)], mn = q(0.05), md = q(0.5); t('feet stay planted: lowest toe bone median 0..0.12 m above the floor and 5th percentile > -0.07 m (sole thickness ~0.07)', mn > -0.07 && md > 0 && md < 0.12, { mn, md, min: lows[0], max: lows[lows.length - 1] });

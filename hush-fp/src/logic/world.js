@@ -33,7 +33,8 @@ export class World {
     const d = this.doorAt.get(i); if (d) return d.open < 0.7 || (d.hidden && !d.revealed); return this.solid.has(i);
   }
   pickRoamRoom(c) {
-    const seen = reachFrom(this, c.x, c.y), cand = this.rooms.filter(r => seen.has(r.cy * this.W + r.cx) || seen.has((r.cy + 1) * this.W + r.cx)); let far = cand.filter(r => Math.hypot(r.cx - c.x, r.cy - c.y) > 6); if (this.time < 40) { const q = far.filter(r => Math.hypot(r.cx - this.player.x, r.cy - this.player.y) > 10); if (q.length) far = q; }   // nothing wanders into the start room in the first seconds
+    const seen = reachFrom(this, c.x, c.y), cand = this.rooms.filter(r => { for (let y = r.y0; y < r.y0 + r.h; y++) for (let x = r.x0; x < r.x0 + r.w; x++) if (seen.has(y * this.W + x)) return true; return false; });   // any reachable tile counts (the centre is usually a landmark prop)
+     let far = cand.filter(r => Math.hypot(r.cx - c.x, r.cy - c.y) > 6); if (this.time < 40) { const q = far.filter(r => Math.hypot(r.cx - this.player.x, r.cy - this.player.y) > 10); if (q.length) far = q; }   // nothing wanders into the start room in the first seconds
     const list = far.length ? far : cand.length ? cand : this.rooms; return list[Math.floor(this.rnd() * list.length)];
   }
   gateOpen(k) { const d = this.objs.find(o => o.type === 'door' && o.gate === k); return !d.locked; }
@@ -127,14 +128,14 @@ export class World {
     }
   }
   enterCode(doorId, code) { const d = this.objById.get(doorId); if (!d || !this.keypad) return false; if (String(code) === d.code) { d.codeOk = true; this.keypad = null; this.refreshLocks(); this.openDoor(d, true); this.events.push({ type: 'unlock', x: d.x + 0.5, y: d.y + 0.5 }); return true; } this.events.push({ type: 'denied', text: 'Wrong code' }); emitNoise(this, d.x + 0.5, d.y + 0.5, 4, 'keypad'); return false; }
-  pickup(o) { o.taken = true; this.player.inv[o.kind]++; this.events.push({ type: 'pickup', kind: o.kind, x: o.x + 0.5, y: o.y + 0.5 }); }
+  pickup(o) { if (o.taken) return; o.taken = true; this.player.inv[o.kind]++; this.events.push({ type: 'pickup', kind: o.kind, x: o.x + 0.5, y: o.y + 0.5 }); }
   enterLocker(L) {
     const p = this.player; p.hidden = L.id; p.x = L.x + 0.5 - Math.cos(L.face) * 0.15; p.y = L.y + 0.5 - Math.sin(L.face) * 0.15; p.px = p.x; p.py = p.y; p.yaw = L.face; p.vx = p.vy = 0; p.hideT = 0; p.crouch = false;
     this.events.push({ type: 'hide', x: L.x + 0.5, y: L.y + 0.5 }); emitNoise(this, L.x + 0.5, L.y + 0.5, 2.2, 'locker');
     /* creatures that are hunting and can see the locker door remember where you went */
     for (const c of this.creatures) if (c.state === 'hunt' && Math.hypot(c.x - L.x, c.y - L.y) < 6.5 && lineOfSight(this, c.x, c.y, L.x + 0.5, L.y + 0.5)) c.knowsLocker = L.id;
   }
-  leaveLocker() { const p = this.player, L = this.objById.get(p.hidden); if (!L) return; p.hidden = -1; p.x = L.x + 0.5 + Math.cos(L.face) * 0.62; p.y = L.y + 0.5 + Math.sin(L.face) * 0.62; p.px = p.x; p.py = p.y; this.events.push({ type: 'hide', x: p.x, y: p.y, out: true }); }
+  leaveLocker() { const p = this.player, L = this.objById.get(p.hidden); if (!L) return; p.hidden = -1; p.x = L.x + 0.5 + Math.cos(L.face) * 0.9; p.y = L.y + 0.5 + Math.sin(L.face) * 0.9; p.px = p.x; p.py = p.y; this.events.push({ type: 'hide', x: p.x, y: p.y, out: true }); }
   enterVent(v) {
     const p = this.player, pr = this.objById.get(v.pair); if (!pr) return;
     p.vent = { t: 0, dur: 2.4, from: v, to: pr }; this.events.push({ type: 'vent', x: v.x + 0.5, y: v.y + 0.5 }); emitNoise(this, v.x + 0.5, v.y + 0.5, 3, 'vent');
@@ -158,6 +159,10 @@ export class World {
     if (this.over && this.over !== 'win') { for (const c of this.creatures) c.moving = false; return; }
     if (this.over === 'win') return;
     if (p.alive) this.updatePlayer(dt, inp);
+    /* walking up to the exit is enough: no extra tap needed */
+    { const ex = this.gen.exit; if (ex && p.alive && p.hidden < 0 && !p.vent && !this.over && Math.hypot(ex.x + 0.5 - p.x, ex.y + 0.5 - p.y) < 1.2) { this.over = 'win'; this.events.push({ type: 'win' }); } }
+    /* soft-lock guard: a level whose route needs a hidden door can never leave you without a sonar charge (one recharges after 20 s) */
+    if (this.gen.gates.some(g => g.type === 'secret') && p.pulses <= 0 && this.objs.some(o => o.type === 'door' && o.hidden && !o.revealed)) { this.pulseRegen += dt; if (this.pulseRegen >= 20) { this.pulseRegen = 0; p.pulses = 1; } } else this.pulseRegen = 0;
     for (const o of this.doors) { const sp = dt * 2.4; o.open = o.open < o.want ? Math.min(o.want, o.open + sp) : Math.max(o.want, o.open - sp); }
     for (const g of this.gens) if (g.on) { g.nextNoise -= dt; if (g.nextNoise <= 0) { g.nextNoise = 4; emitNoise(this, g.x + 0.5, g.y + 0.5, 15, 'generator'); } }
     for (let i = this.radioLures.length - 1; i >= 0; i--) { const r = this.radioLures[i]; r.t -= dt; if (r.t <= 0) { emitNoise(this, r.x, r.y, 17, 'radio'); this.events.push({ type: 'radioburst', x: r.x, y: r.y }); r.n--; r.t = r.every; if (r.n <= 0) this.radioLures.splice(i, 1); } }

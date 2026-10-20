@@ -56,7 +56,7 @@ export function buildScene(world, Q) {
   const wallMat = mk(tex.wall, 1, { vertexColors: true, roughness: theme === 'flood' ? 0.45 : 0.88, metalness: 0.02 });
   const floorMat = mk(tex.floor, 1, { vertexColors: true, roughness: theme === 'flood' ? 0.22 : theme === 'nest' ? 0.5 : 0.62, metalness: 0.05 });
   const ceilMat = mk(tex.ceil, 1, { vertexColors: true, roughness: 0.95 });
-  const metalMat = mk(tex.metal, 1, { roughness: 0.5, metalness: 0.55 }), crateMat = mk(tex.crate, 1, { roughness: 0.85 });
+  const metalMat = mk(tex.metal, 1, { roughness: 0.78, metalness: 0.18, color: 0x262626 }), crateMat = mk(tex.crate, 1, { roughness: 0.9, color: 0x484848 });   // toned down: bright glossy props blew out to white under the flashlight
   const solid = (x, y) => x < 0 || y < 0 || x >= W || y >= H || cells[y * W + x] === T.WALL;
   const wall = new GB(), floor = new GB(), ceil = new GB();
   const roomOf = new Int16Array(W * H).fill(-1); world.rooms.forEach((r, i) => { for (let y = r.y0; y < r.y0 + r.h; y++) for (let x = r.x0; x < r.x0 + r.w; x++) roomOf[y * W + x] = i; });

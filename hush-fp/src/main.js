@@ -5,6 +5,7 @@ import { World, DT, PULSE_CD } from './logic/world.js';
 import { generate, T } from './logic/gen.js';
 import { LEVELS, CHAPTERS, CH_START } from './logic/levels.js';
 import { STORY, EPILOGUE } from './logic/story.js';
+import { migrateSave } from './logic/migrate.js';
 import { Sound } from './audio.js';
 import * as AI from './logic/ai.js';
 import { GLBMonster } from './render/monster_glb.js';
@@ -12,14 +13,20 @@ import { runBot } from './test/bot.js';
 
 const $ = (id) => document.getElementById(id), qa = (s, r) => Array.prototype.slice.call((r || document).querySelectorAll(s));
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-const TEST = /[?&]test=1\b/.test(location.search), UNLOCK = /[?&]unlock=1\b/.test(location.search);
+document.addEventListener('contextmenu', (e) => e.preventDefault());   // no long-press menus on the game
+/* __TEST__ is a build-time flag: the release build contains no test hooks and ignores ?test=1 / ?unlock=1 */
+const TEST = __TEST__ && /[?&]test=1\b/.test(location.search), UNLOCK = TEST && /[?&]unlock=1\b/.test(location.search);
 const coarse = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window; const isMobile = coarse || /Android|iPhone|iPad/i.test(navigator.userAgent);
 $('app').classList.toggle('touch', coarse);
 
 /* ---------------- save ---------------- */
 const KEY = 'hush.fp.v1';
 const save = { v: 1, stars: [], best: [], logs: {}, set: { gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, last: 0 };
-try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.v === 1) { Object.assign(save, s); save.logs = save.logs || {}; save.set = Object.assign({ gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal' }, s.set || {}); } } catch (e) { /* private mode */ }
+try { const s = migrateSave(JSON.parse(localStorage.getItem(KEY) || 'null'), LEVELS); if (s && s.v === 1) { Object.assign(save, s); save.logs = (s.logs && typeof s.logs === 'object') ? s.logs : {}; save.stars = Array.isArray(s.stars) ? s.stars : []; save.best = Array.isArray(s.best) ? s.best : []; save.last = Math.max(0, Math.min(LEVELS.length - 1, +s.last || 0)); save.set = Object.assign({ gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, s.set || {}); } } catch (e) { /* private mode or a corrupted save: start fresh */ }
+{ const S = save.set, num = (v, lo, hi, d) => (typeof v === 'number' && isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d), one = (v, list, d) => (list.includes(v) ? v : d);
+  save.set = { gfx: one(S.gfx, ['auto', 'high', 'medium', 'low'], 'auto'), aq: one(S.aq, ['auto', 'full', 'light'], 'auto'), diff: one(S.diff, ['easy', 'normal', 'hard'], 'normal'), bright: num(S.bright, 70, 160, 100), vol: num(S.vol, 0, 100, 80), mvol: num(S.mvol, 0, 100, 60), sens: num(S.sens, 30, 200, 100),
+    vibe: S.vibe !== false, hints: S.hints !== false, sound: S.sound !== false, music: S.music !== false, inv: S.inv === true, marks: S.marks !== false }; }
+save.lv = LEVELS.length; save.stars = save.stars.map(v => (v >= 0 && v <= 3 ? v | 0 : 0));
 const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } };
 const unlocked = (i) => UNLOCK || i === 0 || (save.stars[i - 1] || 0) > 0;
 const chapterStars = (c) => { let s = 0; for (let i = CH_START[c]; i < CH_START[c + 1]; i++) s += save.stars[i] || 0; return s; };
@@ -70,11 +77,14 @@ function buildLevels() {
 
 /* ---------------- level flow ---------------- */
 function setLoading(on, text, pct) { overlay('load', on); if (text) $('load-text').textContent = text; if (pct !== undefined) $('load-bar').style.width = pct + '%'; }
+const later = (fn, ms) => { const run = G.run; setTimeout(() => { if (G.mode === 'game' && G.run === run && !G.paused && !G.over) fn(); }, ms); };   // delayed sounds die with the level / pause / game over
 function nextFrame() { return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))); }
-async function startLevel(i) {
+let starting = false;
+async function startLevel(i) { if (starting) return; starting = true; try { await startLevelNow(i); } finally { starting = false; } }   // a double tap on Retry / Next must not start two loads
+async function startLevelNow(i) {
   setLoading(true, 'Entering ' + LEVELS[i].name, 20); ['pause', 'win', 'dead', 'note', 'log', 'keypad', 'settings', 'how', 'credits', 'inv', 'obj'].forEach(o => overlay(o, false)); await nextFrame();
-  G.level = i; save.last = i; persist(); G.chapterView = LEVELS[i].ch; const w = new World(gen(i), { diff: save.set.diff }); G.world = w; setLoading(true, null, 55); await nextFrame(); G.view.loadLevel(w); setLoading(true, null, 95); await nextFrame();
-  G.mode = 'game'; show('game'); G.paused = false; G.modal = false; G.over = false; G.ended = 0; G.timeSpent = 0; G.acc = 0; G.hintT = 8; G.shownHint = -1; G.lastInv = ''; G.menu = false; inp.sprintBtn = false; $('b-sprint').classList.remove('on');
+  G.run = (G.run || 0) + 1; G.level = i; save.last = i; persist(); G.chapterView = LEVELS[i].ch; const w = new World(gen(i), { diff: save.set.diff }); G.world = w; setLoading(true, null, 55); await nextFrame(); G.view.loadLevel(w); setLoading(true, null, 95); await nextFrame();
+  G.mode = 'game'; show('game'); G.paused = false; G.modal = false; G.over = false; G.ended = 0; G.timeSpent = 0; G.acc = 0; G.hintT = 8; G.shownHint = -1; G.lastInv = ''; G.menu = false; inp.edge = {}; inp.dyaw = 0; inp.dpitch = 0; inp.sprintBtn = false; $('b-sprint').classList.remove('on');
   $('hint').textContent = save.set.hints ? LEVELS[i].hint : ''; $('hint').classList.toggle('show', save.set.hints); G.chapterAudio = LEVELS[i].ch; applyAudio(); Sound.unlock(); buildHotbar(true);
   setLoading(false, null, 100); G.last = performance.now(); $('fx-hurt').style.opacity = 0; if (!coarse) lockPointer();
 }
@@ -162,7 +172,7 @@ function drawObj() { const o = G.world.objective(), l = $('obj-list'); l.innerHT
 for (const [id, pn] of [['b-bag', 'inv'], ['obj', 'obj']]) $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); panel(pn, true); });
 $('inv-use').onclick = () => { const k = invSel; panel('inv', false); if (k === 'flash') inp.edge.flash = true; else inp.edge.radio = true; };
 qa('[data-pclose]').forEach(b => { b.onclick = () => { Sound.play('ui'); panel(b.getAttribute('data-pclose'), false); }; });
-document.addEventListener('keydown', (e) => { if (e.code === 'Escape') { if ($('ov-inv').classList.contains('show')) panel('inv', false); else if ($('ov-obj').classList.contains('show')) panel('obj', false); } else if (G.mode === 'game' && (e.code === 'KeyI' || e.code === 'Tab')) { e.preventDefault(); $('ov-inv').classList.contains('show') ? panel('inv', false) : panel('inv', true); } else if (G.mode === 'game' && e.code === 'KeyO') { $('ov-obj').classList.contains('show') ? panel('obj', false) : panel('obj', true); } }, true);
+document.addEventListener('keydown', (e) => { if (e.code === 'Escape') { const shownOv = (id) => $('ov-' + id).classList.contains('show'); if (shownOv('log')) { e.stopPropagation(); $('log-ok').click(); return; } if (shownOv('note')) { e.stopPropagation(); $('note-ok').click(); return; } if (shownOv('keypad')) { e.stopPropagation(); $('kp-cancel').click(); return; } if ($('ov-inv').classList.contains('show')) panel('inv', false); else if ($('ov-obj').classList.contains('show')) panel('obj', false); } else if (G.mode === 'game' && (e.code === 'KeyI' || e.code === 'Tab')) { e.preventDefault(); $('ov-inv').classList.contains('show') ? panel('inv', false) : panel('inv', true); } else if (G.mode === 'game' && e.code === 'KeyO') { $('ov-obj').classList.contains('show') ? panel('obj', false) : panel('obj', true); } }, true);
 
 /* ---------------- events -> sound, banners, vibration ---------------- */
 let hbTimer = 0;
@@ -180,7 +190,7 @@ function handleEvents(w, dt) {
       case 'hide': Sound.play('hide'); break;
       case 'vent': Sound.play('vent'); break;
       case 'generator': Sound.play('gen'); G.view.reach(); break;
-      case 'valve': Sound.play('door'); setTimeout(() => Sound.play('thump', { pan: 0 }), 300); G.view.reach(); break;
+      case 'valve': Sound.play('door'); later(() => Sound.play('thump', { pan: 0 }), 300); G.view.reach(); break;
       case 'radio': Sound.play('radio'); break;
       case 'radioburst': { const s = spatial(e.x, e.y); if (s.d < 22) Sound.play('radio'); break; }
       case 'reveal': Sound.play('unlock'); break;
@@ -188,7 +198,7 @@ function handleEvents(w, dt) {
       case 'note': $('note-code').textContent = e.code; G.modal = true; overlay('note', true); if (document.pointerLockElement) document.exitPointerLock(); break;
       case 'keypad': openKeypad(e.id); break;
       case 'heard': { const s = spatial(e.x, e.y); if (s.d < 20) { Sound.play('heard'); banner('IT HEARD THAT', 'heard', 1500); } break; }
-      case 'sniff': { const sp = spatial(e.x, e.y); Sound.play('breath', { v: Math.max(0.5, sp.v), pan: sp.pan }); setTimeout(() => Sound.play('growl', { v: 0.4, pan: sp.pan, kind: 'stalker' }), 900); break; }
+      case 'sniff': { const sp = spatial(e.x, e.y); Sound.play('breath', { v: Math.max(0.5, sp.v), pan: sp.pan }); later(() => Sound.play('growl', { v: 0.4, pan: sp.pan, kind: 'stalker' }), 900); break; }
       case 'suspicious': Sound.play('notice'); banner('SUSPICIOUS', 'sus', 1800); break;
       case 'hunt': { const s = spatial(e.x, e.y); Sound.play('hunt'); Sound.play('roar', { v: Math.max(0.35, s.v), pan: s.pan, kind: w.creatures[e.id].t }); banner('IT SEES YOU!', 'seen', 2400); vibe([60, 40, 60]); G.view.shake = 0.5; break; }
       case 'lost': Sound.play('lost'); banner('IT LOST YOU', 'heard', 1500); break;
@@ -202,8 +212,8 @@ function handleEvents(w, dt) {
   G.dirT = (G.dirT === undefined ? 20 + Math.random() * 15 : G.dirT) - dt;
   if (G.dirT <= 0 && p.alive && p.hidden < 0 && !p.vent && w.threat < 0.5 && !w.creatures.some(c => c.state === 'hunt')) {
     G.dirT = 28 + Math.random() * 30; const r = Math.random(), pan = Math.random() * 2 - 1;
-    if (r < 0.3) { G.view.blackout(1.1 + Math.random() * 0.8); Sound.duck && Sound.duck(); setTimeout(() => Sound.play('thump', { pan }), 1200); }
-    else if (r < 0.6) { Sound.play('thump', { pan }); setTimeout(() => Sound.play('creak', { pan }), 700 + Math.random() * 900); }
+    if (r < 0.3) { G.view.blackout(1.1 + Math.random() * 0.8); Sound.duck && Sound.duck(); later(() => Sound.play('thump', { pan }), 1200); }
+    else if (r < 0.6) { Sound.play('thump', { pan }); later(() => Sound.play('creak', { pan }), 700 + Math.random() * 900); }
     else { const yaw = p.yaw; let spot = null; for (let d = 16; d >= 9 && !spot; d -= 1) for (const da of [0, 0.12, -0.12, 0.25, -0.25]) { const x = p.x + Math.cos(yaw + da) * d, y = p.y + Math.sin(yaw + da) * d, k = Math.floor(y) * w.W + Math.floor(x); if (w.cells[k] !== 0 && !w.solid.has(k) && AI.lineOfSight(w, p.x, p.y, x, y)) { spot = [x, y]; break; } } if (spot) { G.view.flashEyes(spot[0] * 2, spot[1] * 2, 1.7); Sound.play('growl', { v: 0.25, pan: 0, kind: 'stalker' }); } else G.dirT = 6; }
   }
   hbTimer -= dt; if (w.threat > 0.35 && hbTimer <= 0 && p.alive) { hbTimer = 1.05 - 0.55 * w.threat; Sound.play('heart', { v: Math.min(1, w.threat * 1.2) }); if (w.threat > 0.8 && Math.random() < 0.3) vibe(25); }
@@ -290,7 +300,7 @@ $('s-close').onclick = () => { overlay('settings', false); persist(); };
 qa('#s-tabs button').forEach(b => { b.onclick = () => { qa('#s-tabs button').forEach(x => x.classList.toggle('on', x === b)); qa('.spage').forEach(p => p.classList.toggle('on', p.id === 'sp-' + b.getAttribute('data-t'))); }; });
 function seg(id, key, fn) { qa('#' + id + ' button').forEach(b => { b.onclick = () => { save.set[key] = b.getAttribute('data-v'); syncSettings(); fn && fn(); persist(); Sound.play('ui'); }; }); }
 function syncSettings() { const s = save.set; qa('#set-gfx button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.gfx)); qa('#set-aq button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.aq)); qa('#set-diff button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.diff)); $('set-bright').value = s.bright; $('set-vibe').checked = s.vibe; $('set-hints').checked = s.hints; $('set-marks').checked = s.marks; $('set-vol').value = s.vol; $('set-mvol').value = s.mvol; $('v-vol').textContent = s.vol + '%'; $('v-mvol').textContent = s.mvol + '%'; $('set-sound').checked = s.sound; $('set-music').checked = s.music; $('set-sens').value = s.sens; $('set-inv').checked = s.inv; }
-function applyGfx() { const g = save.set.gfx, v = G.view; v.autoQ = g === 'auto' && (!TEST || /[?&]adapt=1\b/.test(location.search)); v.setQuality(g === 'auto' ? (isMobile ? 'medium' : 'high') : g); v.brightness = save.set.bright / 100; }
+function applyGfx() { const g = save.set.gfx, v = G.view; v.autoQ = g === 'auto' && (!TEST || (__TEST__ && /[?&]adapt=1\b/.test(location.search))); v.setQuality(g === 'auto' ? (isMobile ? 'medium' : 'high') : g); v.brightness = save.set.bright / 100; }
 seg('set-gfx', 'gfx', () => { applyGfx(); if (G.world) G.view.loadLevel(G.world); else startMenuScene(); }); seg('set-diff', 'diff', () => { if (G.world && !G.over) G.world.diff = { easy: { sight: 0.75, alert: 0.7, speed: 0.9 }, normal: { sight: 1, alert: 1, speed: 1 }, hard: { sight: 1.2, alert: 1.3, speed: 1.12 } }[save.set.diff]; }); seg('set-aq', 'aq', () => { Sound.setQuality(save.set.aq); Sound.unlock(); applyAudio(); });
 const bindR = (id, key, fn) => { $(id).oninput = () => { save.set[key] = +$(id).value; fn && fn(); syncSettings(); }; $(id).onchange = persist; }, bindC = (id, key, fn) => { $(id).onchange = () => { save.set[key] = $(id).checked; fn && fn(); persist(); }; };
 bindR('set-bright', 'bright', () => { G.view.brightness = save.set.bright / 100; }); bindR('set-vol', 'vol', applyAudio); bindR('set-mvol', 'mvol', applyAudio); bindR('set-sens', 'sens'); bindC('set-vibe', 'vibe', applyAudio); bindC('set-hints', 'hints'); bindC('set-marks', 'marks'); bindC('set-sound', 'sound', applyAudio); bindC('set-music', 'music', applyAudio); bindC('set-inv', 'inv');
@@ -306,14 +316,14 @@ function frame(ts) {
   requestAnimationFrame(frame); const now = ts / 1000, dt = Math.min(0.25, now - (G.lastTs || now)); G.lastTs = now; G.now = now; const v = G.view; if (!v || !v.built) return;
   if (G.mode === 'game' && G.world) {
     const w = G.world;
-    if (!G.paused && !G.modal) { G.acc += dt; let n = 0; while (G.acc >= DT && n++ < 8) { const i = tickInput(); w.update(DT, i); if (!G.over || w.over === 'dead') G.timeSpent += DT; G.acc -= DT; handleEvents(w, DT); } if (n >= 8) G.acc = 0; }
+    if (!G.paused && !G.modal) { G.acc += dt; let n = 0; while (G.acc >= DT && n++ < 8) { const i = tickInput(); w.update(DT, i); if (!G.over || w.over === 'dead') G.timeSpent += DT; G.acc -= DT; handleEvents(w, DT); } if (n >= 8) G.acc = 0; } else { inp.edge = {}; inp.dyaw = 0; inp.dpitch = 0; G.acc = 0; }   // nothing typed or tapped while paused may fire on resume
     hud(w, dt); const pl = w.player, free = pl.alive && pl.hidden < 0 && !pl.vent && !G.paused && !G.modal; v.frame(w, G.paused || G.modal ? 0 : dt, now, { alpha: G.paused || G.modal ? 1 : clamp(G.acc / DT, 0, 1), look: free ? { yaw: pl.yaw + inp.dyaw, pitch: clamp(pl.pitch + inp.dpitch, -1.25, 1.25) } : null });
   } else if (G.menuWorld) { G.menuT += dt; const w = G.menuWorld; w.update(dt, {}); w.drainEvents(); v.setMenuCamera(w, G.menuT); v.camera.updateMatrixWorld(true); v.flashRig.position.copy(v.camera.position); v.flashRig.quaternion.copy(v.camera.quaternion); v.flash.intensity = 200; v.cone.visible = true; v.coneMat.uniforms.uInt.value = 0.1; v.handRoot.visible = false; v.menuFrame(w, dt, now); Sound.tick && Sound.tick(dt, 0, false); }
 }
 async function boot() {
   const v = G.view = new View($('view'), isMobile ? 'medium' : 'high', { aa: !isMobile }); v.onQuality = (q) => { save.set.gfx = save.set.gfx === 'auto' ? 'auto' : save.set.gfx; }; if (isMobile) v.resScale = 0.85; applyGfx(); applyAudio(); window.addEventListener('resize', () => v.resize());
-  setLoading(true, 'Preparing the facility', 30); await nextFrame(); for (let i = 0; i < 30; i++) { gen(i); if (i % 6 === 0) { setLoading(true, null, 30 + i); await nextFrame(); } }
-  if (!(TEST && /[?&]noglb=1\b/.test(location.search))) await GLBMonster.load(); await startMenuScene(); G.mode = 'home'; show('home'); syncSettings(); setLoading(false, null, 100); overlay('gate', !TEST); requestAnimationFrame(frame); Sound.setQuality(save.set.aq);
+  setLoading(true, 'Preparing the facility', 30); await nextFrame(); for (let i = 0; i < LEVELS.length; i++) { gen(i); if (i % 8 === 0) { setLoading(true, null, 30 + i); await nextFrame(); } }
+  if (!(__TEST__ && TEST && /[?&]noglb=1\b/.test(location.search))) await GLBMonster.load(); await startMenuScene(); G.mode = 'home'; show('home'); syncSettings(); setLoading(false, null, 100); overlay('gate', !TEST); requestAnimationFrame(frame); Sound.setQuality(save.set.aq);
 }
 boot();
-if (TEST) { window.HUSH = { G, save, inp, ai: AI, glb: GLBMonster, tapAt, proj: (o) => { const v = G.view, r = $('view').getBoundingClientRect(), t = v.camera.position.clone(); v.camera.updateMatrixWorld(true); t.set((o.x + 0.5) * 2, REACH_H[o.type] || 1, (o.y + 0.5) * 2).project(v.camera); return [(t.x * 0.5 + 0.5) * r.width + r.left, (-t.y * 0.5 + 0.5) * r.height + r.top]; }, startLevel, toMenu, pause, view: () => G.view, world: () => G.world, LEVELS, runBot: (n) => runBot(G.world, n || 600), gen, step: (n, i) => { for (let k = 0; k < (n || 1); k++) { G.world.update(DT, i || {}); G.timeSpent += DT; handleEvents(G.world, DT); } }, unlockAll: () => { save.stars = LEVELS.map(() => 1); persist(); }, buildLevels, buildChapters, show }; }
+if (__TEST__ && TEST) { window.HUSH = { G, save, inp, ai: AI, glb: GLBMonster, tapAt, proj: (o) => { const v = G.view, r = $('view').getBoundingClientRect(), t = v.camera.position.clone(); v.camera.updateMatrixWorld(true); t.set((o.x + 0.5) * 2, REACH_H[o.type] || 1, (o.y + 0.5) * 2).project(v.camera); return [(t.x * 0.5 + 0.5) * r.width + r.left, (-t.y * 0.5 + 0.5) * r.height + r.top]; }, startLevel, toMenu, pause, view: () => G.view, world: () => G.world, LEVELS, runBot: (n) => runBot(G.world, n || 600), gen, step: (n, i) => { for (let k = 0; k < (n || 1); k++) { G.world.update(DT, i || {}); G.timeSpent += DT; handleEvents(G.world, DT); } }, unlockAll: () => { save.stars = LEVELS.map(() => 1); persist(); }, buildLevels, buildChapters, show }; }

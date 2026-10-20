@@ -1,7 +1,7 @@
 /* Exploratory session in the real page: flows a player would do, plus leak and persistence checks. Prints FINDINGS (anything surprising) instead of asserting. */
 const { chromium } = require('/opt/node-tools/node_modules/playwright'); const path = require('path');
 (async () => {
-  const file = path.resolve(__dirname, '../' + (process.env.BUILD || 'HUSH-FP-v5.html')); const F = []; const find = (s) => { F.push(s); console.log('FINDING:', s); }; const info = (s) => console.log('  ', s);
+  const file = path.resolve(__dirname, '../' + (process.env.BUILD || 'HUSH-FP-test.html')); const F = []; const find = (s) => { F.push(s); console.log('FINDING:', s); }; const info = (s) => console.log('  ', s);
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const ctx = await b.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true }); const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push('pageerror ' + e.message)); p.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') errs.push(m.type() + ' ' + m.text()); });
   const open = async (q) => { await p.goto('file://' + file + '?test=1' + (q || '')); await p.waitForFunction(() => window.HUSH && HUSH.G.mode === 'home', null, { timeout: 120000 }); };

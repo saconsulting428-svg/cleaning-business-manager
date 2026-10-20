@@ -1,6 +1,6 @@
 const { chromium } = require('/opt/node-tools/node_modules/playwright'); const path = require('path');
 (async () => {
-  const file = path.resolve(__dirname, '../HUSH-FP-v5.html'), out = '/tmp/claude-0/shots';
+  const file = path.resolve(__dirname, '../HUSH-FP-test.html'), out = '/tmp/claude-0/shots';
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   for (const [name, vw, vh] of [['a', 844, 390], ['b', 640, 360], ['c', 915, 412]]) {
     const p = await (await b.newContext({ viewport: { width: vw, height: vh }, hasTouch: true })).newPage();
