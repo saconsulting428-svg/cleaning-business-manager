@@ -2,7 +2,7 @@
    logic (god mode only keeps the creature from ending the run), and the win overlay, stars and saved unlocks are checked. */
 const { chromium } = require('/opt/node-tools/node_modules/playwright'); const path = require('path');
 (async () => {
-  const file = path.resolve(__dirname, '../' + (process.env.BUILD || 'HUSH-FP-v4.html')); const only = process.argv[2] ? process.argv[2].split(',').map(Number) : null;
+  const file = path.resolve(__dirname, '../' + (process.env.BUILD || 'HUSH-FP-v5.html')); const only = process.argv[2] ? process.argv[2].split(',').map(Number) : null;
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const p = await (await b.newContext({ viewport: { width: 844, height: 390 } })).newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
   await p.goto('file://' + file + '?test=1'); await p.waitForFunction(() => window.HUSH && window.HUSH.G.mode === 'home', null, { timeout: 90000 }); let fail = 0, n = 0;

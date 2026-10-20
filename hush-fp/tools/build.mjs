@@ -1,6 +1,6 @@
 import { build } from 'esbuild'; import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'); const entry = process.argv[2] || 'src/main.js', out = process.argv[3] || 'HUSH-FP.html';
-const r = await build({ entryPoints: [path.join(root, entry)], bundle: true, minify: true, format: 'iife', target: 'es2019', write: false, legalComments: 'none', define: { 'process.env.NODE_ENV': '"production"' } });
+const r = await build({ entryPoints: [path.join(root, entry)], bundle: true, minify: true, format: 'iife', target: 'es2019', write: false, legalComments: 'none', loader: { '.glb': 'binary' }, define: { 'process.env.NODE_ENV': '"production"' } });
 const js = r.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 const fonts = [['Barlow', 400, 'Barlow-400'], ['Barlow', 500, 'Barlow-500'], ['Barlow Condensed', 500, 'BarlowCondensed-500'], ['Barlow Condensed', 600, 'BarlowCondensed-600'], ['Barlow Condensed', 700, 'BarlowCondensed-700']].map(([f, w, n]) => { const fp = path.join(root, 'assets', n + '.woff2'); return fs.existsSync(fp) ? `@font-face{font-family:"${f}";font-weight:${w};font-display:swap;src:url(data:font/woff2;base64,${fs.readFileSync(fp).toString('base64')}) format("woff2")}` : ''; }).join('\n');
 const css0 = fs.existsSync(path.join(root, 'src/ui/ui.css')) ? fs.readFileSync(path.join(root, 'src/ui/ui.css'), 'utf8') : '';

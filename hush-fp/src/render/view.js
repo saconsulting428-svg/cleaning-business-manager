@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { buildScene, PULSE, TS, WH, THEME, glowTex, patchPulse } from './scene3d.js';
 import { buildCreature, poseCreature, creatureMaterials, ghostMaterial } from './creature3d.js';
 import { angDiff } from '../logic/rng.js';
+import { GLBMonster } from './monster_glb.js';
 
 /* high: PBR + normal maps + flashlight shadows (desktop). medium: cheap lit materials with normal maps, full resolution, no shadow pass (phones). low: plain materials, lower resolution.
    The pixel ratio is the CAP: the real ratio is scaled down automatically when frames get slow (dynamic resolution), and back up when there is headroom. */
@@ -67,7 +68,11 @@ export class View {
     const n = this.Q.dust; const g = new THREE.BufferGeometry(); const pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) { pos[i * 3] = (Math.random() - 0.5) * 12; pos[i * 3 + 1] = Math.random() * 3; pos[i * 3 + 2] = (Math.random() - 0.5) * 12; } g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     this.dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xd8e0e8, size: 0.028, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending })); this.dust.frustumCulled = false; sc.add(this.dust); this.dustBase = pos.slice();
     /* creatures: the body and its sonar silhouette */
-    this.cr = world.creatures.map(c => { const mats = creatureMaterials(c.t), real = buildCreature(c.t, mats, true), gm = ghostMaterial(), ghost = buildCreature(c.t, { skin: gm, bone: gm, eye: gm }, false); ghost.traverse(o => { o.renderOrder = 999; }); ghost.visible = false; sc.add(real); sc.add(ghost); const blob = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, opacity: 0.8 })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; blob.renderOrder = 1; sc.add(blob); return { c, real, ghost, gm, mats, blob }; });
+    this.cr = world.creatures.map(c => {
+      const gm = ghostMaterial();
+      if (GLBMonster.ready) { const g = GLBMonster.build(c.t, this.Q); g.ghost.material = gm; sc.add(g.root); const blob = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, opacity: 0.8 })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; blob.renderOrder = 1; sc.add(blob); return { c, real: g.root, ghost: g.ghost, gm, blob, glb: g.inst }; }
+      const mats = creatureMaterials(c.t), real = buildCreature(c.t, mats, true), ghost = buildCreature(c.t, { skin: gm, bone: gm, eye: gm }, false); ghost.traverse(o => { o.renderOrder = 999; }); ghost.visible = false; sc.add(real); sc.add(ghost); const blob = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, opacity: 0.8 })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; blob.renderOrder = 1; sc.add(blob); return { c, real, ghost, gm, mats, blob };
+    });
     /* scare director props: a pair of eyes far down a corridor, and a lights-out timer */
     const eg = new THREE.Group(); for (const sx of [-0.09, 0.09]) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff2a20, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, depthTest: true, opacity: 0 })); sp.scale.set(0.5, 0.5, 1); sp.position.x = sx; eg.add(sp); } eg.visible = false; sc.add(eg); this.eyeFx = { g: eg, t: 0, dur: 1 }; this.blackoutT = 0;
     this.bobPhase = 0; this.hurtT = 0; this.deadT = 0; this.winT = 0; this.updateCamera(world, 0, 0);
@@ -75,7 +80,7 @@ export class View {
   flashEyes(x, z, dur) { this.eyeFx.g.position.set(x, 1.55, z); this.eyeFx.t = this.eyeFx.dur = dur || 1.6; this.eyeFx.g.visible = true; }
   blackout(sec) { this.blackoutT = sec; }
   disposeLevel() {
-    if (!this.built) return; const sc = this.built.scene; sc.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { for (const k of ['map', 'normalMap', 'emissiveMap']) if (m[k] && !(m[k].userData && m[k].userData.shared)) m[k].dispose(); m.dispose(); }); });
+    if (!this.built) return; const sc = this.built.scene; sc.traverse(o => { if (o.geometry && !(o.geometry.userData && o.geometry.userData.shared)) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.userData && m.userData.shared) return; for (const k of ['map', 'normalMap', 'emissiveMap']) if (m[k] && !(m[k].userData && m[k].userData.shared)) m[k].dispose(); m.dispose(); }); });
     this.built = null; this.cr = [];
   }
   /* ---- per frame ---- */
@@ -96,9 +101,9 @@ export class View {
     /* creatures */
     let li = 0; const sorted = this.cr.slice().sort((a, c) => (Math.hypot(a.c.x * TS - cx, a.c.y * TS - cz)) - (Math.hypot(c.c.x * TS - cx, c.c.y * TS - cz)));
     for (const e of this.cr) {
-      const c = e.c, al = this.alpha, cxp = c.px === undefined ? c.x : c.px + (c.x - c.px) * al, cyp = c.py === undefined ? c.y : c.py + (c.y - c.py) * al, cyaw = c.pyaw === undefined ? c.yaw : c.pyaw + angDiff(c.pyaw, c.yaw) * al, px = cxp * TS, pz = cyp * TS, rot = Math.PI / 2 - cyaw; e.real.position.set(px, 0, pz); e.real.rotation.y = rot; e.blob.position.set(px, 0.03, pz); const dpl = Math.hypot(p.x - c.x, p.y - c.y); c.lunge = c.state === 'hunt' && p.alive ? clamp(1 - (dpl - 0.9) / 1.1, 0, 1) : (world.over === 'dead' && world.caughtBy === c ? 1 : 0); e.ghost.position.set(px, 0, pz); e.ghost.rotation.y = rot;
+      const c = e.c, al = this.alpha, cxp = c.px === undefined ? c.x : c.px + (c.x - c.px) * al, cyp = c.py === undefined ? c.y : c.py + (c.y - c.py) * al, cyaw = c.pyaw === undefined ? c.yaw : c.pyaw + angDiff(c.pyaw, c.yaw) * al, px = cxp * TS, pz = cyp * TS, rot = Math.PI / 2 - cyaw; e.real.position.set(px, 0, pz); e.real.rotation.y = rot; e.blob.position.set(px, 0.03, pz); const dpl = Math.hypot(p.x - c.x, p.y - c.y); c.lunge = c.state === 'hunt' && p.alive ? clamp(1 - (dpl - 0.9) / 1.1, 0, 1) : (world.over === 'dead' && world.caughtBy === c ? 1 : 0); if (!e.glb) { e.ghost.position.set(px, 0, pz); e.ghost.rotation.y = rot; }
       const dxp = p.x - c.x, dyp = p.y - c.y; let look; if (c.state !== 'roam' && c.state !== 'search' || c.seen) look = -angDiff(c.yaw, Math.atan2(dyp, dxp)) * (Math.hypot(dxp, dyp) < 12 ? 1 : 0);
-      poseCreature(e.real, c, now, dt, c.seen || c.state === 'hunt' ? look : undefined); if (c.revealT > 0) poseCreature(e.ghost, c, now, dt, c.seen || c.state === 'hunt' ? look : undefined);
+      if (e.glb) { if (dt > 0 && (Math.hypot(p.x - c.x, p.y - c.y) < 36 || c.revealT > 0)) GLBMonster.update(e.glb, c, world, dt); } else { poseCreature(e.real, c, now, dt, c.seen || c.state === 'hunt' ? look : undefined); if (c.revealT > 0) poseCreature(e.ghost, c, now, dt, c.seen || c.state === 'hunt' ? look : undefined); }
       e.ghost.visible = c.revealT > 0; if (e.ghost.visible) e.gm.opacity = Math.min(1, c.revealT * 1.1) * (0.55 + 0.1 * Math.sin(now * 20));
     }
     for (const e of sorted.slice(0, 1)) { const l = this.mlights[li++], c = e.c, d = Math.hypot(c.x * TS - cx, c.y * TS - cz); l.position.set(c.x * TS, 2.6, c.y * TS); l.color.setHex(c.t === 'sentinel' ? 0x80c8ff : 0xff2a1a); l.intensity = d < 16 ? (c.state === 'hunt' ? 5 : 1.1) * (0.8 + 0.2 * Math.sin(now * 5 + c.id)) : 0; } for (; li < 1; li++) this.mlights[li].intensity = 0;
