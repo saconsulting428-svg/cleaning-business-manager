@@ -11,7 +11,7 @@ for (let li = 0; li < LEVELS.length; li++) {
   const g = generate(LEVELS[li]);
   for (let r = 0; r < RUNS; r++) {
     if (process.env.ONLYR && +process.env.ONLYR !== r) continue;
-    const rnd = mulberry(li * 1000 + r * 7 + 1), w = new World(generate(LEVELS[li]), { diff: ['easy', 'normal', 'hard'][r % 3] }); runs++; const p = w.player; const tag = `L${li + 1}.${r}`;
+    const rnd = mulberry(li * 1000 + r * 7 + 1), w = new World(generate(LEVELS[li]), {}); runs++; const p = w.player; const tag = `L${li + 1}.${r}`;
     const mode = r % 4; let yawT = 0, turn = 0, fwd = 1, sprint = false, still = new Map(), huntT = new Map(), stuckP = 0, lastP = [p.x, p.y];
     try {
       for (let i = 0; i < SECS * 30 && !w.over; i++) {

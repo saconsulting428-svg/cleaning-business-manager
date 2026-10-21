@@ -15,11 +15,12 @@ You wake up inside an abandoned research facility. The lights flicker. Something
 
 EXPLORE. LISTEN. MAKE NOISE. HIDE. ESCAPE.
 
-• 40 levels across 3 chapters: the Abandoned Laboratory, the Flooded Section and the Nest. Each level is a procedurally generated facility with its own locks, keys and creatures.
+• 40 levels across 3 chapters, each with its own look: the Abandoned Laboratory, the Flooded Section and the Nest. Each level is a procedurally generated facility with its own locks, keys and creatures.
 • SONAR PULSE: reveal walls, doors, objects and creatures through the dark. But every pulse is a loud call. Information or safety: you cannot have both.
 • A NOISE SYSTEM THAT MATTERS: crouching is quiet, sprinting is loud, glass shatters, water splashes, generators scream. The creature investigates what it hears.
 • CREATURES THAT HUNT BY SOUND: stalkers, sentinels and a nearly blind listener. They patrol, investigate, search and chase. Hide in a locker and listen to its footsteps come closer.
-• SURVIVAL PUZZLES: find keys and keycards, collect fuses and start generators, read notes and type codes, turn valves, crawl through vents, reveal hidden doors with sonar.
+• SURVIVAL PUZZLES: find keys and keycards, collect fuses and start generators, flip breakers, read notes and type codes, turn valves, crawl through vents, reveal hidden doors with sonar. Alarms can give you away.
+• MAP AND TUTORIAL: a guided tutorial in the first levels, tip cards when something new appears, and a map that shows the rooms and where to go next.
 • DISTRACT WITH THE RADIO: lure the creature away, then slip past.
 • STORY IN THE RUINS: recovered terminal logs reveal what Halden Station was really doing, and what the probe in your hand has to do with it.
 • MADE FOR PHONES: full touch controls (move stick, look, sonar, crouch, sprint), adjustable sensitivity, vibration feedback, quality settings and adaptive resolution.

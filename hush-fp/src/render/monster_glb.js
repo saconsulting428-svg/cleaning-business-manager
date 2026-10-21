@@ -43,7 +43,7 @@ export const GLBMonster = {
     const hf = inner.getObjectByName(THREE.PropertyBinding.sanitizeNodeName('headfront')), eyes = [];
     if (hf) for (const sx of [-1, 1]) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: type === 'sentinel' ? 0xbfeaff : 0xff2a20, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: type === 'listener' ? 0 : 0.9 })); sp.scale.setScalar(0.22 / s); sp.position.set(sx * 0.055, EYE.y, EYE.z); hf.add(sp); eyes.push(sp); }
     const mixer = new THREE.AnimationMixer(inner), act = {}; for (const n of CLIPS) act[n] = mixer.clipAction(TPL.clips[n]);
-    const inst = { s, inner, mixer, act, eyes, cur: null, sp: 0, fast: false, off: 0, attackT: 0, fresh: true };
+    const inst = { s, inner, mixer, act, eyes, skin, cur: null, sp: 0, fast: false, off: 0, attackT: 0, fresh: true };
     return { root, ghost, inst };
   },
   /* drive one creature from the AI state (visual only) */

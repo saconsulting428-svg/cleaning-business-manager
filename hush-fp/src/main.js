@@ -6,6 +6,7 @@ import { generate, T } from './logic/gen.js';
 import { LEVELS, CHAPTERS, CH_START } from './logic/levels.js';
 import { STORY, EPILOGUE } from './logic/story.js';
 import { migrateSave } from './logic/migrate.js';
+import { SEQ, MECH } from './ui/tips.js';
 import { Sound } from './audio.js';
 import * as AI from './logic/ai.js';
 import { GLBMonster } from './render/monster_glb.js';
@@ -21,8 +22,8 @@ $('app').classList.toggle('touch', coarse);
 
 /* ---------------- save ---------------- */
 const KEY = 'hush.fp.v1';
-const save = { v: 1, stars: [], best: [], logs: {}, set: { gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, last: 0 };
-try { const s = migrateSave(JSON.parse(localStorage.getItem(KEY) || 'null'), LEVELS); if (s && s.v === 1) { Object.assign(save, s); save.logs = (s.logs && typeof s.logs === 'object') ? s.logs : {}; save.stars = Array.isArray(s.stars) ? s.stars : []; save.best = Array.isArray(s.best) ? s.best : []; save.last = Math.max(0, Math.min(LEVELS.length - 1, +s.last || 0)); save.set = Object.assign({ gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, s.set || {}); } } catch (e) { /* private mode or a corrupted save: start fresh */ }
+const save = { v: 1, stars: [], best: [], logs: {}, tips: {}, set: { gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, last: 0 };
+try { const s = migrateSave(JSON.parse(localStorage.getItem(KEY) || 'null'), LEVELS); if (s && s.v === 1) { Object.assign(save, s); save.logs = (s.logs && typeof s.logs === 'object') ? s.logs : {}; save.tips = (s.tips && typeof s.tips === 'object' && !Array.isArray(s.tips)) ? s.tips : {}; save.stars = Array.isArray(s.stars) ? s.stars : []; save.best = Array.isArray(s.best) ? s.best : []; save.last = Math.max(0, Math.min(LEVELS.length - 1, +s.last || 0)); save.set = Object.assign({ gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, s.set || {}); } } catch (e) { /* private mode or a corrupted save: start fresh */ }
 { const S = save.set, num = (v, lo, hi, d) => (typeof v === 'number' && isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d), one = (v, list, d) => (list.includes(v) ? v : d);
   save.set = { gfx: one(S.gfx, ['auto', 'high', 'medium', 'low'], 'auto'), aq: one(S.aq, ['auto', 'full', 'light'], 'auto'), diff: one(S.diff, ['easy', 'normal', 'hard'], 'normal'), bright: num(S.bright, 70, 160, 100), vol: num(S.vol, 0, 100, 80), mvol: num(S.mvol, 0, 100, 60), sens: num(S.sens, 30, 200, 100),
     vibe: S.vibe !== false, hints: S.hints !== false, sound: S.sound !== false, music: S.music !== false, inv: S.inv === true, marks: S.marks !== false }; }
@@ -34,7 +35,7 @@ const chapterLogs = (c) => { let s = 0; for (let i = CH_START[c]; i < CH_START[c
 
 /* ---------------- state ---------------- */
 const G = { view: null, world: null, level: 0, mode: 'boot', paused: false, modal: false, acc: 0, last: 0, now: 0, t0: 0, timeSpent: 0, hintT: 0, shownHint: -1, bannerT: 0, hbT: 0, lastInv: '', noiseT: 0, ended: 0, chapterView: 0, menuWorld: null, genCache: {}, over: false };
-const inp = { keys: {}, fwd: 0, str: 0, dyaw: 0, dpitch: 0, sprintBtn: false, edge: {} };
+const inp = { keys: {}, fwd: 0, str: 0, dyaw: 0, dpitch: 0, pyaw: 0, ppitch: 0, sprintBtn: false, edge: {} };
 
 /* ---------------- audio ---------------- */
 function applyAudio() { const s = save.set; Sound.set('vol', s.vol / 100); Sound.set('mvol', s.mvol / 100); Sound.set('sound', s.sound); Sound.set('music', s.music); Sound.set('vibe', s.vibe); }
@@ -82,23 +83,24 @@ function nextFrame() { return new Promise(r => requestAnimationFrame(() => setTi
 let starting = false;
 async function startLevel(i) { if (starting) return; starting = true; try { await startLevelNow(i); } finally { starting = false; } }   // a double tap on Retry / Next must not start two loads
 async function startLevelNow(i) {
-  setLoading(true, 'Entering ' + LEVELS[i].name, 20); ['pause', 'win', 'dead', 'note', 'log', 'keypad', 'settings', 'how', 'credits', 'inv', 'obj'].forEach(o => overlay(o, false)); await nextFrame();
-  G.run = (G.run || 0) + 1; G.level = i; save.last = i; persist(); G.chapterView = LEVELS[i].ch; const w = new World(gen(i), { diff: save.set.diff }); G.world = w; setLoading(true, null, 55); await nextFrame(); G.view.loadLevel(w); setLoading(true, null, 95); await nextFrame();
-  G.mode = 'game'; show('game'); G.paused = false; G.modal = false; G.over = false; G.ended = 0; G.timeSpent = 0; G.acc = 0; G.hintT = 8; G.shownHint = -1; G.lastInv = ''; G.menu = false; inp.edge = {}; inp.dyaw = 0; inp.dpitch = 0; inp.sprintBtn = false; $('b-sprint').classList.remove('on');
-  $('hint').textContent = save.set.hints ? LEVELS[i].hint : ''; $('hint').classList.toggle('show', save.set.hints); G.chapterAudio = LEVELS[i].ch; applyAudio(); Sound.unlock(); buildHotbar(true);
+  setLoading(true, 'Entering ' + LEVELS[i].name, 20); ['pause', 'win', 'dead', 'note', 'log', 'keypad', 'settings', 'how', 'credits', 'inv', 'obj', 'map', 'tip'].forEach(o => overlay(o, false)); await nextFrame();
+  G.run = (G.run || 0) + 1; G.level = i; save.last = i; persist(); G.chapterView = LEVELS[i].ch; const w = new World(gen(i), { assist: (G.deaths && G.deaths[i]) || 0 }); G.world = w; setLoading(true, null, 55); await nextFrame(); G.view.loadLevel(w); setLoading(true, null, 95); await nextFrame();
+  G.mode = 'game'; show('game'); G.paused = false; G.modal = false; G.over = false; G.ended = 0; G.timeSpent = 0; G.acc = 0; G.hintT = 8; G.shownHint = -1; G.lastInv = ''; G.menu = false; inp.edge = {}; inp.dyaw = 0; inp.dpitch = 0; inp.pyaw = 0; inp.ppitch = 0; inp.sprintBtn = false; $('b-sprint').classList.remove('on');
+  G.tut = { dist: 0, yaw: 0, flash: 0, doors: 0, pulses: 0, firstPulse: 0, crouched: false, crouchNear: 0, hid: 0, picked: {}, bag: 0, map: 0, last: null, skip: false }; G.seq = tipsOn() && SEQ[i] && !save.tips['seq' + i] ? SEQ[i] : null; G.seqI = 0; G.seqOkT = 0; G.coachOn = false; $('hint').classList.remove('coach', 'ok');
+  $('hint').textContent = save.set.hints && !G.seq ? LEVELS[i].hint : ''; $('hint').classList.toggle('show', !!save.set.hints && !G.seq); G.chapterAudio = LEVELS[i].ch; applyAudio(); Sound.unlock(); buildHotbar(true);
   setLoading(false, null, 100); G.last = performance.now(); $('fx-hurt').style.opacity = 0; if (!coarse) lockPointer();
 }
 function lockPointer() { const c = $('view'); if (c.requestPointerLock && !document.pointerLockElement) { try { const r = c.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* ignore */ } } }
 function pause(on) { if (G.mode !== 'game' || G.over) return; G.paused = on; overlay('pause', on); if (on && document.pointerLockElement) document.exitPointerLock(); if (!on && !coarse) lockPointer(); if (on) Sound.suspend && Sound.suspend(); else Sound.resume && Sound.resume(); }
 function winLevel() {
   const w = G.world; G.over = true; const t = G.timeSpent, par = w.gen.par; let stars = 1; if (w.huntCount <= 1) stars++; if (w.huntCount === 0 && t <= par * 1.25) stars++;
-  const prev = save.stars[G.level] || 0; if (stars > prev) save.stars[G.level] = stars; if (!save.best[G.level] || t < save.best[G.level]) save.best[G.level] = Math.round(t); persist();
+  if (G.deaths) G.deaths[G.level] = 0; const prev = save.stars[G.level] || 0; if (stars > prev) save.stars[G.level] = stars; if (!save.best[G.level] || t < save.best[G.level]) save.best[G.level] = Math.round(t); persist();
   Sound.play('win'); $('win-stars').innerHTML = [0, 1, 2].map(k => '<svg class="' + (k < stars ? 'f' : '') + '"><use href="#i-star"/></svg>').join(''); $('win-info').textContent = 'Time ' + fmt(t) + ' · par ' + fmt(par) + ' · ' + (w.huntCount ? 'hunted ' + w.huntCount + '×' : 'never seen');
   $('w-next').style.display = G.level + 1 < LEVELS.length ? '' : 'none'; setTimeout(() => { overlay('win', true); if (document.pointerLockElement) document.exitPointerLock(); }, 900); G.winStars = stars; if (G.level === LEVELS.length - 1) { $('win-info').textContent = EPILOGUE; $('win-title').textContent = 'The end'; } else $('win-title').textContent = 'Escaped';
 }
 const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
-function loseLevel() { G.over = true; vibe([80, 60, 160]); setTimeout(() => { overlay('dead', true); if (document.pointerLockElement) document.exitPointerLock(); }, 1700); }
-function toMenu() { ['pause', 'win', 'dead', 'note', 'log', 'keypad', 'inv', 'obj'].forEach(o => overlay(o, false)); G.mode = 'home'; G.world = null; startMenuScene(); show('home'); Sound.scene({ menu: true }); }
+function loseLevel() { G.deaths = G.deaths || {}; G.deaths[G.level] = (G.deaths[G.level] || 0) + 1; G.over = true; vibe([80, 60, 160]); setTimeout(() => { overlay('dead', true); if (document.pointerLockElement) document.exitPointerLock(); }, 1700); }
+function toMenu() { ['pause', 'win', 'dead', 'note', 'log', 'keypad', 'inv', 'obj', 'map', 'tip'].forEach(o => overlay(o, false)); G.mode = 'home'; G.world = null; startMenuScene(); show('home'); Sound.scene({ menu: true }); }
 
 /* ---------------- menu scene: the first corridor, something far down it ---------------- */
 async function startMenuScene() {
@@ -128,7 +130,7 @@ function setC(id, cls, on) { const k = id + cls; if (HC[k] !== on) { HC[k] = on;
 function setO(id, v) { v = Math.round(v * 20) / 20; if (HC[id + 'o'] !== v) { HC[id + 'o'] = v; $(id).style.opacity = v; } }
 function hud(w, dt) {
   const p = w.player; G.hudT = (G.hudT || 0) + dt; if (G.bannerT > 0) { G.bannerT -= dt; if (G.bannerT <= 0) $('banner').classList.remove('show'); } if (G.hintT > 0) { G.hintT -= dt; if (G.hintT <= 0) $('hint').classList.remove('show'); }
-  drawMarks(w);
+  drawMarks(w); coachTick(w, dt);
   if (G.hudT < 0.066) return; const dtH = G.hudT; G.hudT = 0;
   setT('obj-text', w.objective().current); setT('pulse-n', p.pulses); setC('b-pulse', 'dim', p.pulses <= 0); const cdf = Math.round(w.pulseCd / PULSE_CD * 40) / 40; if (HC.cdf !== cdf) { HC.cdf = cdf; $('b-pulse').style.setProperty('--cd', cdf); } setC('b-pulse', 'cd', cdf > 0); setT('pulse-l', w.pulseCd > 0 ? w.pulseCd.toFixed(1) + 's' : 'Pulse'); buildHotbar(false);
   const pr = w.prompt, show = !!(pr && !G.modal); setC('prompt', 'show', show); if (show) { setC('prompt', 'no', /^Locked|needs/.test(pr.text)); setT('prompt-text', pr.text); }
@@ -138,7 +140,7 @@ function hud(w, dt) {
 
 
 /* ---------------- sonar markers + threat direction ---------------- */
-const MARKC = { item: '#ffd070', exit: '#3dff8a', door: '#ff8a5a', generator: '#ffcc22', valve: '#ff5533', note: '#fff0b0', log: '#46ff9a', locker: '#9ad', vent: '#9ad' };
+const MARKC = { item: '#ffd070', exit: '#3dff8a', door: '#ff8a5a', generator: '#ffcc22', valve: '#ff5533', breaker: '#ff9a2a', note: '#fff0b0', log: '#46ff9a', locker: '#9ad', vent: '#9ad' };
 let marksOn = false;
 function drawMarks(w) {
   const cv = $('marks'), v = G.view, p = w.player; if (!cv || !v) return; const r = cv.getBoundingClientRect(), W = Math.round(r.width), H = Math.round(r.height); if (!W) return;
@@ -160,8 +162,8 @@ const INVINFO = { flash: ['Flashlight', 'A narrow beam. Switch it off to be hard
 let invSel = 'flash';
 function panel(id, on) {
   const open = $('ov-' + id).classList.contains('show');
-  if (on) { if (G.mode !== 'game' || G.over || G.modal || anyOverlay() || !G.world) return; G.paused = true; if (document.pointerLockElement) document.exitPointerLock(); id === 'inv' ? drawInv() : drawObj(); overlay(id, true); Sound.play('ui'); }
-  else if (open) { overlay(id, false); G.paused = false; if (!coarse) lockPointer(); }
+  if (on) { if (G.mode !== 'game' || G.over || G.modal || anyOverlay() || !G.world) return; G.paused = true; if (document.pointerLockElement) document.exitPointerLock(); id === 'inv' ? drawInv() : id === 'obj' ? drawObj() : drawMap(); if (id === 'inv') G.tut.bag++; if (id === 'map') { G.tut.map++; G.mapTimer = setInterval(() => { if (G.world) drawMap(); }, 180); } overlay(id, true); Sound.play('ui'); }
+  else if (open) { overlay(id, false); if (id === 'map') { clearInterval(G.mapTimer); G.mapTimer = 0; } G.paused = false; if (!coarse) lockPointer(); }
 }
 function drawInv() {
   const w = G.world, inv = w.player.inv, cnt = { flash: w.player.flash ? 1 : 0, card: inv.card, key: inv.key, fuse: inv.fuse, radio: inv.radio, pulse: w.player.pulses }, g = $('inv-grid'); g.innerHTML = '';
@@ -169,16 +171,63 @@ function drawInv() {
   $('inv-desc').textContent = INVINFO[invSel][0] + ' - ' + INVINFO[invSel][1]; const u = $('inv-use'); u.hidden = !(invSel === 'flash' || (invSel === 'radio' && inv.radio > 0)); u.textContent = invSel === 'flash' ? (w.player.flash ? 'Switch off' : 'Switch on') : 'Use radio';
 }
 function drawObj() { const o = G.world.objective(), l = $('obj-list'); l.innerHTML = ''; let cur = true; o.steps.forEach(st => { const li = document.createElement('li'); li.className = st.done ? 'done' : cur ? 'cur' : ''; if (!st.done) cur = false; li.innerHTML = '<svg><use href="#' + (st.done ? 'i-check' : 'i-bulb') + '"/></svg><span></span>'; li.lastChild.textContent = st.text; l.appendChild(li); }); const lg = G.world.objs.find(o => o.type === 'log'); if (lg) { const li = document.createElement('li'); li.className = lg.done ? 'done' : ''; li.innerHTML = '<svg><use href="#' + (lg.done ? 'i-check' : 'i-book') + '"/></svg><span></span>'; li.lastChild.textContent = 'Optional: find the recovered log' + (lg.done ? ' (read)' : ''); l.appendChild(li); } $('obj-hint').textContent = 'Hint: ' + LEVELS[G.level].hint; }
-for (const [id, pn] of [['b-bag', 'inv'], ['obj', 'obj']]) $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); panel(pn, true); });
+for (const [id, pn] of [['b-bag', 'inv'], ['obj', 'obj'], ['b-map', 'map']]) $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); panel(pn, true); });
 $('inv-use').onclick = () => { const k = invSel; panel('inv', false); if (k === 'flash') inp.edge.flash = true; else inp.edge.radio = true; };
 qa('[data-pclose]').forEach(b => { b.onclick = () => { Sound.play('ui'); panel(b.getAttribute('data-pclose'), false); }; });
-document.addEventListener('keydown', (e) => { if (e.code === 'Escape') { const shownOv = (id) => $('ov-' + id).classList.contains('show'); if (shownOv('log')) { e.stopPropagation(); $('log-ok').click(); return; } if (shownOv('note')) { e.stopPropagation(); $('note-ok').click(); return; } if (shownOv('keypad')) { e.stopPropagation(); $('kp-cancel').click(); return; } if ($('ov-inv').classList.contains('show')) panel('inv', false); else if ($('ov-obj').classList.contains('show')) panel('obj', false); } else if (G.mode === 'game' && (e.code === 'KeyI' || e.code === 'Tab')) { e.preventDefault(); $('ov-inv').classList.contains('show') ? panel('inv', false) : panel('inv', true); } else if (G.mode === 'game' && e.code === 'KeyO') { $('ov-obj').classList.contains('show') ? panel('obj', false) : panel('obj', true); } }, true);
+document.addEventListener('keydown', (e) => { if (e.code === 'Escape') { const shownOv = (id) => $('ov-' + id).classList.contains('show'); if (['log', 'note', 'keypad', 'inv', 'obj', 'map', 'tip'].some(shownOv)) e.stopPropagation();   /* Escape closes the top panel only, it must not also open the pause menu */
+    if (shownOv('log')) { e.stopPropagation(); $('log-ok').click(); return; } if (shownOv('note')) { e.stopPropagation(); $('note-ok').click(); return; } if (shownOv('keypad')) { e.stopPropagation(); $('kp-cancel').click(); return; } if ($('ov-inv').classList.contains('show')) panel('inv', false); else if ($('ov-obj').classList.contains('show')) panel('obj', false); else if ($('ov-map').classList.contains('show')) panel('map', false); else if ($('ov-tip').classList.contains('show')) $('tip-ok').click(); } else if (G.mode === 'game' && (e.code === 'KeyI' || e.code === 'Tab')) { e.preventDefault(); $('ov-inv').classList.contains('show') ? panel('inv', false) : panel('inv', true); } else if (G.mode === 'game' && e.code === 'KeyM') { $('ov-map').classList.contains('show') ? panel('map', false) : panel('map', true); } else if (G.mode === 'game' && e.code === 'KeyO') { $('ov-obj').classList.contains('show') ? panel('obj', false) : panel('obj', true); } }, true);
+
+
+const tipsOn = () => !!save.set.hints && !(__TEST__ && TEST && !/[?&]tips=1\b/.test(location.search));   // the automated tests switch the teaching cards off (they would freeze the game); ?tips=1 turns them on
+/* ---------------- map ---------------- */
+const LOCKC = { key: '#c9a14a', card: '#3ca0ff', power: '#ffcc22', code: '#66ff88', valve: '#ff5533', secret: '#44aaff', breaker: '#ff9a2a' };
+function drawMap() {
+  const w = G.world, cv = $('map-cv'); if (!w || !cv) return; const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1), cw = Math.max(200, Math.round(r.width * dpr)), ch = Math.max(120, Math.round(r.height * dpr)); if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; }
+  const x = cv.getContext('2d'), W = w.W, H = w.H, seen = w.seen || new Uint8Array(W * H); x.clearRect(0, 0, cw, ch); x.fillStyle = '#05070a'; x.fillRect(0, 0, cw, ch);
+  /* only the part of the grid that has floor in it */
+  let x0 = W, y0 = H, x1 = 0, y1 = 0; for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) if (w.cells[ty * W + tx] !== 0) { if (tx < x0) x0 = tx; if (tx > x1) x1 = tx; if (ty < y0) y0 = ty; if (ty > y1) y1 = ty; }
+  const gw = x1 - x0 + 3, gh = y1 - y0 + 3, sc = Math.min(cw / gw, ch / gh), ox = (cw - gw * sc) / 2 - (x0 - 1) * sc, oy = (ch - gh * sc) / 2 - (y0 - 1) * sc, now = performance.now() / 1000;
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) { const t = w.cells[ty * W + tx]; if (t === 0) continue; const sn = seen[ty * W + tx]; x.fillStyle = t === 2 ? (sn ? '#1f4a63' : '#10242f') : (sn ? '#34414c' : '#171d23'); x.fillRect(ox + tx * sc, oy + ty * sc, Math.ceil(sc), Math.ceil(sc)); }
+  for (const o of w.objs) { if (o.type !== 'door' || (o.hidden && !o.revealed)) continue; x.fillStyle = o.locked ? (LOCKC[o.lock] || '#ff5c66') : '#8a949e'; const dw = o.dir === 'x' ? 0.5 : 1, dh = o.dir === 'x' ? 1 : 0.5; x.fillRect(ox + (o.x + 0.5 - dw / 2) * sc, oy + (o.y + 0.5 - dh / 2) * sc, dw * sc, dh * sc); }
+  const lab = (txt, px, py, col) => { x.font = 'bold ' + Math.max(10, Math.round(sc * 1.5)) + 'px sans-serif'; x.textAlign = 'center'; x.fillStyle = '#000'; x.fillText(txt, px + 1, py + 1); x.fillStyle = col; x.fillText(txt, px, py); };
+  const ex = w.objs.find(o => o.type === 'exit'); if (ex) { x.fillStyle = '#3dff8a'; x.fillRect(ox + ex.x * sc, oy + ex.y * sc, sc * 1.1, sc * 1.1); lab('EXIT', ox + (ex.x + 0.5) * sc, oy + (ex.y - 0.4) * sc, '#3dff8a'); }
+  const pulse = 0.65 + 0.35 * Math.sin(now * 5); for (const t of w.objectiveTargets()) { if (t.type === 'exit') continue; const px = ox + t.x * sc, py = oy + t.y * sc, d = sc * 1.2 * (0.9 + 0.2 * pulse); x.save(); x.translate(px, py); x.rotate(Math.PI / 4); x.fillStyle = 'rgba(255,179,71,' + (0.5 + 0.4 * pulse) + ')'; x.strokeStyle = '#ffb347'; x.lineWidth = Math.max(1.5, sc * 0.2); x.fillRect(-d / 2, -d / 2, d, d); x.strokeRect(-d / 2, -d / 2, d, d); x.restore(); lab(t.label, px, py - sc * 1.4, '#ffb347'); }
+  const p = w.player, px = ox + p.x * sc, py = oy + p.y * sc; x.save(); x.translate(px, py); x.rotate(p.yaw + Math.PI / 2); x.fillStyle = '#fff'; x.strokeStyle = '#000'; x.lineWidth = 1.5; const a = Math.max(5, sc * 1.4); x.beginPath(); x.moveTo(0, -a); x.lineTo(a * 0.75, a * 0.9); x.lineTo(0, a * 0.45); x.lineTo(-a * 0.75, a * 0.9); x.closePath(); x.fill(); x.stroke(); x.restore();
+}
+
+/* ---------------- tutorial coach (first levels) + one-time "new mechanic" cards ---------------- */
+function track(e) {
+  const T = G.tut; if (!T) return;
+  if (e.type === 'flash') T.flash++; else if (e.type === 'door' && e.by !== 'creature') T.doors++; else if (e.type === 'pulse') { T.pulses++; if (!T.firstPulse) T.firstPulse = performance.now() / 1000; } else if (e.type === 'hide' && !e.out) T.hid++; else if (e.type === 'pickup') T.picked[e.kind] = 1;
+}
+function coachTick(w, dt) {
+  const T = G.tut, p = w.player, now = performance.now() / 1000; if (!T || G.over) return;
+  if (T.last) { T.dist += Math.hypot(p.x - T.last[0], p.y - T.last[1]); T.yaw += Math.abs(angDiffUI(p.yaw, T.last[2])); if (p.crouch) { T.crouched = true; if (w.creatures.some(c => Math.hypot(c.x - p.x, c.y - p.y) < 11)) T.crouchNear += dt; } } T.last = [p.x, p.y, p.yaw];
+  const h = $('hint');
+  if (G.seq && !G.modal && !G.paused) {
+    const step = G.seq[G.seqI]; if (step) {
+      if (!G.coachOn) { G.coachOn = true; h.classList.add('coach'); h.classList.remove('ok'); h.classList.add('show'); } G.hintT = 999;
+      if (G.seqOkT > 0) { if (now > G.seqOkT) { G.seqOkT = 0; G.seqI++; G.coachOn = false; if (G.seqI >= G.seq.length - 1 && !G.seq[G.seqI]) G.seq = null; h.classList.remove('ok'); } }
+      else {
+        const n = G.seq.length; h.innerHTML = '<b>STEP ' + (G.seqI + 1) + ' / ' + n + ' &middot; ' + step.t + '</b>' + step.x + (step.id === 'exit' ? '' : '<small>tap this box to skip the step</small>');
+        if (step.ok(T, w, now) || T.skip) { T.skip = false; if (step.id === 'exit') { /* last step stays until the level ends */ } else { h.classList.add('ok'); h.innerHTML = '<b>&#10003; ' + step.t + '</b>Well done.'; G.seqOkT = now + 1.1; Sound.play('ui'); if (G.seqI === n - 2) save.tips['seq' + G.level] = 1; if (G.seqI === n - 2) persist(); } }
+      }
+    }
+  }
+  /* one-time mechanic cards */
+  if (tipsOn() && !G.modal && !G.paused && w.time > 1 && p.alive && p.hidden < 0 && !p.vent) { for (const m of MECH) { if (save.tips[m.id]) continue; let ok = false; try { ok = m.when(w); } catch (er) { ok = false; } if (ok) { showTip(m); break; } } }
+}
+const angDiffUI = (a, b) => { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
+function showTip(m) { save.tips[m.id] = 1; persist(); $('tip-title').textContent = m.t; $('tip-text').textContent = m.x; $('tip-use').setAttribute('href', '#' + (m.icon || 'i-hand')); G.modal = true; overlay('tip', true); Sound.play('ui'); if (document.pointerLockElement) document.exitPointerLock(); }
+$('tip-ok').onclick = () => { overlay('tip', false); G.modal = false; Sound.play('ui'); if (!coarse) lockPointer(); };
+$('hint').addEventListener('pointerdown', (e) => { if ($('hint').classList.contains('coach') && G.tut && G.seq && G.seq[G.seqI] && G.seq[G.seqI].id !== 'exit') { e.preventDefault(); e.stopPropagation(); G.tut.skip = true; } });
 
 /* ---------------- events -> sound, banners, vibration ---------------- */
 let hbTimer = 0;
 function handleEvents(w, dt) {
   const p = w.player;
   for (const e of w.drainEvents()) {
+    track(e);
     switch (e.type) {
       case 'step': if (e.kind === 'glass') Sound.play('glass', { crouch: e.crouch }); else Sound.play('step', { crouch: e.crouch, run: e.sprint, v: e.kind === 'water' ? 1.5 : 1 }); break;
       case 'pulse': Sound.play('ping'); Sound.duck(); $('fx-flash').style.transition = 'none'; $('fx-flash').style.opacity = 0.18; requestAnimationFrame(() => { $('fx-flash').style.transition = 'opacity .8s ease-out'; $('fx-flash').style.opacity = 0; }); vibe(30); break;
@@ -190,6 +239,8 @@ function handleEvents(w, dt) {
       case 'hide': Sound.play('hide'); break;
       case 'vent': Sound.play('vent'); break;
       case 'generator': Sound.play('gen'); G.view.reach(); break;
+      case 'breaker': Sound.play('door'); later(() => Sound.play('thump', { pan: 0 }), 200); G.view.reach(); banner('BREAKER ' + e.n + ' / ' + e.total, e.n === e.total ? 'heard' : 'sus', 1500); break;
+      case 'alarm': { Sound.play('heard'); const sp = spatial(e.x, e.y); Sound.play('roar', { v: 0.5, pan: 0, kind: 'stalker' }); banner('ALARM! THEY HEARD THAT', 'seen', 2600); vibe([60, 40, 120]); break; }
       case 'valve': Sound.play('door'); later(() => Sound.play('thump', { pan: 0 }), 300); G.view.reach(); break;
       case 'radio': Sound.play('radio'); break;
       case 'radioburst': { const s = spatial(e.x, e.y); if (s.d < 22) Sound.play('radio'); break; }
@@ -242,7 +293,7 @@ document.addEventListener('pointerlockchange', () => { if (G.mode === 'game' && 
 document.addEventListener('mousemove', (e) => { if (!document.pointerLockElement || G.paused || G.modal) return; const s = 0.0022 * save.set.sens / 100; inp.dyaw += e.movementX * s; inp.dpitch += -e.movementY * s * (save.set.inv ? -1 : 1); });
 $('view').addEventListener('mousedown', (e) => { if (G.mode === 'game' && !G.paused && !G.modal && !coarse && !G.over) { if (document.pointerLockElement) { const r = $('view').getBoundingClientRect(); tapAt(r.left + r.width / 2, r.top + r.height / 2); } else lockPointer(); } });
 /* tap or click a thing to use it: the object nearest the tap on screen, within reach (doors, lockers, items, vents, generator, valve, exit) */
-const REACH_H = { door: 1.3, locker: 1.0, item: 0.95, generator: 0.9, valve: 1.2, note: 0.1, log: 1.1, vent: 0.55, exit: 1.3 };
+const REACH_H = { door: 1.3, locker: 1.0, item: 0.95, generator: 0.9, valve: 1.2, breaker: 1.2, note: 0.1, log: 1.1, vent: 0.55, exit: 1.3 };
 function tapAt(cx, cy) {
   const w = G.world, v = G.view; if (!w || G.paused || G.modal || G.over || !w.player.alive) return false; const p = w.player;
   if (p.hidden >= 0) { inp.edge.interact = true; return true; }
@@ -270,7 +321,7 @@ $('scr-game').addEventListener('pointerdown', (e) => {
 });
 $('scr-game').addEventListener('pointermove', (e) => {
   if (touch.stick && e.pointerId === touch.stick.id) { let dx = e.clientX - touch.stick.x, dy = e.clientY - touch.stick.y; const d = Math.hypot(dx, dy); if (d > 12) touch.stick.moved = true; if (d > R) { dx = dx / d * R; dy = dy / d * R; } $('stick').firstChild.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'; inp.str = dx / R; inp.fwd = -dy / R; if (Math.hypot(inp.str, inp.fwd) < 0.12) { inp.str = inp.fwd = 0; } }
-  else if (touch.look && e.pointerId === touch.look.id) { if (Math.hypot(e.clientX - touch.look.sx, e.clientY - touch.look.sy) > 12) touch.look.moved = true; const s = 0.0052 * save.set.sens / 100; inp.dyaw += (e.clientX - touch.look.x) * s; inp.dpitch += -(e.clientY - touch.look.y) * s * (save.set.inv ? -1 : 1); touch.look.x = e.clientX; touch.look.y = e.clientY; }
+  else if (touch.look && e.pointerId === touch.look.id) { if (Math.hypot(e.clientX - touch.look.sx, e.clientY - touch.look.sy) > 12) touch.look.moved = true; const s = 0.0052 * save.set.sens / 100; inp.pyaw += (e.clientX - touch.look.x) * s; inp.ppitch += -(e.clientY - touch.look.y) * s * (save.set.inv ? -1 : 1); /* pending turn, fed in smoothly each frame */  touch.look.x = e.clientX; touch.look.y = e.clientY; }
 });
 const endTouch = (e) => {
   const t0 = performance.now();
@@ -299,12 +350,12 @@ function openSettings() { syncSettings(); overlay('settings', true); }
 $('s-close').onclick = () => { overlay('settings', false); persist(); };
 qa('#s-tabs button').forEach(b => { b.onclick = () => { qa('#s-tabs button').forEach(x => x.classList.toggle('on', x === b)); qa('.spage').forEach(p => p.classList.toggle('on', p.id === 'sp-' + b.getAttribute('data-t'))); }; });
 function seg(id, key, fn) { qa('#' + id + ' button').forEach(b => { b.onclick = () => { save.set[key] = b.getAttribute('data-v'); syncSettings(); fn && fn(); persist(); Sound.play('ui'); }; }); }
-function syncSettings() { const s = save.set; qa('#set-gfx button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.gfx)); qa('#set-aq button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.aq)); qa('#set-diff button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.diff)); $('set-bright').value = s.bright; $('set-vibe').checked = s.vibe; $('set-hints').checked = s.hints; $('set-marks').checked = s.marks; $('set-vol').value = s.vol; $('set-mvol').value = s.mvol; $('v-vol').textContent = s.vol + '%'; $('v-mvol').textContent = s.mvol + '%'; $('set-sound').checked = s.sound; $('set-music').checked = s.music; $('set-sens').value = s.sens; $('set-inv').checked = s.inv; }
+function syncSettings() { const s = save.set; qa('#set-gfx button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.gfx)); qa('#set-aq button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.aq)); $('set-bright').value = s.bright; $('set-vibe').checked = s.vibe; $('set-hints').checked = s.hints; $('set-marks').checked = s.marks; $('set-vol').value = s.vol; $('set-mvol').value = s.mvol; $('v-vol').textContent = s.vol + '%'; $('v-mvol').textContent = s.mvol + '%'; $('set-sound').checked = s.sound; $('set-music').checked = s.music; $('set-sens').value = s.sens; $('set-inv').checked = s.inv; }
 function applyGfx() { const g = save.set.gfx, v = G.view; v.autoQ = g === 'auto' && (!TEST || (__TEST__ && /[?&]adapt=1\b/.test(location.search))); v.setQuality(g === 'auto' ? (isMobile ? 'medium' : 'high') : g); v.brightness = save.set.bright / 100; }
-seg('set-gfx', 'gfx', () => { applyGfx(); if (G.world) G.view.loadLevel(G.world); else startMenuScene(); }); seg('set-diff', 'diff', () => { if (G.world && !G.over) G.world.diff = { easy: { sight: 0.75, alert: 0.7, speed: 0.9 }, normal: { sight: 1, alert: 1, speed: 1 }, hard: { sight: 1.2, alert: 1.3, speed: 1.12 } }[save.set.diff]; }); seg('set-aq', 'aq', () => { Sound.setQuality(save.set.aq); Sound.unlock(); applyAudio(); });
+seg('set-gfx', 'gfx', () => { applyGfx(); if (G.world) G.view.loadLevel(G.world); else startMenuScene(); }); seg('set-aq', 'aq', () => { Sound.setQuality(save.set.aq); Sound.unlock(); applyAudio(); });
 const bindR = (id, key, fn) => { $(id).oninput = () => { save.set[key] = +$(id).value; fn && fn(); syncSettings(); }; $(id).onchange = persist; }, bindC = (id, key, fn) => { $(id).onchange = () => { save.set[key] = $(id).checked; fn && fn(); persist(); }; };
 bindR('set-bright', 'bright', () => { G.view.brightness = save.set.bright / 100; }); bindR('set-vol', 'vol', applyAudio); bindR('set-mvol', 'mvol', applyAudio); bindR('set-sens', 'sens'); bindC('set-vibe', 'vibe', applyAudio); bindC('set-hints', 'hints'); bindC('set-marks', 'marks'); bindC('set-sound', 'sound', applyAudio); bindC('set-music', 'music', applyAudio); bindC('set-inv', 'inv');
-$('set-reset').onclick = () => { if ($('set-reset').dataset.sure) { save.stars = []; save.best = []; save.last = 0; persist(); delete $('set-reset').dataset.sure; $('set-reset').textContent = 'Reset'; } else { $('set-reset').dataset.sure = 1; $('set-reset').textContent = 'Sure?'; setTimeout(() => { delete $('set-reset').dataset.sure; $('set-reset').textContent = 'Reset'; }, 2500); } };
+$('set-reset').onclick = () => { if ($('set-reset').dataset.sure) { save.stars = []; save.best = []; save.last = 0; save.tips = {}; persist(); delete $('set-reset').dataset.sure; $('set-reset').textContent = 'Reset'; } else { $('set-reset').dataset.sure = 1; $('set-reset').textContent = 'Sure?'; setTimeout(() => { delete $('set-reset').dataset.sure; $('set-reset').textContent = 'Reset'; }, 2500); } };
 
 /* ---------------- the loop ---------------- */
 function tickInput() {
@@ -316,7 +367,7 @@ function frame(ts) {
   requestAnimationFrame(frame); const now = ts / 1000, dt = Math.min(0.25, now - (G.lastTs || now)); G.lastTs = now; G.now = now; const v = G.view; if (!v || !v.built) return;
   if (G.mode === 'game' && G.world) {
     const w = G.world;
-    if (!G.paused && !G.modal) { G.acc += dt; let n = 0; while (G.acc >= DT && n++ < 8) { const i = tickInput(); w.update(DT, i); if (!G.over || w.over === 'dead') G.timeSpent += DT; G.acc -= DT; handleEvents(w, DT); } if (n >= 8) G.acc = 0; } else { inp.edge = {}; inp.dyaw = 0; inp.dpitch = 0; G.acc = 0; }   // nothing typed or tapped while paused may fire on resume
+    if (!G.paused && !G.modal) { const kk = 1 - Math.exp(-dt / 0.045); const ty = inp.pyaw * kk, tp = inp.ppitch * kk; inp.dyaw += ty; inp.dpitch += tp; inp.pyaw -= ty; inp.ppitch -= tp; G.acc += dt; let n = 0; while (G.acc >= DT && n++ < 8) { const i = tickInput(); w.update(DT, i); if (!G.over || w.over === 'dead') G.timeSpent += DT; G.acc -= DT; handleEvents(w, DT); } if (n >= 8) G.acc = 0; } else { inp.edge = {}; inp.dyaw = 0; inp.dpitch = 0; inp.pyaw = 0; inp.ppitch = 0; G.acc = 0; }   // nothing typed or tapped while paused may fire on resume
     hud(w, dt); const pl = w.player, free = pl.alive && pl.hidden < 0 && !pl.vent && !G.paused && !G.modal; v.frame(w, G.paused || G.modal ? 0 : dt, now, { alpha: G.paused || G.modal ? 1 : clamp(G.acc / DT, 0, 1), look: free ? { yaw: pl.yaw + inp.dyaw, pitch: clamp(pl.pitch + inp.dpitch, -1.25, 1.25) } : null });
   } else if (G.menuWorld) { G.menuT += dt; const w = G.menuWorld; w.update(dt, {}); w.drainEvents(); v.setMenuCamera(w, G.menuT); v.camera.updateMatrixWorld(true); v.flashRig.position.copy(v.camera.position); v.flashRig.quaternion.copy(v.camera.quaternion); v.flash.intensity = 200; v.cone.visible = true; v.coneMat.uniforms.uInt.value = 0.1; v.handRoot.visible = false; v.menuFrame(w, dt, now); Sound.tick && Sound.tick(dt, 0, false); }
 }

@@ -6,8 +6,17 @@ import { World, DT } from '../src/logic/world.js';
 import { findPath, lineOfSight } from '../src/logic/ai.js';
 const ang = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
 function coming_flag(w, p) { return false; }
+
+/* a careful human walks AROUND a guard instead of through it: cheapest path to the goal tile, expensive near creatures and in their view cone */
+function detourPath(w, p, goal, cs) {
+  const W = w.W, H = w.H, sx = Math.floor(p.x), sy = Math.floor(p.y), gx = goal[0], gy = goal[1]; const cost = new Float32Array(W * H).fill(1e9), prev = new Int32Array(W * H).fill(-1), open = [[0, sy * W + sx]]; cost[sy * W + sx] = 0;
+  const pen = (x, y) => { let c = 0; for (const e of cs) { if (e.c.state === 'hunt') continue; const d = Math.hypot(x + 0.5 - e.c.x, y + 0.5 - e.c.y); if (d < 3.6) c += 80; else if (d < 9.5 && Math.abs(ang(e.c.yaw, Math.atan2(y + 0.5 - e.c.y, x + 0.5 - e.c.x))) < e.c.k.fov / 2 + 0.3 && lineOfSight(w, e.c.x, e.c.y, x + 0.5, y + 0.5)) c += 14; } return c; };
+  while (open.length) { let bi = 0; for (let i = 1; i < open.length; i++) if (open[i][0] < open[bi][0]) bi = i; const [cc, k] = open.splice(bi, 1)[0]; if (cc > cost[k]) continue; const x = k % W, y = (k / W) | 0; if (x === gx && y === gy) break;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, nk = ny * W + nx; if (nx < 0 || ny < 0 || nx >= W || ny >= H || w.cells[nk] === 0 || (w.solid.has(nk) && !w.doorAt.has(nk))) continue; const d = w.doorAt.get(nk); if (d && d.locked) continue; const nc = cost[k] + 1 + pen(nx, ny); if (nc < cost[nk]) { cost[nk] = nc; prev[nk] = k; open.push([nc, nk]); } } }
+  const gk = gy * W + gx; if (prev[gk] < 0 && gk !== sy * W + sx) return null; const out = []; for (let k = gk; k >= 0 && k !== sy * W + sx; k = prev[k]) out.push([k % W + 0.5, ((k / W) | 0) + 0.5]); return out.reverse();
+}
 export function stealthRun(gen, delay, maxT) {
-  const w = new World(gen, {}), p = w.player, path = gen.solution; let rule = '', idx = 0, t = 0, mode = 'go', hideWait = 0, lock = null, used = new Set(), locker = null, lastProg = 0, lastPos = [p.x, p.y], stuck = 0, backT = 0;
+  const w = new World(gen, {}), p = w.player, path = gen.solution; let detour = null, detourT = 0, rule = '', idx = 0, t = 0, mode = 'go', hideWait = 0, lock = null, used = new Set(), locker = null, lastProg = 0, lastPos = [p.x, p.y], stuck = 0, backT = 0;
   const steer = (tx, ty, inp, speed) => { const d = ang(p.yaw, Math.atan2(ty - p.y, tx - p.x)); inp.dyaw = Math.max(-0.4, Math.min(0.4, d)); if (Math.abs(d) < 0.7) inp.fwd = 1; inp.sprint = speed === 'run'; p.crouch = speed === 'crouch'; };
   while (t < maxT && !w.over) {
     const inp = { fwd: 0, str: 0, sprint: false }; t += DT;
@@ -33,8 +42,11 @@ export function stealthRun(gen, delay, maxT) {
       const back = path[Math.max(0, idx - 3)]; steer(back[0] + 0.5, back[1] + 0.5, inp, 'crouch'); w.update(DT, inp); continue;
     }
     /* normal route */
-    const next = path[Math.min(idx + 1, path.length - 1)], cx = next[0] + 0.5, cy = next[1] + 0.5;
-    if (idx < path.length - 1 && Math.hypot(cx - p.x, cy - p.y) < 0.35) idx++;
+    for (let k = idx; k < Math.min(path.length - 1, idx + 14); k++) if (Math.hypot(path[k][0] + 0.5 - p.x, path[k][1] + 0.5 - p.y) < 0.6) idx = Math.max(idx, k);
+    const next = path[Math.min(idx + 1, path.length - 1)]; let cx = next[0] + 0.5, cy = next[1] + 0.5;
+    const threat = cs.some(e => e.c.state !== 'hunt' && e.d < 15) && idx < path.length - 12;
+    if (threat) { detourT -= DT; if (!detour || detourT <= 0) { const g = path[Math.min(path.length - 1, idx + 9)]; const jumpAhead = path.slice(idx, idx + 10).some((q, i, a) => i && Math.abs(q[0] - a[i - 1][0]) + Math.abs(q[1] - a[i - 1][1]) > 1.5); detour = jumpAhead ? null : detourPath(w, p, g, cs); detourT = 0.6; } if (detour && detour.length) { const tt = detour[Math.min(1, detour.length - 1)]; cx = tt[0]; cy = tt[1]; } } else detour = null;
+    if (idx < path.length - 1 && Math.hypot(next[0] + 0.5 - p.x, next[1] + 0.5 - p.y) < 0.35) idx++;
     if (idx >= path.length - 1) { const ex = gen.exit; p.yaw += ang(p.yaw, Math.atan2(ex.y + 0.5 - p.y, ex.x + 0.5 - p.x)); if (Math.hypot(ex.x + 0.5 - p.x, ex.y + 0.5 - p.y) < 1.6) inp.interact = true; else inp.fwd = 1; p.crouch = false; w.update(DT, inp); continue; }
     const cur = path[idx], jump = Math.abs(next[0] - cur[0]) + Math.abs(next[1] - cur[1]) > 1.5;
     if (jump) { const v = w.objs.find(o => o.type === 'vent' && Math.abs(o.x - cur[0]) + Math.abs(o.y - cur[1]) === 1); if (v) { steer(v.x + 0.5, v.y + 0.5, inp, 'walk'); if (Math.hypot(v.x + 0.5 - p.x, v.y + 0.5 - p.y) < 1.2) { inp.interact = true; idx++; } w.update(DT, inp); continue; } }
@@ -49,7 +61,7 @@ export function stealthRun(gen, delay, maxT) {
     const nearGlass = w.tileAt(p.x + Math.cos(p.yaw) * 1.2, p.y + Math.sin(p.yaw) * 1.2) !== 1;
     const speed = alerted.length || nearGlass ? 'crouch' : 'walk'; steer(cx, cy, inp, speed);
     const tgt = w.interactTarget();
-    if (tgt && !used.has(tgt.obj.id + tgt.kind)) { const o = tgt.obj; if (tgt.kind === 'note' || tgt.kind === 'valve' || (tgt.kind === 'generator' && p.inv.fuse >= o.need) || (tgt.kind === 'door' && o.locked && ((o.lock === 'key' || o.lock === 'card') ? p.inv[o.lock] > 0 : o.lock === 'code'))) { inp.interact = true; used.add(o.id + tgt.kind); if (o.lock === 'code') { w.update(DT, inp); w.enterCode(o.id, o.code); continue; } } }
+    if (tgt && !used.has(tgt.obj.id + tgt.kind)) { const o = tgt.obj; if (tgt.kind === 'note' || tgt.kind === 'valve' || tgt.kind === 'breaker' || (tgt.kind === 'generator' && p.inv.fuse >= o.need) || (tgt.kind === 'door' && o.locked && ((o.lock === 'key' || o.lock === 'card') ? p.inv[o.lock] > 0 : o.lock === 'code'))) { inp.interact = true; used.add(o.id + tgt.kind); if (o.lock === 'code') { w.update(DT, inp); w.enterCode(o.id, o.code); continue; } } }
     if (w.objs.some(o => o.type === 'door' && o.hidden && !o.revealed && Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y) < 5) && p.pulses > 0) w.pulse();
     w.update(DT, inp);
     if (Math.hypot(p.x - lastPos[0], p.y - lastPos[1]) < 0.02) stuck += DT; else { stuck = 0; lastPos = [p.x, p.y]; } if (stuck > 25 && !hunting.length) { stuck = 0; backT = 0; }

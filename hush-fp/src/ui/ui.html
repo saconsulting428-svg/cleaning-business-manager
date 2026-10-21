@@ -24,6 +24,7 @@
 <symbol id="i-retry" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round" d="M4 12a8 8 0 1 0 3-6.200M4 4v5h5"/></symbol>
 <symbol id="i-home" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></symbol>
 <symbol id="i-bag" viewBox="0 0 24 24"><path fill="currentColor" d="M9 3h6l1 3h2.5c.8 0 1.5.7 1.5 1.5v11c0 .8-.7 1.5-1.5 1.5h-13C4.7 20 4 19.3 4 18.500v-11C4 6.700 4.700 6 5.500 6H8zm1.200 2-.4 1h4.400l-.4-1zM8 12h8v2H8z"/></symbol>
+<symbol id="i-map" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M9 3 3 5v16l6-2 6 2 6-2V3l-6 2zm1 2.3 4 1.3v12.1l-4-1.3z"/></symbol>
 <symbol id="i-warn" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2 1 21h22zm-1 7h2v6h-2zm0 8h2v2h-2z"/></symbol>
 </defs></svg>
 
@@ -43,7 +44,7 @@
       <button class="mbtn" id="m-credits"><svg><use href="#i-people"/></svg><span>Credits</span></button>
       <button class="mbtn" id="m-exit"><svg><use href="#i-exit"/></svg><span>Exit</span></button>
     </nav>
-    <div class="ver">v1.0.0</div>
+    <div class="ver">v1.1.0</div>
   </section>
 
   <!-- chapters -->
@@ -63,7 +64,7 @@
   <section class="screen hud" id="scr-game">
     <button class="obj" id="obj" aria-label="Objectives"><div class="obj-ic"><svg><use href="#i-bulb"/></svg></div><div><small>OBJECTIVE</small><b id="obj-text">Find the exit</b></div></button>
     <div class="noise" id="noise"><canvas id="noise-cv" width="220" height="34"></canvas><svg id="noise-eye"><use href="#i-eye"/></svg><div id="noise-msg"></div></div>
-    <button class="icon-btn pause" id="b-pause"><svg><use href="#i-pause"/></svg></button><button class="icon-btn bag" id="b-bag" aria-label="Inventory"><svg><use href="#i-bag"/></svg></button>
+    <button class="icon-btn pause" id="b-pause"><svg><use href="#i-pause"/></svg></button><button class="icon-btn bag" id="b-bag" aria-label="Inventory"><svg><use href="#i-bag"/></svg></button><button class="icon-btn mapbtn" id="b-map" aria-label="Map"><svg><use href="#i-map"/></svg></button>
     <div class="banner" id="banner"></div>
     <div class="hint" id="hint"></div>
     <canvas class="marks" id="marks"></canvas><div class="cross" id="cross"></div>
@@ -79,6 +80,8 @@
   </section>
 
   <!-- overlays -->
+  <div class="overlay" id="ov-map"><div class="card wide mapcard"><div class="card-h"><h3>Map</h3><button class="icon-btn" data-pclose="map"><svg><use href="#i-back"/></svg></button></div><canvas id="map-cv"></canvas><div class="maplegend"><span><i class="lg you"></i>You</span><span><i class="lg obj"></i>Go here</span><span><i class="lg ex"></i>Exit</span><span><i class="lg dr"></i>Locked door</span><span><i class="lg dim"></i>Not seen yet</span></div></div></div>
+  <div class="overlay" id="ov-tip"><div class="tipcard"><div class="tip-ic"><svg><use id="tip-use" href="#i-hand"/></svg></div><small>NEW</small><h4 id="tip-title"></h4><p id="tip-text"></p><button class="btn red" id="tip-ok">Got it</button></div></div>
   <div class="overlay" id="ov-inv"><div class="card wide"><div class="card-h"><h3>Inventory</h3><button class="icon-btn" data-pclose="inv"><svg><use href="#i-back"/></svg></button></div><div class="invgrid" id="inv-grid"></div><div class="invdesc" id="inv-desc">Select an item.</div><button class="btn red" id="inv-use" hidden>Use</button></div></div>
   <div class="overlay" id="ov-obj"><div class="card wide"><div class="card-h"><h3>Objectives</h3><button class="icon-btn" data-pclose="obj"><svg><use href="#i-back"/></svg></button></div><ul class="objlist" id="obj-list"></ul><div class="invdesc" id="obj-hint"></div></div></div>
   <div class="overlay" id="ov-pause"><div class="card"><h3>Paused</h3><button class="btn red" id="p-resume"><svg><use href="#i-play"/></svg>Resume</button><button class="btn" id="p-restart"><svg><use href="#i-retry"/></svg>Restart level</button><button class="btn" id="p-settings"><svg><use href="#i-gear"/></svg>Settings</button><button class="btn" id="p-menu"><svg><use href="#i-home"/></svg>Main menu</button></div></div>
@@ -86,7 +89,6 @@
     <div class="stabs" id="s-tabs"><button class="on" data-t="general">General</button><button data-t="audio">Audio</button><button data-t="controls">Controls</button></div>
     <div class="spage on" id="sp-general">
       <div class="row"><span>Graphics</span><div class="seg" id="set-gfx"><button data-v="auto">Auto</button><button data-v="high">High</button><button data-v="medium">Medium</button><button data-v="low">Low</button></div></div>
-      <div class="row"><span>Difficulty</span><div class="seg" id="set-diff"><button data-v="easy">Easy</button><button data-v="normal">Normal</button><button data-v="hard">Hard</button></div></div>
       <div class="row"><span>Brightness</span><input type="range" id="set-bright" min="70" max="160" value="100"></div>
       <div class="row"><span>Vibration</span><label class="sw"><input type="checkbox" id="set-vibe" checked><i></i></label></div>
       <div class="row"><span>Objective markers on pulse</span><label class="sw"><input type="checkbox" id="set-marks" checked><i></i></label></div>

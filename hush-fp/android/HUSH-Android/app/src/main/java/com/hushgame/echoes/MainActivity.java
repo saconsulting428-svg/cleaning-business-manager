@@ -38,7 +38,7 @@ public class MainActivity extends ComponentActivity {
     private static final String BACK_JS =
             "(function(){try{"
           + "var ovs=[].slice.call(document.querySelectorAll('.overlay.show')).filter(function(o){return o.id!=='ov-load'&&o.id!=='ov-gate';});"
-          + "if(ovs.length){var top=ovs[ovs.length-1];var b=top.querySelector('#log-ok,#note-ok,#kp-cancel,#s-close,[data-pclose],[data-close],#p-resume');if(b){b.click();return 'handled';}}"
+          + "if(ovs.length){var top=ovs[ovs.length-1];var b=top.querySelector('#tip-ok,#log-ok,#note-ok,#kp-cancel,#s-close,[data-pclose],[data-close],#p-resume');if(b){b.click();return 'handled';}}"
           + "var g=document.getElementById('scr-game');"
           + "if(g&&(g.classList.contains('active')||g.classList.contains('show'))){document.dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape',bubbles:true}));return 'handled';}"
           + "var back=document.querySelector('.screen.active [data-go],.screen.show [data-go]');"

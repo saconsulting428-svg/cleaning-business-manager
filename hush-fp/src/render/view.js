@@ -9,7 +9,7 @@ import { GLBMonster } from './monster_glb.js';
 /* high: PBR + normal maps + flashlight shadows (desktop). medium: cheap lit materials with normal maps, full resolution, no shadow pass (phones). low: plain materials, lower resolution.
    The pixel ratio is the CAP: the real ratio is scaled down automatically when frames get slow (dynamic resolution), and back up when there is headroom. */
 export const QUALITY = {
-  high: { pr: 2.5, shadow: 1024, texSize: 512, dust: 120, mats: 'std', lamps: 2, head: true, cone: true },
+  high: { pr: 1.75, shadow: 768, texSize: 512, dust: 120, mats: 'std', lamps: 2, head: true, cone: true },
   medium: { pr: 2, shadow: 0, texSize: 512, dust: 70, mats: 'lambert-n', lamps: 1, head: false, cone: true },
   low: { pr: 1.25, shadow: 0, texSize: 256, dust: 30, mats: 'lambert', lamps: 1, head: false, cone: false }
 };
@@ -23,7 +23,8 @@ export class View {
     this.canvas = canvas; this.qName = qualityName || 'medium'; this.Q = QUALITY[this.qName]; this.t = 0; this.bob = 0; this.reachT = 0; this.shake = 0; this.world = null; this.built = null; this.cr = [];
     this.resScale = 1; this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !!(opts && opts.aa), powerPreference: 'high-performance', alpha: false, stencil: false });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.05;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; this.camera = new THREE.PerspectiveCamera(72, 1, 0.05, 60); this.camera.rotation.order = 'YXZ';
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; this.renderer.shadowMap.autoUpdate = false;   // the flashlight shadow is refreshed every other frame (half the shadow cost, not noticeable)
+     this.camera = new THREE.PerspectiveCamera(72, 1, 0.05, 60); this.camera.rotation.order = 'YXZ';
     this.menuMode = false; this.setQuality(this.qName); this.buildHands(); this.frames = 0; this.slow = 0; this.brightness = 1;
   }
   setQuality(name) {
@@ -32,7 +33,7 @@ export class View {
   }
   applyRes() { this.renderer.setPixelRatio(Math.max(0.6, Math.min(window.devicePixelRatio || 1, this.Q.pr) * this.resScale)); }
   resize() {
-    const w = this.canvas.clientWidth || window.innerWidth, h = this.canvas.clientHeight || window.innerHeight; this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.fov = w / h < 1 ? 82 : 70; this.camera.updateProjectionMatrix(); this.portrait = w / h < 1;
+    const w = this.canvas.clientWidth || window.innerWidth, h = this.canvas.clientHeight || window.innerHeight; this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.baseFov = w / h < 1 ? 82 : 70; this.camera.fov = this.baseFov; this.camera.updateProjectionMatrix(); this.portrait = w / h < 1;
   }
   /* ---- first-person hands + flashlight model, parented to the camera ---- */
   buildHands() {
@@ -107,22 +108,26 @@ export class View {
       if (e.glb) { if (dt > 0 && (Math.hypot(p.x - c.x, p.y - c.y) < 36 || c.revealT > 0)) GLBMonster.update(e.glb, c, world, dt); } else { poseCreature(e.real, c, now, dt, c.seen || c.state === 'hunt' ? look : undefined); if (c.revealT > 0) poseCreature(e.ghost, c, now, dt, c.seen || c.state === 'hunt' ? look : undefined); }
       e.ghost.visible = c.revealT > 0; if (e.ghost.visible) e.gm.opacity = Math.min(1, c.revealT * 1.1) * (0.55 + 0.1 * Math.sin(now * 20));
     }
+    if (this.Q.shadow) for (const e of this.cr) if (e.glb && e.glb.skin) e.glb.skin.castShadow = e === nearest;
     for (const e of nearest ? [nearest] : []) { const l = this.mlights[li++], c = e.c, d = Math.hypot(c.x * TS - cx, c.y * TS - cz); l.position.set(c.x * TS, 2.6, c.y * TS); l.color.setHex(c.t === 'sentinel' ? 0x80c8ff : 0xff2a1a); l.intensity = d < 16 ? (c.state === 'hunt' ? 5 : 1.1) * (0.8 + 0.2 * Math.sin(now * 5 + c.id)) : 0; } for (; li < 1; li++) this.mlights[li].intensity = 0;
     /* dust drifts around the camera */
     const pos = this.dust.geometry.attributes.position, base = this.dustBase; for (let i = 0; i < pos.count; i++) { const x = base[i * 3] + Math.sin(now * 0.2 + i) * 0.4 + now * 0.05, y = base[i * 3 + 1] + Math.sin(now * 0.3 + i * 1.7) * 0.3, z = base[i * 3 + 2] + Math.cos(now * 0.25 + i * 0.7) * 0.4; pos.setXYZ(i, cx + ((x + 6) % 12 + 12) % 12 - 6, ((y % 3) + 3) % 3, cz + ((z + 6) % 12 + 12) % 12 - 6); } pos.needsUpdate = true;
     if (this.head) { this.head.position.copy(this.camera.position); this.head.intensity = world.spec.lightsOut ? 1.2 : 3.2 * (world.player.flash ? 1 : 0.5); }
     this.renderer.toneMappingExposure = 1.05 * this.brightness * (world.spec.lightsOut ? 1.15 : 1);
-    this.renderer.render(b.scene, this.camera);
+    this.renderer.shadowMap.needsUpdate = (this.frames & 1) === 0; this.renderer.render(b.scene, this.camera);
     /* dynamic resolution: when frames run long the render resolution drops a notch (never below 0.6x), with headroom it climbs back; only if still slow at the floor does the quality tier drop */
     this.frames++; if (dt > 0 && dt < 0.5) { this.ftSum = (this.ftSum || 0) + dt; this.ftN = (this.ftN || 0) + 1; }
-    if (this.autoQ && this.ftN >= 40) { const avg = this.ftSum / this.ftN; this.ftSum = 0; this.ftN = 0; this.cool = (this.cool || 0) - 1;
-      if (this.cool <= 0) { if (avg > 0.0215) { if (this.resScale > 0.62) { this.resScale = Math.max(0.6, this.resScale - 0.12); this.applyRes(); this.resize(); this.cool = 2; } else if (this.qName !== 'low') { this.resScale = 0.85; this.setQuality(this.qName === 'high' ? 'medium' : 'low'); if (this.onQuality) this.onQuality(this.qName); this.cool = 3; } }
+    if (this.ftN >= 40) { const avg = this.ftSum / this.ftN; this.ftSum = 0; this.ftN = 0; this.cool = (this.cool || 0) - 1;
+      if (this.cool <= 0) { if (avg > 0.0215) { if (this.resScale > 0.62) { this.resScale = Math.max(0.6, this.resScale - 0.12); this.applyRes(); this.resize(); this.cool = 2; } else if (this.autoQ && this.qName !== 'low') { this.resScale = 0.85; this.setQuality(this.qName === 'high' ? 'medium' : 'low'); if (this.onQuality) this.onQuality(this.qName); this.cool = 3; } }
         else if (avg < 0.0145 && this.resScale < 1) { this.resScale = Math.min(1, this.resScale + 0.06); this.applyRes(); this.resize(); this.cool = 3; } } }
   }
   updateCamera(world, dt, now) {
     const p = world.player, cam = this.camera, al = this.alpha === undefined ? 1 : this.alpha; let x = (p.px === undefined ? p.x : p.px + (p.x - p.px) * al) * TS, z = (p.py === undefined ? p.y : p.py + (p.y - p.py) * al) * TS, y = p.crouch ? 1.05 : 1.62; const k = Math.min(1, dt * 10); this.eyeY = this.eyeY === undefined ? y : this.eyeY + (y - this.eyeY) * k; y = this.eyeY;
-    this.bobPhase += p.speed * dt * 1.9 * TS * 0.5; const amp = p.speed > 0.1 ? (p.sprint ? 0.07 : p.crouch ? 0.02 : 0.04) : 0.004; let bx = Math.sin(this.bobPhase * 1) * amp * 0.6, by = Math.abs(Math.sin(this.bobPhase)) * amp - amp * 0.5; if (p.speed <= 0.1) by = Math.sin(now * 1.3) * 0.004;
-    let yaw = this.lookOv ? this.lookOv.yaw : p.yaw, pitch = this.lookOv ? this.lookOv.pitch : p.pitch, roll = -bx * 0.8;
+    this.bobPhase += p.speed * dt * 1.9 * TS * 0.5; const ampT = p.speed > 0.1 ? (p.sprint ? 0.07 : p.crouch ? 0.02 : 0.04) : 0.004; this.bobAmp = this.bobAmp === undefined ? ampT : this.bobAmp + (ampT - this.bobAmp) * Math.min(1, dt * 6); const amp = this.bobAmp;   // the sway fades in and out instead of snapping
+    let bx = Math.sin(this.bobPhase) * amp * 0.6, by = (Math.abs(Math.sin(this.bobPhase)) * 0.85 + Math.sin(this.bobPhase * 2 + 0.6) * 0.15) * amp - amp * 0.5; if (p.speed <= 0.1) by = Math.sin(now * 1.3) * 0.004 + by * 0.5;
+    { const sy0 = this.lookOv ? this.lookOv.yaw : p.yaw, sr = -Math.sin(sy0) * (p.vx || 0) + Math.cos(sy0) * (p.vy || 0); this.leanRoll = (this.leanRoll || 0) + ((-sr * 0.016) - (this.leanRoll || 0)) * Math.min(1, dt * 7);   // lean into a sidestep
+      const fovT = (this.baseFov || 70) + (p.sprint ? 5 : 0); this.fovNow = this.fovNow === undefined ? fovT : this.fovNow + (fovT - this.fovNow) * Math.min(1, dt * 5); if (Math.abs(this.camera.fov - this.fovNow) > 0.05) { this.camera.fov = this.fovNow; this.camera.updateProjectionMatrix(); } }
+    let yaw = this.lookOv ? this.lookOv.yaw : p.yaw, pitch = this.lookOv ? this.lookOv.pitch : p.pitch, roll = -bx * 0.8 + (this.leanRoll || 0);
     if (p.vent) { const v = p.vent, t = Math.min(1, v.t / v.dur), a = [v.from.x + 0.5 + Math.cos(v.from.face) * 0.9, v.from.y + 0.5 + Math.sin(v.from.face) * 0.9], bb = [v.to.x + 0.5 + Math.cos(v.to.face) * 0.9, v.to.y + 0.5 + Math.sin(v.to.face) * 0.9]; x = (a[0] + (bb[0] - a[0]) * t) * TS; z = (a[1] + (bb[1] - a[1]) * t) * TS; y = 0.42 + Math.sin(now * 7) * 0.02; yaw = Math.atan2(bb[1] - a[1], bb[0] - a[0]); pitch = 0; }
     if (p.hidden >= 0) { y = 1.5; }
     let sx = 0, sy = 0; if (this.shake > 0) { this.shake = Math.max(0, this.shake - dt); sx = (Math.random() - 0.5) * this.shake * 0.12; sy = (Math.random() - 0.5) * this.shake * 0.12; }
@@ -147,6 +152,7 @@ export class View {
     for (const it of dyn.items) { const o = it.o; it.g.visible = !o.taken; if (o.taken) continue; it.g.position.y = 0.95 + Math.sin(now * 2 + o.bob) * 0.06; it.g.rotation.y = now * 0.9 + o.bob; it.gl.material.opacity = (0.45 + 0.15 * Math.sin(now * 3 + o.bob)) * (o.pingT > 0 ? 2.2 : 1); it.gl.scale.setScalar(o.pingT > 0 ? 2 : 1.1); }
     for (const n of dyn.notes) { n.gl.material.opacity = (0.3 + 0.1 * Math.sin(now * 2)) * (n.o.pingT > 0 ? 2.5 : 1); }
     for (const g of dyn.gens) { g.il.color.setHex(g.o.on ? 0x30ff70 : 0xff2200); if (g.o.on) { g.fan.rotation.z += dt * 18; g.g.position.y = Math.sin(now * 55) * 0.004; } }
+    for (const v of dyn.valves) if (v.kind === 'breaker') { const d = v.o.done; v.led.color.setHex(d ? 0x30ff70 : 0xff2a1a); v.glow.material.color.setHex(d ? 0x40ff80 : 0xff9a2a); v.levers.forEach((l, i) => { const t = d ? 0.9 : -0.9; l.rotation.x += (t - l.rotation.x) * Math.min(1, dt * 9); }); }
     for (const v of dyn.valves) if (v.kind === 'valve') v.wheel.rotation.z = v.o.done ? (v.o.turn = Math.min(6.28 * 3, (v.o.turn || 0) + dt * 6)) : 0;
     if (dyn.exitGlow) dyn.exitGlow.material.opacity = 0.65 + 0.2 * Math.sin(now * 2);
     /* water slowly moves */

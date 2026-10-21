@@ -5,7 +5,9 @@ import { T, generate } from './gen.js';
 import { makeCreature, updateCreature, emitNoise, KINDS, lineOfSight, reachFrom } from './ai.js';
 
 export const DT = 1 / 30;
-export const DIFF = { easy: { sight: 0.75, alert: 0.7, speed: 0.9 }, normal: { sight: 1, alert: 1, speed: 1 }, hard: { sight: 1.2, alert: 1.3, speed: 1.12 } };
+/* one difficulty for everybody: the creatures simply get a little sharper level by level (level 1 is gentle, level 40 is firm but always beatable: sprint 2.7 tiles/s outruns the hunt speed) */
+export const levelDiff = (i) => { const t = Math.max(0, Math.min(1, (i || 0) / 39)); return { sight: 0.8 + 0.3 * t, alert: 0.78 + 0.34 * t, speed: 0.9 + 0.14 * t }; };
+export const DIFF = { normal: levelDiff(20) };
 export const SPEED = { walk: 1.55, sprint: 2.7, crouch: 0.8 };
 const PR = 0.3;                                                    // player radius in tiles
 export const PULSE_CD = 3.5;
@@ -14,7 +16,7 @@ const TALL = { crate: 1, shelf: 1, pod: 1, barrel: 1, machine: 1, tank: 1, colum
 export class World {
   constructor(gen, opts) {
     opts = opts || {}; this.gen = gen; this.lights = gen.lights; this.spec = gen.spec; this.W = gen.W; this.H = gen.H; this.cells = gen.cells; this.rooms = gen.rooms; this.rnd = rng32(gen.seed * 3 + 1);
-    this.god = !!opts.god; this.diff = DIFF[opts.diff || 'normal'] || DIFF.normal; this.time = 0; this.events = []; this.noiseLevel = 0; this.huntCount = 0; this.over = null; this.threat = 0; this.pulseState = null; this.pulseCd = 0; this.radioLures = [];
+    this.god = !!opts.god; this.assist = Math.max(0, Math.min(3, (opts && opts.assist) | 0)); { const d = levelDiff(gen.spec.story === undefined ? 20 : gen.spec.story), a = this.assist; this.diff = { sight: d.sight * (1 - 0.1 * a), alert: d.alert * (1 - 0.12 * a), speed: d.speed * (1 - 0.03 * a) }; } /* quiet safety net: every death on a level makes its creatures a little duller (resets on the next level) */ this.time = 0; this.events = []; this.noiseLevel = 0; this.huntCount = 0; this.over = null; this.threat = 0; this.pulseState = null; this.pulseCd = 0; this.radioLures = [];
     this.solid = new Set(gen.blocked); this.tall = new Set(); this.doorAt = new Map(); this.objById = new Map(); this.doors = [];
     this.objs = gen.objs.map(o => Object.assign({}, o)); for (const o of this.objs) { this.objById.set(o.id, o); if (o.type === 'prop' && TALL[o.kind]) this.tall.add(o.y * this.W + o.x); }
     for (const o of this.objs) if (o.type === 'door') { o.open = 0; o.want = 0; o.locked = !!o.lock; o.revealed = !o.hidden; o.codeOk = false; this.doorAt.set(o.y * this.W + o.x, o); this.doors.push(o); this.solid.add(o.y * this.W + o.x); }
@@ -45,7 +47,7 @@ export class World {
       if (!d.lock) { d.locked = false; continue; }
       let ok = false;
       if (d.lock === 'key' || d.lock === 'card') ok = !!d.unlockedByItem;
-      else if (d.lock === 'code') ok = d.codeOk; else if (d.lock === 'valve') ok = !!d.valveOk; else if (d.lock === 'power') ok = this.gens.some(g => g.gate === d.gate && g.on);
+      else if (d.lock === 'code') ok = d.codeOk; else if (d.lock === 'valve') ok = !!d.valveOk; else if (d.lock === 'breaker') ok = this.objs.filter(o => o.type === 'breaker' && o.gate === d.gate).every(o => o.done); else if (d.lock === 'power') ok = this.gens.some(g => g.gate === d.gate && g.on);
       else if (d.lock === 'secret') ok = d.revealed;
       d.locked = !ok;
     }
@@ -53,6 +55,27 @@ export class World {
   openDoor(d, open, by) {
     if (open && d.locked) return false; d.want = open ? 1 : 0; if (open && d.open < 0.2) { this.events.push({ type: 'door', x: d.x + 0.5, y: d.y + 0.5, by: by ? 'creature' : 'player' }); emitNoise(this, d.x + 0.5, d.y + 0.5, by ? 3 : 5, 'door', by); }
     if (!open && d.open > 0.8) this.events.push({ type: 'door', x: d.x + 0.5, y: d.y + 0.5, by: by ? 'creature' : 'player' }); return true;
+  }
+  /* ---------- map: what the player has seen, and where the current objective is (props and obstacles are never listed) ---------- */
+  markSeen() {
+    const W = this.W, H = this.H, p = this.player, px = Math.floor(p.x), py = Math.floor(p.y); if (!this.seen) this.seen = new Uint8Array(W * H);
+    const room = this.rooms.find(r => px >= r.x0 && px < r.x0 + r.w && py >= r.y0 && py < r.y0 + r.h);
+    if (room) for (let y = room.y0 - 1; y <= room.y0 + room.h; y++) for (let x = room.x0 - 1; x <= room.x0 + room.w; x++) { if (x >= 0 && y >= 0 && x < W && y < H && this.cells[y * W + x] !== T.WALL) this.seen[y * W + x] = 1; }
+    const R = 7; for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { const x = px + dx, y = py + dy; if (dx * dx + dy * dy > R * R || x < 0 || y < 0 || x >= W || y >= H || this.cells[y * W + x] === T.WALL || this.seen[y * W + x]) continue; if (lineOfSight(this, p.x, p.y, x + 0.5, y + 0.5)) this.seen[y * W + x] = 1; }
+  }
+  objectiveTargets() {
+    const cur = this.steps.find(s => !s.test()), id = cur ? cur.id : 'exit', k = +id.slice(1), out = [], add = (o, label) => out.push({ x: o.x + 0.5, y: o.y + 0.5, type: o.type, label });
+    const c = id[0];
+    if (id === 'exit') this.objs.filter(o => o.type === 'exit').forEach(o => add(o, 'EXIT'));
+    else if (c === 'k') this.objs.filter(o => o.type === 'item' && o.kind === 'key' && o.gate === k && !o.taken).forEach(o => add(o, 'KEY'));
+    else if (c === 'c') this.objs.filter(o => o.type === 'item' && o.kind === 'card' && o.gate === k && !o.taken).forEach(o => add(o, 'KEYCARD'));
+    else if (c === 'n') this.objs.filter(o => o.type === 'note' && o.gate === k && !o.done).forEach(o => add(o, 'NOTE'));
+    else if (c === 'v') this.objs.filter(o => o.type === 'valve' && !o.done).forEach(o => add(o, 'VALVE'));
+    else if (c === 'b') this.objs.filter(o => o.type === 'breaker' && o.gate === k && !o.done).forEach(o => add(o, 'BREAKER'));
+    else if (c === 'f') this.objs.filter(o => o.type === 'item' && o.kind === 'fuse' && o.gate === k && !o.taken).forEach(o => add(o, 'FUSE'));
+    else if (c === 'g') this.objs.filter(o => o.type === 'generator' && o.gate === k && !o.on).forEach(o => add(o, 'GENERATOR'));
+    else if (c === 's') this.objs.filter(o => o.type === 'door' && o.hidden && !o.revealed && o.gate === k).forEach(o => add(o, 'HIDDEN DOOR ?'));
+    return out;
   }
   /* ---------- objective ---------- */
   buildObjective() {
@@ -62,6 +85,7 @@ export class World {
       else if (g.type === 'card') st.push({ id: 'c' + g.k, text: 'Find the keycard', test: () => this.objs.some(o => o.type === 'item' && o.kind === 'card' && o.gate === g.k && o.taken) });
       else if (g.type === 'code') st.push({ id: 'n' + g.k, text: 'Find the access code', test: () => this.objs.some(o => o.type === 'note' && o.gate === g.k && o.done) });
       else if (g.type === 'valve') st.push({ id: 'v' + g.k, text: 'Turn the bulkhead valve', test: () => this.objs.some(o => o.type === 'valve' && o.done) });
+      else if (g.type === 'breaker') { const gk = g.k, self = this; st.push({ id: 'b' + g.k, get text() { const all = self.objs.filter(o => o.type === 'breaker' && o.gate === gk); return 'Flip the breakers (' + all.filter(o => o.done).length + '/' + all.length + ')'; }, test: () => this.objs.filter(o => o.type === 'breaker' && o.gate === g.k).every(o => o.done) }); }
       else if (g.type === 'secret') st.push({ id: 's' + g.k, text: 'Find the hidden door (use a pulse)', test: () => this.objs.some(o => o.type === 'door' && o.gate === g.k && o.revealed) });
       else if (g.type === 'power') {
         const n = this.spec.fuses; st.push({ id: 'f' + g.k, text: n > 1 ? 'Find ' + n + ' fuses' : 'Find the fuse', test: () => this.objs.filter(o => o.type === 'item' && o.kind === 'fuse' && o.gate === g.k && o.taken).length >= n || this.gens.some(x => x.gate === g.k && x.on) });
@@ -87,7 +111,7 @@ export class World {
   describe(o) {
     const p = this.player;
     switch (o.type) {
-      case 'door': if (o.locked) { const need = o.lock === 'key' ? 'brass key' : o.lock === 'card' ? 'keycard' : o.lock === 'power' ? 'power' : o.lock === 'code' ? 'code' : o.lock === 'valve' ? 'bulkhead valve' : 'hidden'; return { obj: o, text: o.lock === 'code' ? 'Enter code' : (o.lock === 'key' || o.lock === 'card') && p.inv[o.lock] ? 'Unlock door' : 'Locked: needs ' + need, kind: 'door' }; } return { obj: o, text: o.want ? 'Close door' : 'Open door', kind: 'door' };
+      case 'door': if (o.locked) { const need = o.lock === 'key' ? 'brass key' : o.lock === 'card' ? 'keycard' : o.lock === 'power' ? 'power' : o.lock === 'code' ? 'code' : o.lock === 'valve' ? 'bulkhead valve' : o.lock === 'breaker' ? 'the breakers' : 'hidden'; return { obj: o, text: o.lock === 'code' ? 'Enter code' : (o.lock === 'key' || o.lock === 'card') && p.inv[o.lock] ? 'Unlock door' : 'Locked: needs ' + need, kind: 'door' }; } return { obj: o, text: o.want ? 'Close door' : 'Open door', kind: 'door' };
       case 'item': return { obj: o, text: 'Take ' + ({ key: 'brass key', card: 'keycard', fuse: 'fuse', radio: 'radio' }[o.kind]), kind: 'item' };
       case 'note': return { obj: o, text: 'Read note', kind: 'note' };
       case 'log': return { obj: o, text: 'Read recovered log', kind: 'log' };
@@ -95,6 +119,7 @@ export class World {
       case 'vent': return { obj: o, text: 'Crawl through vent', kind: 'vent' };
       case 'generator': return { obj: o, text: o.on ? 'Generator running' : p.inv.fuse >= o.need ? 'Insert fuses and start' : 'Generator: needs ' + o.need + (o.need > 1 ? ' fuses' : ' fuse') + ' (' + p.inv.fuse + ')', kind: 'generator' };
       case 'valve': return { obj: o, text: o.done ? 'Valve open' : 'Turn valve', kind: 'valve' };
+      case 'breaker': return { obj: o, text: o.done ? 'Breaker on' : 'Flip breaker', kind: 'breaker' };
       case 'exit': return { obj: o, text: 'Escape', kind: 'exit' };
     }
     return null;
@@ -123,12 +148,13 @@ export class World {
       case 'locker': this.enterLocker(o); break;
       case 'vent': this.enterVent(o); break;
       case 'generator': if (!o.on && p.inv.fuse >= o.need) { p.inv.fuse -= o.need; o.on = true; this.refreshLocks(); this.events.push({ type: 'generator', x: o.x + 0.5, y: o.y + 0.5 }); emitNoise(this, o.x + 0.5, o.y + 0.5, 16, 'generator'); o.nextNoise = 3; } else if (!o.on) this.events.push({ type: 'denied', text: t.text }); break;
+      case 'breaker': if (!o.done) { o.done = true; this.refreshLocks(); const all = this.objs.filter(b => b.type === 'breaker' && b.gate === o.gate); this.events.push({ type: 'breaker', x: o.x + 0.5, y: o.y + 0.5, n: all.filter(b => b.done).length, total: all.length }); emitNoise(this, o.x + 0.5, o.y + 0.5, 8, 'breaker'); } break;
       case 'valve': if (!o.done) { o.done = true; for (const d of this.doors) if (d.id === o.opens) { d.valveOk = true; } this.refreshLocks(); this.events.push({ type: 'valve', x: o.x + 0.5, y: o.y + 0.5 }); emitNoise(this, o.x + 0.5, o.y + 0.5, 9, 'valve'); } break;
       case 'exit': this.over = 'win'; this.events.push({ type: 'win' }); break;
     }
   }
   enterCode(doorId, code) { const d = this.objById.get(doorId); if (!d || !this.keypad) return false; if (String(code) === d.code) { d.codeOk = true; this.keypad = null; this.refreshLocks(); this.openDoor(d, true); this.events.push({ type: 'unlock', x: d.x + 0.5, y: d.y + 0.5 }); return true; } this.events.push({ type: 'denied', text: 'Wrong code' }); emitNoise(this, d.x + 0.5, d.y + 0.5, 4, 'keypad'); return false; }
-  pickup(o) { if (o.taken) return; o.taken = true; this.player.inv[o.kind]++; this.events.push({ type: 'pickup', kind: o.kind, x: o.x + 0.5, y: o.y + 0.5 }); }
+  pickup(o) { if (o.taken) return; o.taken = true; this.player.inv[o.kind]++; if (this.spec.alarm && o.kind !== 'radio' && !this.alarmDone) { this.alarmDone = true; this.events.push({ type: 'alarm', x: o.x + 0.5, y: o.y + 0.5 }); emitNoise(this, o.x + 0.5, o.y + 0.5, 26, 'alarm'); } this.events.push({ type: 'pickup', kind: o.kind, x: o.x + 0.5, y: o.y + 0.5 }); }
   enterLocker(L) {
     const p = this.player; p.hidden = L.id; p.x = L.x + 0.5 - Math.cos(L.face) * 0.15; p.y = L.y + 0.5 - Math.sin(L.face) * 0.15; p.px = p.x; p.py = p.y; p.yaw = L.face; p.vx = p.vy = 0; p.hideT = 0; p.crouch = false;
     this.events.push({ type: 'hide', x: L.x + 0.5, y: L.y + 0.5 }); emitNoise(this, L.x + 0.5, L.y + 0.5, 2.2, 'locker');
@@ -159,6 +185,7 @@ export class World {
     if (this.over && this.over !== 'win') { for (const c of this.creatures) c.moving = false; return; }
     if (this.over === 'win') return;
     if (p.alive) this.updatePlayer(dt, inp);
+    this.seenT = (this.seenT || 0) - dt; if (this.seenT <= 0) { this.seenT = 0.3; this.markSeen(); }
     /* walking up to the exit is enough: no extra tap needed */
     { const ex = this.gen.exit; if (ex && p.alive && p.hidden < 0 && !p.vent && !this.over && Math.hypot(ex.x + 0.5 - p.x, ex.y + 0.5 - p.y) < 1.2) { this.over = 'win'; this.events.push({ type: 'win' }); } }
     /* soft-lock guard: a level whose route needs a hidden door can never leave you without a sonar charge (one recharges after 20 s) */
@@ -183,7 +210,7 @@ export class World {
     if (inp.crouchPress) p.crouch = !p.crouch; if (inp.crouchSet !== undefined) p.crouch = !!inp.crouchSet;
     const fw = clamp(inp.fwd || 0, -1, 1), st = clamp(inp.str || 0, -1, 1), mag = Math.min(1, Math.hypot(fw, st)); p.moving = mag > 0.08;
     p.sprint = !!inp.sprint && !p.crouch && p.moving && !p.tired && fw > 0.3;
-    if (p.sprint) { p.stamina -= dt * 0.2; if (p.stamina <= 0) { p.stamina = 0; p.tired = true; p.sprint = false; } } else { p.stamina = Math.min(1, p.stamina + dt * (p.moving ? 0.1 : 0.22)); if (p.tired && p.stamina > 0.35) p.tired = false; }
+    const hunted = this.creatures.some(c => c.state === 'hunt'); if (p.sprint) { p.stamina -= dt * (hunted ? 0.085 : 0.2);   /* adrenaline: while something hunts you the sprint lasts more than twice as long */ if (p.stamina <= 0) { p.stamina = 0; p.tired = true; p.sprint = false; } } else { p.stamina = Math.min(1, p.stamina + dt * (p.moving ? 0.1 : 0.22)); if (p.tired && p.stamina > 0.35) p.tired = false; }
     const sp = p.crouch ? SPEED.crouch : p.sprint ? SPEED.sprint : SPEED.walk, c = Math.cos(p.yaw), s = Math.sin(p.yaw);
     const tvx = ((c * fw - s * st) * sp) * (mag ? 1 : 0), tvy = ((s * fw + c * st) * sp) * (mag ? 1 : 0), k = Math.min(1, dt * 10); p.vx += (tvx - p.vx) * k; p.vy += (tvy - p.vy) * k;
     if (!p.moving && Math.hypot(p.vx, p.vy) < 0.05) { p.vx = p.vy = 0; }

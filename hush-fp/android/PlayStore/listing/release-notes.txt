@@ -1,6 +1,9 @@
 <en-US>
-First release of HUSH: Echoes in the Dark.
-• 40 levels in 3 chapters
-• Sonar, noise-based creature AI, hiding, vents, radio, puzzles
-• Story logs, offline play
+Version 1.1.0
+• One difficulty for everyone: the creatures get a little sharper level by level, and every level stays beatable
+• New in-game MAP: rooms, your position and where to go next (props and obstacles stay hidden)
+• Guided tutorial in the first four levels, and a one-time tip card whenever a new mechanic appears
+• New objective: flip the breakers; new obstacle: alarms
+• Every level has its own look and its own mix of room types
+• Smoother walking and looking, and less lag on High graphics
 </en-US>

@@ -16,7 +16,7 @@ export function runBot(world, maxSeconds) {
     const tgt = world.interactTarget();
     if (tgt && !usedOnce.has(tgt.obj.id + tgt.kind)) {
       const o = tgt.obj;
-      if (tgt.kind === 'note' || tgt.kind === 'valve' || (tgt.kind === 'generator' && p.inv.fuse >= o.need) || (tgt.kind === 'door' && o.locked && (o.lock === 'key' || o.lock === 'card' || o.lock === 'code' || o.lock === 'secret' || o.lock === 'power' || o.lock === 'valve') && (o.lock !== 'key' && o.lock !== 'card' || p.inv[o.lock] > 0 || o.unlockedByItem))) {
+      if (tgt.kind === 'note' || tgt.kind === 'valve' || tgt.kind === 'breaker' || (tgt.kind === 'generator' && p.inv.fuse >= o.need) || (tgt.kind === 'door' && o.locked && (o.lock === 'key' || o.lock === 'card' || o.lock === 'code' || o.lock === 'secret' || o.lock === 'power' || o.lock === 'valve' || o.lock === 'breaker') && (o.lock !== 'key' && o.lock !== 'card' || p.inv[o.lock] > 0 || o.unlockedByItem))) {
         if (tgt.kind === 'door' && o.lock === 'secret' && !o.revealed) world.pulse();
         else { inp.interact = true; usedOnce.add(o.id + tgt.kind); if (tgt.kind === 'door' && o.lock === 'code') { world.update(DT, inp); t += DT; world.enterCode(o.id, o.code); continue; } }
       }

@@ -6,16 +6,19 @@ import { canvasTexture } from './textures.js';
 export const KIND_TINT = {
   storage: [1.08, 0.98, 0.88], office: [0.94, 1.0, 1.06], machine: [1.14, 0.94, 0.78], vault: [0.84, 0.95, 1.1],
   pump: [0.84, 1.05, 1.14], tanks: [0.84, 1.12, 0.96], control: [0.8, 0.95, 1.24], sluice: [0.92, 1.06, 0.96],
-  hive: [1.25, 0.78, 0.78], cells: [1.05, 0.98, 0.9], bonepit: [1.08, 0.9, 0.72], nursery: [1.22, 0.78, 1.0]
+  hive: [1.25, 0.78, 0.78], cells: [1.05, 0.98, 0.9], bonepit: [1.08, 0.9, 0.72], nursery: [1.22, 0.78, 1.0],
+  reception: [1.05, 1.0, 0.92], lab: [0.9, 1.08, 1.04], security: [0.88, 0.98, 1.14], observation: [1.0, 1.0, 1.1], boiler: [1.18, 0.92, 0.76], filter: [0.86, 1.08, 1.1], tunnel: [1.1, 0.9, 0.78], queen: [1.28, 0.74, 0.9]
 };
 export const KIND_LAMP = {
   storage: 0xffd49a, office: 0xffeacc, machine: 0xffa347, vault: 0xc4dcff, pump: 0x98e2ff, tanks: 0x9effd0, control: 0x84b4ff, sluice: 0xd0e8ff,
-  hive: 0xff4634, cells: 0xffb4a4, bonepit: 0xff6e44, nursery: 0xff4a6a
+  hive: 0xff4634, cells: 0xffb4a4, bonepit: 0xff6e44, nursery: 0xff4a6a,
+  reception: 0xffe8c8, lab: 0xd0ffe8, security: 0x9ac4ff, observation: 0xc8d8ff, boiler: 0xff9038, filter: 0x9ae8ff, tunnel: 0xff6a48, queen: 0xff3a5a
 };
 const TEXTS = {
   storage: ['SECTOR B-07', 'STORAGE', 'NO ENTRY', 'KEEP QUIET'], office: ['OFFICE', 'STAFF ONLY', 'KEEP QUIET', 'ROOM 12'], machine: ['DANGER', 'HIGH VOLTAGE', 'GENERATOR 2', 'AUTHORISED'],
   vault: ['VAULT', 'AUTHORISED ONLY', 'NO ENTRY'], pump: ['PUMP STATION', 'FLOODING RISK', 'LEVEL -3'], tanks: ['TANK 4', 'BIOHAZARD', 'DRAIN'], control: ['CONTROL', 'DO NOT TOUCH', 'SYSTEM 3'],
-  sluice: ['SLUICE 2', 'WET FLOOR', 'CAUTION'], hive: ['', 'IT HEARS', ''], cells: ['CELL 12', 'DO NOT OPEN', 'IT HEARS'], bonepit: ['', 'QUIET', ''], nursery: ['', 'IT HEARS', '']
+  sluice: ['SLUICE 2', 'WET FLOOR', 'CAUTION'], hive: ['', 'IT HEARS', ''], cells: ['CELL 12', 'DO NOT OPEN', 'IT HEARS'], bonepit: ['', 'QUIET', ''], nursery: ['', 'IT HEARS', ''],
+  reception: ['RECEPTION', 'VISITORS', 'PLEASE SIGN IN'], lab: ['LAB 3', 'BIOHAZARD', 'SAMPLES'], security: ['SECURITY', 'AUTHORISED', 'CAMERA 07'], observation: ['OBSERVATION', 'DO NOT KNOCK', 'WATCH'], boiler: ['BOILER 2', 'HOT SURFACE', 'DANGER'], filter: ['FILTER BANK', 'CHANGE WEEKLY', 'WET FLOOR'], tunnel: ['', 'IT HEARS', 'CRAWL'], queen: ['', 'LISTEN', 'HUSH']
 };
 /* atlas: 8 x 4 cells of 128 px */
 const CELLS = ['t0', 't1', 't2', 't3', 'hazard', 'arrow', 'hand', 'scratch', 'slime', 'blood', 'paper', 'stain'];
@@ -38,9 +41,9 @@ function atlas(theme) {
   /* text signs per kind are drawn as extra atlas cells (12..31) so each kind has its own wording */
   ATLAS = { theme, tex, uv: (i) => { const cx = (i % 8) / 8, cy = 1 - (Math.floor(i / 8) + 1) / 4; return [cx, cy, 1 / 8, 1 / 4]; } }; return ATLAS;
 }
-function kindSigns(theme) {
+function kindSigns(theme, used) {
   /* one extra canvas for per-kind wording: 4 rows per kind would be big, so draw a small atlas of 12 kinds x 3 lines */
-  const kinds = Object.keys(TEXTS); const tex = canvasTexture(1024, 512, (x, w, h) => {
+  const kinds = (used && used.length ? used : Object.keys(TEXTS)).filter(k => TEXTS[k]); const tex = canvasTexture(1024, 512, (x, w, h) => {
     x.clearRect(0, 0, w, h); kinds.forEach((k, ki) => { TEXTS[k].forEach((txt, ti) => { if (!txt) return; const cx = (ki % 4) * 256, cy = Math.floor(ki / 4) * 170 + ti * 56; x.fillStyle = theme === 'nest' ? 'rgba(46,10,12,.62)' : 'rgba(18,18,16,.72)'; x.fillRect(cx + 8, cy + 6, 240, 46); x.strokeStyle = theme === 'nest' ? '#9a5a54' : '#b9a45e'; x.lineWidth = 2; x.strokeRect(cx + 10, cy + 8, 236, 42); x.fillStyle = theme === 'nest' ? '#d09088' : '#e0cc84'; x.font = 'bold 30px "Barlow Condensed", Arial Narrow, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, cx + 128, cy + 30); }); });
     x.globalCompositeOperation = 'destination-out'; for (let i = 0; i < 1400; i++) { x.fillStyle = 'rgba(0,0,0,' + (0.1 + Math.random() * 0.5) + ')'; x.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 3, 1 + Math.random() * 2); } x.globalCompositeOperation = 'source-over';
   });
@@ -83,7 +86,7 @@ export function extraProp(kind, M, cx, cz, rot, R, WH) {
 /* wall decals, floor stains, hazard bands, lamp reflections; returns meshes added + an update() */
 export function buildDecor(C) {
   const { world, scene, R, TH, theme, lit, patchPulse, TS, WH, roomAt, wallFaces } = C; const out = { dispose: [], blink: [] };
-  const A = atlas(theme), S = kindSigns(theme);
+  const A = atlas(theme), S = kindSigns(theme, [...new Set(world.rooms.map(r => r.kind))]);
   const addQuads = (list, tex, opts) => {
     if (!list.length) return null; const pos = [], nor = [], uv = [], idx = [];
     for (const q of list) { const o = pos.length / 3; for (const v of q.p) pos.push(v[0], v[1], v[2]); for (let k = 0; k < 4; k++) nor.push(q.n[0], q.n[1], q.n[2]); uv.push(...q.u); idx.push(o, o + 1, o + 2, o, o + 2, o + 3); }

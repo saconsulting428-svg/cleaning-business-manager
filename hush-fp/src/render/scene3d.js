@@ -46,8 +46,24 @@ const box = (w, h, d, x, y, z, ry) => { const g = new THREE.BoxGeometry(w, h, d)
 const cyl = (r1, r2, h, x, y, z, seg) => { const g = new THREE.CylinderGeometry(r1, r2, h, seg || 10); g.translate(x, y, z); return g; };
 const ell = (rx, ry, rz, x, y, z) => { const g = new THREE.SphereGeometry(1, 14, 10); g.scale(rx, ry, rz); g.translate(x, y, z); return g; };
 
+/* per-level looks: fog, ambient, lamp colour, a tint over every wall/floor, how often lamps misbehave */
+export const LOOKS = {
+  sterile: { tint: [0.92, 1.06, 1.0], lamp: 0xd6ffe6, fog: 0x06100c, fogK: 0.92, amb: 0x1f2a26, ambK: 1.15, flick: 0.1 },
+  rust: { tint: [1.14, 0.95, 0.78], lamp: 0xff9a3c, fog: 0x120a05, fogK: 1.0, amb: 0x2a1a10, ambK: 1.0, flick: 0.25 },
+  cold: { tint: [0.85, 0.96, 1.18], lamp: 0xa4ccff, fog: 0x050b14, fogK: 0.95, amb: 0x16222e, ambK: 1.05, flick: 0.15 },
+  dust: { tint: [1.1, 1.0, 0.84], lamp: 0xffe0b0, fog: 0x14100a, fogK: 1.18, amb: 0x2a2418, ambK: 1.0, flick: 0.2 },
+  emergency: { tint: [1.2, 0.8, 0.8], lamp: 0xff4030, fog: 0x140405, fogK: 1.05, amb: 0x2a1010, ambK: 0.9, flick: 0.45 },
+  toxic: { tint: [0.84, 1.16, 0.84], lamp: 0x9aff70, fog: 0x07130a, fogK: 1.05, amb: 0x142a16, ambK: 1.0, flick: 0.3 },
+  violet: { tint: [1.06, 0.84, 1.2], lamp: 0xd496ff, fog: 0x0e0614, fogK: 1.0, amb: 0x241630, ambK: 1.0, flick: 0.2 },
+  hive: { tint: [1.2, 0.8, 0.8], lamp: 0xff4634, fog: 0x120406, fogK: 1.0, amb: 0x2a1014, ambK: 1.0, flick: 0.3 },
+  bile: { tint: [1.05, 1.12, 0.7], lamp: 0xd8ff58, fog: 0x0e1204, fogK: 1.05, amb: 0x242a10, ambK: 1.0, flick: 0.3 },
+  bruise: { tint: [1.0, 0.78, 1.15], lamp: 0xff6ad0, fog: 0x12041a, fogK: 1.0, amb: 0x2a1030, ambK: 1.0, flick: 0.25 },
+  ember: { tint: [1.25, 0.9, 0.7], lamp: 0xff7a2c, fog: 0x180804, fogK: 0.95, amb: 0x30180c, ambK: 1.0, flick: 0.35 },
+  bone: { tint: [1.1, 1.02, 0.9], lamp: 0xffd9c0, fog: 0x120d0b, fogK: 1.1, amb: 0x2a2220, ambK: 1.0, flick: 0.2 }
+};
+const mixHex = (a, b, t) => { const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255, br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255; return (Math.round(ar + (br - ar) * t) << 16) | (Math.round(ag + (bg - ag) * t) << 8) | Math.round(ab + (bb - ab) * t); };
 export function buildScene(world, Q) {
-  const spec = world.spec, theme = ['concrete', 'flood', 'nest'][spec.ch], TH = THEME[theme], R = rng32(spec.seed * 31 + 7), W = world.W, H = world.H, cells = world.cells;
+  const spec = world.spec, LK = LOOKS[spec.look] || null, theme = ['concrete', 'flood', 'nest'][spec.ch], TH = LK ? Object.assign({}, THEME[theme], { fog: LK.fog, fogD: THEME[theme].fogD * LK.fogK, lamp: LK.lamp, amb: LK.amb, ambI: THEME[theme].ambI * LK.ambK }) : THEME[theme], R = rng32(spec.seed * 31 + 7), W = world.W, H = world.H, cells = world.cells;
   const scene = new THREE.Scene(); scene.background = new THREE.Color(0x000000); scene.fog = new THREE.FogExp2(TH.fog, TH.fogD * (spec.lightsOut ? 1.15 : 1));
   const tex = buildTextures(theme, Q.texSize), disposables = [];
   const cheap = Q.mats !== 'std', useNormal = Q.mats !== 'lambert';
@@ -61,7 +77,7 @@ export function buildScene(world, Q) {
   const wall = new GB(), floor = new GB(), ceil = new GB();
   const roomOf = new Int16Array(W * H).fill(-1); world.rooms.forEach((r, i) => { for (let y = r.y0; y < r.y0 + r.h; y++) for (let x = r.x0; x < r.x0 + r.w; x++) roomOf[y * W + x] = i; });
   const roomAt = (x, y) => (x < 0 || y < 0 || x >= W || y >= H || roomOf[y * W + x] < 0) ? null : world.rooms[roomOf[y * W + x]];
-  const tintAt = (x, y) => { const r = roomAt(x, y); return r && KIND_TINT[r.kind] ? KIND_TINT[r.kind] : [1, 1, 1]; };
+  const tintAt = (x, y) => { const r = roomAt(x, y), t = r && KIND_TINT[r.kind] ? KIND_TINT[r.kind] : [1, 1, 1]; return LK ? [t[0] * LK.tint[0], t[1] * LK.tint[1], t[2] * LK.tint[2]] : t; };
   const wallFaces = [];
   const shade = (k) => [[k * 0.5, k * 0.5, k * 0.5], [k * 0.5, k * 0.5, k * 0.5], [k, k, k], [k, k, k]];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -126,7 +142,7 @@ export function buildScene(world, Q) {
   /* ---------------- dynamic objects ---------------- */
   const dyn = { doors: [], items: [], gens: [], valves: [], lamps: [], notes: [] }; const group = new THREE.Group(); scene.add(group);
   const stripe = (c1, c2) => canvasTexture(64, 64, (x, w, h) => { x.fillStyle = c1; x.fillRect(0, 0, w, h); x.fillStyle = c2; for (let i = -h; i < w; i += 16) { x.beginPath(); x.moveTo(i, h); x.lineTo(i + 8, h); x.lineTo(i + 8 + h, 0); x.lineTo(i + h, 0); x.fill(); } });
-  const lockCol = { key: 0xc9a14a, card: 0x3ca0ff, power: 0xffcc22, code: 0x66ff88, valve: 0xff5533, secret: 0x44aaff };
+  const lockCol = { key: 0xc9a14a, card: 0x3ca0ff, power: 0xffcc22, code: 0x66ff88, valve: 0xff5533, secret: 0x44aaff, breaker: 0xff9a2a };
   const lockTex = {};
   for (const o of world.objs) {
     const cx = o.x * TS + TS / 2, cz = o.y * TS + TS / 2;
@@ -158,6 +174,12 @@ export function buildScene(world, Q) {
       const il = new THREE.MeshBasicMaterial({ color: 0xff2200 }); const ind = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.06), il); ind.position.set(-0.45, 0.95, 0.52); gg.add(ind);
       const fan = new THREE.Mesh(cyl(0.3, 0.3, 0.05, 0, 0, 0, 12), darkMat); fan.rotation.x = Math.PI / 2; fan.position.set(0.5, 0.55, 0.52); gg.add(fan);
       gg.position.set(cx, 0, cz); gg.rotation.y = R() < 0.5 ? 0 : Math.PI / 2; group.add(gg); dyn.gens.push({ o, g: gg, il, fan });
+    } else if (o.type === 'breaker') {
+      const bg = new THREE.Group(), led = new THREE.MeshBasicMaterial({ color: 0xff2a1a }); bg.add(new THREE.Mesh(mergeGeometries([box(0.9, 1.9, 0.36, 0, 0.95, 0), box(0.78, 0.9, 0.04, 0, 1.15, 0.2)]), metalMat)); const levers = [];
+      for (let i = 0; i < 3; i++) { const lv = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.34, 0.07), darkMat); lv.position.set(-0.24 + i * 0.24, 1.15, 0.26); lv.geometry.translate(0, 0.17, 0); lv.rotation.x = -0.9; bg.add(lv); levers.push(lv); }
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.1, 0.05), led); lamp.position.set(0, 1.72, 0.2); bg.add(lamp);
+      const glb = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff9a2a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.45 })); glb.scale.set(1.5, 1.5, 1); glb.position.set(0, 1.4, 0.4); bg.add(glb);
+      bg.position.set(cx, 0, cz); bg.rotation.y = Math.floor(R() * 4) * Math.PI / 2; group.add(bg); dyn.valves.push({ o, g: bg, kind: 'breaker', led, levers, glow: glb });
     } else if (o.type === 'valve') {
       const vg = new THREE.Group(); vg.add(new THREE.Mesh(mergeGeometries([cyl(0.12, 0.14, 1.1, 0, 0.55, 0, 10), box(0.5, 0.15, 0.5, 0, 0.08, 0)]), metalMat)); const wm = lit({ color: 0xaa2218, roughness: 0.4, metalness: 0.6 }); patchPulse(wm);
       const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.035, 8, 20), wm); wheel.position.set(0, 1.18, 0); wheel.rotation.x = Math.PI / 2; vg.add(wheel); for (let i = 0; i < 3; i++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.03, 0.03), wm); sp.position.y = 1.18; sp.rotation.y = i * Math.PI / 3; vg.add(sp); }
@@ -196,7 +218,7 @@ export function buildScene(world, Q) {
   const lampGeo = new THREE.BoxGeometry(0.9, 0.08, 0.28), fixtures = [], lampCache = {};
   const housing = [];
   const lampMat = (col, st) => { const key = col + st; return lampCache[key] || (lampCache[key] = new THREE.MeshBasicMaterial({ color: col })); };
-  for (const l of world.lights) { const kind = spec.lightsOut ? (R() < 0.8 ? 'dead' : l.kind) : l.kind; const rm = roomAt(Math.floor(l.x), Math.floor(l.y)), col = rm && KIND_LAMP[rm.kind] ? KIND_LAMP[rm.kind] : TH.lamp;
+  for (const l of world.lights) { let kind = spec.lightsOut ? (R() < 0.8 ? 'dead' : l.kind) : l.kind; if (LK && kind === 'ok' && R() < LK.flick * 0.4) kind = 'flicker'; const rm = roomAt(Math.floor(l.x), Math.floor(l.y)), col = rm && KIND_LAMP[rm.kind] ? (LK ? mixHex(KIND_LAMP[rm.kind], LK.lamp, 0.55) : KIND_LAMP[rm.kind]) : TH.lamp;
     const m = kind === 'dead' ? lampMats.dead : lampMat(col, kind === 'ok' ? 'ok' : 'f' + Math.floor(R() * 3));
     const mesh = new THREE.Mesh(lampGeo, m); mesh.position.set(l.x * TS, WH - 0.06, l.y * TS); mesh.rotation.y = R() < 0.5 ? 0 : Math.PI / 2; scene.add(mesh); housing.push(box(1.0, 0.04, 0.34, l.x * TS, WH - 0.02, l.y * TS, mesh.rotation.y)); fixtures.push({ x: l.x * TS, z: l.y * TS, kind, mat: m, ph: l.ph, col }); }
   disposables.push(...Object.values(lampCache), lampMats.ok, lampMats.dead);

@@ -134,3 +134,14 @@ button { touch-action: manipulation; } .hud button, .hud .act, .stick { touch-ac
 .grid, .card.wide, .logcard { touch-action: pan-y; }
 /* v6: the objective chip must never run into the noise meter, whatever the objective text */
 @media (orientation: landscape) { .obj, button.obj { max-width: calc(50vw - min(150px, 19vw) - 24px); } .obj b { white-space: normal; overflow-wrap: anywhere; } }
+
+/* v7: map, tutorial cards, coach bar */
+.mapbtn { right: calc(118px + var(--sar)); top: calc(var(--sat) + 12px); }
+.mapcard { width: min(94vw, 860px); }
+#map-cv { width: 100%; height: min(58vh, 430px); display: block; background: #05070a; border: 1px solid var(--edge); border-radius: 4px; }
+.maplegend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: 12px; letter-spacing: .06em; color: #aeb5bd; font-family: var(--display); text-transform: uppercase; } .maplegend span { display: flex; align-items: center; gap: 6px; }
+.lg { display: inline-block; width: 12px; height: 12px; } .lg.you { background: #fff; clip-path: polygon(50% 0, 100% 100%, 50% 75%, 0 100%); } .lg.obj { background: #ffb347; transform: rotate(45deg) scale(.8); } .lg.ex { background: #3dff8a; } .lg.dr { background: #ff5c66; width: 8px; } .lg.dim { background: #161b21; border: 1px solid #2f3a44; }
+.tipcard { width: min(92vw, 480px); max-height: calc(100% - 20px); overflow-y: auto; padding: 20px 24px; text-align: center; background: rgba(10,11,14,.96); border: 1px solid #ff5c66; border-radius: 4px; box-shadow: 0 0 40px rgba(255,60,80,.25), 0 12px 50px #000; display: grid; justify-items: center; gap: 8px; }
+.tip-ic { width: 54px; height: 54px; border-radius: 50%; border: 1px solid #ff5c66; display: grid; place-items: center; color: #ff8a92; } .tip-ic svg { width: 28px; height: 28px; }
+.tipcard small { letter-spacing: .3em; color: #ff5c66; font-size: 11px; } .tipcard h4 { margin: 0; font-family: var(--display); font-size: 24px; letter-spacing: .12em; color: #fff; } .tipcard p { margin: 0 0 6px; font-size: 15px; line-height: 1.5; color: #cdd2d8; }
+.hint.coach { pointer-events: auto; border: 1px solid #f0b34a; background: rgba(12,10,6,.82); max-width: min(70vw, 620px); cursor: pointer; } .hint.coach b { display: block; font-family: var(--display); letter-spacing: .16em; color: #f0b34a; font-size: 13px; margin-bottom: 2px; } .hint.coach.ok { border-color: #3dff8a; } .hint.coach.ok b { color: #3dff8a; } .hint.coach small { display: block; margin-top: 3px; font-size: 11px; color: #8d949c; letter-spacing: .06em; }

@@ -65,7 +65,7 @@ function tryGenerate(spec, seed) {
     return null;
   };
   const gates = [];
-  const lockOf = { key: 'key', card: 'card', power: 'power', code: 'code', valve: 'valve', secret: 'secret' };
+  const lockOf = { key: 'key', card: 'card', power: 'power', code: 'code', valve: 'valve', secret: 'secret', breaker: 'breaker' };
   for (let k = 0; k < m; k++) {
     const e = edges[gateEdge[k]], dc = doorCell(e.cells, false); if (!dc) return null;
     const type = spec.gates[k], door = O({ type: 'door', x: dc.x, y: dc.y, dir: dc.dir, lock: lockOf[type], hidden: type === 'secret', gate: k });
@@ -86,6 +86,7 @@ function tryGenerate(spec, seed) {
     if (g.type === 'key' || g.type === 'card') { if (!place({ type: 'item', kind: g.type, gate: g.k })) return null; }
     else if (g.type === 'code') { const code = String(1000 + Math.floor(R() * 9000)); objs.find(o => o.id === g.doorId).code = code; if (!place({ type: 'note', code, gate: g.k })) return null; }
     else if (g.type === 'valve') { const v = place({ type: 'valve', opens: g.doorId, gate: g.k }); if (!v) return null; blocked.add(key(v.x, v.y)); }
+    else if (g.type === 'breaker') { for (let b = 0; b < (spec.breakers || 2); b++) { const br = place({ type: 'breaker', gate: g.k, idx: b }); if (!br) return null; blocked.add(key(br.x, br.y)); } }
     else if (g.type === 'power') {
       const gen = place({ type: 'generator', need: spec.fuses, gate: g.k }); if (!gen) return null; blocked.add(key(gen.x, gen.y)); g.generator = gen.id;
       for (let f = 0; f < spec.fuses; f++) if (!place({ type: 'item', kind: 'fuse', gate: g.k })) return null; fuseCount += spec.fuses;
@@ -124,11 +125,14 @@ function tryGenerate(spec, seed) {
   for (const e of edges) for (const [x, y] of e.cells) if (spec.glass && R() < 0.05 && cells[at(x, y)] === T.FLOOR && !objs.some(o => o.x === x && o.y === y)) cells[at(x, y)] = T.GLASS;
   /* props: solid clutter in room interiors (never on a tile that would cut the room apart) */
   /* every room gets a character: a kind, a landmark prop and a mix of clutter that fits it (chapter 1 abandoned facility, 2 flooded pumping station, 3 the nest) */
-  const KINDS = [['storage', 'office', 'machine', 'vault'], ['pump', 'tanks', 'control', 'sluice'], ['hive', 'cells', 'bonepit', 'nursery']][spec.ch];
+  const ALLKINDS = [['storage', 'office', 'machine', 'vault', 'reception', 'lab', 'security', 'observation'], ['pump', 'tanks', 'control', 'sluice', 'boiler', 'filter'], ['hive', 'cells', 'bonepit', 'nursery', 'tunnel', 'queen']][spec.ch];
+  /* each level uses its own handful of room types (the first is always the start room's), so levels differ in what their rooms ARE, not only in layout */
+  const KINDS = (() => { const rest = ALLKINDS.slice(1); for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; } return [ALLKINDS[0], ...rest.slice(0, 4)]; })();
   const MIX = { storage: ['shelf', 'crate', 'barrel'], office: ['console', 'table', 'crate'], machine: ['machine', 'pipe', 'barrel'], vault: ['column', 'crate', 'shelf'],
     pump: ['tank', 'pipe', 'barrel'], tanks: ['tank', 'tank', 'crate'], control: ['console', 'pipe', 'table'], sluice: ['machine', 'pipe', 'barrel'],
-    hive: ['cocoon', 'pod', 'bones'], cells: ['cage', 'bones', 'crate'], bonepit: ['bones', 'bones', 'pod'], nursery: ['pod', 'pod', 'cocoon'] };
-  const LAND = { storage: 'shelf', office: 'console', machine: 'machine', vault: 'column', pump: 'tank', tanks: 'tank', control: 'console', sluice: 'machine', hive: 'cocoon', cells: 'cage', bonepit: 'bones', nursery: 'pod' };
+    hive: ['cocoon', 'pod', 'bones'], cells: ['cage', 'bones', 'crate'], bonepit: ['bones', 'bones', 'pod'], nursery: ['pod', 'pod', 'cocoon'],
+    reception: ['table', 'shelf', 'crate'], lab: ['tank', 'console', 'table'], security: ['console', 'shelf', 'crate'], observation: ['column', 'console', 'table'], boiler: ['machine', 'pipe', 'barrel'], filter: ['tank', 'pipe', 'crate'], tunnel: ['bones', 'crate', 'pod'], queen: ['pod', 'cocoon', 'bones'] };
+  const LAND = { storage: 'shelf', office: 'console', machine: 'machine', vault: 'column', pump: 'tank', tanks: 'tank', control: 'console', sluice: 'machine', hive: 'cocoon', cells: 'cage', bonepit: 'bones', nursery: 'pod', reception: 'console', lab: 'tank', security: 'console', observation: 'column', boiler: 'machine', filter: 'tank', tunnel: 'cage', queen: 'cocoon' };
   rooms.forEach((r, i) => { r.kind = i === startRoom.id ? KINDS[0] : KINDS[Math.floor(R() * KINDS.length)]; });
   const floorCount = () => { let c = 0; for (let i = 0; i < cells.length; i++) if (cells[i] !== T.WALL && !blocked.has(i)) c++; return c; };
   const connected = () => { const seen = new Uint8Array(W * H); const q = [[st.x, st.y]]; seen[at(st.x, st.y)] = 1; let cnt = 1, qi = 0; while (qi < q.length) { const [x, y] = q[qi++]; for (const [dx, dy] of DIRS) { const nx = x + dx, ny = y + dy; if (inb(nx, ny) && !seen[at(nx, ny)] && cells[at(nx, ny)] !== T.WALL && !blocked.has(key(nx, ny))) { seen[at(nx, ny)] = 1; cnt++; q.push([nx, ny]); } } } return cnt === floorCount(); };
@@ -147,7 +151,7 @@ function tryGenerate(spec, seed) {
   for (const e of edges) for (let i = 2; i < e.cells.length; i += 5) lights.push({ x: e.cells[i][0] + 0.5, y: e.cells[i][1] + 0.5, kind: R() < 0.3 ? 'dead' : R() < 0.35 ? 'flicker' : 'ok', ph: R() * 100 });
   /* creatures */
   const creatures = []; const used = new Set();
-  const itemRooms = new Set(objs.filter(o => o.type === 'item' || o.type === 'note' || o.type === 'generator' || o.type === 'valve').map(o => o.room).filter(r => r !== undefined));
+  const itemRooms = new Set(objs.filter(o => o.type === 'item' || o.type === 'note' || o.type === 'generator' || o.type === 'valve' || o.type === 'breaker').map(o => o.room).filter(r => r !== undefined));
   const ventRooms = new Set(objs.filter(o => o.type === 'vent').map(o => o.room));
   for (const t of spec.creatures) {
     let pool = order.filter(r => r.idx >= 1 && !used.has(r.idx) && (t !== 'sentinel' || r.idx <= n - 2));
@@ -194,6 +198,7 @@ export function solve(w) {
     if (o.type === 'item') { if (o.kind === 'radio') continue; bit('i' + o.id); itemAt.set(o.y * W + o.x, o); }
     if (o.type === 'note') { bit('n' + o.id); }
     if (o.type === 'valve') bit('v' + o.id);
+    if (o.type === 'breaker') bit('b' + o.id);
     if (o.type === 'generator') bit('g' + o.id);
   }
   const doorAt = new Map(); for (const o of w.objs) if (o.type === 'door') doorAt.set(o.y * W + o.x, o);
@@ -202,6 +207,7 @@ export function solve(w) {
     if (d.lock === 'key' || d.lock === 'card') { const it = w.objs.find(o => o.type === 'item' && o.kind === d.lock && o.gate === d.gate); return !!(mask & (1 << bits['i' + it.id])); }
     if (d.lock === 'code') { const nt = w.objs.find(o => o.type === 'note' && o.gate === d.gate); return !!(mask & (1 << bits['n' + nt.id])); }
     if (d.lock === 'valve') { const v = w.objs.find(o => o.type === 'valve' && o.opens === d.id); return !!(mask & (1 << bits['v' + v.id])); }
+    if (d.lock === 'breaker') return w.objs.filter(o => o.type === 'breaker' && o.gate === d.gate).every(b => mask & (1 << bits['b' + b.id]));
     if (d.lock === 'power') { const g = w.objs.find(o => o.type === 'generator' && o.gate === d.gate); return !!(mask & (1 << bits['g' + g.id])); }
     return false;
   };
@@ -212,6 +218,7 @@ export function solve(w) {
       if (Math.abs(o.x - x) + Math.abs(o.y - y) <= 1) {
         if (o.type === 'note') m |= 1 << bits['n' + o.id];
         if (o.type === 'valve') m |= 1 << bits['v' + o.id];
+        if (o.type === 'breaker') m |= 1 << bits['b' + o.id];
         if (o.type === 'generator') { let have = 0; for (const f of w.objs) if (f.type === 'item' && f.kind === 'fuse' && f.gate === o.gate && (m & (1 << bits['i' + f.id]))) have++; if (have >= o.need) m |= 1 << bits['g' + o.id]; }
       }
     }
