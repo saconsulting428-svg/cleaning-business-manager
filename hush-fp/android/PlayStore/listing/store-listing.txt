@@ -1,0 +1,40 @@
+=====================================================================
+GOOGLE PLAY STORE LISTING  (copy / paste into Play Console)
+=====================================================================
+
+APP NAME (max 30 chars)
+HUSH: Echoes in the Dark
+
+SHORT DESCRIPTION (max 80 chars)
+Survival horror in the dark. Listen. Hide. Use sonar. Escape the creatures.
+
+FULL DESCRIPTION (max 4000 chars)
+HUSH is a first-person survival-horror game where sound is everything.
+
+You wake up inside an abandoned research facility. The lights flicker. Something is walking the corridors, and it cannot see well, but it hears everything. Your footsteps, your breathing, every door you open.
+
+EXPLORE. LISTEN. MAKE NOISE. HIDE. ESCAPE.
+
+• 40 levels across 3 chapters: the Abandoned Laboratory, the Flooded Section and the Nest. Each level is a procedurally generated facility with its own locks, keys and creatures.
+• SONAR PULSE: reveal walls, doors, objects and creatures through the dark. But every pulse is a loud call. Information or safety: you cannot have both.
+• A NOISE SYSTEM THAT MATTERS: crouching is quiet, sprinting is loud, glass shatters, water splashes, generators scream. The creature investigates what it hears.
+• CREATURES THAT HUNT BY SOUND: stalkers, sentinels and a nearly blind listener. They patrol, investigate, search and chase. Hide in a locker and listen to its footsteps come closer.
+• SURVIVAL PUZZLES: find keys and keycards, collect fuses and start generators, read notes and type codes, turn valves, crawl through vents, reveal hidden doors with sonar.
+• DISTRACT WITH THE RADIO: lure the creature away, then slip past.
+• STORY IN THE RUINS: recovered terminal logs reveal what Halden Station was really doing, and what the probe in your hand has to do with it.
+• MADE FOR PHONES: full touch controls (move stick, look, sonar, crouch, sprint), adjustable sensitivity, vibration feedback, quality settings and adaptive resolution.
+• 100% OFFLINE: no internet needed, no ads, no accounts, no in-app purchases.
+
+Headphones recommended. Play in the dark.
+
+WARNING: contains intense horror themes, frightening creatures and dark imagery. Not suitable for young children.
+
+CATEGORY: Game > Adventure   (alternatives: Action, Simulation)
+TAGS: horror, survival horror, first person, stealth, puzzle, offline, atmospheric
+CONTACT EMAIL: <put your support email here>
+WEBSITE: optional
+PRIVACY POLICY URL: <host privacy-policy.html somewhere public, e.g. GitHub Pages, and paste the URL>
+
+APP ICON: ../app-icon-512x512.png
+FEATURE GRAPHIC: ../feature-graphic-1024x500.png
+PHONE SCREENSHOTS: ../screenshots-phone/*.png  (1920x1080, landscape; Play wants 2-8)

@@ -1,0 +1,6 @@
+<en-US>
+First release of HUSH: Echoes in the Dark.
+• 40 levels in 3 chapters
+• Sonar, noise-based creature AI, hiding, vents, radio, puzzles
+• Story logs, offline play
+</en-US>
