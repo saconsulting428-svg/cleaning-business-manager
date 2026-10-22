@@ -175,8 +175,12 @@ export function updateCreature(world, c, dt) {
       if (seen) c.lostT = 0; else c.lostT = (c.lostT || 0) + dt;
       if (p.hidden >= 0 && !seen && c.knowsLocker >= 0) { c.lastSeen = null; }
       const near = Math.hypot(gx - c.x, gy - c.y);
-      if (seen && dist < 1.0 && p.alive) { world.catchPlayer(c); break; }
-      if (near > 0.5) { goTo(world, c, gx, gy, dt, k.hunt * world.diff.speed, 0.25); c.noPathT = c.path ? 0 : (c.noPathT || 0) + dt; } else { c.moving = false; if (!seen) { c.state = c.knowsLocker >= 0 ? 'search' : 'search'; c.searchT = 7; c.searchOrigin = { x: c.x, y: c.y }; c.target = null; c.path = null; if (c.knowsLocker >= 0) { const L = world.objById.get(c.knowsLocker); if (L) { c.checkLocker = L; c.target = { x: L.x + 0.5 + Math.cos(L.face) * 0.9, y: L.y + 0.5 + Math.sin(L.face) * 0.9 }; } } } }
+      /* the strike: inside 2.4 tiles it lunges (a short fast burst, the attack animation plays); when the burst ends the claws connect if you are still within reach, otherwise it recovers and chases on */
+      c.atkCd = Math.max(0, (c.atkCd || 0) - dt);
+      if ((c.atk || 0) > 0) { const was = c.atk; c.atk -= dt; if (was > 0 && c.atk <= 0) { c.atk = 0; if (p.alive && p.hidden < 0 && !p.vent && dist < 1.7) { world.catchPlayer(c); break; } c.atkCd = 0.9; } }
+      else if (seen && p.alive && c.atkCd <= 0 && dist < 2.4) { c.atk = 0.55; world.events.push({ type: 'lunge', id: c.id, x: c.x, y: c.y }); }
+      if (seen && dist < 0.8 && p.alive) { world.catchPlayer(c); break; }
+      if (near > 0.5) { goTo(world, c, gx, gy, dt, k.hunt * world.diff.speed * (c.atk > 0 ? 1.9 : 1), 0.25); c.noPathT = c.path ? 0 : (c.noPathT || 0) + dt; } else { c.moving = false; if (!seen) { c.state = c.knowsLocker >= 0 ? 'search' : 'search'; c.searchT = 7; c.searchOrigin = { x: c.x, y: c.y }; c.target = null; c.path = null; if (c.knowsLocker >= 0) { const L = world.objById.get(c.knowsLocker); if (L) { c.checkLocker = L; c.target = { x: L.x + 0.5 + Math.cos(L.face) * 0.9, y: L.y + 0.5 + Math.sin(L.face) * 0.9 }; } } } }
       if (c.lostT > 4.2 || c.noPathT > 3) { c.noPathT = 0; c.state = 'search'; c.searchT = 7; c.searchOrigin = c.lastSeen ? { x: c.lastSeen.x, y: c.lastSeen.y } : { x: c.x, y: c.y }; c.target = null; c.path = null; }
       break;
     }

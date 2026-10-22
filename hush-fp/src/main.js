@@ -249,6 +249,7 @@ function handleEvents(w, dt) {
       case 'hunt': { const s = spatial(e.x, e.y); Sound.play('hunt'); Sound.play('roar', { v: Math.max(0.35, s.v), pan: s.pan, kind: w.creatures[e.id].t }); banner('IT SEES YOU!', 'seen', 2400); vibe([60, 40, 60]); G.view.shake = 0.5; break; }
       case 'lost': Sound.play('lost'); banner('IT LOST YOU', 'heard', 1500); break;
       case 'cstep': { const s = spatial(e.x, e.y); const v = Math.max(0, 1 - s.d / 14); if (v > 0.03) Sound.play('cstep', { v: v * (e.hunt ? 1 : 0.8), pan: s.pan, kind: w.creatures[e.id].t }); break; }
+      case 'lunge': { const s = spatial(e.x, e.y); Sound.play('roar', { v: Math.max(0.5, s.v), pan: s.pan, kind: w.creatures[e.id].t }); G.view.shake = Math.max(G.view.shake || 0, 0.3); vibe(40); break; }
       case 'hurt': { const bearing = angDiffUI(Math.atan2(e.y - p.y, e.x - p.x), p.yaw); Sound.play('hurt'); G.view.kick(e.amt, bearing); vibe([40, 30, 90]); const d = $('fx-dmg'); d.classList.remove('hit'); void d.offsetWidth; d.classList.add('hit'); G.hpShowT = 5; break; }
       case 'heal': Sound.play('heal'); banner('+' + HEAL[e.kind] + ' HP', 'heard', 1400); G.hpShowT = 4; break;
       case 'hpfull': banner('HEALTH IS FULL: SAVE IT FOR LATER', 'sus', 1300); break;

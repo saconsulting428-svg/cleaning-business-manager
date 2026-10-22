@@ -93,4 +93,10 @@ for (const [k, kind] of Object.entries(SETPIECES)) {
   for (let n = 0; n < 90 / DT && !w.sp.done; n++) { w.update(DT, {}); for (const e of w.drainEvents()) evs.push(e.type + (e.what ? ':' + e.what : '')); if (kind === 'surge') { const c = w.creatures[0]; c.x = p.x + 10.5; c.y = p.y; c.yaw = 0; c.state = 'roam'; c.alert = 0; } if (kind === 'sighting' || kind === 'outage') { p.hidden = -1; } }
   t('set-piece "' + kind + '" fires on level ' + (i + 1), w.sp.done, evs.join(','));
 }
+/* 6. the strike: lunge, then claws; a sprinter who is not already inside reach gets away */
+{
+  const mk = () => { const w = new World(generate(LEVELS[4]), {}), c = w.creatures[0], p = w.player; w.sp = null; w.crawlers.length = 0; let spot = null; for (let y = 1; y < w.H - 1 && !spot; y++) for (let x = 1; x < w.W - 12 && !spot; x++) { let o = true; for (let i = 0; i <= 11; i++) { const k = y * w.W + x + i; if (w.cells[k] !== 1 || w.solid.has(k)) { o = false; break; } } if (o) spot = [x, y]; } return { w, c, p, spot }; };
+  { const { w, c, p, spot } = mk(); c.x = spot[0] + 0.5; c.y = spot[1] + 0.5; p.x = spot[0] + 5.5; p.y = spot[1] + 0.5; c.state = 'hunt'; c.alert = 1; c.lastSeen = { x: p.x, y: p.y }; let lunge = -1, dead = -1; for (let i = 0; i < 12 / DT; i++) { w.update(DT, {}); for (const e of w.drainEvents()) if (e.type === 'lunge' && lunge < 0) lunge = i * DT; if (w.over === 'dead') { dead = i * DT; break; } } t('a standing player is lunged at, then caught', lunge >= 0 && dead > lunge + 0.25 && dead < lunge + 0.8, lunge + ' ' + dead); }
+  { const { w, c, p, spot } = mk(); c.x = spot[0] + 0.5; c.y = spot[1] + 0.5; p.x = spot[0] + 6.5; p.y = spot[1] + 0.5; p.yaw = 0; c.state = 'hunt'; c.alert = 1; c.lastSeen = { x: p.x, y: p.y }; w.god = false; let caught = false; for (let i = 0; i < 4 / DT; i++) { w.update(DT, { fwd: 1, sprint: true }); if (w.over === 'dead') { caught = true; break; } } t('a sprinting player with a head start is not caught in 4 s', !caught); }
+}
 console.log(ok + ' passed, ' + bad + ' failed'); process.exit(bad ? 1 : 0);

@@ -78,7 +78,7 @@ export function buildScene(world, Q) {
   const roomOf = new Int16Array(W * H).fill(-1); world.rooms.forEach((r, i) => { for (let y = r.y0; y < r.y0 + r.h; y++) for (let x = r.x0; x < r.x0 + r.w; x++) roomOf[y * W + x] = i; });
   const roomAt = (x, y) => (x < 0 || y < 0 || x >= W || y >= H || roomOf[y * W + x] < 0) ? null : world.rooms[roomOf[y * W + x]];
   const CHT = [[1.1, 1.03, 0.88], [0.84, 1.07, 1.14], [1.14, 0.9, 0.8]][spec.ch] || [1, 1, 1];   // chapter 1 dusty beige offices, chapter 2 cold clinical teal, chapter 3 rusted industrial
-  const tintAt = (x, y) => { const r = roomAt(x, y), t0 = r && KIND_TINT[r.kind] ? KIND_TINT[r.kind] : [1, 1, 1], t = [t0[0] * CHT[0], t0[1] * CHT[1], t0[2] * CHT[2]]; return LK ? [t[0] * LK.tint[0], t[1] * LK.tint[1], t[2] * LK.tint[2]] : t; };
+  const tintAt = (x, y) => { const r = roomAt(x, y), t0 = r && KIND_TINT[r.kind] ? KIND_TINT[r.kind] : [1, 1, 1], t = [t0[0] * (1 + (CHT[0] - 1) * 0.25), t0[1] * (1 + (CHT[1] - 1) * 0.25), t0[2] * (1 + (CHT[2] - 1) * 0.25)]; return LK ? [t[0] * LK.tint[0], t[1] * LK.tint[1], t[2] * LK.tint[2]] : t; };
   const wallFaces = [];
   const shade = (k) => [[k * 0.5, k * 0.5, k * 0.5], [k * 0.5, k * 0.5, k * 0.5], [k, k, k], [k, k, k]];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -226,13 +226,13 @@ export function buildScene(world, Q) {
   const lampGeo = new THREE.BoxGeometry(0.9, 0.08, 0.28), fixtures = [], lampCache = {};
   const housing = [];
   const lampMat = (col, st) => { const key = col + st; return lampCache[key] || (lampCache[key] = new THREE.MeshBasicMaterial({ color: col })); };
-  for (const l of world.lights) { let kind = spec.lightsOut ? (R() < 0.8 ? 'dead' : l.kind) : l.kind; if (LK && kind === 'ok' && R() < LK.flick * 0.4) kind = 'flicker'; const rm = roomAt(Math.floor(l.x), Math.floor(l.y)); let col = rm && KIND_LAMP[rm.kind] ? (LK ? mixHex(KIND_LAMP[rm.kind], LK.lamp, 0.55) : KIND_LAMP[rm.kind]) : TH.lamp;
-    if (spec.ch === 0 && kind === 'ok' && R() < 0.14) kind = 'flicker'; if (spec.ch === 1 && kind !== 'dead' && R() < 0.3) col = mixHex(col, 0xff3a2a, 0.85);   // chapter 1: failing fluorescent tubes; chapter 2: red emergency lighting
+  for (const l of world.lights) { let kind = spec.lightsOut ? (R() < 0.8 ? 'dead' : l.kind) : l.kind; if (LK && kind === 'ok' && R() < LK.flick * 0.4) kind = 'flicker'; const rm = roomAt(Math.floor(l.x), Math.floor(l.y)); let col = rm && KIND_LAMP[rm.kind] ? (LK ? mixHex(KIND_LAMP[rm.kind], LK.lamp, 0.78) : KIND_LAMP[rm.kind]) : TH.lamp;
+    if (spec.ch === 0 && kind === 'ok' && R() < 0.14) kind = 'flicker'; if (spec.ch === 1 && kind !== 'dead' && R() < 0.12) col = mixHex(col, 0xff3a2a, 0.85);   // chapter 1: failing fluorescent tubes; chapter 2: red emergency lighting
     const m = kind === 'dead' ? lampMats.dead : lampMat(col, kind === 'ok' ? 'ok' : 'f' + Math.floor(R() * 3));
     const mesh = new THREE.Mesh(lampGeo, m); mesh.position.set(l.x * TS, WH - 0.06, l.y * TS); mesh.rotation.y = R() < 0.5 ? 0 : Math.PI / 2; scene.add(mesh); housing.push(box(1.0, 0.04, 0.34, l.x * TS, WH - 0.02, l.y * TS, mesh.rotation.y)); fixtures.push({ x: l.x * TS, z: l.y * TS, kind, mat: m, ph: l.ph, col }); }
   disposables.push(...Object.values(lampCache), lampMats.ok, lampMats.dead);
   if (housing.length) addMesh(mergeGeometries(housing), darkMat, false, false);
-  const sceneAmb = new THREE.HemisphereLight(TH.amb, 0x050507, TH.ambI * (spec.lightsOut ? 0.6 : 1) * (Q.mats === 'std' ? 1.7 : 2.2)); scene.add(sceneAmb);
+  const sceneAmb = new THREE.HemisphereLight(TH.amb, 0x050507, TH.ambI * (spec.lightsOut ? 0.6 : 1) * (Q.mats === 'std' ? 4.4 : 3.7)); scene.add(sceneAmb);
   /* nest: an organic glow in every wall pocket and floor veins */
   return { scene, group, dyn, decor, fixtures, lampMats, theme, TH, tex, waterMesh, disposables, wallMat, floorMat, amb: sceneAmb };
 }

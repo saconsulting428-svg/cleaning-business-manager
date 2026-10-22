@@ -52,8 +52,7 @@ export const GLBMonster = {
     inst.sp += (mps - inst.sp) * Math.min(1, dt * 8); if (!c.moving && inst.sp < 0.05) inst.sp = 0;
     const caught = world.over === 'dead' && world.caughtBy === c, hunting = c.state === 'hunt';
     let want = 'Alert', once = false;
-    if (caught || (hunting && c.seen && dpl < 1.9 && p.alive)) { want = 'Attack'; once = true; }
-    else if (inst.cur === 'Attack' && inst.attackT > 0 && hunting) { want = 'Attack'; once = true; }
+    if (caught || (hunting && c.atk > 0)) { want = 'Attack'; once = true; }
     else if (hunting && c.roar > 0 && !c.moving) { want = 'Skill_03'; once = true; }
     else if (c.moving && inst.sp > 0.25) {
       if (hunting) { inst.fast = inst.fast ? dpl < 8 : dpl < 5.5; want = inst.fast ? 'RunFast' : 'Running'; }
@@ -63,20 +62,20 @@ export const GLBMonster = {
     if (want !== inst.cur) {
       const next = inst.act[want], prev = inst.cur ? inst.act[inst.cur] : null; next.enabled = true;
       if (once) { next.setLoop(THREE.LoopOnce, 1); next.clampWhenFinished = true; } else { next.setLoop(THREE.LoopRepeat, Infinity); next.clampWhenFinished = false; }
-      next.reset(); next.setEffectiveWeight(1); next.play(); if (want === 'Attack') inst.attackT = TPL.clips.Attack.duration / 1.15;
+      next.reset(); next.setEffectiveWeight(1); next.play(); 
       if (prev) prev.crossFadeTo(next, once ? 0.12 : 0.25, false);
       if (prev && !once && info.loco && TPL.info[inst.cur].loco) next.time = (prev.time % prev.getClip().duration) / prev.getClip().duration * next.getClip().duration;   // keep the stride phase
       inst.cur = want;
     }
     if (inst.attackT > 0) inst.attackT -= dt;
-    const act = inst.act[want]; inst.ts = info.loco ? clamp(inst.sp / (info.v * inst.s), 0.55, 1.8) : want === 'Attack' ? 1.15 : 1; act.setEffectiveTimeScale(inst.ts);
+    const act = inst.act[want]; inst.ts = info.loco ? clamp(inst.sp / (info.v * inst.s), 0.55, 1.8) : want === 'Attack' ? 2.1 : 1; act.setEffectiveTimeScale(inst.ts);
     inst.mixer.update(dt); const off = info.off * inst.s; inst.off = inst.fresh ? off : inst.off + (off - inst.off) * Math.min(1, dt * 8); inst.fresh = false; inst.inner.position.y = inst.off;
   }
 };
 
 function matFor(type, Q) {
   const key = Q.mats + type; if (MATS[key]) return MATS[key]; const b = TPL.base; let m;
-  if (Q.mats === 'std') { m = new THREE.MeshPhysicalMaterial({ map: b.map, normalMap: b.normalMap, side: b.side, roughness: 0.9, metalness: 0, specularIntensity: 0.05 }); }   /* low F0: the plain 4% specular of a standard material is enough to turn it white under the flashlight */
+  if (Q.mats === 'std') { m = new THREE.MeshStandardMaterial({ map: b.map, normalMap: b.normalMap, side: b.side, roughness: 0.95, metalness: 0 }); }   /* low F0: the plain 4% specular of a standard material is enough to turn it white under the flashlight */
   else { m = new THREE.MeshLambertMaterial({ map: b.map, normalMap: Q.mats === 'lambert' ? null : b.normalMap }); }
   m.color = new THREE.Color(TINT[type] || 0x4a4541); m.userData.shared = true; return (MATS[key] = m);
 }

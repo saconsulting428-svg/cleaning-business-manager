@@ -10,7 +10,7 @@ import { GLBMonster } from './monster_glb.js';
 /* high: PBR + normal maps + flashlight shadows (desktop). medium: cheap lit materials with normal maps, full resolution, no shadow pass (phones). low: plain materials, lower resolution.
    The pixel ratio is the CAP: the real ratio is scaled down automatically when frames get slow (dynamic resolution), and back up when there is headroom. */
 export const QUALITY = {
-  high: { pr: 1.75, shadow: 768, texSize: 512, dust: 120, mats: 'std', lamps: 2, head: true, cone: true },
+  high: { pr: 1.5, shadow: 512, texSize: 512, dust: 70, mats: 'std', lamps: 2, head: true, cone: true },
   medium: { pr: 2, shadow: 0, texSize: 512, dust: 70, mats: 'lambert-n', lamps: 1, head: false, cone: true },
   low: { pr: 1.25, shadow: 0, texSize: 256, dust: 30, mats: 'lambert', lamps: 1, head: false, cone: false }
 };
@@ -23,7 +23,7 @@ export class View {
   constructor(canvas, qualityName, opts) {
     this.canvas = canvas; this.qName = qualityName || 'medium'; this.Q = QUALITY[this.qName]; this.t = 0; this.bob = 0; this.reachT = 0; this.shake = 0; this.world = null; this.built = null; this.cr = [];
     this.resScale = 1; this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !!(opts && opts.aa), powerPreference: 'high-performance', alpha: false, stencil: false });
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.05;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.55;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; this.renderer.shadowMap.autoUpdate = false;   // the flashlight shadow is refreshed every other frame (half the shadow cost, not noticeable)
      this.camera = new THREE.PerspectiveCamera(72, 1, 0.05, 60); this.camera.rotation.order = 'YXZ';
     this.menuMode = false; this.setQuality(this.qName); this.buildHands(); this.frames = 0; this.slow = 0; this.brightness = 1;
@@ -39,9 +39,15 @@ export class View {
   /* ---- first-person hands + flashlight model, parented to the camera ---- */
   buildHands() {
     const mc = matcap(), hands = new THREE.Group(), body = new THREE.MeshMatcapMaterial({ color: 0x48505a, matcap: mc }), glove = new THREE.MeshMatcapMaterial({ color: 0x3a2e24, matcap: mc }), sleeve = new THREE.MeshMatcapMaterial({ color: 0x4a4d40, matcap: mc }), lens = new THREE.MeshBasicMaterial({ color: 0xfff6dd });
-    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.22, 14), body); tube.rotation.x = Math.PI / 2; hands.add(tube);
-    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.034, 0.07, 14), body); head.rotation.x = Math.PI / 2; head.position.z = -0.14; hands.add(head);
-    const lensM = new THREE.Mesh(new THREE.CircleGeometry(0.046, 14), lens); lensM.position.z = -0.176; lensM.rotation.y = Math.PI; hands.add(lensM); this.lens = lensM;
+    /* a proper torch: ribbed aluminium barrel, a flared head with a bezel, a glowing lens, a rubber switch */
+    const alu = new THREE.MeshMatcapMaterial({ color: 0xd0d8e2, matcap: mc }), rub = new THREE.MeshMatcapMaterial({ color: 0x1c1f23, matcap: mc }), bez = new THREE.MeshMatcapMaterial({ color: 0xb4bcc6, matcap: mc });
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.2, 16), alu); tube.rotation.x = Math.PI / 2; tube.position.z = 0.01; hands.add(tube);
+    const ribs = []; for (let i = 0; i < 4; i++) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.0325, 0.0325, 0.012, 16), rub); r.rotation.x = Math.PI / 2; r.position.z = 0.06 - i * 0.03; hands.add(r); ribs.push(r); }
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.056, 0.036, 0.075, 18), alu); head.rotation.x = Math.PI / 2; head.position.z = -0.135; hands.add(head);
+    const bezel = new THREE.Mesh(new THREE.TorusGeometry(0.054, 0.007, 8, 22), bez); bezel.position.z = -0.173; hands.add(bezel);
+    const lensM = new THREE.Mesh(new THREE.CircleGeometry(0.05, 20), lens); lensM.position.z = -0.1735; lensM.rotation.y = Math.PI; hands.add(lensM); this.lens = lensM;
+    const sw = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.012, 0.03), rub); sw.position.set(0, 0.034, -0.02); hands.add(sw);
+    const lglow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xfff1d0, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, depthTest: false, opacity: 0.55 })); lglow.scale.setScalar(0.22); lglow.position.z = -0.185; lglow.renderOrder = 6; hands.add(lglow); this.lensGlow = lglow;
     for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0125, 0.045, 3, 6), glove); f.rotation.z = Math.PI / 2; f.position.set(0, -0.028 + i * 0.0, 0.0 + 0.02 - i * 0.026); f.rotation.x = 0; f.position.set(0.0, -0.01, 0.06 - i * 0.027); f.scale.set(1, 1.2, 1); f.rotation.z = Math.PI / 2; hands.add(f); }
     const palm = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.05, 0.12), glove); palm.position.set(0.005, -0.03, 0.05); hands.add(palm);
     const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.014, 0.05, 3, 6), glove); thumb.position.set(-0.04, 0.0, 0.03); thumb.rotation.set(0.2, 0, 0.5); hands.add(thumb);
@@ -50,9 +56,9 @@ export class View {
     const free = new THREE.Group(); const fp = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.03, 0.1), glove); free.add(fp); for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0115, 0.055, 3, 6), glove); f.rotation.x = Math.PI / 2; f.position.set(-0.026 + i * 0.0175, 0, -0.075); free.add(f); }
     const fa = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.05, 0.45, 10), sleeve); fa.rotation.x = Math.PI / 2; fa.position.z = 0.28; free.add(fa);
     this.free = free; free.visible = false; this.hands = hands; this.handRoot = new THREE.Group(); this.handRoot.add(hands); this.handRoot.add(free); this.camera.add(this.handRoot); hands.position.set(0.17, -0.2, -0.32); hands.rotation.set(0.06, 0.12, 0); free.position.set(-0.16, -0.24, -0.34);
-    for (const m of [tube, head, lensM]) m.renderOrder = 5; this.camera.layers.enableAll();
+    for (const m of [tube, head, lensM, bezel, sw, ...ribs]) m.renderOrder = 5; this.camera.layers.enableAll();
     /* flashlight */
-    this.flash = new THREE.SpotLight(0xfff0d8, 260, 30, 0.58, 0.65, 1.3); this.flash.castShadow = !!this.Q.shadow; this.flash.shadow.mapSize.set(this.Q.shadow || 512, this.Q.shadow || 512); this.flash.shadow.bias = -0.0006; this.flash.shadow.radius = 2; this.flash.shadow.camera.near = 0.3; this.flash.shadow.camera.far = 24;
+    this.flash = new THREE.SpotLight(0xfff4e0, 300, 36, 0.66, 1.0, 1.25); this.flash.castShadow = !!this.Q.shadow; this.flash.shadow.mapSize.set(this.Q.shadow || 512, this.Q.shadow || 512); this.flash.shadow.bias = -0.0006; this.flash.shadow.radius = 2; this.flash.shadow.camera.near = 0.3; this.flash.shadow.camera.far = 24;
     this.flashTarget = new THREE.Object3D(); this.flashRig = new THREE.Object3D(); this.flashRig.add(this.flash); this.flashRig.add(this.flashTarget); this.flashTarget.position.set(0, 0, -6); this.flash.target = this.flashTarget; this.flash.position.set(0.15, -0.12, -0.1);
     const coneG = new THREE.ConeGeometry(2.6, 11, 24, 1, true); coneG.translate(0, -5.5, 0); coneG.rotateX(Math.PI / 2);
     this.coneMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uInt: { value: 0.1 }, uCol: { value: new THREE.Color(0xfff0d8) } }, fog: false,
@@ -102,7 +108,7 @@ export class View {
     const awake = this._awake || (this._awake = []); awake.length = 0; for (const c of world.creatures) if (c.state === 'hunt' || c.state === 'investigate' || c.state === 'suspicious') awake.push(c);
     for (const f of b.fixtures) { let k = f.kind === 'dead' ? 0 : f.kind === 'flicker' ? flick(f.ph, now) : 1; if (k && awake.length) for (const c of awake) if ((c.x * TS - f.x) ** 2 + (c.y * TS - f.z) ** 2 < 90) { k = Math.min(k, flick(f.ph + 3, now * 1.7)); break; } if (this.blackoutT > 0) k = 0; else if (this.flickT > 0 && Math.sin(now * 47 + f.ph * 13) < 0.25) k *= 0.04; f.k = k; const fl = f.kind === 'flicker'; if (fl) f.mat.color.setHex(f.col).multiplyScalar(0.12 + 0.88 * k); if (f.kind === 'dead') continue; const d = (f.x - cx) ** 2 + (f.z - cz) ** 2; if (d < 200) near.push([d, f]); }
     near.sort((a, c) => a[0] - c[0]);
-    for (let i = 0; i < this.pool.length; i++) { const l = this.pool[i], e = near[i]; if (!e) { l.intensity = 0; continue; } l.position.set(e[1].x, WH - 0.45, e[1].z); l.color.setHex(e[1].col); l.intensity = (world.spec.lightsOut ? 6 : 30) * e[1].k * (1 - i * 0.12); }
+    for (let i = 0; i < this.pool.length; i++) { const l = this.pool[i], e = near[i]; if (!e) { l.intensity = 0; continue; } l.position.set(e[1].x, WH - 0.45, e[1].z); l.color.setHex(e[1].col); l.intensity = (world.spec.lightsOut ? 7 : 36) * e[1].k * (1 - i * 0.12); }
     /* sonar pulse */
     const ps = world.pulseState; if (ps) { const age = now - (this.pulseT0 === undefined || this.pulseSrc !== ps ? (this.pulseSrc = ps, this.pulseT0 = now) : this.pulseT0); PULSE.uPulseO.value.set(ps.x * TS, 1.2, ps.y * TS); PULSE.uPulseR.value = age * 15; PULSE.uPulseA.value = age < 1.6 ? 1 : Math.max(0, 1 - (age - 1.6) / 1.8); PULSE.uPulseMax.value = 28; if (age > 3.5) { world.pulseState = null; PULSE.uPulseA.value = 0; } } else PULSE.uPulseA.value = 0;
     PULSE.uTime.value = now;
@@ -119,12 +125,12 @@ export class View {
     /* dust drifts around the camera */
     const pos = this.dust.geometry.attributes.position, base = this.dustBase; for (let i = 0; i < pos.count; i++) { const x = base[i * 3] + Math.sin(now * 0.2 + i) * 0.4 + now * 0.05, y = base[i * 3 + 1] + Math.sin(now * 0.3 + i * 1.7) * 0.3, z = base[i * 3 + 2] + Math.cos(now * 0.25 + i * 0.7) * 0.4; pos.setXYZ(i, cx + ((x + 6) % 12 + 12) % 12 - 6, ((y % 3) + 3) % 3, cz + ((z + 6) % 12 + 12) % 12 - 6); } pos.needsUpdate = true;
     if (this.head) { this.head.position.copy(this.camera.position); this.head.intensity = world.spec.lightsOut ? 1.2 : 3.2 * (world.player.flash ? 1 : 0.5); }
-    this.renderer.toneMappingExposure = 1.05 * this.brightness * (world.spec.lightsOut ? 1.15 : 1);
-    this.renderer.shadowMap.needsUpdate = (this.frames & 1) === 0; this.renderer.render(b.scene, this.camera);
+    this.renderer.toneMappingExposure = 1.55 * this.brightness * (world.spec.lightsOut ? 1.15 : 1);
+    this.renderer.shadowMap.needsUpdate = this.frames % 3 === 0; this.renderer.render(b.scene, this.camera);
     /* dynamic resolution: when frames run long the render resolution drops a notch (never below 0.6x), with headroom it climbs back; only if still slow at the floor does the quality tier drop */
     this.frames++; if (dt > 0 && dt < 0.5) { this.ftSum = (this.ftSum || 0) + dt; this.ftN = (this.ftN || 0) + 1; }
     if (this.ftN >= 40) { const avg = this.ftSum / this.ftN; this.ftSum = 0; this.ftN = 0; this.cool = (this.cool || 0) - 1;
-      if (this.cool <= 0) { if (avg > 0.0215) { if (this.resScale > 0.62) { this.resScale = Math.max(0.6, this.resScale - 0.12); this.applyRes(); this.resize(); this.cool = 2; } else if (this.autoQ && this.qName !== 'low') { this.resScale = 0.85; this.setQuality(this.qName === 'high' ? 'medium' : 'low'); if (this.onQuality) this.onQuality(this.qName); this.cool = 3; } }
+      if (this.cool <= 0) { if (avg > 0.0195) { if (this.resScale > 0.62) { this.resScale = Math.max(0.6, this.resScale - 0.12); this.applyRes(); this.resize(); this.cool = 2; } else if (this.autoQ && this.qName !== 'low') { this.resScale = 0.85; this.setQuality(this.qName === 'high' ? 'medium' : 'low'); if (this.onQuality) this.onQuality(this.qName); this.cool = 3; } }
         else if (avg < 0.0145 && this.resScale < 1) { this.resScale = Math.min(1, this.resScale + 0.06); this.applyRes(); this.resize(); this.cool = 3; } } }
   }
   updateCamera(world, dt, now) {
@@ -146,7 +152,7 @@ export class View {
     if (!this.flashQ) { this.flashQ = new THREE.Quaternion().copy(cam.quaternion); }
     this.flashQ.slerp(cam.quaternion, 1 - Math.exp(-dt * 16)); this.flashRig.quaternion.copy(this.flashQ); this.flashRig.position.copy(cam.position);
     const on = p.flash && p.alive && p.hidden < 0 && !p.vent; let power = on ? 1 : 0; if (on && world.threat > 0.75 && Math.sin(now * 37) > 0.93) power = 0.15; if (on && p.stagger > 0 && Math.sin(now * 55) > 0.1) power = 0.2; if (on && world.spec.lightsOut) power = 1;
-    this.flash.intensity += (power * 260 - this.flash.intensity) * Math.min(1, dt * 20); this.coneMat.uniforms.uInt.value = this.flash.intensity / 260 * (this.portrait ? 0.12 : 0.1); this.cone.visible = this.Q.cone && this.flash.intensity > 3; this.lens.visible = on; this.lens.material.color.setScalar(on ? 1 : 0.05);
+    this.flash.intensity += (power * 300 * (1 + 0.025 * Math.sin(now * 9)) - this.flash.intensity) * Math.min(1, dt * 20); this.coneMat.uniforms.uInt.value = this.flash.intensity / 300 * (this.portrait ? 0.12 : 0.1); this.cone.visible = this.Q.cone && this.flash.intensity > 3; this.lens.visible = on; this.lens.material.color.setScalar(on ? 1 : 0.05); if (this.lensGlow) { this.lensGlow.visible = on; this.lensGlow.material.opacity = 0.35 + 0.2 * (this.flash.intensity / 300); }
     /* hands: bob, sway, reach */
     const hs = p.sprint ? 1.8 : 1; this.hands.position.set(0.17 + Math.sin(this.bobPhase) * 0.008 * hs, -0.2 + Math.abs(Math.sin(this.bobPhase)) * 0.012 * hs + (p.crouch ? 0.01 : 0), -0.32); this.hands.rotation.set(0.06 + Math.sin(this.bobPhase * 2) * 0.01, 0.12, Math.sin(this.bobPhase) * 0.02);
     this.handRoot.visible = p.alive && p.hidden < 0 && !p.vent;
