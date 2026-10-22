@@ -138,7 +138,7 @@ function tryGenerate(spec, seed) {
   const floorCount = () => { let c = 0; for (let i = 0; i < cells.length; i++) if (cells[i] !== T.WALL && !blocked.has(i)) c++; return c; };
   const connected = () => { const seen = new Uint8Array(W * H); const q = [[st.x, st.y]]; seen[at(st.x, st.y)] = 1; let cnt = 1, qi = 0; while (qi < q.length) { const [x, y] = q[qi++]; for (const [dx, dy] of DIRS) { const nx = x + dx, ny = y + dy; if (inb(nx, ny) && !seen[at(nx, ny)] && cells[at(nx, ny)] !== T.WALL && !blocked.has(key(nx, ny))) { seen[at(nx, ny)] = 1; cnt++; q.push([nx, ny]); } } } return cnt === floorCount(); };
   for (const r of rooms) {
-    const mix = MIX[r.kind], cnt = ri(1, 3); let landmark = false;
+    const mix = MIX[r.kind], cnt = ri(1, 3) + (spec.ch >= 1 && r.idx > 0 && R() < 0.5 ? 1 : 0); let landmark = false;   // the laboratories and the industrial levels are more cluttered
     for (let i = 0; i < cnt + 1; i++) {
       let x, y; if (!landmark) { x = r.cx; y = r.cy; if (!isFree(x, y) || nearMouth(x, y) || (x === st.x && y === st.y) || cells[at(x, y)] === T.GLASS) { x = ri(r.x0 + 1, r.x0 + r.w - 2); y = ri(r.y0 + 1, r.y0 + r.h - 2); } } else { x = ri(r.x0 + 1, r.x0 + r.w - 2); y = ri(r.y0 + 1, r.y0 + r.h - 2); }
       if (!isFree(x, y) || nearMouth(x, y) || (x === st.x && y === st.y) || cells[at(x, y)] === T.GLASS) continue;

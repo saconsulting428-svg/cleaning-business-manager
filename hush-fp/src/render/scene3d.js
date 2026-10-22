@@ -77,7 +77,8 @@ export function buildScene(world, Q) {
   const wall = new GB(), floor = new GB(), ceil = new GB();
   const roomOf = new Int16Array(W * H).fill(-1); world.rooms.forEach((r, i) => { for (let y = r.y0; y < r.y0 + r.h; y++) for (let x = r.x0; x < r.x0 + r.w; x++) roomOf[y * W + x] = i; });
   const roomAt = (x, y) => (x < 0 || y < 0 || x >= W || y >= H || roomOf[y * W + x] < 0) ? null : world.rooms[roomOf[y * W + x]];
-  const tintAt = (x, y) => { const r = roomAt(x, y), t = r && KIND_TINT[r.kind] ? KIND_TINT[r.kind] : [1, 1, 1]; return LK ? [t[0] * LK.tint[0], t[1] * LK.tint[1], t[2] * LK.tint[2]] : t; };
+  const CHT = [[1.1, 1.03, 0.88], [0.84, 1.07, 1.14], [1.14, 0.9, 0.8]][spec.ch] || [1, 1, 1];   // chapter 1 dusty beige offices, chapter 2 cold clinical teal, chapter 3 rusted industrial
+  const tintAt = (x, y) => { const r = roomAt(x, y), t0 = r && KIND_TINT[r.kind] ? KIND_TINT[r.kind] : [1, 1, 1], t = [t0[0] * CHT[0], t0[1] * CHT[1], t0[2] * CHT[2]]; return LK ? [t[0] * LK.tint[0], t[1] * LK.tint[1], t[2] * LK.tint[2]] : t; };
   const wallFaces = [];
   const shade = (k) => [[k * 0.5, k * 0.5, k * 0.5], [k * 0.5, k * 0.5, k * 0.5], [k, k, k], [k, k, k]];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
