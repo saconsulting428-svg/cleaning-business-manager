@@ -42,3 +42,11 @@ A bug found by the real-page run and fixed: the Containment set-piece read a roo
 - The sighting set-piece is a pair of red eyes plus flicker, not a full model behind glass.
 - Chapter 3 keeps the red nest walls.
 - Balance against a human player is unproven (bots only).
+
+---
+# 1.3.2 follow-up: one graphics tier, stuck hints, strike, light
+
+- **Graphics**: the Graphics setting (Auto/High/Medium/Low) is gone. Every device now uses one tier tuned for phones: cheap lit materials with normal maps, no shadow pass, two pooled lamps, 1.5x pixel-ratio cap, and the dynamic resolution scaler (down to 0.6x, back up with headroom) stays on as the safety net. Old saves are accepted (the old value is ignored). In an emulated phone page (915x412, DPR 2.75, touch) on software WebGL the median frame time went from about 246/255 ms to 232/216 ms on levels 17/32 (p90 on level 32: 512 -> 282 ms). Software WebGL is not a phone GPU: this only shows the direction, not the real frame rate. No real phone was available here.
+- **Stuck hints** (new, `src/ui/stuck.js`): if there is no progress for 50 s (no new area explored, no objective step, no item, no door opened, no switch), a HINT appears in the hint bar and gets plainer: 50 s what to do, 105 s plus distance and direction, 165 s plus the objective markers lit in the world for 5 s; then again every 70 s. Time spent hiding or hunted does not count. The text comes from the real state (current objective step, a locked door next to you and what it needs, a collapsed passage, a live cable, low health with a bandage around, a creature on the hunt). The Objectives panel has a "Stuck? Give me a hint" button. Controlled by the existing Hints setting; the tutorial coach is not interrupted.
+- **Bug found while testing the hints**: the map route could not reach goals that sit on a solid tile (exit, valve, breaker, generator) since the 1.3.0 solid-aware route; fixed.
+- Earlier in 1.3.1: lunge strike (2.4 tiles, 0.55 s burst, catch only if still inside 1.7), brighter exposure/ambient, soft wide torch beam with a new torch model, level look colours restored (chapter tint reduced to 25%).

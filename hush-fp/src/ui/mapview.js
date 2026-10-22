@@ -12,7 +12,7 @@ export function mapRoute(w, sx, sy, targets) {
   const pass = (n) => { if (w.cells[n] === 0) return false; const d = w.doorAt.get(n); if (d) return !(d.hidden && !d.revealed); return !w.solid.has(n); };
   for (let qi = 0; qi < q.length; qi++) {
     const c = q[qi]; if (goal.has(c)) { hit = c; break; } const cx = c % W, cy = (c / W) | 0;
-    for (let k = 0; k < 4; k++) { const nx = cx + (k === 0) - (k === 1), ny = cy + (k === 2) - (k === 3); if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const n = ny * W + nx; if (prev[n] !== -2 || !pass(n)) continue; prev[n] = c; q.push(n); }
+    for (let k = 0; k < 4; k++) { const nx = cx + (k === 0) - (k === 1), ny = cy + (k === 2) - (k === 3); if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const n = ny * W + nx; if (prev[n] !== -2 || !(goal.has(n) || pass(n))) continue; prev[n] = c; q.push(n); }
   }
   if (hit < 0) return null; const pts = []; for (let c = hit; c >= 0; c = prev[c]) pts.push([(c % W) + 0.5, ((c / W) | 0) + 0.5]); pts.reverse(); return { pts, t: goal.get(hit) };
 }

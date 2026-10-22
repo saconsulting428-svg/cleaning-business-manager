@@ -26,9 +26,9 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright'); const p
   await touch('pointerdown', 14, 0, 0, '#b-sprint'); t('sprint button toggles sprint latch', await p.evaluate(() => HUSH.inp.sprintBtn)); await touch('pointerdown', 14, 0, 0, '#b-sprint');
   /* pause */
   await touch('pointerdown', 15, 0, 0, '#b-pause'); await p.waitForTimeout(200); t('pause button opens the pause menu and stops the clock', await vis('ov-pause') && await p.evaluate(() => HUSH.G.paused)); const tp = await p.evaluate(() => HUSH.world().time); await p.waitForTimeout(400); t('world does not advance while paused', await p.evaluate((a) => HUSH.world().time === a, tp));
-  await p.click('#p-settings'); t('settings open from pause', await vis('ov-settings')); await p.click('#set-gfx button[data-v="low"]'); await p.fill('#set-bright', '120'); await p.click('#s-tabs button[data-t="audio"]'); t('audio tab shows', await p.evaluate(() => document.getElementById('sp-audio').classList.contains('on'))); await p.click('#s-close');
+  await p.click('#p-settings'); t('settings open from pause', await vis('ov-settings')); await p.fill('#set-bright', '120'); await p.click('#s-tabs button[data-t="audio"]'); t('audio tab shows', await p.evaluate(() => document.getElementById('sp-audio').classList.contains('on'))); await p.click('#s-close');
   await p.click('#p-resume'); t('resume closes the pause menu', !(await vis('ov-pause')) && !(await p.evaluate(() => HUSH.G.paused)));
-  const q = await p.evaluate(() => HUSH.view().qName); t('graphics setting applied (low)', q === 'low', q);
+  const q = await p.evaluate(() => HUSH.view().qName), gfxRow = await p.evaluate(() => !!document.getElementById('set-gfx')); t('one graphics tier, no graphics setting', q === 'high' && !gfxRow, q + ' ' + gfxRow);
   /* tap on things: no Use button, the object under the finger is used */
   await p.evaluate(() => HUSH.startLevel(4)); await inGame();
   const tapObj = async (pick, label, check, setup) => {

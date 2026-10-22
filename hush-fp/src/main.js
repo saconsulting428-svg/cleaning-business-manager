@@ -12,6 +12,7 @@ import * as AI from './logic/ai.js';
 import { GLBMonster } from './render/monster_glb.js';
 import { CrawlerGLB } from './render/crawler_glb.js';
 import { drawFacilityMap, mapDir } from './ui/mapview.js';
+import { stuckHint } from './ui/stuck.js';
 import { HEAL, HP_MAX } from './logic/extras.js';
 import { runBot } from './test/bot.js';
 
@@ -25,10 +26,10 @@ $('app').classList.toggle('touch', coarse);
 
 /* ---------------- save ---------------- */
 const KEY = 'hush.fp.v1';
-const save = { v: 1, stars: [], best: [], logs: {}, tips: {}, set: { gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, last: 0 };
+const save = { v: 1, stars: [], best: [], logs: {}, tips: {}, set: { gfx: 'high', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, last: 0 };
 try { const s = migrateSave(JSON.parse(localStorage.getItem(KEY) || 'null'), LEVELS); if (s && s.v === 1) { Object.assign(save, s); save.logs = (s.logs && typeof s.logs === 'object') ? s.logs : {}; save.tips = (s.tips && typeof s.tips === 'object' && !Array.isArray(s.tips)) ? s.tips : {}; save.stars = Array.isArray(s.stars) ? s.stars : []; save.best = Array.isArray(s.best) ? s.best : []; save.last = Math.max(0, Math.min(LEVELS.length - 1, +s.last || 0)); save.set = Object.assign({ gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, s.set || {}); } } catch (e) { /* private mode or a corrupted save: start fresh */ }
 { const S = save.set, num = (v, lo, hi, d) => (typeof v === 'number' && isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d), one = (v, list, d) => (list.includes(v) ? v : d);
-  save.set = { gfx: one(S.gfx, ['auto', 'high', 'medium', 'low'], 'auto'), aq: one(S.aq, ['auto', 'full', 'light'], 'auto'), diff: one(S.diff, ['easy', 'normal', 'hard'], 'normal'), bright: num(S.bright, 70, 160, 100), vol: num(S.vol, 0, 100, 80), mvol: num(S.mvol, 0, 100, 60), sens: num(S.sens, 30, 200, 100),
+  save.set = { gfx: 'high', aq: one(S.aq, ['auto', 'full', 'light'], 'auto'), diff: one(S.diff, ['easy', 'normal', 'hard'], 'normal'), bright: num(S.bright, 70, 160, 100), vol: num(S.vol, 0, 100, 80), mvol: num(S.mvol, 0, 100, 60), sens: num(S.sens, 30, 200, 100),
     vibe: S.vibe !== false, hints: S.hints !== false, sound: S.sound !== false, music: S.music !== false, inv: S.inv === true, marks: S.marks !== false }; }
 save.lv = LEVELS.length; save.stars = save.stars.map(v => (v >= 0 && v <= 3 ? v | 0 : 0));
 const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } };
@@ -89,7 +90,7 @@ async function startLevelNow(i) {
   setLoading(true, 'Entering ' + LEVELS[i].name, 20); ['pause', 'win', 'dead', 'note', 'log', 'keypad', 'settings', 'how', 'credits', 'inv', 'obj', 'map', 'tip'].forEach(o => overlay(o, false)); await nextFrame();
   G.run = (G.run || 0) + 1; G.level = i; save.last = i; persist(); G.chapterView = LEVELS[i].ch; const w = new World(gen(i), { assist: (G.deaths && G.deaths[i]) || 0 }); G.world = w; setLoading(true, null, 55); await nextFrame(); G.view.loadLevel(w); setLoading(true, null, 95); await nextFrame();
   G.mode = 'game'; show('game'); G.paused = false; G.modal = false; G.over = false; G.ended = 0; G.timeSpent = 0; G.acc = 0; G.hintT = 8; G.shownHint = -1; G.lastInv = ''; G.menu = false; inp.edge = {}; inp.dyaw = 0; inp.dpitch = 0; inp.pyaw = 0; inp.ppitch = 0; inp.sprintBtn = false; $('b-sprint').classList.remove('on');
-  G.tut = { dist: 0, yaw: 0, flash: 0, doors: 0, pulses: 0, firstPulse: 0, crouched: false, crouchNear: 0, hid: 0, picked: {}, bag: 0, map: 0, last: null, skip: false }; G.seq = tipsOn() && SEQ[i] && !save.tips['seq' + i] ? SEQ[i] : null; G.seqI = 0; G.seqOkT = 0; G.coachOn = false; $('hint').classList.remove('coach', 'ok');
+  G.prog = null; G.tut = { dist: 0, yaw: 0, flash: 0, doors: 0, pulses: 0, firstPulse: 0, crouched: false, crouchNear: 0, hid: 0, picked: {}, bag: 0, map: 0, last: null, skip: false }; G.seq = tipsOn() && SEQ[i] && !save.tips['seq' + i] ? SEQ[i] : null; G.seqI = 0; G.seqOkT = 0; G.coachOn = false; $('hint').classList.remove('coach', 'ok');
   $('hint').textContent = save.set.hints && !G.seq ? LEVELS[i].hint : ''; $('hint').classList.toggle('show', !!save.set.hints && !G.seq); G.chapterAudio = LEVELS[i].ch; applyAudio(); Sound.unlock(); buildHotbar(true);
   setLoading(false, null, 100); G.last = performance.now(); $('fx-hurt').style.opacity = 0; if (!coarse) lockPointer();
 }
@@ -133,7 +134,7 @@ function setC(id, cls, on) { const k = id + cls; if (HC[k] !== on) { HC[k] = on;
 function setO(id, v) { v = Math.round(v * 20) / 20; if (HC[id + 'o'] !== v) { HC[id + 'o'] = v; $(id).style.opacity = v; } }
 function hud(w, dt) {
   const p = w.player; G.hudT = (G.hudT || 0) + dt; if (G.bannerT > 0) { G.bannerT -= dt; if (G.bannerT <= 0) $('banner').classList.remove('show'); } if (G.hintT > 0) { G.hintT -= dt; if (G.hintT <= 0) $('hint').classList.remove('show'); }
-  drawMarks(w); coachTick(w, dt);
+  drawMarks(w); coachTick(w, dt); stuckTick(w, dt);
   if (G.hudT < 0.066) return; const dtH = G.hudT; G.hudT = 0;
   setT('obj-text', w.objective().current); setT('pulse-n', p.pulses); setC('b-pulse', 'dim', p.pulses <= 0); const cdf = Math.round(w.pulseCd / PULSE_CD * 40) / 40; if (HC.cdf !== cdf) { HC.cdf = cdf; $('b-pulse').style.setProperty('--cd', cdf); } setC('b-pulse', 'cd', cdf > 0); setT('pulse-l', w.pulseCd > 0 ? w.pulseCd.toFixed(1) + 's' : 'Pulse'); buildHotbar(false);
   const pr = w.prompt, show = !!(pr && !G.modal); setC('prompt', 'show', show); if (show) { setC('prompt', 'no', /^Locked|needs/.test(pr.text)); setT('prompt-text', pr.text); }
@@ -176,6 +177,7 @@ function drawInv() {
 }
 function drawObj() { const o = G.world.objective(), l = $('obj-list'); l.innerHTML = ''; let cur = true; o.steps.forEach(st => { const li = document.createElement('li'); li.className = st.done ? 'done' : cur ? 'cur' : ''; if (!st.done) cur = false; li.innerHTML = '<svg><use href="#' + (st.done ? 'i-check' : 'i-bulb') + '"/></svg><span></span>'; li.lastChild.textContent = st.text; l.appendChild(li); }); const lg = G.world.objs.find(o => o.type === 'log'); if (lg) { const li = document.createElement('li'); li.className = lg.done ? 'done' : ''; li.innerHTML = '<svg><use href="#' + (lg.done ? 'i-check' : 'i-book') + '"/></svg><span></span>'; li.lastChild.textContent = 'Optional: find the recovered log' + (lg.done ? ' (read)' : ''); l.appendChild(li); } $('obj-hint').textContent = 'Hint: ' + LEVELS[G.level].hint; }
 for (const [id, pn] of [['b-bag', 'inv'], ['obj', 'obj'], ['b-map', 'map']]) $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); panel(pn, true); });
+$('obj-help').onclick = () => { panel('obj', false); askHint(); };
 $('inv-use').onclick = () => { const k = invSel; panel('inv', false); if (k === 'flash') inp.edge.flash = true; else inp.edge.radio = true; };
 qa('[data-pclose]').forEach(b => { b.onclick = () => { Sound.play('ui'); panel(b.getAttribute('data-pclose'), false); }; });
 document.addEventListener('keydown', (e) => { if (e.code === 'Escape') { const shownOv = (id) => $('ov-' + id).classList.contains('show'); if (['log', 'note', 'keypad', 'inv', 'obj', 'map', 'tip'].some(shownOv)) e.stopPropagation();   /* Escape closes the top panel only, it must not also open the pause menu */
@@ -195,6 +197,24 @@ function track(e) {
   const T = G.tut; if (!T) return;
   if (e.type === 'flash') T.flash++; else if (e.type === 'door' && e.by !== 'creature') T.doors++; else if (e.type === 'pulse') { T.pulses++; if (!T.firstPulse) T.firstPulse = performance.now() / 1000; } else if (e.type === 'hide' && !e.out) T.hid++; else if (e.type === 'pickup') T.picked[e.kind] = 1;
 }
+/* stuck hints: no progress for a while -> a hint that gets plainer (50 s, 105 s, 165 s, then every 70 s) */
+const STUCK_AT = [50, 105, 165];
+function showHint(res) {
+  const h = $('hint'); h.classList.remove('coach', 'ok'); h.innerHTML = '<b>HINT</b>' + res.text.replace(/</g, '&lt;'); h.classList.add('show'); G.hintT = 11; Sound.play('ui');
+  if (res.ping && G.world) for (const t of res.targets) for (const o of G.world.objs) if (o.x === Math.floor(t.x) && o.y === Math.floor(t.y)) o.pingT = 5;
+}
+function stuckTick(w, dt) {
+  const p = w.player; if (!p.alive || G.over || G.modal || G.paused || (G.seq && G.coachOn) || !tipsOn()) return;
+  const S = G.prog = G.prog || { sig: '', t: 0, lvl: 0, tick: 0 }; S.tick -= dt;
+  if (S.tick <= 0) {
+    S.tick = 1; let n = 0; const sn = w.seen; if (sn) for (let i = 0; i < sn.length; i++) n += sn[i]; const inv = p.inv, sig = w.objective().current + '|' + (n >> 3) + '|' + inv.key + inv.card + inv.fuse + inv.radio + '|' + w.pickups.filter(o => o.taken).length + '|' + w.doors.filter(d => d.want).length + '|' + w.objs.filter(o => o.done).length;
+    if (sig !== S.sig) { S.sig = sig; S.t = 0; S.lvl = 0; }
+  }
+  if (p.hidden >= 0 || p.vent || w.creatures.some(c => c.state === 'hunt')) return;          /* hiding or running for your life is not being stuck */
+  S.t += dt; const next = S.lvl < STUCK_AT.length ? STUCK_AT[S.lvl] : STUCK_AT[2] + 70 * (S.lvl - STUCK_AT.length + 1);
+  if (S.t >= next) { S.lvl++; showHint(stuckHint(w, Math.min(3, S.lvl))); }
+}
+function askHint() { const w = G.world; if (!w || !w.player.alive) return; const S = G.prog = G.prog || { sig: '', t: 0, lvl: 0, tick: 0 }; S.lvl = Math.min(3, Math.max(2, S.lvl + 1)); showHint(stuckHint(w, S.lvl)); }
 function coachTick(w, dt) {
   const T = G.tut, p = w.player, now = performance.now() / 1000; if (!T || G.over) return;
   if (T.last) { T.dist += Math.hypot(p.x - T.last[0], p.y - T.last[1]); T.yaw += Math.abs(angDiffUI(p.yaw, T.last[2])); if (p.crouch) { T.crouched = true; if (w.creatures.some(c => Math.hypot(c.x - p.x, c.y - p.y) < 11)) T.crouchNear += dt; } } T.last = [p.x, p.y, p.yaw];
@@ -361,8 +381,8 @@ $('s-close').onclick = () => { overlay('settings', false); persist(); };
 qa('#s-tabs button').forEach(b => { b.onclick = () => { qa('#s-tabs button').forEach(x => x.classList.toggle('on', x === b)); qa('.spage').forEach(p => p.classList.toggle('on', p.id === 'sp-' + b.getAttribute('data-t'))); }; });
 function seg(id, key, fn) { qa('#' + id + ' button').forEach(b => { b.onclick = () => { save.set[key] = b.getAttribute('data-v'); syncSettings(); fn && fn(); persist(); Sound.play('ui'); }; }); }
 function syncSettings() { const s = save.set; qa('#set-gfx button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.gfx)); qa('#set-aq button').forEach(b => b.classList.toggle('on', b.getAttribute('data-v') === s.aq)); $('set-bright').value = s.bright; $('set-vibe').checked = s.vibe; $('set-hints').checked = s.hints; $('set-marks').checked = s.marks; $('set-vol').value = s.vol; $('set-mvol').value = s.mvol; $('v-vol').textContent = s.vol + '%'; $('v-mvol').textContent = s.mvol + '%'; $('set-sound').checked = s.sound; $('set-music').checked = s.music; $('set-sens').value = s.sens; $('set-inv').checked = s.inv; }
-function applyGfx() { const g = save.set.gfx, v = G.view; v.autoQ = g === 'auto' && (!TEST || (__TEST__ && /[?&]adapt=1\b/.test(location.search))); v.setQuality(g === 'auto' ? (isMobile ? 'medium' : 'high') : g); v.brightness = save.set.bright / 100; }
-seg('set-gfx', 'gfx', () => { applyGfx(); if (G.world) G.view.loadLevel(G.world); else startMenuScene(); }); seg('set-aq', 'aq', () => { Sound.setQuality(save.set.aq); Sound.unlock(); applyAudio(); });
+function applyGfx() { const v = G.view; v.autoQ = false; v.setQuality('high'); v.brightness = save.set.bright / 100; }   /* a single graphics tier: no setting to choose */
+seg('set-aq', 'aq', () => { Sound.setQuality(save.set.aq); Sound.unlock(); applyAudio(); });
 const bindR = (id, key, fn) => { $(id).oninput = () => { save.set[key] = +$(id).value; fn && fn(); syncSettings(); }; $(id).onchange = persist; }, bindC = (id, key, fn) => { $(id).onchange = () => { save.set[key] = $(id).checked; fn && fn(); persist(); }; };
 bindR('set-bright', 'bright', () => { G.view.brightness = save.set.bright / 100; }); bindR('set-vol', 'vol', applyAudio); bindR('set-mvol', 'mvol', applyAudio); bindR('set-sens', 'sens'); bindC('set-vibe', 'vibe', applyAudio); bindC('set-hints', 'hints'); bindC('set-marks', 'marks'); bindC('set-sound', 'sound', applyAudio); bindC('set-music', 'music', applyAudio); bindC('set-inv', 'inv');
 $('set-reset').onclick = () => { if ($('set-reset').dataset.sure) { save.stars = []; save.best = []; save.last = 0; save.tips = {}; persist(); delete $('set-reset').dataset.sure; $('set-reset').textContent = 'Reset'; } else { $('set-reset').dataset.sure = 1; $('set-reset').textContent = 'Sure?'; setTimeout(() => { delete $('set-reset').dataset.sure; $('set-reset').textContent = 'Reset'; }, 2500); } };
@@ -382,7 +402,7 @@ function frame(ts) {
   } else if (G.menuWorld) { G.menuT += dt; const w = G.menuWorld; w.update(dt, {}); w.drainEvents(); v.setMenuCamera(w, G.menuT); v.camera.updateMatrixWorld(true); v.flashRig.position.copy(v.camera.position); v.flashRig.quaternion.copy(v.camera.quaternion); v.flash.intensity = 200; v.cone.visible = true; v.coneMat.uniforms.uInt.value = 0.1; v.handRoot.visible = false; v.menuFrame(w, dt, now); Sound.tick && Sound.tick(dt, 0, false); }
 }
 async function boot() {
-  const v = G.view = new View($('view'), isMobile ? 'medium' : 'high', { aa: !isMobile }); v.onQuality = (q) => { save.set.gfx = save.set.gfx === 'auto' ? 'auto' : save.set.gfx; }; if (isMobile) v.resScale = 0.85; applyGfx(); applyAudio(); window.addEventListener('resize', () => v.resize());
+  const v = G.view = new View($('view'), 'high', { aa: false }); v.onQuality = (q) => { save.set.gfx = save.set.gfx === 'auto' ? 'auto' : save.set.gfx; }; if (isMobile) v.resScale = 0.85; applyGfx(); applyAudio(); window.addEventListener('resize', () => v.resize());
   setLoading(true, 'Preparing the facility', 30); await nextFrame(); for (let i = 0; i < LEVELS.length; i++) { gen(i); if (i % 8 === 0) { setLoading(true, null, 30 + i); await nextFrame(); } }
   if (!(__TEST__ && TEST && /[?&]noglb=1\b/.test(location.search))) await GLBMonster.load(); await CrawlerGLB.load(); await startMenuScene(); G.mode = 'home'; show('home'); syncSettings(); setLoading(false, null, 100); overlay('gate', !TEST); requestAnimationFrame(frame); Sound.setQuality(save.set.aq);
 }

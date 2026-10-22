@@ -9,11 +9,10 @@ import { GLBMonster } from './monster_glb.js';
 
 /* high: PBR + normal maps + flashlight shadows (desktop). medium: cheap lit materials with normal maps, full resolution, no shadow pass (phones). low: plain materials, lower resolution.
    The pixel ratio is the CAP: the real ratio is scaled down automatically when frames get slow (dynamic resolution), and back up when there is headroom. */
-export const QUALITY = {
-  high: { pr: 1.5, shadow: 512, texSize: 512, dust: 70, mats: 'std', lamps: 2, head: true, cone: true },
-  medium: { pr: 2, shadow: 0, texSize: 512, dust: 70, mats: 'lambert-n', lamps: 1, head: false, cone: true },
-  low: { pr: 1.25, shadow: 0, texSize: 256, dust: 30, mats: 'lambert', lamps: 1, head: false, cone: false }
-};
+/* One graphics tier for every device, tuned so a phone keeps its frame rate: cheap per-pixel lit materials with normal maps, no shadow pass, two pooled lamps, a 1.5x pixel-ratio cap that the
+   dynamic resolution scaler lowers (down to 0.6x) the moment frames run long and raises again with headroom. The names stay only so older saves and callers keep working. */
+const TIER = { pr: 1.5, shadow: 0, texSize: 512, dust: 60, mats: 'lambert-n', lamps: 2, head: false, cone: true };
+export const QUALITY = { high: TIER, medium: TIER, low: TIER };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const flick = (ph, t) => { const s = Math.sin(t * 13 + ph) * Math.sin(t * 7.3 + ph * 2); return s > 0.55 ? 0.1 : s > 0.3 ? 0.55 : 1; };
 
