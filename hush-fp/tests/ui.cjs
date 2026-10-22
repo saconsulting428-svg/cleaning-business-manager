@@ -60,7 +60,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright'); const p
   for (const k of code.code.split('')) await p.click('#kp-grid button:nth-child(' + (k === '0' ? 11 : +k) + ')'); await p.click('#kp-grid button:nth-child(12)'); t('the right code unlocks it', await p.evaluate((id) => !HUSH.world().objById.get(id).locked, code.d));
   /* back to menu, persistence */
   await p.evaluate(() => HUSH.pause(true)); await p.click('#p-menu'); t('Main menu returns to title', await vis('scr-home'));
-  await p.evaluate(() => HUSH.save.set.vol); await open(); t('settings and progress persist across a reload', await p.evaluate(() => HUSH.save.set.gfx === 'low' && HUSH.save.stars[0] >= 1));
+  await p.evaluate(() => HUSH.save.set.vol); await open(); t('settings and progress persist across a reload', await p.evaluate(() => HUSH.save.set.gfx === 'high' && HUSH.save.set.bright === 120 && HUSH.save.stars[0] >= 1));
   t('no console errors or page errors', errs.length === 0, errs.slice(0, 3));
   console.log(ok + '/' + (ok + bad) + ' passed'); await b.close(); process.exit(bad ? 1 : 0);
 })();
