@@ -1,6 +1,7 @@
 /* The first-person view: WebGL renderer, camera (bob, crouch, vent crawl, death), flashlight with a visible volumetric beam, hands, dust, pooled emergency lights,
    creature models + sonar silhouettes, the sonar pulse uniforms. Reads a World; never changes it. */
 import * as THREE from 'three';
+import { buildExtras } from './extras3d.js';
 import { buildScene, PULSE, TS, WH, THEME, glowTex, patchPulse } from './scene3d.js';
 import { buildCreature, poseCreature, creatureMaterials, ghostMaterial } from './creature3d.js';
 import { angDiff } from '../logic/rng.js';
@@ -74,27 +75,32 @@ export class View {
       if (GLBMonster.ready) { const g = GLBMonster.build(c.t, this.Q); g.ghost.material = gm; sc.add(g.root); const blob = new THREE.Mesh(new THREE.PlaneGeometry(3.1, 3.1), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, opacity: 0.8 })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; blob.renderOrder = 1; sc.add(blob); return { c, real: g.root, ghost: g.ghost, gm, blob, glb: g.inst }; }
       const mats = creatureMaterials(c.t), real = buildCreature(c.t, mats, true), ghost = buildCreature(c.t, { skin: gm, bone: gm, eye: gm }, false); ghost.traverse(o => { o.renderOrder = 999; }); ghost.visible = false; sc.add(real); sc.add(ghost); const blob = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, opacity: 0.8 })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; blob.renderOrder = 1; sc.add(blob); return { c, real, ghost, gm, mats, blob };
     });
+    this.ex = buildExtras(world, sc, this.Q); this.flickT = 0; this.kickT = 0; this.fogBase = sc.fog.density;
     /* scare director props: a pair of eyes far down a corridor, and a lights-out timer */
     const eg = new THREE.Group(); for (const sx of [-0.09, 0.09]) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff2a20, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, depthTest: true, opacity: 0 })); sp.scale.set(0.5, 0.5, 1); sp.position.x = sx; eg.add(sp); } eg.visible = false; sc.add(eg); this.eyeFx = { g: eg, t: 0, dur: 1 }; this.blackoutT = 0;
     this.bobPhase = 0; this.hurtT = 0; this.deadT = 0; this.winT = 0; this.updateCamera(world, 0, 0);
   }
-  flashEyes(x, z, dur) { this.eyeFx.g.position.set(x, 1.55, z); this.eyeFx.t = this.eyeFx.dur = dur || 1.6; this.eyeFx.g.visible = true; }
+  flashEyes(x, z, dur, h) { this.eyeFx.g.position.set(x, h || 1.55, z); this.eyeFx.t = this.eyeFx.dur = dur || 1.6; this.eyeFx.g.visible = true; }
   blackout(sec) { this.blackoutT = sec; }
+  flicker(sec) { this.flickT = Math.max(this.flickT || 0, sec); }
+  /* a hit: the view jerks away from the source, the lamp stutters */
+  kick(amt, bearing) { this.kickT = 0.55; this.kickA = Math.min(1, amt / 12); this.kickB = bearing || 0; this.shake = Math.max(this.shake || 0, 0.45); }
   disposeLevel() {
     if (!this.built) return; const sc = this.built.scene; sc.traverse(o => { if (o.isSkinnedMesh && o.skeleton) o.skeleton.dispose(); if (o.geometry && !(o.geometry.userData && o.geometry.userData.shared)) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.userData && m.userData.shared) return; for (const k of ['map', 'normalMap', 'emissiveMap']) if (m[k] && !(m[k].userData && m[k].userData.shared)) m[k].dispose(); m.dispose(); }); });
     for (const e of this.cr || []) if (e.glb) { e.glb.mixer.stopAllAction(); e.glb.mixer.uncacheRoot(e.glb.inner); }   // release the clip bindings of this level's creatures
-    this.built = null; this.cr = [];
+    this.built = null; this.cr = []; this.ex = null;
   }
   /* ---- per frame ---- */
   frame(world, dt, now, fx) {
     if (!this.built) return; fx = fx || {}; this.t = now; const p = world.player, b = this.built, dyn = b.dyn, TH = b.TH;
     this.alpha = fx.alpha === undefined ? 1 : fx.alpha; this.lookOv = fx.look || null;
     if (!fx.menu) this.updateCamera(world, dt, now); this.updateDynamic(world, dt, now);
+    if (this.ex) { this.ex.update(world, dt, now, this.alpha); const sk = this.steamK = (this.steamK || 0) + ((world.inSteam ? 1 : 0) - (this.steamK || 0)) * Math.min(1, dt * 3); b.scene.fog.density = this.fogBase * (1 + 2.2 * sk); }
     /* pooled lamps: the three nearest live fixtures light the scene; flickering ones really flicker */
     const cx = this.camera.position.x, cz = this.camera.position.z; const near = [];
-    if (this.blackoutT > 0) this.blackoutT -= dt; const ef = this.eyeFx; if (ef.t > 0) { ef.t -= dt; const u = 1 - ef.t / ef.dur, o = ef.t <= 0 ? 0 : u < 0.15 ? u / 0.15 : (u > 0.55 && u < 0.62) || (u > 0.8 && u < 0.84) ? 0 : 1; ef.g.children.forEach(c => { c.material.opacity = o * 0.95; }); ef.g.visible = ef.t > 0; ef.g.lookAt(this.camera.position.x, ef.g.position.y, this.camera.position.z); }
+    if (this.blackoutT > 0) this.blackoutT -= dt; if (this.flickT > 0) this.flickT -= dt; const ef = this.eyeFx; if (ef.t > 0) { ef.t -= dt; const u = 1 - ef.t / ef.dur, o = ef.t <= 0 ? 0 : u < 0.15 ? u / 0.15 : (u > 0.55 && u < 0.62) || (u > 0.8 && u < 0.84) ? 0 : 1; ef.g.children.forEach(c => { c.material.opacity = o * 0.95; }); ef.g.visible = ef.t > 0; ef.g.lookAt(this.camera.position.x, ef.g.position.y, this.camera.position.z); }
     const awake = this._awake || (this._awake = []); awake.length = 0; for (const c of world.creatures) if (c.state === 'hunt' || c.state === 'investigate' || c.state === 'suspicious') awake.push(c);
-    for (const f of b.fixtures) { let k = f.kind === 'dead' ? 0 : f.kind === 'flicker' ? flick(f.ph, now) : 1; if (k && awake.length) for (const c of awake) if ((c.x * TS - f.x) ** 2 + (c.y * TS - f.z) ** 2 < 90) { k = Math.min(k, flick(f.ph + 3, now * 1.7)); break; } if (this.blackoutT > 0) k = 0; f.k = k; const fl = f.kind === 'flicker'; if (fl) f.mat.color.setHex(f.col).multiplyScalar(0.12 + 0.88 * k); if (f.kind === 'dead') continue; const d = (f.x - cx) ** 2 + (f.z - cz) ** 2; if (d < 200) near.push([d, f]); }
+    for (const f of b.fixtures) { let k = f.kind === 'dead' ? 0 : f.kind === 'flicker' ? flick(f.ph, now) : 1; if (k && awake.length) for (const c of awake) if ((c.x * TS - f.x) ** 2 + (c.y * TS - f.z) ** 2 < 90) { k = Math.min(k, flick(f.ph + 3, now * 1.7)); break; } if (this.blackoutT > 0) k = 0; else if (this.flickT > 0 && Math.sin(now * 47 + f.ph * 13) < 0.25) k *= 0.04; f.k = k; const fl = f.kind === 'flicker'; if (fl) f.mat.color.setHex(f.col).multiplyScalar(0.12 + 0.88 * k); if (f.kind === 'dead') continue; const d = (f.x - cx) ** 2 + (f.z - cz) ** 2; if (d < 200) near.push([d, f]); }
     near.sort((a, c) => a[0] - c[0]);
     for (let i = 0; i < this.pool.length; i++) { const l = this.pool[i], e = near[i]; if (!e) { l.intensity = 0; continue; } l.position.set(e[1].x, WH - 0.45, e[1].z); l.color.setHex(e[1].col); l.intensity = (world.spec.lightsOut ? 6 : 30) * e[1].k * (1 - i * 0.12); }
     /* sonar pulse */
@@ -132,12 +138,14 @@ export class View {
     if (p.hidden >= 0) { y = 1.5; }
     let sx = 0, sy = 0; if (this.shake > 0) { this.shake = Math.max(0, this.shake - dt); sx = (Math.random() - 0.5) * this.shake * 0.12; sy = (Math.random() - 0.5) * this.shake * 0.12; }
     if (!p.alive && world.caughtBy) { this.deadT += dt; const c = world.caughtBy; const look = Math.atan2(c.y - p.y, c.x - p.x); yaw += angDiff(yaw, look) * Math.min(1, this.deadT * 4); y = Math.max(0.35, y - this.deadT * 1.1); pitch = 0.1 + this.deadT * 0.1; roll = Math.min(1.2, this.deadT * 1.6); sx += (Math.random() - 0.5) * 0.1 * Math.max(0, 0.8 - this.deadT); }
+    else if (!p.alive) { this.deadT += dt; y = Math.max(0.35, y - this.deadT * 1.1); pitch += 0.25 * Math.min(1, this.deadT); roll = Math.min(1.2, this.deadT * 1.4); }
+    if (this.kickT > 0) { this.kickT = Math.max(0, this.kickT - dt); const u = this.kickT / 0.55, e = u * u * this.kickA; pitch += 0.22 * e; roll += Math.sin(this.kickB) * 0.28 * e; yaw += Math.cos(this.kickB) * 0.07 * e; y -= 0.12 * e; }
     cam.position.set(x - Math.sin(yaw) * 0 + sx, y + by + sy, z); cam.rotation.set(pitch, -Math.PI / 2 - yaw, roll, 'YXZ');
     cam.updateMatrixWorld(true);
     /* flashlight follows with a little lag, so it feels held */
     if (!this.flashQ) { this.flashQ = new THREE.Quaternion().copy(cam.quaternion); }
     this.flashQ.slerp(cam.quaternion, 1 - Math.exp(-dt * 16)); this.flashRig.quaternion.copy(this.flashQ); this.flashRig.position.copy(cam.position);
-    const on = p.flash && p.alive && p.hidden < 0 && !p.vent; let power = on ? 1 : 0; if (on && world.threat > 0.75 && Math.sin(now * 37) > 0.93) power = 0.15; if (on && world.spec.lightsOut) power = 1;
+    const on = p.flash && p.alive && p.hidden < 0 && !p.vent; let power = on ? 1 : 0; if (on && world.threat > 0.75 && Math.sin(now * 37) > 0.93) power = 0.15; if (on && p.stagger > 0 && Math.sin(now * 55) > 0.1) power = 0.2; if (on && world.spec.lightsOut) power = 1;
     this.flash.intensity += (power * 260 - this.flash.intensity) * Math.min(1, dt * 20); this.coneMat.uniforms.uInt.value = this.flash.intensity / 260 * (this.portrait ? 0.12 : 0.1); this.cone.visible = this.Q.cone && this.flash.intensity > 3; this.lens.visible = on; this.lens.material.color.setScalar(on ? 1 : 0.05);
     /* hands: bob, sway, reach */
     const hs = p.sprint ? 1.8 : 1; this.hands.position.set(0.17 + Math.sin(this.bobPhase) * 0.008 * hs, -0.2 + Math.abs(Math.sin(this.bobPhase)) * 0.012 * hs + (p.crouch ? 0.01 : 0), -0.32); this.hands.rotation.set(0.06 + Math.sin(this.bobPhase * 2) * 0.01, 0.12, Math.sin(this.bobPhase) * 0.02);

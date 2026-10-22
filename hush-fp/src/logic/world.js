@@ -3,6 +3,7 @@
 import { rng32, clamp, angDiff, TAU } from './rng.js';
 import { T, generate } from './gen.js';
 import { makeCreature, updateCreature, emitNoise, KINDS, lineOfSight, reachFrom } from './ai.js';
+import { initExtras, updateExtras } from './extras.js';
 
 export const DT = 1 / 30;
 /* one difficulty for everybody: the creatures simply get a little sharper level by level (level 1 is gentle, level 40 is firm but always beatable: sprint 2.7 tiles/s outruns the hunt speed) */
@@ -27,6 +28,7 @@ export class World {
     this.creatures = gen.creatures.map((c, i) => makeCreature(this, c, i));
     this.steps = this.buildObjective(); this.refreshLocks();
     this.prompt = null; this.lastDenied = -9; this.keypad = null;
+    initExtras(this);
   }
   /* ---------- helpers ---------- */
   tileAt(x, y) { x = Math.floor(x); y = Math.floor(y); if (x < 0 || y < 0 || x >= this.W || y >= this.H) return T.WALL; return this.cells[y * this.W + x]; }
@@ -53,7 +55,7 @@ export class World {
     }
   }
   openDoor(d, open, by) {
-    if (open && d.locked) return false; d.want = open ? 1 : 0; if (open && d.open < 0.2) { this.events.push({ type: 'door', x: d.x + 0.5, y: d.y + 0.5, by: by ? 'creature' : 'player' }); emitNoise(this, d.x + 0.5, d.y + 0.5, by ? 3 : 5, 'door', by); }
+    if (open && d.locked) return false; d.want = open ? 1 : 0; if (open && d.open < 0.2) { this.events.push({ type: 'door', x: d.x + 0.5, y: d.y + 0.5, by: by ? 'creature' : 'player' }); emitNoise(this, d.x + 0.5, d.y + 0.5, (by ? 3 : 5) * (d.damaged ? 1.7 : 1), 'door', by); }
     if (!open && d.open > 0.8) this.events.push({ type: 'door', x: d.x + 0.5, y: d.y + 0.5, by: by ? 'creature' : 'player' }); return true;
   }
   /* ---------- map: what the player has seen, and where the current objective is (props and obstacles are never listed) ---------- */
@@ -101,7 +103,7 @@ export class World {
     const p = this.player; if (!p.alive || p.vent) return null; if (p.hidden >= 0) { const L = this.objById.get(p.hidden); return { obj: L, text: 'Leave locker', kind: 'unhide' }; }
     const f = this.facing(); let best = null, bd = 9;
     for (const o of this.objs) {
-      if (o.type === 'prop' || (o.type === 'item' && o.taken)) continue; if (o.type === 'door' && o.hidden && !o.revealed) continue;
+      if (o.type === 'prop' || o.type === 'hazard' || o.type === 'debris' || o.type === 'pickup' || (o.type === 'item' && o.taken)) continue; if (o.type === 'door' && o.hidden && !o.revealed) continue;
       const cx = o.x + 0.5, cy = o.y + 0.5, dx = cx - p.x, dy = cy - p.y, d = Math.hypot(dx, dy), reach = o.type === 'door' ? 1.55 : 1.7; if (d > reach) continue;
       const dot = (dx * f[0] + dy * f[1]) / (d || 1); if (d > 0.9 && dot < 0.5) continue;
       const score = d - dot * 0.5 + (o.type === 'log' ? 1.2 : 0); if (score < bd) { bd = score; best = o; }
@@ -197,6 +199,7 @@ export class World {
     if (p.alive && p.hidden < 0 && !p.vent) for (const o of this.objs) if (o.type === 'item' && !o.taken && Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y) < 0.85) this.pickup(o);
     p.pulses = Math.min(this.spec.pulses, p.pulses);
     for (const c of this.creatures) updateCreature(this, c, dt);
+    updateExtras(this, dt);
     /* threat for the sound design: how close and how awake the nearest creature is */
     let th = 0; for (const c of this.creatures) { const d = Math.hypot(c.x - p.x, c.y - p.y), w = c.state === 'hunt' ? 1 : c.state === 'investigate' || c.state === 'suspicious' ? 0.6 : c.state === 'search' ? 0.45 : 0.25; th = Math.max(th, w * clamp(1 - d / 14, 0, 1)); } this.threat += (th - this.threat) * Math.min(1, dt * 2);
     this.prompt = this.interactTarget();
@@ -211,7 +214,7 @@ export class World {
     const fw = clamp(inp.fwd || 0, -1, 1), st = clamp(inp.str || 0, -1, 1), mag = Math.min(1, Math.hypot(fw, st)); p.moving = mag > 0.08;
     p.sprint = !!inp.sprint && !p.crouch && p.moving && !p.tired && fw > 0.3;
     const hunted = this.creatures.some(c => c.state === 'hunt'); if (p.sprint) { p.stamina -= dt * (hunted ? 0.085 : 0.2);   /* adrenaline: while something hunts you the sprint lasts more than twice as long */ if (p.stamina <= 0) { p.stamina = 0; p.tired = true; p.sprint = false; } } else { p.stamina = Math.min(1, p.stamina + dt * (p.moving ? 0.1 : 0.22)); if (p.tired && p.stamina > 0.35) p.tired = false; }
-    const sp = p.crouch ? SPEED.crouch : p.sprint ? SPEED.sprint : SPEED.walk, c = Math.cos(p.yaw), s = Math.sin(p.yaw);
+    const sp = (p.crouch ? SPEED.crouch : p.sprint ? SPEED.sprint : SPEED.walk) * (p.stagger > 0 ? 0.5 : p.hp < 30 ? 0.92 : 1), c = Math.cos(p.yaw), s = Math.sin(p.yaw);
     const tvx = ((c * fw - s * st) * sp) * (mag ? 1 : 0), tvy = ((s * fw + c * st) * sp) * (mag ? 1 : 0), k = Math.min(1, dt * 10); p.vx += (tvx - p.vx) * k; p.vy += (tvy - p.vy) * k;
     if (!p.moving && Math.hypot(p.vx, p.vy) < 0.05) { p.vx = p.vy = 0; }
     const before = [p.x, p.y]; this.moveWithCollision(p.vx * dt, p.vy * dt); const moved = Math.hypot(p.x - before[0], p.y - before[1]); p.speed = moved / dt;
@@ -219,6 +222,7 @@ export class World {
     p.stepDist += moved; const stride = p.sprint ? 0.9 : p.crouch ? 0.7 : 0.8;
     if (p.stepDist >= stride) {
       p.stepDist -= stride; const tile = this.tileAt(p.x, p.y); let r = p.sprint ? 11 : p.crouch ? 2 : 5.5; let kind = 'step';
+      if (this.debrisAt.has(Math.floor(p.y) * this.W + Math.floor(p.x))) { r = Math.max(r, p.crouch ? 3 : 8); kind = 'debris'; }
       if (tile === T.GLASS) { r = p.crouch ? 4 : 11; kind = 'glass'; } else if (tile === T.WATER) { r = p.sprint ? 11 : p.crouch ? 2.2 : 6; kind = 'water'; }
       this.stats.steps++; this.events.push({ type: 'step', kind, crouch: p.crouch, sprint: p.sprint, x: p.x, y: p.y }); emitNoise(this, p.x, p.y, r, kind);
     }

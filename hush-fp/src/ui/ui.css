@@ -138,7 +138,7 @@ button { touch-action: manipulation; } .hud button, .hud .act, .stick { touch-ac
 /* v7: map, tutorial cards, coach bar */
 .mapbtn { right: calc(118px + var(--sar)); top: calc(var(--sat) + 12px); }
 .mapcard { width: min(94vw, 860px); }
-#map-cv { width: 100%; height: clamp(150px, calc(100vh - 200px), 520px); display: block; background: #05070a; border: 1px solid var(--edge); border-radius: 4px; }
+#map-cv { width: 100%; height: clamp(140px, calc(100vh - 190px), 540px); display: block; background: #05070a; border: 1px solid var(--edge); border-radius: 4px; }
 .maplegend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: 12px; letter-spacing: .06em; color: #aeb5bd; font-family: var(--display); text-transform: uppercase; } .maplegend span { display: flex; align-items: center; gap: 6px; }
 .lg { display: inline-block; width: 12px; height: 12px; } .lg.you { background: #fff; clip-path: polygon(50% 0, 100% 100%, 50% 75%, 0 100%); } .lg.obj { background: #ffb347; transform: rotate(45deg) scale(.8); } .lg.ex { background: #3dff8a; } .lg.dr { background: #ff5c66; width: 8px; } .lg.dim { background: #161b21; border: 1px solid #2f3a44; }
 .tipcard { width: min(92vw, 480px); max-height: calc(100% - 20px); overflow-y: auto; padding: 20px 24px; text-align: center; background: rgba(10,11,14,.96); border: 1px solid #ff5c66; border-radius: 4px; box-shadow: 0 0 40px rgba(255,60,80,.25), 0 12px 50px #000; display: grid; justify-items: center; gap: 8px; }
@@ -148,3 +148,16 @@ button { touch-action: manipulation; } .hud button, .hud .act, .stick { touch-ac
 
 .mapgoal { font-family: var(--display); letter-spacing: .08em; text-transform: uppercase; font-size: 13px; color: #ffc24a; margin: 0 0 6px; min-height: 16px; } .mapgoal b { color: #fff; }
 .lg.rt { background: repeating-linear-gradient(90deg,#ffc24a 0 5px,transparent 5px 8px); height: 4px; width: 20px; border-radius: 0; }
+
+#fx-dmg { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(120,0,6,.15) 25%, rgba(190,0,12,.8) 100%); } #fx-dmg.hit { animation: dmg .75s ease-out; } @keyframes dmg { 0% { opacity: .95; } 100% { opacity: 0; } }
+.hp { left: calc(14px + var(--sal)); top: calc(var(--sat) + 68px); width: 104px; opacity: 0; transition: opacity .3s; font-family: var(--display); font-size: 11px; letter-spacing: .12em; color: #cfd5db; text-shadow: 0 1px 2px #000; pointer-events: none; } .hp.show { opacity: .95; } .hp b { font-weight: 600; display: block; margin-bottom: 3px; } .hp i { display: block; height: 3px; width: 100%; background: #d94b4b; border-radius: 2px; transition: width .25s; } .hp.low b { color: #ff5a5a; animation: hplow 1s infinite; } .hp.low i { background: #ff2a2a; } @keyframes hplow { 50% { opacity: .35; } }
+
+.mapcard h3 small { display: inline-block; margin-left: 12px; font-size: 12px; letter-spacing: .14em; color: #7f93a3; font-weight: 500; text-transform: uppercase; vertical-align: middle; }
+.mapgoal { padding: 5px 10px; border-left: 3px solid #ffc24a; background: linear-gradient(90deg, rgba(255,194,74,.12), rgba(255,194,74,0)); } .mapgoal span { color: #b99a5c; }
+#map-cv { border: 1px solid #27465a; border-radius: 3px; box-shadow: inset 0 0 40px rgba(0,0,0,.7), 0 0 0 1px rgba(0,0,0,.6); background: #03050a; }
+.maplegend { padding: 6px 10px; border: 1px solid #1d3646; border-radius: 3px; background: linear-gradient(180deg, rgba(14,26,36,.9), rgba(6,12,18,.9)); color: #8fa4b4; font-size: 11px; gap: 4px 14px; }
+.lg.hd { width: 8px; height: 12px; border: 2px solid #78cdd7; background: transparent; } .lg.bk { width: 12px; height: 12px; border: 2px solid #e08a4a; background: linear-gradient(45deg, transparent 45%, #e08a4a 45%, #e08a4a 55%, transparent 55%); } .lg.dim { background: #0b1218; border: 1px solid #2a3c4a; }
+
+.mapcard { padding: 12px 16px 12px; gap: 6px; } .mapcard h3 { font-size: 20px; letter-spacing: .2em; padding-left: 0; white-space: nowrap; } .mapcard .icon-btn { width: 38px; height: 38px; }
+.mapcard h3 small { font-size: 11px; margin-left: 10px; } .mapgoal { font-size: 12px; margin: 0; min-height: 0; padding: 3px 10px; }
+.maplegend { margin-top: 0; padding: 4px 10px; font-size: 10px; gap: 2px 12px; }

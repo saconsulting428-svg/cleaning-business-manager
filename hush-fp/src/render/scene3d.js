@@ -162,7 +162,14 @@ export function buildScene(world, Q) {
     } else if (o.type === 'locker') {
       const dx = Math.cos(o.face), dz = Math.sin(o.face), ltex = canvasTexture(64, 128, (x, w, h) => { x.fillStyle = '#26302c'; x.fillRect(0, 0, w, h); x.fillStyle = '#0b100e'; for (let i = 0; i < 9; i++) x.fillRect(12, 14 + i * 5, 40, 2); x.fillRect(12, 80, 40, 2); for (let i = 0; i < 6; i++) x.fillRect(12, 86 + i * 5, 40, 2); x.fillStyle = '#9aa'; x.fillRect(48, 64, 4, 12); });
       const lm = lit({ map: ltex, roughness: 0.55, metalness: 0.5 }); patchPulse(lm); const lk = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.05, 0.7), [lm, lm, lm, lm, lm, lm]); lk.castShadow = true; lk.receiveShadow = true;
-      const lg = new THREE.Group(); lg.add(lk); lk.position.y = 1.03; lg.position.set(cx - dx * (TS / 2 - 0.37), 0, cz - dz * (TS / 2 - 0.37)); lg.rotation.y = Math.PI / 2 - o.face; group.add(lg); dyn.valves.push({ o, g: lg, kind: 'locker', mat: lm });
+      const lg = new THREE.Group(); lg.add(lk); lk.position.y = 1.03;
+      if (o.variant === 'cabinet') { lk.scale.set(1.3, 0.82, 0.88); lk.position.y = 0.85; lm.color.setHex(0xb59a72); }          // a wide storage cabinet
+      else if (o.variant === 'alcove') {                                                       // a dark recess behind an open shelf frame
+        lm.color.setHex(0x060708); const fm = new THREE.MeshStandardMaterial({ color: 0x30343a, roughness: 0.7, metalness: 0.4 }); patchPulse(fm); disposables.push(fm);
+        for (const sx of [-0.47, 0.47]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.1, 0.06), fm); post.position.set(sx, 1.05, 0.42); lg.add(post); }
+        for (const yy of [0.35, 0.95, 1.55, 2.05]) { const pl = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.5), fm); pl.position.set(0, yy, 0.2); lg.add(pl); }
+        const bx = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 0.3), crateMat); bx.position.set(-0.28, 1.1, 0.2); lg.add(bx);
+      } lg.position.set(cx - dx * (TS / 2 - 0.37), 0, cz - dz * (TS / 2 - 0.37)); lg.rotation.y = Math.PI / 2 - o.face; group.add(lg); dyn.valves.push({ o, g: lg, kind: 'locker', mat: lm });
     } else if (o.type === 'vent') {
       const dx = Math.cos(o.face), dz = Math.sin(o.face), gm = lit({ color: 0x0b0c0e, roughness: 0.6, metalness: 0.6 }); patchPulse(gm); const vg = new THREE.Group();
       vg.add(new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.8, 0.05), gm)); for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.03, 0.07), metalMat); b.position.set(0, -0.3 + i * 0.12, 0.03); vg.add(b); }
@@ -218,7 +225,8 @@ export function buildScene(world, Q) {
   const lampGeo = new THREE.BoxGeometry(0.9, 0.08, 0.28), fixtures = [], lampCache = {};
   const housing = [];
   const lampMat = (col, st) => { const key = col + st; return lampCache[key] || (lampCache[key] = new THREE.MeshBasicMaterial({ color: col })); };
-  for (const l of world.lights) { let kind = spec.lightsOut ? (R() < 0.8 ? 'dead' : l.kind) : l.kind; if (LK && kind === 'ok' && R() < LK.flick * 0.4) kind = 'flicker'; const rm = roomAt(Math.floor(l.x), Math.floor(l.y)), col = rm && KIND_LAMP[rm.kind] ? (LK ? mixHex(KIND_LAMP[rm.kind], LK.lamp, 0.55) : KIND_LAMP[rm.kind]) : TH.lamp;
+  for (const l of world.lights) { let kind = spec.lightsOut ? (R() < 0.8 ? 'dead' : l.kind) : l.kind; if (LK && kind === 'ok' && R() < LK.flick * 0.4) kind = 'flicker'; const rm = roomAt(Math.floor(l.x), Math.floor(l.y)); let col = rm && KIND_LAMP[rm.kind] ? (LK ? mixHex(KIND_LAMP[rm.kind], LK.lamp, 0.55) : KIND_LAMP[rm.kind]) : TH.lamp;
+    if (spec.ch === 0 && kind === 'ok' && R() < 0.14) kind = 'flicker'; if (spec.ch === 1 && kind !== 'dead' && R() < 0.3) col = mixHex(col, 0xff3a2a, 0.85);   // chapter 1: failing fluorescent tubes; chapter 2: red emergency lighting
     const m = kind === 'dead' ? lampMats.dead : lampMat(col, kind === 'ok' ? 'ok' : 'f' + Math.floor(R() * 3));
     const mesh = new THREE.Mesh(lampGeo, m); mesh.position.set(l.x * TS, WH - 0.06, l.y * TS); mesh.rotation.y = R() < 0.5 ? 0 : Math.PI / 2; scene.add(mesh); housing.push(box(1.0, 0.04, 0.34, l.x * TS, WH - 0.02, l.y * TS, mesh.rotation.y)); fixtures.push({ x: l.x * TS, z: l.y * TS, kind, mat: m, ph: l.ph, col }); }
   disposables.push(...Object.values(lampCache), lampMats.ok, lampMats.dead);

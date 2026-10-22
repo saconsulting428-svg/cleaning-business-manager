@@ -4,17 +4,20 @@ import * as THREE from 'three';
 import { canvasTexture } from './textures.js';
 
 export const KIND_TINT = {
+  specimen: [0.8, 1.14, 1.0], medical: [1.0, 1.1, 1.08], maintenance: [1.1, 0.98, 0.82], generator: [1.18, 0.9, 0.74],
   storage: [1.08, 0.98, 0.88], office: [0.94, 1.0, 1.06], machine: [1.14, 0.94, 0.78], vault: [0.84, 0.95, 1.1],
   pump: [0.84, 1.05, 1.14], tanks: [0.84, 1.12, 0.96], control: [0.8, 0.95, 1.24], sluice: [0.92, 1.06, 0.96],
   hive: [1.25, 0.78, 0.78], cells: [1.05, 0.98, 0.9], bonepit: [1.08, 0.9, 0.72], nursery: [1.22, 0.78, 1.0],
   reception: [1.05, 1.0, 0.92], lab: [0.9, 1.08, 1.04], security: [0.88, 0.98, 1.14], observation: [1.0, 1.0, 1.1], boiler: [1.18, 0.92, 0.76], filter: [0.86, 1.08, 1.1], tunnel: [1.1, 0.9, 0.78], queen: [1.28, 0.74, 0.9]
 };
 export const KIND_LAMP = {
+  specimen: 0x8affd8, medical: 0xe8fff4, maintenance: 0xffb860, generator: 0xff8a30,
   storage: 0xffd49a, office: 0xffeacc, machine: 0xffa347, vault: 0xc4dcff, pump: 0x98e2ff, tanks: 0x9effd0, control: 0x84b4ff, sluice: 0xd0e8ff,
   hive: 0xff4634, cells: 0xffb4a4, bonepit: 0xff6e44, nursery: 0xff4a6a,
   reception: 0xffe8c8, lab: 0xd0ffe8, security: 0x9ac4ff, observation: 0xc8d8ff, boiler: 0xff9038, filter: 0x9ae8ff, tunnel: 0xff6a48, queen: 0xff3a5a
 };
 const TEXTS = {
+  specimen: ['SPECIMEN 12', 'DO NOT TAP', 'CONTAINMENT'], medical: ['MEDICAL', 'SAMPLES', 'STERILE'], maintenance: ['MAINTENANCE', 'AUTHORISED', 'WATCH YOUR HEAD'], generator: ['GENERATOR', 'HIGH VOLTAGE', 'HEARING PROTECTION'],
   storage: ['SECTOR B-07', 'STORAGE', 'NO ENTRY', 'KEEP QUIET'], office: ['OFFICE', 'STAFF ONLY', 'KEEP QUIET', 'ROOM 12'], machine: ['DANGER', 'HIGH VOLTAGE', 'GENERATOR 2', 'AUTHORISED'],
   vault: ['VAULT', 'AUTHORISED ONLY', 'NO ENTRY'], pump: ['PUMP STATION', 'FLOODING RISK', 'LEVEL -3'], tanks: ['TANK 4', 'BIOHAZARD', 'DRAIN'], control: ['CONTROL', 'DO NOT TOUCH', 'SYSTEM 3'],
   sluice: ['SLUICE 2', 'WET FLOOR', 'CAUTION'], hive: ['', 'IT HEARS', ''], cells: ['CELL 12', 'DO NOT OPEN', 'IT HEARS'], bonepit: ['', 'QUIET', ''], nursery: ['', 'IT HEARS', ''],
@@ -107,7 +110,7 @@ export function buildDecor(C) {
   }
   /* hazard band along walls of machine / sluice / vault rooms */
   const hz = hazardTex(); const hzPos = [];
-  for (const f of wallFaces) { const room = roomAt(f.tx, f.ty); if (!room || !(room.kind === 'machine' || room.kind === 'sluice' || room.kind === 'vault')) continue; const q = wallQuad(f, TS, 0.22, 0.34, [0, 0, TS / 1.0, 1]); bands.push(q); }
+  for (const f of wallFaces) { const room = roomAt(f.tx, f.ty); if (!room || !(room.kind === 'machine' || room.kind === 'sluice' || room.kind === 'vault' || room.kind === 'generator' || room.kind === 'maintenance')) continue; const q = wallQuad(f, TS, 0.22, 0.34, [0, 0, TS / 1.0, 1]); bands.push(q); }
   const mkBand = () => { if (!bands.length) return; const pos = [], nor = [], uv = [], idx = []; for (const q of bands) { const o = pos.length / 3; for (const v of q.p) pos.push(...v); for (let k = 0; k < 4; k++) nor.push(...q.n); uv.push(0, 0, 1, 0, 1, 1, 0, 1); idx.push(o, o + 1, o + 2, o, o + 2, o + 3); } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); const m = lit({ map: hz, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); patchPulse(m); const mesh = new THREE.Mesh(g, m); scene.add(mesh); out.dispose.push(m); }; mkBand();
   addQuads(signs, S.tex); addQuads(decals, A.tex);
   /* floor storytelling: stains, papers, hand prints near lockers */

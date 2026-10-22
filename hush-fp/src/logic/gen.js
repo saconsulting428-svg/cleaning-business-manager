@@ -2,6 +2,7 @@
    locks of the spec placed on chain edges and every key/card/fuse/note/valve placed in a room reachable BEFORE the lock that needs it. A breadth-first solver then plays the
    whole level on the grid (tile + progress mask) and the generator retries with a new seed until the level is solvable and no lock can be bypassed. */
 import { rng32 } from './rng.js';
+import { dressLevel } from './dress.js';
 
 export const T = { WALL: 0, FLOOR: 1, WATER: 2, GLASS: 3 };
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -112,7 +113,7 @@ function tryGenerate(spec, seed) {
     } return null;
   };
   /* hiding places: every room gets a locker (the start room first), then extras up to the spec; hiding is the core answer to the creature, so one is always close */
-  const lockerRooms = order.map(r => r.idx).slice(0, Math.max(spec.lockers, Math.min(n, spec.creatures.length ? n : 1)));
+  const lockerRooms = (() => { const want = Math.min(n, Math.max(spec.lockers, spec.creatures.length ? Math.ceil(n * 0.55) : 1)), rest = order.map(r => r.idx).slice(1); for (let k = rest.length - 1; k > 0; k--) { const j = Math.floor(R() * (k + 1)); [rest[k], rest[j]] = [rest[j], rest[k]]; } return [0, ...rest].slice(0, want); })();   // the start room first, then a scattering: not every room has somewhere to hide
   for (const ri_ of lockerRooms) { const p = wallSpot(ri_); if (p) { O({ type: 'locker', x: p.x, y: p.y, face: p.face, room: ri_ }); blocked.add(key(p.x, p.y)); } }
   for (let v = 0; v < spec.vents; v++) {                                               // vent pairs stay inside one zone so they never bypass a lock
     let done = false; for (let t = 0; t < 40 && !done; t++) { const a = ri(0, n - 1), b = ri(0, n - 1); if (a === b || zoneOf(a) !== zoneOf(b) || Math.abs(a - b) < 2) continue;
@@ -125,14 +126,14 @@ function tryGenerate(spec, seed) {
   for (const e of edges) for (const [x, y] of e.cells) if (spec.glass && R() < 0.05 && cells[at(x, y)] === T.FLOOR && !objs.some(o => o.x === x && o.y === y)) cells[at(x, y)] = T.GLASS;
   /* props: solid clutter in room interiors (never on a tile that would cut the room apart) */
   /* every room gets a character: a kind, a landmark prop and a mix of clutter that fits it (chapter 1 abandoned facility, 2 flooded pumping station, 3 the nest) */
-  const ALLKINDS = [['storage', 'office', 'machine', 'vault', 'reception', 'lab', 'security', 'observation'], ['pump', 'tanks', 'control', 'sluice', 'boiler', 'filter'], ['hive', 'cells', 'bonepit', 'nursery', 'tunnel', 'queen']][spec.ch];
+  const ALLKINDS = [['reception', 'office', 'security', 'storage', 'machine', 'vault'], ['lab', 'observation', 'specimen', 'medical', 'control', 'tanks'], ['tunnel', 'generator', 'pump', 'maintenance', 'machine', 'cells', 'hive']][spec.ch];   /* chapter 1 offices and security, chapter 2 laboratories and glass chambers, chapter 3 tunnels, generators and pumps */
   /* each level uses its own handful of room types (the first is always the start room's), so levels differ in what their rooms ARE, not only in layout */
   const KINDS = (() => { const rest = ALLKINDS.slice(1); for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; } return [ALLKINDS[0], ...rest.slice(0, 4)]; })();
-  const MIX = { storage: ['shelf', 'crate', 'barrel'], office: ['console', 'table', 'crate'], machine: ['machine', 'pipe', 'barrel'], vault: ['column', 'crate', 'shelf'],
+  const MIX = { specimen: ['tank', 'tank', 'console'], medical: ['table', 'console', 'crate'], maintenance: ['pipe', 'machine', 'crate'], generator: ['machine', 'barrel', 'pipe'], storage: ['shelf', 'crate', 'barrel'], office: ['console', 'table', 'crate'], machine: ['machine', 'pipe', 'barrel'], vault: ['column', 'crate', 'shelf'],
     pump: ['tank', 'pipe', 'barrel'], tanks: ['tank', 'tank', 'crate'], control: ['console', 'pipe', 'table'], sluice: ['machine', 'pipe', 'barrel'],
     hive: ['cocoon', 'pod', 'bones'], cells: ['cage', 'bones', 'crate'], bonepit: ['bones', 'bones', 'pod'], nursery: ['pod', 'pod', 'cocoon'],
     reception: ['table', 'shelf', 'crate'], lab: ['tank', 'console', 'table'], security: ['console', 'shelf', 'crate'], observation: ['column', 'console', 'table'], boiler: ['machine', 'pipe', 'barrel'], filter: ['tank', 'pipe', 'crate'], tunnel: ['bones', 'crate', 'pod'], queen: ['pod', 'cocoon', 'bones'] };
-  const LAND = { storage: 'shelf', office: 'console', machine: 'machine', vault: 'column', pump: 'tank', tanks: 'tank', control: 'console', sluice: 'machine', hive: 'cocoon', cells: 'cage', bonepit: 'bones', nursery: 'pod', reception: 'console', lab: 'tank', security: 'console', observation: 'column', boiler: 'machine', filter: 'tank', tunnel: 'cage', queen: 'cocoon' };
+  const LAND = { specimen: 'tank', medical: 'table', maintenance: 'machine', generator: 'machine', storage: 'shelf', office: 'console', machine: 'machine', vault: 'column', pump: 'tank', tanks: 'tank', control: 'console', sluice: 'machine', hive: 'cocoon', cells: 'cage', bonepit: 'bones', nursery: 'pod', reception: 'console', lab: 'tank', security: 'console', observation: 'column', boiler: 'machine', filter: 'tank', tunnel: 'cage', queen: 'cocoon' };
   rooms.forEach((r, i) => { r.kind = i === startRoom.id ? KINDS[0] : KINDS[Math.floor(R() * KINDS.length)]; });
   const floorCount = () => { let c = 0; for (let i = 0; i < cells.length; i++) if (cells[i] !== T.WALL && !blocked.has(i)) c++; return c; };
   const connected = () => { const seen = new Uint8Array(W * H); const q = [[st.x, st.y]]; seen[at(st.x, st.y)] = 1; let cnt = 1, qi = 0; while (qi < q.length) { const [x, y] = q[qi++]; for (const [dx, dy] of DIRS) { const nx = x + dx, ny = y + dy; if (inb(nx, ny) && !seen[at(nx, ny)] && cells[at(nx, ny)] !== T.WALL && !blocked.has(key(nx, ny))) { seen[at(nx, ny)] = 1; cnt++; q.push([nx, ny]); } } } return cnt === floorCount(); };
@@ -145,6 +146,8 @@ function tryGenerate(spec, seed) {
       O({ type: 'prop', kind: landmark ? pick(mix) : LAND[r.kind], x, y, rot: R() * Math.PI * 2, solid: true, landmark: !landmark, room: r.idx }); landmark = true;
     }
   }
+  /* hazards, obstacles, healing, hiding variants and the small creatures' spawn list (own random stream, connectivity-checked) */
+  const dressed = dressLevel({ spec, cells, W, H, objs, O, blocked, isFree, nearMouth, rooms: order, edges, st, connected, at });
   /* lights: a fixture every few tiles of corridor and in every room */
   const lights = [];
   for (const r of rooms) lights.push({ x: r.cx + 0.5, y: r.cy + 0.5, kind: R() < 0.2 ? 'dead' : R() < 0.4 ? 'flicker' : 'ok', ph: R() * 100 });
@@ -164,7 +167,7 @@ function tryGenerate(spec, seed) {
   /* one optional story document per level (own random stream, so layouts and solvability are unaffected) */
   { const LR = rng32(spec.seed * 977 + 13); const idxs = order.map((_, i) => i).filter(i => i > 0); for (let k = idxs.length - 1; k > 0; k--) { const j = Math.floor(LR() * (k + 1)); [idxs[k], idxs[j]] = [idxs[j], idxs[k]]; }
     for (const ri_ of idxs) { const r = order[ri_]; let done = false; for (let t = 0; t < 40 && !done; t++) { const x = r.x0 + 1 + Math.floor(LR() * (r.w - 2)), y = r.y0 + 1 + Math.floor(LR() * (r.h - 2)); if (isFree(x, y) && !nearMouth(x, y) && cells[at(x, y)] === T.FLOOR) { O({ type: 'log', x, y, room: ri_, rot: Math.floor(LR() * 4) * Math.PI / 2 }); done = true; } } if (done) break; } }
-  const world = { spec, W, H, cells, rooms: order, edges, gates, gateEdge, objs, start: { x: st.x + 0.5, y: st.y + 0.5, yaw: 0 }, exit, lights, creatures, blocked: [...blocked], seed };
+  const world = { spec, W, H, cells, rooms: order, edges, gates, gateEdge, objs, start: { x: st.x + 0.5, y: st.y + 0.5, yaw: 0 }, exit, lights, creatures, blocked: [...blocked], seed, crawlers: dressed.crawlers, setpiece: dressed.setpiece };
   /* start facing the first corridor */
   { const e0 = edges[0].cells[0]; world.start.yaw = Math.atan2(e0[1] - st.y, e0[0] - st.x); }
   if (!checkGates(world)) return null;

@@ -30,7 +30,7 @@
 
 <div id="app">
   <canvas id="view"></canvas>
-  <div id="fx-vignette"></div><div id="fx-hurt"></div><div id="fx-locker"></div><div id="fx-flash"></div>
+  <div id="fx-vignette"></div><div id="fx-hurt"></div><div id="fx-dmg"></div><div id="fx-locker"></div><div id="fx-flash"></div>
 
   <!-- title -->
   <section class="screen" id="scr-home">
@@ -77,10 +77,11 @@
     <button class="act sprint" id="b-sprint"><svg><use href="#i-run"/></svg></button>
     <div class="hotbar" id="hotbar"></div>
     <div class="stam" id="stam"><i></i></div>
+    <div class="hp" id="hp"><b>HP <span id="hp-n">100</span></b><i></i></div>
   </section>
 
   <!-- overlays -->
-  <div class="overlay" id="ov-map"><div class="card wide mapcard"><div class="card-h"><h3>Map</h3><button class="icon-btn" data-pclose="map"><svg><use href="#i-back"/></svg></button></div><div id="map-goal" class="mapgoal"></div><canvas id="map-cv"></canvas><div class="maplegend"><span><i class="lg you"></i>You</span><span><i class="lg obj"></i>Go here</span><span><i class="lg ex"></i>Exit</span><span><i class="lg dr"></i>Locked door</span><span><i class="lg rt"></i>Route</span><span><i class="lg dim"></i>Not seen yet</span></div></div></div>
+  <div class="overlay" id="ov-map"><div class="card wide mapcard"><div class="card-h"><h3>Facility map<small id="map-sub"></small></h3><button class="icon-btn" data-pclose="map"><svg><use href="#i-back"/></svg></button></div><div id="map-goal" class="mapgoal"></div><canvas id="map-cv"></canvas><div class="maplegend"><span><i class="lg you"></i>You</span><span><i class="lg obj"></i>Next</span><span><i class="lg rt"></i>Route</span><span><i class="lg ex"></i>Exit</span><span><i class="lg dr"></i>Locked door</span><span><i class="lg hd"></i>Hiding place</span><span><i class="lg bk"></i>Collapsed</span><span><i class="lg dim"></i>Unexplored</span></div></div></div>
   <div class="overlay" id="ov-tip"><div class="tipcard"><div class="tip-ic"><svg><use id="tip-use" href="#i-hand"/></svg></div><small>NEW</small><h4 id="tip-title"></h4><p id="tip-text"></p><button class="btn red" id="tip-ok">Got it</button></div></div>
   <div class="overlay" id="ov-inv"><div class="card wide"><div class="card-h"><h3>Inventory</h3><button class="icon-btn" data-pclose="inv"><svg><use href="#i-back"/></svg></button></div><div class="invgrid" id="inv-grid"></div><div class="invdesc" id="inv-desc">Select an item.</div><button class="btn red" id="inv-use" hidden>Use</button></div></div>
   <div class="overlay" id="ov-obj"><div class="card wide"><div class="card-h"><h3>Objectives</h3><button class="icon-btn" data-pclose="obj"><svg><use href="#i-back"/></svg></button></div><ul class="objlist" id="obj-list"></ul><div class="invdesc" id="obj-hint"></div></div></div>
@@ -117,7 +118,7 @@
   <div class="overlay" id="ov-note"><div class="paper"><small>NOTE</small><p id="note-text">The code is</p><b id="note-code">0000</b><button class="btn small" id="note-ok">OK</button></div></div>
   <div class="overlay" id="ov-keypad"><div class="keypad"><div class="kp-screen" id="kp-screen">----</div><div class="kp-grid" id="kp-grid"></div><button class="btn small" id="kp-cancel">Cancel</button></div></div>
   <div class="overlay" id="ov-win"><div class="card"><h3 id="win-title">Escaped</h3><div class="stars" id="win-stars"></div><p id="win-info"></p><button class="btn red" id="w-next"><svg><use href="#i-play"/></svg>Next level</button><button class="btn" id="w-retry"><svg><use href="#i-retry"/></svg>Replay</button><button class="btn" id="w-menu"><svg><use href="#i-grid"/></svg>Levels</button></div></div>
-  <div class="overlay" id="ov-dead"><div class="card dead"><h3>Caught</h3><p>It heard you. It found you.</p><button class="btn red" id="d-retry"><svg><use href="#i-retry"/></svg>Try again</button><button class="btn" id="d-menu"><svg><use href="#i-grid"/></svg>Levels</button></div></div>
+  <div class="overlay" id="ov-dead"><div class="card dead"><h3>Caught</h3><p id="dead-sub">It heard you. It found you.</p><button class="btn red" id="d-retry"><svg><use href="#i-retry"/></svg>Try again</button><button class="btn" id="d-menu"><svg><use href="#i-grid"/></svg>Levels</button></div></div>
   <div id="ov-rotate"><div><svg viewBox="0 0 48 48"><path fill="currentColor" d="M14 4h20a4 4 0 0 1 4 4v32a4 4 0 0 1-4 4H14a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4zm1 5v26h18V9zm9 29a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg><p>Rotate your phone</p><small>HUSH is played in landscape</small></div></div>
   <div class="overlay show" id="ov-load"><div class="loadbox"><div class="brand small"><h1>HUSH</h1></div><p id="load-text">Loading</p><div class="loadbar"><i id="load-bar"></i></div></div></div>
   <div class="overlay" id="ov-gate"><div class="card"><h3>Tap to begin</h3><p>Sound on. Headphones recommended.</p><button class="btn red" id="gate-go"><svg><use href="#i-play"/></svg>Enter</button></div></div>

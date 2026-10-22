@@ -10,6 +10,9 @@ import { SEQ, MECH } from './ui/tips.js';
 import { Sound } from './audio.js';
 import * as AI from './logic/ai.js';
 import { GLBMonster } from './render/monster_glb.js';
+import { CrawlerGLB } from './render/crawler_glb.js';
+import { drawFacilityMap, mapDir } from './ui/mapview.js';
+import { HEAL, HP_MAX } from './logic/extras.js';
 import { runBot } from './test/bot.js';
 
 const $ = (id) => document.getElementById(id), qa = (s, r) => Array.prototype.slice.call((r || document).querySelectorAll(s));
@@ -135,6 +138,7 @@ function hud(w, dt) {
   setT('obj-text', w.objective().current); setT('pulse-n', p.pulses); setC('b-pulse', 'dim', p.pulses <= 0); const cdf = Math.round(w.pulseCd / PULSE_CD * 40) / 40; if (HC.cdf !== cdf) { HC.cdf = cdf; $('b-pulse').style.setProperty('--cd', cdf); } setC('b-pulse', 'cd', cdf > 0); setT('pulse-l', w.pulseCd > 0 ? w.pulseCd.toFixed(1) + 's' : 'Pulse'); buildHotbar(false);
   const pr = w.prompt, show = !!(pr && !G.modal); setC('prompt', 'show', show); if (show) { setC('prompt', 'no', /^Locked|needs/.test(pr.text)); setT('prompt-text', pr.text); }
   const st = $('stam'); setC('stam', 'show', p.stamina < 0.98); setC('stam', 'tired', p.tired); const sw = Math.round(p.stamina * 50) * 2 + '%'; if (HC.stw !== sw) { HC.stw = sw; st.firstChild.style.width = sw; } setC('b-crouch', 'on', p.crouch);
+  if (G.hpShowT > 0) G.hpShowT -= dtH; const hpv = Math.ceil(p.hp); setT('hp-n', hpv); setC('hp', 'show', hpv < HP_MAX || G.hpShowT > 0); setC('hp', 'low', hpv <= 35); const hw = hpv + '%'; if (HC.hpw !== hw) { HC.hpw = hw; $('hp').lastChild.style.width = hw; }
   drawNoise(w, dtH); setO('fx-locker', p.hidden >= 0 ? 1 : 0); const th = w.threat; setO('fx-hurt', (w.over === 'dead') ? 0.9 : Math.max(0, th - 0.55) * 0.9);
 }
 
@@ -180,71 +184,11 @@ document.addEventListener('keydown', (e) => { if (e.code === 'Escape') { const s
 
 const tipsOn = () => !!save.set.hints && !(__TEST__ && TEST && !/[?&]tips=1\b/.test(location.search));   // the automated tests switch the teaching cards off (they would freeze the game); ?tips=1 turns them on
 /* ---------------- map ---------------- */
-const LOCKC = { key: '#c9a14a', card: '#3ca0ff', power: '#ffcc22', code: '#66ff88', valve: '#ff5533', secret: '#44aaff', breaker: '#ff9a2a' };
-function mapRoute(w, sx, sy, targets) {
-  /* shortest way from the player to the nearest objective over every non-wall tile (locked doors count as passable: the route shows where to go, the lock shows what you need) */
-  const W = w.W, H = w.H, start = Math.floor(sy) * W + Math.floor(sx), goal = new Map(); for (const t of targets) goal.set(Math.floor(t.y) * W + Math.floor(t.x), t);
-  const prev = new Int32Array(W * H).fill(-2); prev[start] = -1; const q = [start]; let hit = -1;
-  for (let qi = 0; qi < q.length; qi++) {
-    const c = q[qi]; if (goal.has(c)) { hit = c; break; } const cx = c % W, cy = (c / W) | 0;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const n = ny * W + nx; if (prev[n] !== -2 || w.cells[n] === 0) continue; prev[n] = c; q.push(n); }
-  }
-  if (hit < 0) return null; const pts = []; for (let c = hit; c >= 0; c = prev[c]) pts.push([(c % W) + 0.5, ((c / W) | 0) + 0.5]); pts.reverse(); return { pts, t: goal.get(hit) };
-}
 function drawMap() {
-  const w = G.world, cv = $('map-cv'); if (!w || !cv) return; const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1), cw = Math.max(200, Math.round(r.width * dpr)), ch = Math.max(120, Math.round(r.height * dpr)); if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; }
-  const x = cv.getContext('2d'), W = w.W, H = w.H, seen = w.seen || new Uint8Array(W * H); x.clearRect(0, 0, cw, ch); x.fillStyle = '#04070b'; x.fillRect(0, 0, cw, ch);
-  /* only the part of the grid that has floor in it */
-  let x0 = W, y0 = H, x1 = 0, y1 = 0; for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) if (w.cells[ty * W + tx] !== 0) { if (tx < x0) x0 = tx; if (tx > x1) x1 = tx; if (ty < y0) y0 = ty; if (ty > y1) y1 = ty; }
-  const gw = x1 - x0 + 3, gh = y1 - y0 + 3, sc = Math.min(cw / gw, ch / gh), ox = (cw - gw * sc) / 2 - (x0 - 1) * sc, oy = (ch - gh * sc) / 2 - (y0 - 1) * sc, now = performance.now() / 1000, u = Math.max(1, dpr);
-  const X = (tx) => ox + tx * sc, Y = (ty) => oy + ty * sc;
-  /* blueprint grid */
-  x.strokeStyle = 'rgba(80,120,150,.07)'; x.lineWidth = 1; x.beginPath(); for (let tx = x0 - 1; tx <= x1 + 2; tx += 4) { x.moveTo(X(tx), 0); x.lineTo(X(tx), ch); } for (let ty = y0 - 1; ty <= y1 + 2; ty += 4) { x.moveTo(0, Y(ty)); x.lineTo(cw, Y(ty)); } x.stroke();
-  /* floors: corridors, rooms (tinted by kind), water; unexplored parts are dim */
-  const roomOf = new Int16Array(W * H).fill(-1); w.rooms.forEach((rm, i) => { for (let yy = rm.y0; yy < rm.y0 + rm.h; yy++) for (let xx = rm.x0; xx < rm.x0 + rm.w; xx++) roomOf[yy * W + xx] = i; });
-  const TINT = [[52, 72, 92], [74, 62, 90], [84, 70, 52], [52, 86, 76], [92, 58, 62], [60, 80, 54]];
-  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
-    const i = ty * W + tx, t = w.cells[i]; if (t === 0) continue; const sn = seen[i], ri = roomOf[i]; let col;
-    if (t === 2) col = sn ? [34, 92, 128] : [16, 36, 50]; else if (ri >= 0) { const tn = TINT[ri % TINT.length]; col = sn ? tn : [tn[0] * 0.3, tn[1] * 0.3, tn[2] * 0.3]; } else col = sn ? [58, 68, 78] : [20, 26, 32];
-    x.fillStyle = 'rgb(' + (col[0] | 0) + ',' + (col[1] | 0) + ',' + (col[2] | 0) + ')'; x.fillRect(X(tx), Y(ty), Math.ceil(sc), Math.ceil(sc));
-    if (t === 3 && sn) { x.fillStyle = 'rgba(170,230,255,.25)'; x.fillRect(X(tx) + sc * .25, Y(ty) + sc * .25, sc * .5, sc * .5); }
-  }
-  /* walls: a bright line along every floor edge that faces a wall, so rooms and corridors read as a plan */
-  x.lineCap = 'square'; x.lineWidth = Math.max(1.5 * u, sc * 0.2);
-  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
-    const i = ty * W + tx; if (w.cells[i] === 0) continue; const sn = seen[i]; x.strokeStyle = sn ? '#b9d3e6' : '#33495a'; x.beginPath();
-    if (ty === 0 || w.cells[i - W] === 0) { x.moveTo(X(tx), Y(ty)); x.lineTo(X(tx + 1), Y(ty)); } if (ty === H - 1 || w.cells[i + W] === 0) { x.moveTo(X(tx), Y(ty + 1)); x.lineTo(X(tx + 1), Y(ty + 1)); }
-    if (tx === 0 || w.cells[i - 1] === 0) { x.moveTo(X(tx), Y(ty)); x.lineTo(X(tx), Y(ty + 1)); } if (tx === W - 1 || w.cells[i + 1] === 0) { x.moveTo(X(tx + 1), Y(ty)); x.lineTo(X(tx + 1), Y(ty + 1)); } x.stroke();
-  }
-  const lab = (txt, px, py, col, size) => { x.font = 'bold ' + Math.max(10 * u, Math.round(size || sc * 1.5)) + 'px sans-serif'; x.textAlign = 'center'; x.lineWidth = 3 * u; x.strokeStyle = 'rgba(0,0,0,.85)'; x.strokeText(txt, px, py); x.fillStyle = col; x.fillText(txt, px, py); };
-  /* room names (only rooms you have already been in) */
-  w.rooms.forEach((rm, i) => { let any = false; for (let yy = rm.y0; yy < rm.y0 + rm.h && !any; yy++) for (let xx = rm.x0; xx < rm.x0 + rm.w; xx++) if (seen[yy * W + xx]) { any = true; break; } if (!any || !rm.kind) return; lab(String(rm.kind).toUpperCase(), X(rm.x0 + rm.w / 2), Y(rm.y0 + rm.h / 2) + sc * .4, 'rgba(210,225,238,.75)', Math.min(sc * 1.25, 16 * u)); });
-  /* doors: a frame with the colour of what opens it, a lock dot when locked */
-  for (const o of w.objs) {
-    if (o.type !== 'door' || (o.hidden && !o.revealed)) continue; const col = o.locked ? (LOCKC[o.lock] || '#ff5c66') : '#c9d3dc', dw = o.dir === 'x' ? 0.55 : 1.15, dh = o.dir === 'x' ? 1.15 : 0.55, cx = o.x + 0.5, cy = o.y + 0.5;
-    x.fillStyle = '#05080c'; x.fillRect(X(cx - dw / 2), Y(cy - dh / 2), dw * sc, dh * sc); x.strokeStyle = col; x.lineWidth = Math.max(2 * u, sc * .22); x.strokeRect(X(cx - dw / 2), Y(cy - dh / 2), dw * sc, dh * sc);
-    if (o.locked) { x.fillStyle = col; x.beginPath(); x.arc(X(cx), Y(cy), Math.max(2.5 * u, sc * .26), 0, 7); x.fill(); }
-  }
-  /* route to the next objective */
-  const targets = w.objectiveTargets(), p = w.player, route = targets.length ? mapRoute(w, p.x, p.y, targets) : null;
-  if (route && route.pts.length > 1) {
-    const pts = route.pts; x.save(); x.lineJoin = 'round'; x.lineCap = 'round';
-    x.beginPath(); pts.forEach((q, k) => k ? x.lineTo(X(q[0]), Y(q[1])) : x.moveTo(X(q[0]), Y(q[1]))); x.strokeStyle = 'rgba(0,0,0,.6)'; x.lineWidth = Math.max(5 * u, sc * .5); x.setLineDash([]); x.stroke();
-    x.strokeStyle = '#ffc24a'; x.lineWidth = Math.max(2.5 * u, sc * .26); x.setLineDash([sc * .9, sc * .6]); x.lineDashOffset = -now * sc * 2.2; x.stroke(); x.setLineDash([]);
-    for (let k = 6; k < pts.length - 2; k += 9) { const a = pts[k], b = pts[k + 1], ang = Math.atan2(b[1] - a[1], b[0] - a[0]); x.save(); x.translate(X(a[0]), Y(a[1])); x.rotate(ang); const z = Math.max(4 * u, sc * .5); x.fillStyle = '#ffc24a'; x.beginPath(); x.moveTo(z, 0); x.lineTo(-z * .7, -z * .75); x.lineTo(-z * .7, z * .75); x.closePath(); x.fill(); x.restore(); }
-    x.restore();
-  }
-  /* exit + objectives */
-  const ex = w.objs.find(o => o.type === 'exit'); if (ex) { x.fillStyle = 'rgba(61,255,138,.25)'; x.fillRect(X(ex.x - .2), Y(ex.y - .2), sc * 1.4, sc * 1.4); x.strokeStyle = '#3dff8a'; x.lineWidth = Math.max(2 * u, sc * .2); x.strokeRect(X(ex.x - .2), Y(ex.y - .2), sc * 1.4, sc * 1.4); lab('EXIT', X(ex.x + .5), Y(ex.y - .6), '#3dff8a'); }
-  const pulse = 0.65 + 0.35 * Math.sin(now * 5);
-  for (const t of targets) { if (t.type === 'exit') continue; const px = X(t.x), py = Y(t.y), d = sc * 1.3 * (0.9 + 0.2 * pulse); x.save(); x.translate(px, py); x.rotate(Math.PI / 4); x.fillStyle = 'rgba(255,179,71,' + (0.5 + 0.4 * pulse) + ')'; x.strokeStyle = '#ffb347'; x.lineWidth = Math.max(1.5 * u, sc * 0.2); x.fillRect(-d / 2, -d / 2, d, d); x.strokeRect(-d / 2, -d / 2, d, d); x.restore(); lab(t.label, px, py - sc * 1.5, '#ffb347'); }
-  /* you */
-  const px = X(p.x), py = Y(p.y); x.save(); x.translate(px, py); x.fillStyle = 'rgba(255,255,255,' + (0.15 + 0.1 * pulse) + ')'; x.beginPath(); x.arc(0, 0, sc * 1.6, 0, 7); x.fill(); x.rotate(p.yaw + Math.PI / 2); x.fillStyle = '#fff'; x.strokeStyle = '#000'; x.lineWidth = 1.5 * u; const a = Math.max(6 * u, sc * 1.4); x.beginPath(); x.moveTo(0, -a); x.lineTo(a * 0.75, a * 0.9); x.lineTo(0, a * 0.45); x.lineTo(-a * 0.75, a * 0.9); x.closePath(); x.fill(); x.stroke(); x.restore();
-  lab('YOU', px, py + sc * 3, '#fff', sc * 1.2);
-  /* text goal above the map */
-  const g = $('map-goal'); if (g) { const t = route ? route.t : targets[0]; if (t) { const m = route ? Math.round(route.pts.length) : 0; g.innerHTML = '<b>NEXT:</b> ' + t.label + (route ? ' &middot; about ' + m + ' steps ' + mapDir(p, t) : ''); } else g.textContent = ''; }
+  const w = G.world, cv = $('map-cv'); if (!w || !cv) return; const res = drawFacilityMap(w, cv, performance.now() / 1000), p = w.player, g = $('map-goal');
+  if (g) { const t = res.target; g.innerHTML = t ? '<b>NEXT</b> ' + t.label + (res.route ? ' <span>&middot; about ' + res.route.pts.length + ' steps ' + mapDir(p, t) + '</span>' : '') : ''; }
+  const sub = $('map-sub'); if (sub) { const sp = LEVELS[G.level]; setT('map-sub', sp ? sp.name + '  //  ' + CHAPTERS[sp.ch].name : ''); }
 }
-function mapDir(p, t) { const a = Math.atan2(t.y - p.y, t.x - p.x), n = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'][((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]; return '(' + n + ' of you on the map)'; }
 
 /* ---------------- tutorial coach (first levels) + one-time "new mechanic" cards ---------------- */
 function track(e) {
@@ -280,7 +224,7 @@ function handleEvents(w, dt) {
   for (const e of w.drainEvents()) {
     track(e);
     switch (e.type) {
-      case 'step': if (e.kind === 'glass') Sound.play('glass', { crouch: e.crouch }); else Sound.play('step', { crouch: e.crouch, run: e.sprint, v: e.kind === 'water' ? 1.5 : 1 }); break;
+      case 'step': if (e.kind === 'glass') Sound.play('glass', { crouch: e.crouch }); else if (e.kind === 'debris') Sound.play('debris', { crouch: e.crouch }); else Sound.play('step', { crouch: e.crouch, run: e.sprint, v: e.kind === 'water' ? 1.5 : 1 }); break;
       case 'pulse': Sound.play('ping'); Sound.duck(); $('fx-flash').style.transition = 'none'; $('fx-flash').style.opacity = 0.18; requestAnimationFrame(() => { $('fx-flash').style.transition = 'opacity .8s ease-out'; $('fx-flash').style.opacity = 0; }); vibe(30); break;
       case 'pickup': Sound.play('key'); G.view.reach(); buildHotbar(true); break;
       case 'door': { const s = spatial(e.x, e.y); if (s.d < 16) Sound.play('door'); if (e.by !== 'creature') G.view.reach(); break; }
@@ -305,7 +249,21 @@ function handleEvents(w, dt) {
       case 'hunt': { const s = spatial(e.x, e.y); Sound.play('hunt'); Sound.play('roar', { v: Math.max(0.35, s.v), pan: s.pan, kind: w.creatures[e.id].t }); banner('IT SEES YOU!', 'seen', 2400); vibe([60, 40, 60]); G.view.shake = 0.5; break; }
       case 'lost': Sound.play('lost'); banner('IT LOST YOU', 'heard', 1500); break;
       case 'cstep': { const s = spatial(e.x, e.y); const v = Math.max(0, 1 - s.d / 14); if (v > 0.03) Sound.play('cstep', { v: v * (e.hunt ? 1 : 0.8), pan: s.pan, kind: w.creatures[e.id].t }); break; }
-      case 'caught': Sound.play('caught'); G.view.shake = 0.8; loseLevel(); break;
+      case 'hurt': { const bearing = angDiffUI(Math.atan2(e.y - p.y, e.x - p.x), p.yaw); Sound.play('hurt'); G.view.kick(e.amt, bearing); vibe([40, 30, 90]); const d = $('fx-dmg'); d.classList.remove('hit'); void d.offsetWidth; d.classList.add('hit'); G.hpShowT = 5; break; }
+      case 'heal': Sound.play('heal'); banner('+' + HEAL[e.kind] + ' HP', 'heard', 1400); G.hpShowT = 4; break;
+      case 'hpfull': banner('HEALTH IS FULL: SAVE IT FOR LATER', 'sus', 1300); break;
+      case 'spark': { const s = spatial(e.x, e.y); if (s.d < 14) Sound.play('zap', { v: Math.max(0.25, s.v), pan: s.pan }); break; }
+      case 'steam': { const s = spatial(e.x, e.y); if (s.d < 16) Sound.play('hiss', { v: Math.max(0.25, s.v), pan: s.pan }); break; }
+      case 'drip': { const s = spatial(e.x, e.y); if (s.d < 12) Sound.play('drip', { f: Math.random(), pan: s.pan }); break; }
+      case 'cwake': { const s = spatial(e.x, e.y); Sound.play('cscreech', { v: Math.max(0.5, s.v), pan: s.pan }); banner(e.ceil ? 'SOMETHING DROPPED FROM ABOVE' : 'SOMETHING SMALL AND FAST', 'seen', 1900); vibe([40, 30, 40]); break; }
+      case 'cskit': { const s = spatial(e.x, e.y), v = Math.max(0, 1 - s.d / 16); if (v > 0.04) Sound.play('skit', { v, pan: s.pan }); break; }
+      case 'cbite': Sound.play('cbite'); break;
+      case 'impact': { const s = spatial(e.x, e.y); Sound.play('impact', { v: Math.max(0.35, s.v), pan: s.pan }); break; }
+      case 'machine': { const s = spatial(e.x, e.y); Sound.play('machine', { v: Math.max(0.4, s.v), pan: s.pan }); banner('MACHINERY STARTING SOMEWHERE', 'sus', 2200); break; }
+      case 'sighting': G.view.flashEyes(e.x * 2, e.y * 2, 1.9, 2.5); break;
+      case 'sp': if (e.what === 'outage') { G.view.blackout(e.dur); Sound.duck && Sound.duck(); Sound.play('surge'); banner('POWER FAILURE', 'sus', 2000); } else if (e.what === 'flicker') G.view.flicker(e.dur); else if (e.what === 'surge') Sound.play('surge'); else if (e.what === 'chase') banner('IT KNOWS WHERE YOU ARE', 'seen', 2400); break;
+      case 'dead': { Sound.play('hurt'); Sound.play('caught'); G.view.shake = 0.7; G.deadCause = e.cause; $('dead-sub').textContent = e.cause === 'spark' ? 'The wiring finished what the dark started.' : 'Small things are still deadly.'; loseLevel(); break; }
+      case 'caught': $('dead-sub').textContent = 'It heard you. It found you.'; Sound.play('caught'); G.view.shake = 0.8; loseLevel(); break;
       case 'win': winLevel(); break;
     }
   }
@@ -318,7 +276,7 @@ function handleEvents(w, dt) {
     else if (r < 0.6) { Sound.play('thump', { pan }); later(() => Sound.play('creak', { pan }), 700 + Math.random() * 900); }
     else { const yaw = p.yaw; let spot = null; for (let d = 16; d >= 9 && !spot; d -= 1) for (const da of [0, 0.12, -0.12, 0.25, -0.25]) { const x = p.x + Math.cos(yaw + da) * d, y = p.y + Math.sin(yaw + da) * d, k = Math.floor(y) * w.W + Math.floor(x); if (w.cells[k] !== 0 && !w.solid.has(k) && AI.lineOfSight(w, p.x, p.y, x, y)) { spot = [x, y]; break; } } if (spot) { G.view.flashEyes(spot[0] * 2, spot[1] * 2, 1.7); Sound.play('growl', { v: 0.25, pan: 0, kind: 'stalker' }); } else G.dirT = 6; }
   }
-  hbTimer -= dt; if (w.threat > 0.35 && hbTimer <= 0 && p.alive) { hbTimer = 1.05 - 0.55 * w.threat; Sound.play('heart', { v: Math.min(1, w.threat * 1.2) }); if (w.threat > 0.8 && Math.random() < 0.3) vibe(25); }
+  hbTimer -= dt; const th2 = Math.max(w.threat, p.hp < 35 ? 0.6 : 0); if (th2 > 0.35 && hbTimer <= 0 && p.alive) { hbTimer = 1.05 - 0.55 * th2; Sound.play('heart', { v: Math.min(1, th2 * 1.2) }); if (th2 > 0.8 && Math.random() < 0.3) vibe(25); }
   const nearGen = w.gens.find(g => g.on); Sound.scene({ chapter: LEVELS[G.level].ch, threat: w.threat, hunted: w.creatures.some(c => c.state === 'hunt'), gen: nearGen ? clamp(1 - Math.hypot(nearGen.x - p.x, nearGen.y - p.y) / 22, 0, 1) : 0, genPan: nearGen ? spatial(nearGen.x + 0.5, nearGen.y + 0.5).pan : 0, paused: G.paused });
   Sound.tick(dt, LEVELS[G.level].ch, w.threat > 0.5);
 }
@@ -425,7 +383,7 @@ function frame(ts) {
 async function boot() {
   const v = G.view = new View($('view'), isMobile ? 'medium' : 'high', { aa: !isMobile }); v.onQuality = (q) => { save.set.gfx = save.set.gfx === 'auto' ? 'auto' : save.set.gfx; }; if (isMobile) v.resScale = 0.85; applyGfx(); applyAudio(); window.addEventListener('resize', () => v.resize());
   setLoading(true, 'Preparing the facility', 30); await nextFrame(); for (let i = 0; i < LEVELS.length; i++) { gen(i); if (i % 8 === 0) { setLoading(true, null, 30 + i); await nextFrame(); } }
-  if (!(__TEST__ && TEST && /[?&]noglb=1\b/.test(location.search))) await GLBMonster.load(); await startMenuScene(); G.mode = 'home'; show('home'); syncSettings(); setLoading(false, null, 100); overlay('gate', !TEST); requestAnimationFrame(frame); Sound.setQuality(save.set.aq);
+  if (!(__TEST__ && TEST && /[?&]noglb=1\b/.test(location.search))) await GLBMonster.load(); await CrawlerGLB.load(); await startMenuScene(); G.mode = 'home'; show('home'); syncSettings(); setLoading(false, null, 100); overlay('gate', !TEST); requestAnimationFrame(frame); Sound.setQuality(save.set.aq);
 }
 boot();
 if (__TEST__ && TEST) { window.HUSH = { G, save, inp, ai: AI, glb: GLBMonster, tapAt, proj: (o) => { const v = G.view, r = $('view').getBoundingClientRect(), t = v.camera.position.clone(); v.camera.updateMatrixWorld(true); t.set((o.x + 0.5) * 2, REACH_H[o.type] || 1, (o.y + 0.5) * 2).project(v.camera); return [(t.x * 0.5 + 0.5) * r.width + r.left, (-t.y * 0.5 + 0.5) * r.height + r.top]; }, startLevel, toMenu, pause, view: () => G.view, world: () => G.world, LEVELS, runBot: (n) => runBot(G.world, n || 600), gen, step: (n, i) => { for (let k = 0; k < (n || 1); k++) { G.world.update(DT, i || {}); G.timeSpent += DT; handleEvents(G.world, DT); } }, unlockAll: () => { save.stars = LEVELS.map(() => 1); persist(); }, buildLevels, buildChapters, show }; }

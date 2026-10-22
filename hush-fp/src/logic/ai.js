@@ -65,7 +65,7 @@ export function lineOfSight(world, ax, ay, bx, by) {
 /* ---- perception ---- */
 function sightRange(world, c) {
   const p = world.player; if (p.hidden >= 0 || !p.alive) return 0; const hunting = c.state === 'hunt';
-  let r = c.k.sight * world.diff.sight * (p.crouch ? 0.45 : 1) * (p.flash ? 1.15 : 0.65) * (p.moving && p.sprint ? 1.2 : 1) * (hunting ? 1.25 : 1);
+  let r = c.k.sight * world.diff.sight * (p.crouch ? 0.45 : 1) * (p.flash ? 1.15 : 0.65) * (p.moving && p.sprint ? 1.2 : 1) * (hunting ? 1.25 : 1) * (world.inSteam ? 0.5 : 1);
   if (world.spec.lightsOut) r *= p.flash ? 0.9 : 0.6; return r;
 }
 export function canSee(world, c) {
