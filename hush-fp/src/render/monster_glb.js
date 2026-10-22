@@ -11,7 +11,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import GLB from '../assets/monster.glb';
 
 const TS = 2;                                                        // world units per tile (must match scene3d)
-const SCALE = { stalker: 1.2, sentinel: 1.3, listener: 1.15 };       // model is 1.7 m tall in its pose
+const SCALE = { stalker: 1.55, sentinel: 1.7, listener: 1.45 };       // model is 1.7 m tall in its pose
 const TINT = { stalker: 0x4a4541, sentinel: 0x3f4550, listener: 0x453d3d };       // the texture is bone-pale and glares under the flashlight: darkened toward charcoal
 const CLIPS = ['Alert', 'Walking', 'Casual_Walk', 'Running', 'RunFast', 'Attack', 'Skill_03'];
 const EYE = { y: 0.03, z: 0.02 };
@@ -52,7 +52,7 @@ export const GLBMonster = {
     inst.sp += (mps - inst.sp) * Math.min(1, dt * 8); if (!c.moving && inst.sp < 0.05) inst.sp = 0;
     const caught = world.over === 'dead' && world.caughtBy === c, hunting = c.state === 'hunt';
     let want = 'Alert', once = false;
-    if (caught || (hunting && c.seen && dpl < 1.3 && p.alive)) { want = 'Attack'; once = true; }
+    if (caught || (hunting && c.seen && dpl < 1.9 && p.alive)) { want = 'Attack'; once = true; }
     else if (inst.cur === 'Attack' && inst.attackT > 0 && hunting) { want = 'Attack'; once = true; }
     else if (hunting && c.roar > 0 && !c.moving) { want = 'Skill_03'; once = true; }
     else if (c.moving && inst.sp > 0.25) {

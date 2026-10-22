@@ -6,7 +6,7 @@ import { makeCreature, updateCreature, emitNoise, KINDS, lineOfSight, reachFrom 
 
 export const DT = 1 / 30;
 /* one difficulty for everybody: the creatures simply get a little sharper level by level (level 1 is gentle, level 40 is firm but always beatable: sprint 2.7 tiles/s outruns the hunt speed) */
-export const levelDiff = (i) => { const t = Math.max(0, Math.min(1, (i || 0) / 39)); return { sight: 0.8 + 0.3 * t, alert: 0.78 + 0.34 * t, speed: 0.9 + 0.14 * t }; };
+export const levelDiff = (i) => { const t = Math.max(0, Math.min(1, (i || 0) / 39)); return { sight: 0.8 + 0.3 * t, alert: 0.78 + 0.34 * t, speed: 0.94 + 0.08 * t }; };
 export const DIFF = { normal: levelDiff(20) };
 export const SPEED = { walk: 1.55, sprint: 2.7, crouch: 0.8 };
 const PR = 0.3;                                                    // player radius in tiles
@@ -218,7 +218,7 @@ export class World {
     /* footsteps are noise: the radius depends on how you move and what you walk on */
     p.stepDist += moved; const stride = p.sprint ? 0.9 : p.crouch ? 0.7 : 0.8;
     if (p.stepDist >= stride) {
-      p.stepDist -= stride; const tile = this.tileAt(p.x, p.y); let r = p.sprint ? 9 : p.crouch ? 1.6 : 4.2; let kind = 'step';
+      p.stepDist -= stride; const tile = this.tileAt(p.x, p.y); let r = p.sprint ? 11 : p.crouch ? 2 : 5.5; let kind = 'step';
       if (tile === T.GLASS) { r = p.crouch ? 4 : 11; kind = 'glass'; } else if (tile === T.WATER) { r = p.sprint ? 11 : p.crouch ? 2.2 : 6; kind = 'water'; }
       this.stats.steps++; this.events.push({ type: 'step', kind, crouch: p.crouch, sprint: p.sprint, x: p.x, y: p.y }); emitNoise(this, p.x, p.y, r, kind);
     }

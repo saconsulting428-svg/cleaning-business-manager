@@ -3,9 +3,9 @@ import { clamp, angDiff, TAU } from './rng.js';
 import { T } from './gen.js';
 
 export const KINDS = {
-  stalker: { roam: 1.1, invest: 1.5, hunt: 2.1, hear: 1.0, sight: 8.5, fov: 1.75, turn: 3.5, cycle: 1.15, label: 'stalker' },
-  sentinel: { roam: 0, invest: 1.3, hunt: 2.0, hear: 0.85, sight: 11, fov: 0.95, turn: 2.2, cycle: 1.3, label: 'sentinel', leash: 7 },
-  listener: { roam: 0.95, invest: 1.6, hunt: 1.95, hear: 1.7, sight: 3.2, fov: 2.4, turn: 3.2, cycle: 1.0, label: 'listener' }
+  stalker: { roam: 1.1, invest: 1.5, hunt: 2.3, hear: 1.0, sight: 8.5, fov: 1.75, turn: 3.5, cycle: 1.15, label: 'stalker' },
+  sentinel: { roam: 0, invest: 1.3, hunt: 2.2, hear: 0.85, sight: 11, fov: 0.95, turn: 2.2, cycle: 1.3, label: 'sentinel', leash: 7 },
+  listener: { roam: 0.95, invest: 1.6, hunt: 2.1, hear: 1.7, sight: 3.2, fov: 2.4, turn: 3.2, cycle: 1.0, label: 'listener' }
 };
 const DIRS8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 const BLOCK_SIGHT = { crate: 1, shelf: 1, pod: 1, barrel: 1 };
@@ -83,6 +83,7 @@ export function emitNoise(world, x, y, radius, kind, except) {
 function hear(world, c, x, y, d, radius, kind) {
   if (c.state === 'hunt') { c.lastSeen = { x, y }; return; }
   const loud = clamp(1 - d / (radius * c.k.hear), 0, 1);
+  if (kind === 'step' && d <= radius * c.k.hear * 0.4 && world.player.hidden < 0) { c.lastSeen = { x, y }; c.alert = 1; startHunt(world, c); return; }   // footsteps right next to it: it turns and charges
   if (c.k.leash && Math.hypot(x - c.post.x, y - c.post.y) > c.k.leash && kind !== 'pulse') return;
   if (c.state === 'investigate' && c.target && Math.hypot(c.target.x - c.x, c.target.y - c.y) < Math.hypot(x - c.x, y - c.y) && loud < 0.5) return;
   c.state = 'investigate'; c.target = { x, y }; c.path = null; c.alert = Math.max(c.alert, 0.3 + 0.2 * loud); c.wait = 0;
@@ -119,10 +120,9 @@ export function updateCreature(world, c, dt) {
   const prevX = c.x, prevY = c.y;
   /* awareness */
   if (seen && c.state !== 'attack') {
-    const r = sightRange(world, c); c.alert += dt * (0.4 + 1.05 * clamp(1 - dist / r, 0, 1)) * (world.diff.alert) * (c.state === 'hunt' ? 3 : 1);
     c.lastSeen = { x: p.x, y: p.y };
-    if (c.alert >= 1 && c.state !== 'hunt') { startHunt(world, c); }
-    else if (c.alert > 0.35 && c.state !== 'hunt' && c.state !== 'suspicious') { if (c.state !== 'investigate') { c.state = 'suspicious'; c.wait = 0; world.events.push({ type: 'suspicious', id: c.id }); } }
+    if (c.state !== 'hunt') { c.alert = 1; startHunt(world, c); }          // it sees you: no hesitation, it charges at once
+    else c.alert = 1;
   } else c.alert = Math.max(0, c.alert - dt * (c.state === 'hunt' ? 0.15 : 0.35));
   /* a creature that walks up to the locker you hide in stops, sniffs and listens, then moves on (it only opens it if it SAW you go in) */
   if (p.hidden < 0) c.sniffFor = null;
@@ -175,7 +175,7 @@ export function updateCreature(world, c, dt) {
       if (seen) c.lostT = 0; else c.lostT = (c.lostT || 0) + dt;
       if (p.hidden >= 0 && !seen && c.knowsLocker >= 0) { c.lastSeen = null; }
       const near = Math.hypot(gx - c.x, gy - c.y);
-      if (seen && dist < 0.85 && p.alive) { world.catchPlayer(c); break; }
+      if (seen && dist < 1.0 && p.alive) { world.catchPlayer(c); break; }
       if (near > 0.5) { goTo(world, c, gx, gy, dt, k.hunt * world.diff.speed, 0.25); c.noPathT = c.path ? 0 : (c.noPathT || 0) + dt; } else { c.moving = false; if (!seen) { c.state = c.knowsLocker >= 0 ? 'search' : 'search'; c.searchT = 7; c.searchOrigin = { x: c.x, y: c.y }; c.target = null; c.path = null; if (c.knowsLocker >= 0) { const L = world.objById.get(c.knowsLocker); if (L) { c.checkLocker = L; c.target = { x: L.x + 0.5 + Math.cos(L.face) * 0.9, y: L.y + 0.5 + Math.sin(L.face) * 0.9 }; } } } }
       if (c.lostT > 4.2 || c.noPathT > 3) { c.noPathT = 0; c.state = 'search'; c.searchT = 7; c.searchOrigin = c.lastSeen ? { x: c.lastSeen.x, y: c.lastSeen.y } : { x: c.x, y: c.y }; c.target = null; c.path = null; }
       break;

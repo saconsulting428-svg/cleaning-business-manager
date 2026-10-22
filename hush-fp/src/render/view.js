@@ -71,7 +71,7 @@ export class View {
     /* creatures: the body and its sonar silhouette */
     this.cr = world.creatures.map(c => {
       const gm = ghostMaterial();
-      if (GLBMonster.ready) { const g = GLBMonster.build(c.t, this.Q); g.ghost.material = gm; sc.add(g.root); const blob = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, opacity: 0.8 })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; blob.renderOrder = 1; sc.add(blob); return { c, real: g.root, ghost: g.ghost, gm, blob, glb: g.inst }; }
+      if (GLBMonster.ready) { const g = GLBMonster.build(c.t, this.Q); g.ghost.material = gm; sc.add(g.root); const blob = new THREE.Mesh(new THREE.PlaneGeometry(3.1, 3.1), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, opacity: 0.8 })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; blob.renderOrder = 1; sc.add(blob); return { c, real: g.root, ghost: g.ghost, gm, blob, glb: g.inst }; }
       const mats = creatureMaterials(c.t), real = buildCreature(c.t, mats, true), ghost = buildCreature(c.t, { skin: gm, bone: gm, eye: gm }, false); ghost.traverse(o => { o.renderOrder = 999; }); ghost.visible = false; sc.add(real); sc.add(ghost); const blob = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, opacity: 0.8 })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; blob.renderOrder = 1; sc.add(blob); return { c, real, ghost, gm, mats, blob };
     });
     /* scare director props: a pair of eyes far down a corridor, and a lights-out timer */

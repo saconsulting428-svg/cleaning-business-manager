@@ -19,12 +19,12 @@ function farPoint(w, c, minD) { for (const r of w.rooms) if (Math.hypot(r.cx - c
   const tBack = run(w, 40, {}, () => c.state === 'roam'); t('it gives up and returns to roaming', tBack >= 0, c.state);
   w.player.x = px; w.player.y = py;
 }
-{ // 2 sight: standing in view of a stalker leads to suspicion, hunting, and being caught
+{ // 2 sight: standing in view of a stalker starts a hunt immediately, then being caught
   const w = new World(lvl(4), {}); const c = w.creatures[0]; const p = w.player; p.x = c.x + 4; p.y = c.y; c.yaw = 0; c.state = 'roam'; c.wait = 99;
   // clear the line of sight by moving the player into a cell with a clean ray
   let found = false; for (let a = 0; a < 6.28 && !found; a += 0.3) for (let d = 2; d < 6 && !found; d += 0.5) { const x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d; if (w.tileAt(x, y) !== 0 && !w.solid.has(Math.floor(y) * w.W + Math.floor(x)) && lineOfSight(w, c.x, c.y, x, y)) { p.x = x; p.y = y; c.yaw = a + Math.PI; found = true; } }
   c.yaw = Math.atan2(p.y - c.y, p.x - c.x); let sus = false; const th = run(w, 12, {}, () => { if (c.state === 'suspicious') sus = true; return c.state === 'hunt'; });
-  t('seeing the player makes it suspicious then hunt', th > 0, c.state + ' alert ' + c.alert.toFixed(2)); const tc = run(w, 15, {}, () => w.over === 'dead'); t('a hunting creature catches the player', tc > 0 || w.over === 'dead', w.over);
+  t('seeing the player starts the hunt at once (no slow ramp)', th >= 0 && th < 0.5, c.state + ' alert ' + c.alert.toFixed(2)); const tc = run(w, 15, {}, () => w.over === 'dead'); t('a hunting creature catches the player', tc > 0 || w.over === 'dead', w.over);
 }
 { // 3 losing track: the player vanishes (teleported far, hidden from view): hunt -> search -> roam
   const w = new World(lvl(4), { god: true }); const c = w.creatures[0]; const p = w.player; c.state = 'hunt'; c.lastSeen = { x: c.x, y: c.y }; c.alert = 1;

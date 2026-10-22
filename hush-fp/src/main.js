@@ -181,19 +181,70 @@ document.addEventListener('keydown', (e) => { if (e.code === 'Escape') { const s
 const tipsOn = () => !!save.set.hints && !(__TEST__ && TEST && !/[?&]tips=1\b/.test(location.search));   // the automated tests switch the teaching cards off (they would freeze the game); ?tips=1 turns them on
 /* ---------------- map ---------------- */
 const LOCKC = { key: '#c9a14a', card: '#3ca0ff', power: '#ffcc22', code: '#66ff88', valve: '#ff5533', secret: '#44aaff', breaker: '#ff9a2a' };
+function mapRoute(w, sx, sy, targets) {
+  /* shortest way from the player to the nearest objective over every non-wall tile (locked doors count as passable: the route shows where to go, the lock shows what you need) */
+  const W = w.W, H = w.H, start = Math.floor(sy) * W + Math.floor(sx), goal = new Map(); for (const t of targets) goal.set(Math.floor(t.y) * W + Math.floor(t.x), t);
+  const prev = new Int32Array(W * H).fill(-2); prev[start] = -1; const q = [start]; let hit = -1;
+  for (let qi = 0; qi < q.length; qi++) {
+    const c = q[qi]; if (goal.has(c)) { hit = c; break; } const cx = c % W, cy = (c / W) | 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const n = ny * W + nx; if (prev[n] !== -2 || w.cells[n] === 0) continue; prev[n] = c; q.push(n); }
+  }
+  if (hit < 0) return null; const pts = []; for (let c = hit; c >= 0; c = prev[c]) pts.push([(c % W) + 0.5, ((c / W) | 0) + 0.5]); pts.reverse(); return { pts, t: goal.get(hit) };
+}
 function drawMap() {
   const w = G.world, cv = $('map-cv'); if (!w || !cv) return; const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1), cw = Math.max(200, Math.round(r.width * dpr)), ch = Math.max(120, Math.round(r.height * dpr)); if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; }
-  const x = cv.getContext('2d'), W = w.W, H = w.H, seen = w.seen || new Uint8Array(W * H); x.clearRect(0, 0, cw, ch); x.fillStyle = '#05070a'; x.fillRect(0, 0, cw, ch);
+  const x = cv.getContext('2d'), W = w.W, H = w.H, seen = w.seen || new Uint8Array(W * H); x.clearRect(0, 0, cw, ch); x.fillStyle = '#04070b'; x.fillRect(0, 0, cw, ch);
   /* only the part of the grid that has floor in it */
   let x0 = W, y0 = H, x1 = 0, y1 = 0; for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) if (w.cells[ty * W + tx] !== 0) { if (tx < x0) x0 = tx; if (tx > x1) x1 = tx; if (ty < y0) y0 = ty; if (ty > y1) y1 = ty; }
-  const gw = x1 - x0 + 3, gh = y1 - y0 + 3, sc = Math.min(cw / gw, ch / gh), ox = (cw - gw * sc) / 2 - (x0 - 1) * sc, oy = (ch - gh * sc) / 2 - (y0 - 1) * sc, now = performance.now() / 1000;
-  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) { const t = w.cells[ty * W + tx]; if (t === 0) continue; const sn = seen[ty * W + tx]; x.fillStyle = t === 2 ? (sn ? '#1f4a63' : '#10242f') : (sn ? '#34414c' : '#171d23'); x.fillRect(ox + tx * sc, oy + ty * sc, Math.ceil(sc), Math.ceil(sc)); }
-  for (const o of w.objs) { if (o.type !== 'door' || (o.hidden && !o.revealed)) continue; x.fillStyle = o.locked ? (LOCKC[o.lock] || '#ff5c66') : '#8a949e'; const dw = o.dir === 'x' ? 0.5 : 1, dh = o.dir === 'x' ? 1 : 0.5; x.fillRect(ox + (o.x + 0.5 - dw / 2) * sc, oy + (o.y + 0.5 - dh / 2) * sc, dw * sc, dh * sc); }
-  const lab = (txt, px, py, col) => { x.font = 'bold ' + Math.max(10, Math.round(sc * 1.5)) + 'px sans-serif'; x.textAlign = 'center'; x.fillStyle = '#000'; x.fillText(txt, px + 1, py + 1); x.fillStyle = col; x.fillText(txt, px, py); };
-  const ex = w.objs.find(o => o.type === 'exit'); if (ex) { x.fillStyle = '#3dff8a'; x.fillRect(ox + ex.x * sc, oy + ex.y * sc, sc * 1.1, sc * 1.1); lab('EXIT', ox + (ex.x + 0.5) * sc, oy + (ex.y - 0.4) * sc, '#3dff8a'); }
-  const pulse = 0.65 + 0.35 * Math.sin(now * 5); for (const t of w.objectiveTargets()) { if (t.type === 'exit') continue; const px = ox + t.x * sc, py = oy + t.y * sc, d = sc * 1.2 * (0.9 + 0.2 * pulse); x.save(); x.translate(px, py); x.rotate(Math.PI / 4); x.fillStyle = 'rgba(255,179,71,' + (0.5 + 0.4 * pulse) + ')'; x.strokeStyle = '#ffb347'; x.lineWidth = Math.max(1.5, sc * 0.2); x.fillRect(-d / 2, -d / 2, d, d); x.strokeRect(-d / 2, -d / 2, d, d); x.restore(); lab(t.label, px, py - sc * 1.4, '#ffb347'); }
-  const p = w.player, px = ox + p.x * sc, py = oy + p.y * sc; x.save(); x.translate(px, py); x.rotate(p.yaw + Math.PI / 2); x.fillStyle = '#fff'; x.strokeStyle = '#000'; x.lineWidth = 1.5; const a = Math.max(5, sc * 1.4); x.beginPath(); x.moveTo(0, -a); x.lineTo(a * 0.75, a * 0.9); x.lineTo(0, a * 0.45); x.lineTo(-a * 0.75, a * 0.9); x.closePath(); x.fill(); x.stroke(); x.restore();
+  const gw = x1 - x0 + 3, gh = y1 - y0 + 3, sc = Math.min(cw / gw, ch / gh), ox = (cw - gw * sc) / 2 - (x0 - 1) * sc, oy = (ch - gh * sc) / 2 - (y0 - 1) * sc, now = performance.now() / 1000, u = Math.max(1, dpr);
+  const X = (tx) => ox + tx * sc, Y = (ty) => oy + ty * sc;
+  /* blueprint grid */
+  x.strokeStyle = 'rgba(80,120,150,.07)'; x.lineWidth = 1; x.beginPath(); for (let tx = x0 - 1; tx <= x1 + 2; tx += 4) { x.moveTo(X(tx), 0); x.lineTo(X(tx), ch); } for (let ty = y0 - 1; ty <= y1 + 2; ty += 4) { x.moveTo(0, Y(ty)); x.lineTo(cw, Y(ty)); } x.stroke();
+  /* floors: corridors, rooms (tinted by kind), water; unexplored parts are dim */
+  const roomOf = new Int16Array(W * H).fill(-1); w.rooms.forEach((rm, i) => { for (let yy = rm.y0; yy < rm.y0 + rm.h; yy++) for (let xx = rm.x0; xx < rm.x0 + rm.w; xx++) roomOf[yy * W + xx] = i; });
+  const TINT = [[52, 72, 92], [74, 62, 90], [84, 70, 52], [52, 86, 76], [92, 58, 62], [60, 80, 54]];
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+    const i = ty * W + tx, t = w.cells[i]; if (t === 0) continue; const sn = seen[i], ri = roomOf[i]; let col;
+    if (t === 2) col = sn ? [34, 92, 128] : [16, 36, 50]; else if (ri >= 0) { const tn = TINT[ri % TINT.length]; col = sn ? tn : [tn[0] * 0.3, tn[1] * 0.3, tn[2] * 0.3]; } else col = sn ? [58, 68, 78] : [20, 26, 32];
+    x.fillStyle = 'rgb(' + (col[0] | 0) + ',' + (col[1] | 0) + ',' + (col[2] | 0) + ')'; x.fillRect(X(tx), Y(ty), Math.ceil(sc), Math.ceil(sc));
+    if (t === 3 && sn) { x.fillStyle = 'rgba(170,230,255,.25)'; x.fillRect(X(tx) + sc * .25, Y(ty) + sc * .25, sc * .5, sc * .5); }
+  }
+  /* walls: a bright line along every floor edge that faces a wall, so rooms and corridors read as a plan */
+  x.lineCap = 'square'; x.lineWidth = Math.max(1.5 * u, sc * 0.2);
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+    const i = ty * W + tx; if (w.cells[i] === 0) continue; const sn = seen[i]; x.strokeStyle = sn ? '#b9d3e6' : '#33495a'; x.beginPath();
+    if (ty === 0 || w.cells[i - W] === 0) { x.moveTo(X(tx), Y(ty)); x.lineTo(X(tx + 1), Y(ty)); } if (ty === H - 1 || w.cells[i + W] === 0) { x.moveTo(X(tx), Y(ty + 1)); x.lineTo(X(tx + 1), Y(ty + 1)); }
+    if (tx === 0 || w.cells[i - 1] === 0) { x.moveTo(X(tx), Y(ty)); x.lineTo(X(tx), Y(ty + 1)); } if (tx === W - 1 || w.cells[i + 1] === 0) { x.moveTo(X(tx + 1), Y(ty)); x.lineTo(X(tx + 1), Y(ty + 1)); } x.stroke();
+  }
+  const lab = (txt, px, py, col, size) => { x.font = 'bold ' + Math.max(10 * u, Math.round(size || sc * 1.5)) + 'px sans-serif'; x.textAlign = 'center'; x.lineWidth = 3 * u; x.strokeStyle = 'rgba(0,0,0,.85)'; x.strokeText(txt, px, py); x.fillStyle = col; x.fillText(txt, px, py); };
+  /* room names (only rooms you have already been in) */
+  w.rooms.forEach((rm, i) => { let any = false; for (let yy = rm.y0; yy < rm.y0 + rm.h && !any; yy++) for (let xx = rm.x0; xx < rm.x0 + rm.w; xx++) if (seen[yy * W + xx]) { any = true; break; } if (!any || !rm.kind) return; lab(String(rm.kind).toUpperCase(), X(rm.x0 + rm.w / 2), Y(rm.y0 + rm.h / 2) + sc * .4, 'rgba(210,225,238,.75)', Math.min(sc * 1.25, 16 * u)); });
+  /* doors: a frame with the colour of what opens it, a lock dot when locked */
+  for (const o of w.objs) {
+    if (o.type !== 'door' || (o.hidden && !o.revealed)) continue; const col = o.locked ? (LOCKC[o.lock] || '#ff5c66') : '#c9d3dc', dw = o.dir === 'x' ? 0.55 : 1.15, dh = o.dir === 'x' ? 1.15 : 0.55, cx = o.x + 0.5, cy = o.y + 0.5;
+    x.fillStyle = '#05080c'; x.fillRect(X(cx - dw / 2), Y(cy - dh / 2), dw * sc, dh * sc); x.strokeStyle = col; x.lineWidth = Math.max(2 * u, sc * .22); x.strokeRect(X(cx - dw / 2), Y(cy - dh / 2), dw * sc, dh * sc);
+    if (o.locked) { x.fillStyle = col; x.beginPath(); x.arc(X(cx), Y(cy), Math.max(2.5 * u, sc * .26), 0, 7); x.fill(); }
+  }
+  /* route to the next objective */
+  const targets = w.objectiveTargets(), p = w.player, route = targets.length ? mapRoute(w, p.x, p.y, targets) : null;
+  if (route && route.pts.length > 1) {
+    const pts = route.pts; x.save(); x.lineJoin = 'round'; x.lineCap = 'round';
+    x.beginPath(); pts.forEach((q, k) => k ? x.lineTo(X(q[0]), Y(q[1])) : x.moveTo(X(q[0]), Y(q[1]))); x.strokeStyle = 'rgba(0,0,0,.6)'; x.lineWidth = Math.max(5 * u, sc * .5); x.setLineDash([]); x.stroke();
+    x.strokeStyle = '#ffc24a'; x.lineWidth = Math.max(2.5 * u, sc * .26); x.setLineDash([sc * .9, sc * .6]); x.lineDashOffset = -now * sc * 2.2; x.stroke(); x.setLineDash([]);
+    for (let k = 6; k < pts.length - 2; k += 9) { const a = pts[k], b = pts[k + 1], ang = Math.atan2(b[1] - a[1], b[0] - a[0]); x.save(); x.translate(X(a[0]), Y(a[1])); x.rotate(ang); const z = Math.max(4 * u, sc * .5); x.fillStyle = '#ffc24a'; x.beginPath(); x.moveTo(z, 0); x.lineTo(-z * .7, -z * .75); x.lineTo(-z * .7, z * .75); x.closePath(); x.fill(); x.restore(); }
+    x.restore();
+  }
+  /* exit + objectives */
+  const ex = w.objs.find(o => o.type === 'exit'); if (ex) { x.fillStyle = 'rgba(61,255,138,.25)'; x.fillRect(X(ex.x - .2), Y(ex.y - .2), sc * 1.4, sc * 1.4); x.strokeStyle = '#3dff8a'; x.lineWidth = Math.max(2 * u, sc * .2); x.strokeRect(X(ex.x - .2), Y(ex.y - .2), sc * 1.4, sc * 1.4); lab('EXIT', X(ex.x + .5), Y(ex.y - .6), '#3dff8a'); }
+  const pulse = 0.65 + 0.35 * Math.sin(now * 5);
+  for (const t of targets) { if (t.type === 'exit') continue; const px = X(t.x), py = Y(t.y), d = sc * 1.3 * (0.9 + 0.2 * pulse); x.save(); x.translate(px, py); x.rotate(Math.PI / 4); x.fillStyle = 'rgba(255,179,71,' + (0.5 + 0.4 * pulse) + ')'; x.strokeStyle = '#ffb347'; x.lineWidth = Math.max(1.5 * u, sc * 0.2); x.fillRect(-d / 2, -d / 2, d, d); x.strokeRect(-d / 2, -d / 2, d, d); x.restore(); lab(t.label, px, py - sc * 1.5, '#ffb347'); }
+  /* you */
+  const px = X(p.x), py = Y(p.y); x.save(); x.translate(px, py); x.fillStyle = 'rgba(255,255,255,' + (0.15 + 0.1 * pulse) + ')'; x.beginPath(); x.arc(0, 0, sc * 1.6, 0, 7); x.fill(); x.rotate(p.yaw + Math.PI / 2); x.fillStyle = '#fff'; x.strokeStyle = '#000'; x.lineWidth = 1.5 * u; const a = Math.max(6 * u, sc * 1.4); x.beginPath(); x.moveTo(0, -a); x.lineTo(a * 0.75, a * 0.9); x.lineTo(0, a * 0.45); x.lineTo(-a * 0.75, a * 0.9); x.closePath(); x.fill(); x.stroke(); x.restore();
+  lab('YOU', px, py + sc * 3, '#fff', sc * 1.2);
+  /* text goal above the map */
+  const g = $('map-goal'); if (g) { const t = route ? route.t : targets[0]; if (t) { const m = route ? Math.round(route.pts.length) : 0; g.innerHTML = '<b>NEXT:</b> ' + t.label + (route ? ' &middot; about ' + m + ' steps ' + mapDir(p, t) : ''); } else g.textContent = ''; }
 }
+function mapDir(p, t) { const a = Math.atan2(t.y - p.y, t.x - p.x), n = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'][((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]; return '(' + n + ' of you on the map)'; }
 
 /* ---------------- tutorial coach (first levels) + one-time "new mechanic" cards ---------------- */
 function track(e) {
