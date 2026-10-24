@@ -2,7 +2,7 @@
    locks of the spec placed on chain edges and every key/card/fuse/note/valve placed in a room reachable BEFORE the lock that needs it. A breadth-first solver then plays the
    whole level on the grid (tile + progress mask) and the generator retries with a new seed until the level is solvable and no lock can be bypassed. */
 import { rng32 } from './rng.js';
-import { dressLevel } from './dress.js';
+import { dressLevel, lockerVariants } from './dress.js';
 
 export const T = { WALL: 0, FLOOR: 1, WATER: 2, GLASS: 3 };
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -156,14 +156,54 @@ function tryGenerate(spec, seed) {
   const creatures = []; const used = new Set();
   const itemRooms = new Set(objs.filter(o => o.type === 'item' || o.type === 'note' || o.type === 'generator' || o.type === 'valve' || o.type === 'breaker').map(o => o.room).filter(r => r !== undefined));
   const ventRooms = new Set(objs.filter(o => o.type === 'vent').map(o => o.room));
+  /* fairness: a creature never starts on top of what you must reach, never starts in view of the start, and a sentinel (which never leaves its post until it sees you) keeps a clear distance from every
+     required object. Without a radio to pull it away, that distance is larger. */
+  const required = objs.filter(o => (o.type === 'item' && o.kind !== 'radio') || o.type === 'note' || o.type === 'valve' || o.type === 'breaker' || o.type === 'generator' || o.type === 'exit');
+  const clearRay = (ax, ay, bx, by) => { const d = Math.hypot(bx - ax, by - ay), n = Math.ceil(d / 0.25); for (let i = 1; i < n; i++) { const x = Math.floor(ax + (bx - ax) * i / n), y = Math.floor(ay + (by - ay) * i / n); if (cells[at(x, y)] === T.WALL) return false; } return true; };
+  const spawnOk = (t, x, y) => {
+    const cx = x + 0.5, cy = y + 0.5, minReq = t === 'sentinel' ? (spec.radio ? 3.4 : spec.alarm ? 7.5 : 5.0) : (spec.alarm && !spec.radio ? 5.0 : 3.6);
+    for (const o of required) if (Math.hypot(o.x + 0.5 - cx, o.y + 0.5 - cy) < minReq) return false;
+    const sd = Math.hypot(st.x + 0.5 - cx, st.y + 0.5 - cy); if (sd < 7 || (sd < 14 && clearRay(cx, cy, st.x + 0.5, st.y + 0.5))) return false;
+    return true;
+  };
+  /* a sentinel never leaves its post, so there must be a way to every required object and to the exit that keeps out of reach of it (and of any other sentinel): crouched, with the torch off, it sees about 2.7 tiles and hears 1.7 */
+  const KEEP = 3.6, discs = [];
+  const routeAvoids = (extra) => {
+    const all = discs.concat(extra ? [extra] : []), seen = new Uint8Array(W * H), q = [[Math.floor(st.x), Math.floor(st.y)]]; seen[q[0][1] * W + q[0][0]] = 1;
+    const inDisc = (x, y) => all.some(d => Math.hypot(x + 0.5 - d[0], y + 0.5 - d[1]) < KEEP), doorTile = new Set(objs.filter(o => o.type === 'door').map(o => key(o.x, o.y)));
+    if (inDisc(q[0][0], q[0][1])) return false;
+    for (let qi = 0; qi < q.length; qi++) { const [x, y] = q[qi]; for (const [dx, dy] of DIRS) { const nx = x + dx, ny = y + dy, k = at(nx, ny); if (!inb(nx, ny) || seen[k] || cells[k] === T.WALL || (blocked.has(k) && !doorTile.has(k)) || inDisc(nx, ny)) continue; seen[k] = 1; q.push([nx, ny]); } }
+    return required.every(o => [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => inb(o.x + dx, o.y + dy) && seen[at(o.x + dx, o.y + dy)]));
+  };
   for (const t of spec.creatures) {
     let pool = order.filter(r => r.idx >= 1 && !used.has(r.idx) && (t !== 'sentinel' || r.idx <= n - 2));
     if (!pool.length) pool = order.filter(r => r.idx >= 1); if (!pool.length) return null;
     const noVent = pool.filter(r => !ventRooms.has(r.idx)); if (noVent.length) pool = noVent;                    // nothing waits where a vent comes out
     if (t === 'sentinel') { const guard = pool.filter(r => itemRooms.has(r.idx)); if (guard.length) pool = guard; }
-    const r = pick(pool); used.add(r.idx); let x = r.cx, y = r.cy; if (blocked.has(key(x, y)) || objs.some(o => o.x === x && o.y === y)) { const f = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([dx, dy]) => isFree(x + dx, y + dy)); if (!f) return null; x += f[0]; y += f[1]; }
-    creatures.push({ t, x: x + 0.5, y: y + 0.5, roomIdx: r.idx, yaw: R() * Math.PI * 2, hunted: !!spec.hunted && creatures.length === 0 });
+    const tries = pool.slice().sort(() => R() - 0.5); let spawn = null, room = null;
+    for (const r of tries) {
+      const cand = []; for (let y = r.y0; y < r.y0 + r.h; y++) for (let x = r.x0; x < r.x0 + r.w; x++) if (isFree(x, y) && !nearMouth(x, y) && cells[at(x, y)] !== T.GLASS && spawnOk(t, x, y)) cand.push([x, y, Math.hypot(x - r.cx, y - r.cy)]);
+      cand.sort((a, b) => a[2] - b[2]); const pickC = cand.find(c => t !== 'sentinel' || routeAvoids([c[0] + 0.5, c[1] + 0.5]));
+      if (pickC) { spawn = pickC; room = r; if (t === 'sentinel') discs.push([pickC[0] + 0.5, pickC[1] + 0.5]); break; }
+    }
+    if (!spawn) return null;
+    used.add(room.idx);
+    creatures.push({ t, x: spawn[0] + 0.5, y: spawn[1] + 0.5, roomIdx: room.idx, yaw: R() * Math.PI * 2, hunted: !!spec.hunted && creatures.length === 0 });
   }
+  /* somewhere to hide wherever the danger is: every room that holds a creature's post or a required object has a hiding place (a locker or a vent) */
+  if (creatures.length) {
+    const hasHide = (idx) => objs.some(o => (o.type === 'locker' || o.type === 'vent') && o.room === idx);
+    const need = new Set([...creatures.map(c => c.roomIdx), ...required.map(o => (o.type === 'exit' ? n - 1 : o.room)).filter(r => r !== undefined)]);
+    for (const idx of need) if (!hasHide(idx)) { for (let t = 0; t < 24; t++) { const p = wallSpot(idx), far = t < 12 ? 3.6 : 2.4; if (p && !creatures.some(c => Math.hypot(c.x - p.x - 0.5, c.y - p.y - 0.5) < far)) { O({ type: 'locker', x: p.x, y: p.y, face: p.face, room: idx }); blocked.add(key(p.x, p.y)); break; } } if (!hasHide(idx)) return null; }
+  }
+  /* an alarm calls every creature to the item you took, a running generator, a valve and a breaker are loud: a hiding place must be close to each of them */
+  if (creatures.length) for (const o of required) if ((spec.alarm && o.type === 'item') || o.type === 'generator' || o.type === 'valve' || o.type === 'breaker') {
+    const near = () => objs.some(h => (h.type === 'locker' || h.type === 'vent') && Math.hypot(h.x - o.x, h.y - o.y) <= 7.5);
+    for (let t = 0; t < 40 && !near(); t++) { const p = wallSpot(o.room); if (p && Math.hypot(p.x - o.x, p.y - o.y) <= 7.5 && !creatures.some(c => Math.hypot(c.x - p.x - 0.5, c.y - p.y - 0.5) < 2.6)) { O({ type: 'locker', x: p.x, y: p.y, face: p.face, room: o.room }); blocked.add(key(p.x, p.y)); } }
+    if (!near()) return null;
+  }
+  if (discs.length && !routeAvoids()) return null;          // the hiding places added above must not close the quiet route again
+  lockerVariants({ spec, objs, R });
   /* one optional story document per level (own random stream, so layouts and solvability are unaffected) */
   { const LR = rng32(spec.seed * 977 + 13); const idxs = order.map((_, i) => i).filter(i => i > 0); for (let k = idxs.length - 1; k > 0; k--) { const j = Math.floor(LR() * (k + 1)); [idxs[k], idxs[j]] = [idxs[j], idxs[k]]; }
     for (const ri_ of idxs) { const r = order[ri_]; let done = false; for (let t = 0; t < 40 && !done; t++) { const x = r.x0 + 1 + Math.floor(LR() * (r.w - 2)), y = r.y0 + 1 + Math.floor(LR() * (r.h - 2)); if (isFree(x, y) && !nearMouth(x, y) && cells[at(x, y)] === T.FLOOR) { O({ type: 'log', x, y, room: ri_, rot: Math.floor(LR() * 4) * Math.PI / 2 }); done = true; } } if (done) break; } }

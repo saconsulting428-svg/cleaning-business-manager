@@ -22,22 +22,23 @@ export function stealthRun(gen, delay, maxT) {
     const inp = { fwd: 0, str: 0, sprint: false }; t += DT;
     if (process.env.TRACE) { for (const c of w.creatures) { if (c._ps !== c.state) { console.log('   t=' + t.toFixed(1), c.t, c.state, 'dist', Math.hypot(c.x - p.x, c.y - p.y).toFixed(1), 'alert', c.alert.toFixed(2), 'player crouch', p.crouch, 'flash', p.flash, 'sprint', p.sprint, 'hidden', p.hidden); c._ps = c.state; } } }
     if (t < delay) { w.update(DT, inp); continue; }
-    if (process.env.TRACE2 && Math.abs(t % 30) < DT) console.log('  t=' + t.toFixed(0), 'pos', p.x.toFixed(1), p.y.toFixed(1), 'idx', idx, 'hidden', p.hidden, 'rule', rule, 'crouch', p.crouch, 'flash', p.flash, 'creatures', w.creatures.map(c => c.t + ':' + c.state + '@' + c.x.toFixed(0) + ',' + c.y.toFixed(0) + ' d' + Math.hypot(c.x - p.x, c.y - p.y).toFixed(1)).join(' '));
+    if (process.env.TRACE2 && Math.abs(t % (+process.env.TRACE2)) < DT) console.log('  t=' + t.toFixed(0), 'pos', p.x.toFixed(1), p.y.toFixed(1), 'idx', idx, 'hidden', p.hidden, 'rule', rule, 'crouch', p.crouch, 'flash', p.flash, 'creatures', w.creatures.map(c => c.t + ':' + c.state + '@' + c.x.toFixed(0) + ',' + c.y.toFixed(0) + ' d' + Math.hypot(c.x - p.x, c.y - p.y).toFixed(1)).join(' '));
     const cs = w.creatures.map(c => ({ c, d: Math.hypot(c.x - p.x, c.y - p.y), los: lineOfSight(w, p.x, p.y, c.x, c.y) })), hunting = cs.filter(e => e.c.state === 'hunt' && e.d < 16), alerted = cs.filter(e => e.d < 11 && (e.los || e.c.state !== 'roam'));
     if (p.vent) { w.update(DT, inp); continue; }
     if (p.hidden >= 0) { const danger = cs.some(e => (e.d < 9 && (e.c.moving || e.c.k.roam > 0)) || e.c.state === 'hunt' || e.c.state === 'search' || e.c.state === 'check' || e.c.state === 'investigate'); hideWait = danger ? 0 : hideWait + DT; if (hideWait > 3) { inp.interact = true; hideWait = 0; locker = null; } w.update(DT, inp); continue; }
     /* the 'suspicious' warning: something has started to notice you. Torch off, crouch, back away along the route until it loses interest */
     const sus = cs.find(e => e.c.alert > 0.12 && e.c.state !== 'hunt' && e.d < 16);
-    if (sus && !hunting.length && p.hidden < 0) { rule = 'sus'; p.crouch = true; if (p.flash) inp.flash = true; const back = path[Math.max(0, idx - 4)]; steer(back[0] + 0.5, back[1] + 0.5, inp, 'crouch'); w.update(DT, inp); continue; }
+    const lockerNear = (r) => w.objs.some(o => o.type === 'locker' && Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y) < r);
+    if (sus && !hunting.length && p.hidden < 0 && !lockerNear(9)) { rule = 'sus'; p.crouch = true; if (p.flash) inp.flash = true; const back = path[Math.max(0, idx - 4)]; steer(back[0] + 0.5, back[1] + 0.5, inp, 'crouch'); w.update(DT, inp); continue; }
     /* hunted: get into the nearest locker, or run along the route */
     if (hunting.length) {
       if (!locker) { let best = null, bd = 12; for (const o of w.objs) if (o.type === 'locker') { const d = Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y); if (d < bd) { bd = d; best = o; } } locker = best; }
       if (locker) { const fx = locker.x + 0.5 + Math.cos(locker.face) * 0.8, fy = locker.y + 0.5 + Math.sin(locker.face) * 0.8, d = Math.hypot(fx - p.x, fy - p.y); if (d < 0.6) { p.yaw = locker.face + Math.PI; inp.dyaw = 0; const L = w.interactTarget(); if (L && L.kind === 'locker') inp.interact = true; } else { const pp = findPath(w, p.x, p.y, fx, fy); const n = pp && pp[0]; if (n) steer(n[0], n[1], inp, 'run'); } w.update(DT, inp); continue; }
     } else if (!coming_flag(w, p)) locker = null;
     /* a roaming creature is coming this way: get into a locker if one is close, otherwise back off along the route */
-    const coming = cs.filter(e => e.c.state !== 'hunt' && e.d < 8.5 && (e.los || e.d < 5) && e.c.moving);
+    const coming = cs.filter(e => e.c.state !== 'hunt' && ((e.d < 8.5 && (e.los || e.d < 5) && e.c.moving) || ((e.c.state === 'investigate' || e.c.state === 'suspicious') && e.d < 11)));
     if (coming.length && !hunting.length) { rule = 'coming';
-      if (!locker) { let best = null, bd = 7; for (const o of w.objs) if (o.type === 'locker') { const d = Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y); if (d < bd) { bd = d; best = o; } } locker = best; }
+      if (!locker) { let best = null, bd = 9; for (const o of w.objs) if (o.type === 'locker') { const d = Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y); if (d < bd) { bd = d; best = o; } } locker = best; }
       if (locker) { const fx = locker.x + 0.5 + Math.cos(locker.face) * 0.8, fy = locker.y + 0.5 + Math.sin(locker.face) * 0.8, d = Math.hypot(fx - p.x, fy - p.y); if (d < 0.6) { p.yaw = locker.face + Math.PI; const L = w.interactTarget(); if (L && L.kind === 'locker') inp.interact = true; } else { const pp = findPath(w, p.x, p.y, fx, fy); const n = pp && pp[0]; if (n) steer(n[0], n[1], inp, 'walk'); } w.update(DT, inp); continue; }
       const back = path[Math.max(0, idx - 3)]; steer(back[0] + 0.5, back[1] + 0.5, inp, 'crouch'); w.update(DT, inp); continue;
     }

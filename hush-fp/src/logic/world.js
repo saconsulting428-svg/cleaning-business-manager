@@ -156,7 +156,7 @@ export class World {
     }
   }
   enterCode(doorId, code) { const d = this.objById.get(doorId); if (!d || !this.keypad) return false; if (String(code) === d.code) { d.codeOk = true; this.keypad = null; this.refreshLocks(); this.openDoor(d, true); this.events.push({ type: 'unlock', x: d.x + 0.5, y: d.y + 0.5 }); return true; } this.events.push({ type: 'denied', text: 'Wrong code' }); emitNoise(this, d.x + 0.5, d.y + 0.5, 4, 'keypad'); return false; }
-  pickup(o) { if (o.taken) return; o.taken = true; this.player.inv[o.kind]++; if (this.spec.alarm && o.kind !== 'radio' && !this.alarmDone) { this.alarmDone = true; this.events.push({ type: 'alarm', x: o.x + 0.5, y: o.y + 0.5 }); emitNoise(this, o.x + 0.5, o.y + 0.5, 26, 'alarm'); } this.events.push({ type: 'pickup', kind: o.kind, x: o.x + 0.5, y: o.y + 0.5 }); }
+  pickup(o) { if (o.taken) return; o.taken = true; this.player.inv[o.kind]++; if (this.spec.alarm && o.kind !== 'radio' && !this.alarmDone) { this.alarmDone = true; this.events.push({ type: 'alarm', x: o.x + 0.5, y: o.y + 0.5 }); this.alarmT = 2.5; this.alarmPos = { x: o.x + 0.5, y: o.y + 0.5 }; }   /* the siren starts at once; the creatures are told where you are 2.5 s later: time to get out of sight */ this.events.push({ type: 'pickup', kind: o.kind, x: o.x + 0.5, y: o.y + 0.5 }); }
   enterLocker(L) {
     const p = this.player; p.hidden = L.id; p.x = L.x + 0.5 - Math.cos(L.face) * 0.15; p.y = L.y + 0.5 - Math.sin(L.face) * 0.15; p.px = p.x; p.py = p.y; p.yaw = L.face; p.vx = p.vy = 0; p.hideT = 0; p.crouch = false;
     this.events.push({ type: 'hide', x: L.x + 0.5, y: L.y + 0.5 }); emitNoise(this, L.x + 0.5, L.y + 0.5, 2.2, 'locker');
@@ -198,6 +198,7 @@ export class World {
     for (const o of this.objs) if (o.pingT > 0) o.pingT -= dt;
     if (p.alive && p.hidden < 0 && !p.vent) for (const o of this.objs) if (o.type === 'item' && !o.taken && Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y) < 0.85) this.pickup(o);
     p.pulses = Math.min(this.spec.pulses, p.pulses);
+    if (this.alarmT > 0) { this.alarmT -= dt; if (this.alarmT <= 0) emitNoise(this, this.alarmPos.x, this.alarmPos.y, 26, 'alarm'); }
     for (const c of this.creatures) updateCreature(this, c, dt);
     updateExtras(this, dt);
     /* threat for the sound design: how close and how awake the nearest creature is */

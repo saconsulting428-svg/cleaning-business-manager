@@ -82,6 +82,7 @@ export function emitNoise(world, x, y, radius, kind, except) {
 }
 function hear(world, c, x, y, d, radius, kind) {
   if (c.state === 'hunt') { c.lastSeen = { x, y }; return; }
+  if (kind === 'generator' && Math.hypot(x - c.x, y - c.y) < 5) { if (c.genSeen) return; c.genSeen = true; }          // it has come to look at the running generator: its hum alone does not keep it there
   const loud = clamp(1 - d / (radius * c.k.hear), 0, 1);
   if (kind === 'step' && d <= radius * c.k.hear * 0.4 && world.player.hidden < 0) { c.lastSeen = { x, y }; c.alert = 1; startHunt(world, c); return; }   // footsteps right next to it: it turns and charges
   if (c.k.leash && Math.hypot(x - c.post.x, y - c.post.y) > c.k.leash && kind !== 'pulse') return;
@@ -121,8 +122,15 @@ export function updateCreature(world, c, dt) {
   /* awareness */
   if (seen && c.state !== 'attack') {
     c.lastSeen = { x: p.x, y: p.y };
-    if (c.state !== 'hunt') { c.alert = 1; startHunt(world, c); }          // it sees you: no hesitation, it charges at once
-    else c.alert = 1;
+    if (c.state === 'hunt') c.alert = 1;
+    else if (dist < 3.4 || (p.moving && p.sprint)) { c.alert = 1; startHunt(world, c); }          // right in its face, or running: it charges at once
+    else {
+      /* seen from a distance it first NOTICES you (it stops, turns, the warning shows): the farther away, the longer that takes. Crouch, break the line of sight or hide before it ends and it
+         forgets you; when the notice completes it charges at full speed. */
+      c.alert += dt / (clamp(0.7 + 0.28 * (dist - 3.4), 0.7, 2.4) / Math.max(0.5, world.diff.alert));
+      if (c.alert >= 1) startHunt(world, c);
+      else if (c.alert > 0.2 && c.state !== 'suspicious') { if (c.state !== 'investigate' || c.alert > 0.4) { c.state = 'suspicious'; c.wait = 0; world.events.push({ type: 'suspicious', id: c.id }); } }
+    }
   } else c.alert = Math.max(0, c.alert - dt * (c.state === 'hunt' ? 0.15 : 0.35));
   /* a creature that walks up to the locker you hide in stops, sniffs and listens, then moves on (it only opens it if it SAW you go in) */
   if (p.hidden < 0) c.sniffFor = null;

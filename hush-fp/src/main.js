@@ -134,7 +134,7 @@ function setC(id, cls, on) { const k = id + cls; if (HC[k] !== on) { HC[k] = on;
 function setO(id, v) { v = Math.round(v * 20) / 20; if (HC[id + 'o'] !== v) { HC[id + 'o'] = v; $(id).style.opacity = v; } }
 function hud(w, dt) {
   const p = w.player; G.hudT = (G.hudT || 0) + dt; if (G.bannerT > 0) { G.bannerT -= dt; if (G.bannerT <= 0) $('banner').classList.remove('show'); } if (G.hintT > 0) { G.hintT -= dt; if (G.hintT <= 0) $('hint').classList.remove('show'); }
-  drawMarks(w); coachTick(w, dt); stuckTick(w, dt);
+  drawMarks(w); coachTick(w, dt); stuckTick(w, dt); presenceTick(w, dt);
   if (G.hudT < 0.066) return; const dtH = G.hudT; G.hudT = 0;
   setT('obj-text', w.objective().current); setT('pulse-n', p.pulses); setC('b-pulse', 'dim', p.pulses <= 0); const cdf = Math.round(w.pulseCd / PULSE_CD * 40) / 40; if (HC.cdf !== cdf) { HC.cdf = cdf; $('b-pulse').style.setProperty('--cd', cdf); } setC('b-pulse', 'cd', cdf > 0); setT('pulse-l', w.pulseCd > 0 ? w.pulseCd.toFixed(1) + 's' : 'Pulse'); buildHotbar(false);
   const pr = w.prompt, show = !!(pr && !G.modal); setC('prompt', 'show', show); if (show) { setC('prompt', 'no', /^Locked|needs/.test(pr.text)); setT('prompt-text', pr.text); }
@@ -149,7 +149,7 @@ const MARKC = { item: '#ffd070', exit: '#3dff8a', door: '#ff8a5a', generator: '#
 let marksOn = false;
 function drawMarks(w) {
   const cv = $('marks'), v = G.view, p = w.player; if (!cv || !v) return; const r = cv.getBoundingClientRect(), W = Math.round(r.width), H = Math.round(r.height); if (!W) return;
-  const threats = w.creatures.filter(c => (c.state === 'hunt' || c.state === 'investigate' || c.state === 'suspicious') && Math.hypot(c.x - p.x, c.y - p.y) < 16 && p.alive);
+  const threats = w.creatures.filter(c => ((c.state === 'hunt' || c.state === 'investigate' || c.state === 'suspicious') && Math.hypot(c.x - p.x, c.y - p.y) < 16 || (c.state === 'roam' || c.state === 'search') && Math.hypot(c.x - p.x, c.y - p.y) < 8.5) && p.alive);
   const pinged = save.set.marks && (w.pulseState || w.objs.some(o => o.pingT > 0)), reveal = w.creatures.some(c => c.revealT > 0);
   if (!pinged && !reveal && !threats.length) { if (marksOn) { cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); marksOn = false; } return; }
   if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; } const x = cv.getContext('2d'); x.clearRect(0, 0, W, H); marksOn = true; v.camera.updateMatrixWorld(true);
@@ -159,7 +159,7 @@ function drawMarks(w) {
   if (pinged) for (const o of w.objs) { if (!(o.pingT > 0) || !MARKC[o.type] || (o.type === 'item' && o.taken) || (o.type === 'door' && o.hidden && !o.revealed) || o.type === 'locker' || o.type === 'vent') continue; const [sx, sy, vis] = pr(o.x + 0.5, o.y + 0.5, REACH_H[o.type] || 1); if (!vis) continue; const a = Math.min(1, o.pingT / 1.5), c = MARKC[o.type];
     x.save(); x.globalAlpha = a; x.translate(sx, sy); x.rotate(Math.PI / 4); x.strokeStyle = c; x.lineWidth = 2; x.strokeRect(-7, -7, 14, 14); x.fillStyle = c; x.globalAlpha = a * 0.35; x.fillRect(-7, -7, 14, 14); x.restore(); }
   for (const c of w.creatures) { if (!(c.revealT > 0)) continue; const [sx, sy, vis] = pr(c.x, c.y, 1.4); if (vis) { x.save(); x.globalAlpha = Math.min(1, c.revealT); x.strokeStyle = '#ff3b47'; x.lineWidth = 2.5; x.beginPath(); x.moveTo(sx, sy - 34); x.lineTo(sx + 14, sy - 12); x.lineTo(sx - 14, sy - 12); x.closePath(); x.stroke(); x.restore(); } }
-  for (const c of threats) { const [sx, sy, vis] = pr(c.x, c.y, 1.4); if (vis && sx > 20 && sx < W - 20) continue; edge(sx, sy, !vis, c.state === 'hunt' ? '#ff3b47' : '#f0b34a', c.state === 'hunt' ? pulseK : 0.55); }
+  for (const c of threats) { const [sx, sy, vis] = pr(c.x, c.y, 1.4); if (vis && sx > 20 && sx < W - 20) continue; edge(sx, sy, !vis, c.state === 'hunt' ? '#ff3b47' : '#f0b34a', c.state === 'hunt' ? pulseK : c.state === 'roam' || c.state === 'search' ? 0.38 : 0.55); }
 }
 
 /* ---------------- inventory + objectives panels (the game holds still while they are open) ---------------- */
@@ -196,6 +196,12 @@ function drawMap() {
 function track(e) {
   const T = G.tut; if (!T) return;
   if (e.type === 'flash') T.flash++; else if (e.type === 'door' && e.by !== 'creature') T.doors++; else if (e.type === 'pulse') { T.pulses++; if (!T.firstPulse) T.firstPulse = performance.now() / 1000; } else if (e.type === 'hide' && !e.out) T.hid++; else if (e.type === 'pickup') T.picked[e.kind] = 1;
+}
+/* presence warning: a creature that has not noticed you is close (even behind a wall): say so once in a while, so a walking player is never surprised by what hears footsteps */
+function presenceTick(w, dt) {
+  const p = w.player; G.presT = (G.presT || 0) - dt; if (G.presT > 0 || !p.alive || p.hidden >= 0 || p.vent || G.paused || G.modal || G.over || !tipsOn()) return;
+  let near = 1e9; for (const c of w.creatures) { if (c.dead || c.state === 'hunt') continue; near = Math.min(near, Math.hypot(c.x - p.x, c.y - p.y)); }
+  if (near < 8.5 && p.moving && !p.crouch) { banner('SOMETHING IS CLOSE: CROUCH TO STAY QUIET', 'sus', 2400); Sound.play('notice'); G.presT = 16; }
 }
 /* stuck hints: no progress for a while -> a hint that gets plainer (50 s, 105 s, 165 s, then every 70 s) */
 const STUCK_AT = [50, 105, 165];
@@ -255,7 +261,7 @@ function handleEvents(w, dt) {
       case 'vent': Sound.play('vent'); break;
       case 'generator': Sound.play('gen'); G.view.reach(); break;
       case 'breaker': Sound.play('door'); later(() => Sound.play('thump', { pan: 0 }), 200); G.view.reach(); banner('BREAKER ' + e.n + ' / ' + e.total, e.n === e.total ? 'heard' : 'sus', 1500); break;
-      case 'alarm': { Sound.play('heard'); const sp = spatial(e.x, e.y); Sound.play('roar', { v: 0.5, pan: 0, kind: 'stalker' }); banner('ALARM! THEY HEARD THAT', 'seen', 2600); vibe([60, 40, 120]); break; }
+      case 'alarm': { Sound.play('heard'); const sp = spatial(e.x, e.y); Sound.play('roar', { v: 0.5, pan: 0, kind: 'stalker' }); banner('ALARM! GET OUT OF SIGHT: THEY ARE COMING', 'seen', 3200); vibe([60, 40, 120]); break; }
       case 'valve': Sound.play('door'); later(() => Sound.play('thump', { pan: 0 }), 300); G.view.reach(); break;
       case 'radio': Sound.play('radio'); break;
       case 'radioburst': { const s = spatial(e.x, e.y); if (s.d < 22) Sound.play('radio'); break; }

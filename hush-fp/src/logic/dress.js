@@ -61,8 +61,6 @@ export function dressLevel(c) {
     if (pool.length) { const r = pick(pool), cx = ri(r.x0 + 1, r.x0 + r.w - 2), cy = ri(r.y0 + 1, r.y0 + r.h - 2); for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = cx + dx, y = cy + dy; if (x >= r.x0 && y >= r.y0 && x < r.x0 + r.w && y < r.y0 + r.h && cells[at(x, y)] === FLOOR && R() < 0.8) cells[at(x, y)] = WATER; } }
   }
 
-  /* -- hiding places differ by chapter (lockers, storage cabinets, an alcove behind a shelf frame) -- */
-  for (const o of objs) if (o.type === 'locker') o.variant = ch === 0 ? (R() < 0.4 ? 'cabinet' : 'locker') : ch === 1 ? (R() < 0.35 ? 'cabinet' : 'locker') : (R() < 0.4 ? 'alcove' : 'locker');
 
   /* -- healing: uncommon, always somewhere in the facility but never near the start -- */
   const hurtLevel = nSpark > 0 || !!CRAWLERS[i];
@@ -77,4 +75,10 @@ export function dressLevel(c) {
     if (p) out.crawlers.push({ kind, x: p[0] + 0.5, y: p[1] + 0.5 });
   }
   return out;
+}
+
+/* hiding places differ by chapter (lockers, storage cabinets, an alcove behind a shelf frame); runs once every locker exists */
+export function lockerVariants(c) {
+  const { spec, objs, R } = c, ch = spec.ch; if ((spec.story === undefined ? 0 : spec.story) < 3) return;
+  for (const o of objs) if (o.type === 'locker' && !o.variant) o.variant = ch === 0 ? (R() < 0.4 ? 'cabinet' : 'locker') : ch === 1 ? (R() < 0.35 ? 'cabinet' : 'locker') : (R() < 0.4 ? 'alcove' : 'locker');
 }
