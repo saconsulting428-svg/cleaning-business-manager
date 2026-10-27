@@ -160,10 +160,10 @@
     const hx = st.body[0] % COLS, hy = (st.body[0] / COLS) | 0, near = [];
     if (k === 'sweep') {
       for (let i = 0; i < COLS * ROWS; i++) if (rt.bomb[i] && Math.max(Math.abs((i % COLS) - hx), Math.abs(((i / COLS) | 0) - hy)) <= 7) near.push(i);
-      if (!near.length) { popup('No bombs near', '#fca5a5', 34); sfx.err(); return; }
+      if (!near.length) { popup('No bombs near', '#ff5a5f', 34); sfx.err(); return; }
     }
     if (!DATA.pw[k]) {
-      if (DATA.coins < p.cost) { popup('Need ' + p.cost + ' coins', '#fca5a5', 34); sfx.err(); return; }
+      if (DATA.coins < p.cost) { popup('Need ' + p.cost + ' coins', '#ff5a5f', 34); sfx.err(); return; }
       DATA.coins -= p.cost; DATA.pw[k]++;
     }
     DATA.pw[k]--; writeData();
@@ -172,7 +172,7 @@
     else if (k === 'shield') C0.shield = true;
     else if (k === 'coin2') C0.coinMul = 2;
     else near.forEach((i) => { rt.bomb[i] = 0; const q = cellOf(i); burst(q.x, q.y, '#fbbf24', 8); ring(q.x, q.y, '#fbbf24'); });
-    ring(hp.x, hp.y, '#38bdf8'); popup(p.name + '!', '#7dd3fc', 34);
+    ring(hp.x, hp.y, '#38bdf8'); popup(p.name + '!', th().accent, 34);
     sfx.power(); buzz(25);
   }
   let shopMsg = null;
@@ -292,7 +292,7 @@
     txt(W / 2, 636, worldDone(w) + ' / 20 cleared   ' + worldStars(w) + ' / 60 stars', 14, t.text, 0.5, false);
     if (canPlay) button(W / 2, 688, 320, 62, 'Play level ' + target, () => startLevel(target), { primary: true, size: 24 });
     else button(W / 2, 688, 320, 62, 'Locked', null, { disabled: true, size: 22 });
-    if (lvMsg && anim < lvMsg.until) txt(W / 2, 744, lvMsg.s, 14, '#fca5a5', 0.5, false);
+    if (lvMsg && anim < lvMsg.until) txt(W / 2, 744, lvMsg.s, 14, '#ff5a5f', 0.5, false);
     else txt(W / 2, 744, canPlay ? 'Clear a level to unlock the next one' : 'Finish world ' + w + ' to unlock', 13, t.text, 0.5, false);
   }
 
@@ -467,7 +467,7 @@
     txt(BX, 22, WORLDS[C0.L.w].name.toUpperCase() + '  -  WORLD ' + (C0.L.w + 1), 11, t.text, 0, false);
     txt(BX, 50, 'Level ' + C0.id, 28, t.accent, 0);
     txt(BX + BW, 22, 'Moves', 12, t.text, 1, false);
-    txt(BX + BW, 50, String(C0.moves), 28, C0.moves > C0.L.s2 ? '#fca5a5' : t.text, 1);
+    txt(BX + BW, 50, String(C0.moves), 28, C0.moves > C0.L.s2 ? '#ff5a5f' : t.text, 1);
     // tracker: fruit, keys, exit
     const items = rt.fruits.length + rt.keys.length + 1, x0 = W / 2 - (items - 1) * 12;
     let k = 0;
@@ -583,7 +583,7 @@
   }
   function drawCampFail() {
     const t = th(), C0 = G.camp, top = drawCampOverlayFrame(300);
-    txt(W / 2, top + 44, C0.over === 'trap' ? 'Boom!' : 'Oops!', 34, '#fca5a5');
+    txt(W / 2, top + 44, C0.over === 'trap' ? 'Boom!' : 'Oops!', 34, '#ff5a5f');
     const why = C0.over === 'gate' ? 'The gate is closed - use the switch' : C0.over === 'door' ? 'The door is locked - get the key first' : (FAIL_TEXT[C0.over] || 'Try again');
     txt(W / 2, top + 88, why, 15, t.btnText);
     txt(W / 2, top + 114, 'Level ' + C0.id, 13, t.btnText, 0.5, false);
