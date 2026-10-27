@@ -111,7 +111,7 @@
       g.circle(cx, y, r, light ? U.creamEdge : '#4b7a5c');
       g.circle(cx, y, r - 2.5, light ? U.cream : '#2b4a36');
       g.circle(cx - r * 0.25, y - r * 0.42, r * 0.28, '#ffffff', light ? 0.55 : 0.18);
-      ui.icon(kind, cx, y, r * 1.02, light ? U.ink : U.cream);
+      ui.icon(kind, cx, y, r * 1.02, light ? U.ink : U.light);
       if (o.badge) { g.circle(cx + r * 0.7, y - r * 0.7, 8, U.red); g.text(cx + r * 0.7, y - r * 0.7, o.badge, 11, '#ffffff'); }
       ui.reg(id, cx - Math.max(r, 24) - 4, cy - Math.max(r, 24) - 4, Math.max(r, 24) * 2 + 8, Math.max(r, 24) * 2 + 12, fn, o.sound);
     },

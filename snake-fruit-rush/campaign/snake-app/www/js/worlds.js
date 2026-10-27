@@ -35,6 +35,6 @@
     cream: '#fff6dc', cream2: '#fff8e8', creamEdge: '#d3bd82', creamShade: '#e6d6a8', ink: '#49351b', inkSoft: '#8a7447', inkFaint: '#b7a574',
     gold1: '#ffe879', gold2: '#f4b92f', goldEdge: '#a97725', goldDark: '#8c5a12',
     green: '#46bd61', greenDark: '#2d8a45', red: '#ef4444', redDark: '#b91c1c', locked: '#6b7480', lockedDark: '#303847',
-    dark: '#07170e', dark2: '#102b1c', white: '#ffffff'
+    dark: '#07170e', dark2: '#102b1c', white: '#ffffff', light: '#fff6dc'
   };
 })(window.SFR);

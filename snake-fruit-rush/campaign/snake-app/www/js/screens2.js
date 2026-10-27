@@ -216,8 +216,8 @@
     S.drawWorldBg(wi, now);
     g.use(4);
     S.backButton(() => SC.go('menu'));
-    g.text(S.W / 2, 34, 'SETTINGS', 26, U.cream, { shadow: '#07170e', shadowDy: 3 });
-    g.text(S.W / 2, 62, 'Make the game feel right for you', 12, U.cream, { alpha: 0.75, bold: false });
+    g.text(S.W / 2, 34, 'SETTINGS', 26, U.light, { shadow: '#07170e', shadowDy: 3 });
+    g.text(S.W / 2, 62, 'Make the game feel right for you', 12, U.light, { alpha: 0.75, bold: false });
     const rows = [
       ['sfx', 'Sound effects', 'Pops, chimes and jingles'],
       ['music', 'Music', 'Calm background tune'],
@@ -241,7 +241,7 @@
     g.text(34, cy + 44, 'Swipe to turn  ·  tap near the board to turn toward it', 12.5, U.ink, { ox: 0 });
     g.text(34, cy + 64, 'Reverse turns are blocked automatically.', 11.5, U.inkSoft, { ox: 0, bold: false });
     ui().button(S.W / 2, cy + 82 + 40, S.W - 60, 52, 'RESET CAMPAIGN', () => SC.openOverlay('confirm', {}), { style: 'ghost', size: 15, id: 'reset' });
-    g.text(S.W / 2, S.H - 36, 'Snake Fruit Rush  v' + S.version, 11, U.cream, { alpha: 0.45, bold: false });
+    g.text(S.W / 2, S.H - 36, 'Snake Fruit Rush  v' + S.version, 11, U.light, { alpha: 0.45, bold: false });
   }
   function drawConfirm(now) {
     const g = G(), d = S.save.data, c = card(now, SC.ovT0, 336, 280, cy0());
@@ -275,7 +275,7 @@
     if (!skinPick || !S.SKIN_BY_ID[skinPick]) skinPick = d.skin;
     const from = SC.params.from || 'menu';
     S.backButton(() => leaveSkins(from));
-    g.text(S.W / 2, 34, 'SNAKE SKINS', 26, U.cream, { shadow: '#07170e', shadowDy: 3 });
+    g.text(S.W / 2, 34, 'SNAKE SKINS', 26, U.light, { shadow: '#07170e', shadowDy: 3 });
     S.coinChip(S.W - 14, 54);
     // preview
     const py = 100, sk = S.SKIN_BY_ID[skinPick], owned = S.save.isOwned(sk.id);
@@ -311,7 +311,7 @@
     else if (owned) ui().button(S.W / 2, ay, S.W - 60, 56, 'EQUIP ' + sk.name.toUpperCase(), () => { SC.selectSkin(sk.id); A().sfx.coin(); }, { style: 'primary', size: 18, id: 'skact' });
     else if (d.coins >= sk.cost) ui().button(S.W / 2, ay, S.W - 60, 56, 'UNLOCK FOR ' + sk.cost, () => { if (SC.buySkin(sk.id)) { A().sfx.unlock(); A().buzz(30); ui().showToast(sk.name + ' unlocked!'); } }, { style: 'primary', size: 18, id: 'skact' });
     else ui().button(S.W / 2, ay, S.W - 60, 56, 'NEED ' + (sk.cost - d.coins) + ' MORE COINS', () => skinToast('Not enough coins for ' + sk.name + '!'), { size: 15, id: 'skact', style: 'dark' });
-    g.text(S.W / 2, ay + 44, 'Skins are cosmetic. They never change the puzzle.', 10.5, U.cream, { alpha: 0.6, bold: false });
+    g.text(S.W / 2, ay + 44, 'Skins are cosmetic. They never change the puzzle.', 10.5, U.light, { alpha: 0.6, bold: false });
   }
   SC.resetSkinPick = () => { skinPick = null; };
   SC.leaveSkins = leaveSkins;

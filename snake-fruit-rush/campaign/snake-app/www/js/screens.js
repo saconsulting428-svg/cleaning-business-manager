@@ -74,7 +74,7 @@
     g.img('fruits', 62, 112 + dy + Math.sin(t * 2) * 3, 52, 52, { frame: 'apple', rot: -0.25 });
     g.img('fruits', S.W - 62, 120 + dy + Math.sin(t * 2 + 1) * 3, 48, 48, { frame: 'cherry', rot: 0.25 });
     g.img('fruits', S.W - 92, 70 + dy + Math.sin(t * 2.4) * 3, 30, 30, { frame: 'orange', rot: 0.4 });
-    g.text(S.W / 2, 104 + dy, 'SNAKE', 78, U.cream, { shadow: '#07170e', shadowDy: 7 });
+    g.text(S.W / 2, 104 + dy, 'SNAKE', 78, U.light, { shadow: '#07170e', shadowDy: 7 });
     g.text(S.W / 2, 162 + dy, 'FRUIT RUSH', 34, U.gold1, { shadow: '#5a3a08', shadowDy: 4 });
     // live snake stage (decoration only: it is NOT the game)
     const hy = 204 + dy, hw = S.W - 28, hh = 262, hx = 14;
@@ -97,7 +97,7 @@
     S.snakeDraw.snake(pts, demo.dir, cs / 30, { cell: cs });
     // progress + play
     const cur = frontier(), done = S.save.completedCount(), hasRun = done > 0 || d.attempt, ay = hy + hh + 28;
-    g.text(S.W / 2, ay, (hasRun ? 'LEVEL ' + cur + '  ·  ' : 'WORLD 1  ·  ') + w.name.toUpperCase() + '  ·  ' + S.save.totalStars() + ' ★', 13, U.cream, { shadow: '#000000', shadowDy: 1.5 });
+    g.text(S.W / 2, ay, (hasRun ? 'LEVEL ' + cur + '  ·  ' : 'WORLD 1  ·  ') + w.name.toUpperCase() + '  ·  ' + S.save.totalStars() + ' ★', 13, U.light, { shadow: '#000000', shadowDy: 1.5 });
     ui().bar(S.W / 2 - 90, ay + 14, 180, 8, done / S.levelCount(), w.accent);
     const by = ay + 62;
     ui().button(S.W / 2, by, S.W - 56, 76, hasRun ? 'CONTINUE' : 'PLAY', () => SC.playCurrent(), { style: 'primary', size: 30, id: 'play', icon: 'play' });
@@ -150,8 +150,8 @@
     }
     if (SC.worldChangeAt === undefined) SC.worldChangeAt = -1e9;
     backButton(() => SC.go('menu'));
-    g.text(74, 24, 'LEVEL MAP', 11, U.cream, { ox: 0, alpha: 0.78 });
-    g.text(74, 48, w.trail, 24, U.cream, { ox: 0, shadow: '#07170e', shadowDy: 3 });
+    g.text(74, 24, 'LEVEL MAP', 11, U.light, { ox: 0, alpha: 0.78 });
+    g.text(74, 48, w.trail, 24, U.light, { ox: 0, shadow: '#07170e', shadowDy: 3 });
     const first = wi * 20 + 1, last = wi * 20 + 20;
     ui().chip(S.W - 14 - 92, 20, 92, 30, { fill: U.cream });
     g.text(S.W - 14 - 46, 35, (first < 10 ? '0' : '') + first + '–' + last, 14, U.ink);
@@ -172,14 +172,14 @@
       g.circle(cx, cy, 20, open ? S.shade(ww.accent, -0.3) : '#2b3340');
       if (open) { [[0, -9], [8, 5], [-8, 5]].forEach((o) => g.circle(cx + o[0], cy + o[1], 4.2, '#ffffff', 0.85)); }
       else ui().icon('lock', cx, cy, 18, '#9aa5b8');
-      g.text(cx, cy + 36, 'W' + (i + 1), 11, U.cream, { alpha: sel ? 1 : 0.65 });
+      g.text(cx, cy + 36, 'W' + (i + 1), 11, U.light, { alpha: sel ? 1 : 0.65 });
       ui().reg('wt' + i, cx - 30, cy - 30, 60, 76, () => { if (!open) ui().showToast('Complete Level ' + (i * 20) + ' to unlock'); else { SC.params.world = i; d.world = i; SC.worldChangeAt = SC.now; S.audio.sfx.click(); } }, false);
     }
     // path panel
     const py = 206, rowGap = S.clamp(Math.round((S.H - 560) / 5 + 8), 64, 80), ph = 64 + rowGap * 4 + 56;
     g.rrect(14, py, S.W - 28, ph, 26, '#000000', 0.26);
-    g.text(34, py + 24, 'FOLLOW THE PATH', 11, U.cream, { ox: 0, alpha: 0.75 });
-    g.text(S.W - 34, py + 24, done + ' / 20', 11, U.cream, { ox: 1, alpha: 0.75 });
+    g.text(34, py + 24, 'FOLLOW THE PATH', 11, U.light, { ox: 0, alpha: 0.75 });
+    g.text(S.W - 34, py + 24, done + ' / 20', 11, U.light, { ox: 1, alpha: 0.75 });
     const cols = [87, 179, 271, 363], pos = [];
     for (let n = 0; n < 20; n++) { const r = (n / 4) | 0, c = n % 4, cc = r % 2 ? 3 - c : c; pos.push({ x: cols[cc], y: py + 70 + r * rowGap, level: first + n }); }
     // dotted path
@@ -236,11 +236,11 @@
     S.drawWorldBg(wi, now);
     g.use(4);
     backButton(() => SC.go(SC.params.from === 'map' ? 'map' : 'menu'));
-    g.text(S.W / 2, 28, 'LEVEL BRIEFING', 11.5, U.cream, { alpha: 0.8 });
+    g.text(S.W / 2, 28, 'LEVEL BRIEFING', 11.5, U.light, { alpha: 0.8 });
     ui().chip(S.W / 2 - 62, 44, 124, 26, { fill: '#e8f5c8', edge: '#a3d849' });
     g.text(S.W / 2, 57, 'WORLD ' + (wi + 1) + ' · ' + w.name.toUpperCase(), 10.5, '#3f6a1b');
     const a = S.ease.out(S.prog(now, SC.t0, 0, 380));
-    g.text(S.W / 2, 100 + (1 - a) * 14, 'LEVEL ' + id, 44, U.cream, { shadow: '#07170e', shadowDy: 5, alpha: a });
+    g.text(S.W / 2, 100 + (1 - a) * 14, 'LEVEL ' + id, 44, U.light, { shadow: '#07170e', shadowDy: 5, alpha: a });
     const stars = d.stars[id - 1];
     ui().starRow(S.W / 2, 140, 22, stars);
     // objective card with mini preview
