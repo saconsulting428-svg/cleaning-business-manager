@@ -261,7 +261,7 @@
     boardG.fillRoundedRect(BX - 8, BY - 8, BW + 16, BH + 16, 14);
     boardG.fillStyle(C(t.board1), 1);
     boardG.fillRect(BX, BY, BW, BH);
-    drawPattern(boardG, WORLDS[w].pattern, BX, BY, COLS, ROWS, CELL);
+    drawPattern(boardG, DATA.worldLook ? WORLDS[w].pattern : DATA.bg, BX, BY, COLS, ROWS, CELL);
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const i = r * COLS + c;
       if (rt.wall[i]) continue;
@@ -444,12 +444,16 @@
     return top;
   }
   function drawCampPause() {
-    const t = th(), C0 = G.camp, top = drawCampOverlayFrame(330);
-    txt(W / 2, top + 42, 'Paused', 32, t.accent);
-    txt(W / 2, top + 80, 'Level ' + C0.id + '  -  ' + WORLDS[C0.L.w].name, 15, t.btnText);
-    button(W / 2, top + 142, 290, 56, 'Resume', togglePause, { primary: true, size: 21 });
-    button(W / 2, top + 212, 290, 50, 'Restart level', campRetry, { dark: true, size: 18 });
-    button(W / 2, top + 276, 290, 50, 'Levels', leaveToLevels, { dark: true, size: 18 });
+    const t = th(), C0 = G.camp, top = drawCampOverlayFrame(470);
+    txt(W / 2, top + 40, 'Paused', 32, t.accent);
+    txt(W / 2, top + 76, 'Level ' + C0.id + '  -  ' + WORLDS[C0.L.w].name, 15, t.btnText);
+    txt(W / 2, top + 108, 'Theme', 13, t.btnText, 0.5, false);
+    themePicker(top + 140, 58, 18);
+    txt(W / 2, top + 184, 'Background', 13, t.btnText, 0.5, false);
+    bgPicker(top + 220, 58, 36);
+    button(W / 2, top + 296, 290, 56, 'Resume', togglePause, { primary: true, size: 21 });
+    button(W / 2, top + 362, 290, 50, 'Restart level', campRetry, { dark: true, size: 18 });
+    button(W / 2, top + 426, 290, 50, 'Levels', leaveToLevels, { dark: true, size: 18 });
   }
   function drawCampFail() {
     const t = th(), C0 = G.camp, top = drawCampOverlayFrame(300);

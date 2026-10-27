@@ -440,7 +440,7 @@ window.SFR_LEVELS=[{"w":0,"d":213,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
 
   function loadData() {
     const d = { high: 0, highs: {}, mode: 'classic', speed: 5, tab: 0, theme: 0, bg: 0, sound: true, save: null,
-      coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [], camp: null };
+      coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [], camp: null, worldLook: false };
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       if (saved && typeof saved === 'object') Object.assign(d, saved);
@@ -464,7 +464,8 @@ window.SFR_LEVELS=[{"w":0,"d":213,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
     d.lastClaim = typeof d.lastClaim === 'string' && DATE_RE.test(d.lastClaim) ? d.lastClaim : '';
     d.spinDates = Array.isArray(d.spinDates) ? d.spinDates.filter((x) => typeof x === 'string' && DATE_RE.test(x)).slice(-60) : [];
     d.daily = cleanDaily(d.daily);
-    d.camp = cleanCamp(d.camp);                                         // campaign progress: unlocked level, current level, stars per level
+    d.worldLook = d.worldLook === true;                                 // campaign uses the chosen theme unless this is on
+d.camp = cleanCamp(d.camp);                                         // campaign progress: unlocked level, current level, stars per level
     return d;
   }
   function writeData() {
@@ -489,7 +490,7 @@ window.SFR_LEVELS=[{"w":0,"d":213,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
   let dailyCheck = 0;                // last time the date was checked (ms)
 
   let CT = null;                      // world palette while a campaign screen is open
-  const th = () => CT || THEMES[DATA.theme];
+  const th = () => (CT && DATA.worldLook ? CT : THEMES[DATA.theme]);
   const C = (hex) => parseInt(hex.slice(1), 16);
   const cellXY = (c, r) => ({ x: BX + c * CELL + CELL / 2, y: BY + r * CELL + CELL / 2 });
   const rnd = (n) => Math.floor(Math.random() * n);
@@ -1324,9 +1325,12 @@ window.SFR_LEVELS=[{"w":0,"d":213,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
       } else {
         txt(W / 2, top + 316, 'Speed goes up slowly as you eat', 13, t.text, 0.5, false);
       }
+      txt(W / 2, top + 378, 'Modes are for Endless play. Levels have their own rules.', 12, t.text, 0.5, false);
     } else if (DATA.tab === 1) {
       themePicker(top + 190, 80, 28);
-      txt(W / 2, top + 262, t.name, 20, t.accent);
+      txt(W / 2, top + 262, DATA.worldLook ? 'World colors' : t.name, 20, t.accent);
+      button(W / 2, top + 314, 270, 46, 'World colors: ' + (DATA.worldLook ? 'On' : 'Off'), () => { DATA.worldLook = !DATA.worldLook; writeData(); applyTheme(); }, { size: 16 });
+      txt(W / 2, top + 352, 'Your theme and background are used in the levels too', 12, t.text, 0.5, false);
     } else if (DATA.tab === 2) {
       bgPicker(top + 190, 80, 54);
       txt(W / 2, top + 262, BACKGROUNDS[DATA.bg], 20, t.accent);
@@ -1941,11 +1945,13 @@ window.SFR_LEVELS=[{"w":0,"d":213,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
     else if (state === 'paused') { acc = 0; prevSnake = null; G.just_revived = false; setState('play'); }
   }
   function setTheme(i) {
+    DATA.worldLook = false;
     DATA.theme = (i + THEMES.length) % THEMES.length;
     writeData();
     applyTheme();
   }
   function setBackground(i) {
+    DATA.worldLook = false;
     DATA.bg = (i + BACKGROUNDS.length) % BACKGROUNDS.length;
     writeData();
     drawBoard();
@@ -2227,7 +2233,7 @@ window.SFR_LEVELS=[{"w":0,"d":213,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
     boardG.fillRoundedRect(BX - 8, BY - 8, BW + 16, BH + 16, 14);
     boardG.fillStyle(C(t.board1), 1);
     boardG.fillRect(BX, BY, BW, BH);
-    drawPattern(boardG, WORLDS[w].pattern, BX, BY, COLS, ROWS, CELL);
+    drawPattern(boardG, DATA.worldLook ? WORLDS[w].pattern : DATA.bg, BX, BY, COLS, ROWS, CELL);
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const i = r * COLS + c;
       if (rt.wall[i]) continue;
@@ -2410,12 +2416,16 @@ window.SFR_LEVELS=[{"w":0,"d":213,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
     return top;
   }
   function drawCampPause() {
-    const t = th(), C0 = G.camp, top = drawCampOverlayFrame(330);
-    txt(W / 2, top + 42, 'Paused', 32, t.accent);
-    txt(W / 2, top + 80, 'Level ' + C0.id + '  -  ' + WORLDS[C0.L.w].name, 15, t.btnText);
-    button(W / 2, top + 142, 290, 56, 'Resume', togglePause, { primary: true, size: 21 });
-    button(W / 2, top + 212, 290, 50, 'Restart level', campRetry, { dark: true, size: 18 });
-    button(W / 2, top + 276, 290, 50, 'Levels', leaveToLevels, { dark: true, size: 18 });
+    const t = th(), C0 = G.camp, top = drawCampOverlayFrame(470);
+    txt(W / 2, top + 40, 'Paused', 32, t.accent);
+    txt(W / 2, top + 76, 'Level ' + C0.id + '  -  ' + WORLDS[C0.L.w].name, 15, t.btnText);
+    txt(W / 2, top + 108, 'Theme', 13, t.btnText, 0.5, false);
+    themePicker(top + 140, 58, 18);
+    txt(W / 2, top + 184, 'Background', 13, t.btnText, 0.5, false);
+    bgPicker(top + 220, 58, 36);
+    button(W / 2, top + 296, 290, 56, 'Resume', togglePause, { primary: true, size: 21 });
+    button(W / 2, top + 362, 290, 50, 'Restart level', campRetry, { dark: true, size: 18 });
+    button(W / 2, top + 426, 290, 50, 'Levels', leaveToLevels, { dark: true, size: 18 });
   }
   function drawCampFail() {
     const t = th(), C0 = G.camp, top = drawCampOverlayFrame(300);

@@ -7,9 +7,9 @@ def rep(old,new,count=1):
     s=s.replace(old,new)
 head=open('c_head.js').read(); logic=open('c_logic.js').read()
 rep("  function loadData() {", head+"\n  function loadData() {")
-rep("coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [] };","coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [], camp: null };")
-rep("    d.daily = cleanDaily(d.daily);\n    return d;","    d.daily = cleanDaily(d.daily);\n    d.camp = cleanCamp(d.camp);                                         // campaign progress: unlocked level, current level, stars per level\n    return d;")
-rep("  const th = () => THEMES[DATA.theme];","  let CT = null;                      // world palette while a campaign screen is open\n  const th = () => CT || THEMES[DATA.theme];")
+rep("coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [] };","coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [], camp: null, worldLook: false };")
+rep("    d.daily = cleanDaily(d.daily);\n    return d;","    d.daily = cleanDaily(d.daily);\n    d.worldLook = d.worldLook === true;                                 // campaign uses the chosen theme unless this is on\nd.camp = cleanCamp(d.camp);                                         // campaign progress: unlocked level, current level, stars per level\n    return d;")
+rep("  const th = () => THEMES[DATA.theme];","  let CT = null;                      // world palette while a campaign screen is open\n  const th = () => (CT && DATA.worldLook ? CT : THEMES[DATA.theme]);")
 rep("    if (G.mode === 'ultimate') d = speedDelay","    if (G.camp) return G.camp.L.d * SPEED_MUL();                                         // campaign: every level has its own pace\n    if (G.mode === 'ultimate') d = speedDelay")
 rep("  function setState(s) {\n    state = s;","  function setState(s) {\n    state = s;\n    if (s === 'menu') CT = null;")
 rep("  function newGame() {\n    const mc","  function newGame() {\n    CT = null;\n    const mc")
@@ -54,6 +54,10 @@ s=s[:a]+menu+s[b:]
 rep("kb.on('keydown-ENTER', () => { if (state === 'menu' || state === 'over') newGame(); else if (state === 'paused') togglePause(); });",
 "kb.on('keydown-ENTER', () => { if (state === 'menu') playCampaign(); else if (state === 'levels') startLevel(Math.min(campUnlocked(), lvPage * 20 + 1)); else if (state === 'won') campNextLevel(); else if (state === 'over') { if (G.camp) campRetry(); else newGame(); } else if (state === 'paused') togglePause(); });")
 rep("kb.on('keydown-ESC', () => { if (state !== 'menu') goMenu(); else closeSheet(); });","kb.on('keydown-ESC', () => { if (state === 'levels') goHome(); else if (G && G.camp && state !== 'menu') leaveToLevels(); else if (state !== 'menu') goMenu(); else closeSheet(); });")
+rep("  function setTheme(i) {\n    DATA.theme = (i + THEMES.length) % THEMES.length;","  function setTheme(i) {\n    DATA.worldLook = false;\n    DATA.theme = (i + THEMES.length) % THEMES.length;")
+rep("  function setBackground(i) {\n    DATA.bg","  function setBackground(i) {\n    DATA.worldLook = false;\n    DATA.bg")
+rep("      txt(W / 2, top + 262, t.name, 20, t.accent);\n","      txt(W / 2, top + 262, DATA.worldLook ? 'World colors' : t.name, 20, t.accent);\n      button(W / 2, top + 314, 270, 46, 'World colors: ' + (DATA.worldLook ? 'On' : 'Off'), () => { DATA.worldLook = !DATA.worldLook; writeData(); applyTheme(); }, { size: 16 });\n      txt(W / 2, top + 352, 'Your theme and background are used in the levels too', 12, t.text, 0.5, false);\n")
+rep("        txt(W / 2, top + 316, 'Speed goes up slowly as you eat', 13, t.text, 0.5, false);\n      }","        txt(W / 2, top + 316, 'Speed goes up slowly as you eat', 13, t.text, 0.5, false);\n      }\n      txt(W / 2, top + 378, 'Modes are for Endless play. Levels have their own rules.', 12, t.text, 0.5, false);")
 # logic insert
 rep("  // ---------- Phaser scene ----------", logic+"\n  // ---------- Phaser scene ----------")
 # test hook
