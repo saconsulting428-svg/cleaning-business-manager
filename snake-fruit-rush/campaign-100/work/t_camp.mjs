@@ -21,7 +21,7 @@ const click = async (p, x, y) => { const [cx, cy] = await world(p, x, y); await 
 {
   const { ctx, p } = await fresh();
   ok(await S(p, () => __snake.DATA.camp.unlocked === 1 && __snake.DATA.camp.cur === 1), 'fresh unlocked=1');
-  await click(p, 240, 568);                                   // Play
+  await click(p, 240, 500);                                   // Play
   await p.waitForTimeout(300);
   ok(await S(p, () => __snake.state === 'play' && __snake.camp.C.id === 1), 'Play starts level 1');
   ok(await S(p, () => __snake.G.snake.length === 3 && __snake.G.camp.ready > 0), 'READY beat and snake length 3');
@@ -38,10 +38,10 @@ const click = async (p, x, y) => { const [cx, cy] = await world(p, x, y); await 
   await p.reload(); await p.waitForTimeout(900);
   ok(await S(p, () => __snake.DATA.camp.unlocked === 2 && __snake.DATA.camp.cur === 2 && __snake.DATA.camp.stars[1] === 3), 'progress survives reload');
   // level select: L2 open, L3 locked
-  await click(p, 240, 672 - 0);                               // Levels pill (left)
+  await click(p, 128, 606);                                   // Levels pill (left)
   await p.waitForTimeout(300);
   let st = await S(p, () => __snake.state);
-  if (st !== 'levels') { await click(p, 128, 672); await p.waitForTimeout(300); st = await S(p, () => __snake.state); }
+  
   ok(st === 'levels', 'level select opens');
   await p.screenshot({ path: 'shots/levels_progress.png' });
   // tile positions: x0=(480-(5*76+4*13))/2=24 ; y0=262
@@ -90,6 +90,7 @@ const click = async (p, x, y) => { const [cx, cy] = await world(p, x, y); await 
   await p.mouse.move(sx, sy); await p.mouse.down(); await p.mouse.move(sx, sy + 40, { steps: 5 }); await p.mouse.up();
   await p.waitForTimeout(350);
   ok(await S(p, () => __snake.G.dir[1] === 1), 'swipe down turns the snake down');
+  await S(p, () => { __snake.DATA.tapSteer = true; });
   const [tx, ty] = await world(p, 400, 130);   // tap far up-right -> turn horizontally/upward
   await p.mouse.click(tx, ty);
   await p.waitForTimeout(350);
@@ -116,7 +117,7 @@ const click = async (p, x, y) => { const [cx, cy] = await world(p, x, y); await 
 // ---- e. endless mode still works ----
 {
   const { ctx, p } = await fresh();
-  await click(p, 352, 672);                    // Endless pill (right, no save)
+  await click(p, 352, 606);                    // Endless pill (right, no save)
   await p.waitForTimeout(300);
   ok(await S(p, () => __snake.state === 'play' && !__snake.G.camp && __snake.G.food), 'Endless pill starts the classic game');
   await p.waitForTimeout(1500);

@@ -7,10 +7,10 @@ def rep(old,new,count=1):
     s=s.replace(old,new)
 head=open('c_head.js').read(); logic=open('c_logic.js').read()
 rep("  function loadData() {", head+"\n  function loadData() {")
-rep("coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [] };","coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [], camp: null, worldLook: false };")
-rep("    d.daily = cleanDaily(d.daily);\n    return d;","    d.daily = cleanDaily(d.daily);\n    d.worldLook = d.worldLook === true;                                 // campaign uses the chosen theme unless this is on\nd.camp = cleanCamp(d.camp);                                         // campaign progress: unlocked level, current level, stars per level\n    return d;")
-rep("  const th = () => THEMES[DATA.theme];","  let CT = null;                      // world palette while a campaign screen is open\n  const th = () => (CT && DATA.worldLook ? CT : THEMES[DATA.theme]);")
-rep("    if (G.mode === 'ultimate') d = speedDelay","    if (G.camp) return G.camp.L.d * SPEED_MUL();                                         // campaign: every level has its own pace\n    if (G.mode === 'ultimate') d = speedDelay")
+rep("coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [] };","coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [], camp: null, vibe: true, tapSteer: false, pw: null };")
+rep("    d.daily = cleanDaily(d.daily);\n    return d;","    d.daily = cleanDaily(d.daily);\n    d.vibe = d.vibe !== false; d.tapSteer = d.tapSteer === true; d.pw = cleanPw(d.pw);\nd.camp = cleanCamp(d.camp);                                         // campaign progress: unlocked level, current level, stars per level\n    return d;")
+rep("  const th = () => THEMES[DATA.theme];","  let CT = null;                      // world palette while a campaign screen is open\n  const th = () => CT || THEMES[DATA.theme];")
+rep("    if (G.mode === 'ultimate') d = speedDelay","    if (G.camp) return G.camp.L.d * SPEED_MUL() * (G.camp.slowT > 0 ? 1.7 : 1);                                         // campaign: every level has its own pace\n    if (G.mode === 'ultimate') d = speedDelay")
 rep("  function setState(s) {\n    state = s;","  function setState(s) {\n    state = s;\n    if (s === 'menu') CT = null;")
 rep("  function newGame() {\n    const mc","  function newGame() {\n    CT = null;\n    const mc")
 rep("    const s = DATA.save;\n    if (!s) return;","    const s = DATA.save;\n    if (!s) return;\n    CT = null;")
@@ -31,7 +31,7 @@ rep("    revive: () => [440, 660, 880].forEach((f, i) => tone(f, 0.18, 'triangle
 a=s.index("    // play\n    const pw = 300")
 b=s.index("    roundButton(W / 2 - 176, 738")
 menu = """    // play: continue the level campaign
-    const cp = DATA.camp, nl = campNext(), pw = 300, ph = 72, py = 568;
+    const cp = DATA.camp, nl = campNext(), pw = 300, ph = 72, py = 500;
     rrect(W / 2 - pw / 2, py - ph / 2 + 7, pw, ph, 36, shade(t.accent, -0.35));
     rrect(W / 2 - pw / 2, py - ph / 2, pw, ph, 36, t.accent);
     g.fillStyle(0x1b1b1b, 1);
@@ -40,13 +40,13 @@ menu = """    // play: continue the level campaign
     buttons.push({ x: W / 2 - pw / 2, y: py - ph / 2, w: pw, h: ph + 7, fn: playCampaign });
     let totalStars = 0;
     for (let i = 1; i <= LEVEL_COUNT; i++) totalStars += cp.stars[i] | 0;
-    txt(W / 2, 628, 'Level ' + nl + '  -  ' + WORLDS[Math.floor((nl - 1) / 20)].name + '     ' + totalStars + ' stars', 16, t.text, 0.5, false);
+    txt(W / 2, 562, 'Level ' + nl + '  -  ' + WORLDS[Math.floor((nl - 1) / 20)].name + '     ' + totalStars + ' stars', 16, t.text, 0.5, false);
 
     // levels / endless / continue
     const hasSave = !!DATA.save, pw2 = hasSave ? 140 : 215, gx = hasSave ? 150 : 224, x2 = W / 2 - (hasSave ? 150 : 112);
-    button(x2, 672, pw2, 44, 'Levels', openLevels, { size: 17 });
-    button(x2 + gx, 672, pw2, 44, hasSave ? 'Endless' : 'Endless ' + MODES[DATA.mode].name, newGame, { size: hasSave ? 16 : 15 });
-    if (hasSave) button(x2 + gx * 2, 672, pw2, 44, 'Resume', continueGame, { size: 16 });
+    button(x2, 606, pw2, 44, 'Levels', openLevels, { size: 17 });
+    button(x2 + gx, 606, pw2, 44, hasSave ? 'Endless' : 'Endless ' + MODES[DATA.mode].name, newGame, { size: hasSave ? 16 : 15 });
+    if (hasSave) button(x2 + gx * 2, 606, pw2, 44, 'Resume', continueGame, { size: 16 });
 
 """
 s=s[:a]+menu+s[b:]
@@ -54,13 +54,106 @@ s=s[:a]+menu+s[b:]
 rep("kb.on('keydown-ENTER', () => { if (state === 'menu' || state === 'over') newGame(); else if (state === 'paused') togglePause(); });",
 "kb.on('keydown-ENTER', () => { if (state === 'menu') playCampaign(); else if (state === 'levels') startLevel(Math.min(campUnlocked(), lvPage * 20 + 1)); else if (state === 'won') campNextLevel(); else if (state === 'over') { if (G.camp) campRetry(); else newGame(); } else if (state === 'paused') togglePause(); });")
 rep("kb.on('keydown-ESC', () => { if (state !== 'menu') goMenu(); else closeSheet(); });","kb.on('keydown-ESC', () => { if (state === 'levels') goHome(); else if (G && G.camp && state !== 'menu') leaveToLevels(); else if (state !== 'menu') goMenu(); else closeSheet(); });")
-rep("  function setTheme(i) {\n    DATA.theme = (i + THEMES.length) % THEMES.length;","  function setTheme(i) {\n    DATA.worldLook = false;\n    DATA.theme = (i + THEMES.length) % THEMES.length;")
-rep("  function setBackground(i) {\n    DATA.bg","  function setBackground(i) {\n    DATA.worldLook = false;\n    DATA.bg")
-rep("      txt(W / 2, top + 262, t.name, 20, t.accent);\n","      txt(W / 2, top + 262, DATA.worldLook ? 'World colors' : t.name, 20, t.accent);\n      button(W / 2, top + 314, 270, 46, 'World colors: ' + (DATA.worldLook ? 'On' : 'Off'), () => { DATA.worldLook = !DATA.worldLook; writeData(); applyTheme(); }, { size: 16 });\n      txt(W / 2, top + 352, 'Your theme and background are used in the levels too', 12, t.text, 0.5, false);\n")
-rep("        txt(W / 2, top + 316, 'Speed goes up slowly as you eat', 13, t.text, 0.5, false);\n      }","        txt(W / 2, top + 316, 'Speed goes up slowly as you eat', 13, t.text, 0.5, false);\n      }\n      txt(W / 2, top + 378, 'Modes are for Endless play. Levels have their own rules.', 12, t.text, 0.5, false);")
+# ---- settings, touch, text, skins, shop ----
+rep("  function drawIcon(kind, x, y) {\n    const t = th(), c = t.btnText;","  function drawIcon(kind, x, y, col) {\n    const t = th(), c = col || t.btnText;")
+rep("    } else if (kind === 'star') {\n      g.fillStyle(C(t.accent), 1);","""    } else if (kind === 'vibe') {
+      rrect(x - 6, y - 11, 12, 22, 3, c);
+      rrect(x - 4, y - 8, 8, 14, 1.5, t.panel);
+      [[-1, 9], [1, 9], [-1, 14], [1, 14]].forEach((o, i) => { g.lineStyle(2.2, C(c), 1); g.beginPath(); g.moveTo(x + o[0] * (i < 2 ? 9 : 14), y - 6); g.lineTo(x + o[0] * (i < 2 ? 9 : 14), y + 6); g.strokePath(); });
+      if (!DATA.vibe) { line(x - 13, y + 12, x + 13, y - 12, '#ef4444', 2.8); }
+    } else if (kind === 'tap') {
+      dot(x - 1, y - 3, 6, c);
+      rrect(x - 4, y - 3, 8, 15, 4, c);
+      g.lineStyle(2, C(c), 1); g.beginPath(); g.arc(x - 1, y - 3, 10, Math.PI * 1.15, Math.PI * 1.85); g.strokePath();
+      if (!DATA.tapSteer) { line(x - 12, y + 12, x + 12, y - 12, '#ef4444', 2.8); }
+    } else if (kind === 'shop') {
+      rrect(x - 12, y - 4, 24, 16, 4, c);
+      g.lineStyle(3, C(c), 1); g.beginPath(); g.arc(x, y - 5, 7, Math.PI, 0); g.strokePath();
+      dot(x, y + 4, 3.2, t.accent);
+    } else if (kind === 'star') {
+      g.fillStyle(C(t.accent), 1);""")
+rep("try { if (DATA.sound && navigator.vibrate) navigator.vibrate(ms); }","try { if (DATA.vibe && navigator.vibrate) navigator.vibrate(ms); }")
+rep("  function txt(x, y, s, size, color, originX, bold) {\n    let t = L.texts[L.n];","  const TXT_K = 1.1;                  // all text a little bigger than before\n  function txt(x, y, s, size, color, originX, bold) {\n    size = Math.round(size * TXT_K * 10) / 10;\n    let t = L.texts[L.n];")
+rep("d.tab = Math.abs(d.tab | 0) % 5;","d.tab = Math.abs(d.tab | 0) % 6;")
+# skins
+rep("{ id: 'gold', name: 'Golden', cost: 1000, a: '#fde047', b: '#d97706', head: '#fff7c2', line: '#d97706', pattern: 'shimmer', trail: 'sparkle' }\n  ];","""{ id: 'gold', name: 'Golden', cost: 1000, a: '#fde047', b: '#d97706', head: '#fff7c2', line: '#d97706', pattern: 'shimmer', trail: 'sparkle' },
+    { id: 'mint', name: 'Mint', cost: 1400, a: '#a7f3d0', b: '#34d399', head: '#ecfdf5', line: '#34d399' },
+    { id: 'ocean', name: 'Ocean', cost: 1800, a: '#38bdf8', b: '#1d4ed8', head: '#bae6fd', line: '#1d4ed8', trail: 'bubble' },
+    { id: 'kitty', name: 'Kitty', cost: 2200, a: '#fbbf24', b: '#f59e0b', head: '#fde68a', line: '#f59e0b', animal: 'cat' },
+    { id: 'fox', name: 'Fox', cost: 2600, a: '#fb923c', b: '#c2410c', head: '#fdba74', line: '#c2410c', animal: 'fox' },
+    { id: 'bunny', name: 'Bunny', cost: 3000, a: '#ffffff', b: '#fbcfe8', head: '#ffffff', line: '#f9a8d4', animal: 'bunny' },
+    { id: 'neon', name: 'Neon', cost: 3500, a: '#22d3ee', b: '#a855f7', head: '#f0abfc', line: '#a855f7', pattern: 'neon', trail: 'sparkle' },
+    { id: 'robot', name: 'Robo', cost: 4200, a: '#cbd5e1', b: '#64748b', head: '#e2e8f0', line: '#64748b', animal: 'robot' },
+    { id: 'ninja', name: 'Ninja', cost: 5000, a: '#374151', b: '#111827', head: '#4b5563', line: '#111827', animal: 'ninja' },
+    { id: 'magma', name: 'Magma', cost: 6000, a: '#fde047', b: '#dc2626', head: '#fff7ae', line: '#b91c1c', pattern: 'shimmer', trail: 'fire' },
+    { id: 'phantom', name: 'Phantom', cost: 7000, a: '#e9d5ff', b: '#7c3aed', head: '#faf5ff', line: '#7c3aed', trail: 'sparkle' },
+    { id: 'prism', name: 'Prism', cost: 8500, head: '#ffffff', line: '#c4b5fd', pattern: 'prism', trail: 'rainbow' },
+    { id: 'emperor', name: 'Emperor', cost: 10000, a: '#fbbf24', b: '#b91c1c', head: '#fcd34d', line: '#b91c1c', animal: 'dragon', trail: 'fire' },
+    { id: 'cosmic', name: 'Cosmic', cost: 12500, a: '#0ea5e9', b: '#4c1d95', head: '#e0f2fe', line: '#4c1d95', pattern: 'stars', trail: 'sparkle' },
+    { id: 'diamond', name: 'Diamond', cost: 15000, a: '#bae6fd', b: '#e0f2fe', head: '#ffffff', line: '#7dd3fc', pattern: 'shimmer', trail: 'sparkle', animal: 'unicorn' },
+    { id: 'royal', name: 'Royal', cost: 20000, a: '#fde047', b: '#a21caf', head: '#fff7c2', line: '#a21caf', pattern: 'shimmer', trail: 'gold', animal: 'crown' }
+  ];""")
+rep("    if (sk.pattern === 'rainbow') return hsl(i * 30 + anim * 0.05, 85, 56);","    if (sk.pattern === 'rainbow') return hsl(i * 30 + anim * 0.05, 85, 56);\n    if (sk.pattern === 'prism') return hsl(i * 22 + anim * 0.09, 75, 72);\n    if (sk.pattern === 'neon') return (Math.floor(anim / 220) + i) % 2 ? sk.a : sk.b;")
+rep("    else if (sk.trail === 'sparkle') color = Math.random() < 0.5 ? '#fde68a' : '#ffffff';","    else if (sk.trail === 'sparkle') color = Math.random() < 0.5 ? '#fde68a' : '#ffffff';\n    else if (sk.trail === 'bubble') color = Math.random() < 0.5 ? '#7dd3fc' : '#ffffff';\n    else if (sk.trail === 'gold') color = Math.random() < 0.5 ? '#fde047' : '#f59e0b';")
+rep("    if (an === 'panda') [1, -1].forEach((sd) => { const e = at([-5, 10], sd); dot(e.x, e.y, 5.2 * k, '#1f2937'); });             // ears","""    if (an === 'panda') [1, -1].forEach((sd) => { const e = at([-5, 10], sd); dot(e.x, e.y, 5.2 * k, '#1f2937'); });             // ears
+    if (an === 'cat' || an === 'fox') [1, -1].forEach((sd) => {
+      const p1 = at([-3, 5], sd), p2 = at([-7, 15], sd), p3 = at([5, 10], sd);
+      g.fillStyle(C(an === 'fox' ? '#c2410c' : '#f59e0b'), 1); g.fillTriangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+      const q1 = at([-2, 7], sd), q2 = at([-5, 12.5], sd), q3 = at([2, 9.5], sd);
+      g.fillStyle(C('#fbcfe8'), 1); g.fillTriangle(q1.x, q1.y, q2.x, q2.y, q3.x, q3.y);
+    });
+    if (an === 'bunny') [1, -1].forEach((sd) => { const a1 = at([-3, 6], sd), a2 = at([-17, 10], sd); line(a1.x, a1.y, a2.x, a2.y, '#f9a8d4', 6.4 * k); line(a1.x, a1.y, a2.x, a2.y, '#ffffff', 4 * k); });
+    if (an === 'robot') { const a1 = at([-9, 0], 1), a2 = at([-17, 0], 1); line(a1.x, a1.y, a2.x, a2.y, '#94a3b8', 2.4 * k); dot(a2.x, a2.y, 3.2 * k, '#ef4444'); }""")
+rep("    dot(hx, hy, 12.5 * k, headCol);\n","""    dot(hx, hy, 12.5 * k, headCol);
+    if (an === 'ninja') { const b1 = at([-1.5, 12.5], 1), b2 = at([-1.5, 12.5], -1), b3 = at([-9, 16], -1); line(b1.x, b1.y, b2.x, b2.y, '#ef4444', 5 * k); line(b2.x, b2.y, b3.x, b3.y, '#ef4444', 3 * k); }
+    if (an === 'crown') { [-7, 0, 7].forEach((o, i) => { const c1 = at([-9 - (i === 1 ? 3 : 0), o], 1); dot(c1.x, c1.y, 2.8 * k, '#fde047'); }); const c0 = at([-7, -9], 1), c9 = at([-7, 9], 1); line(c0.x, c0.y, c9.x, c9.y, '#fbbf24', 3.2 * k); }
+""")
+rep("    SKINS.forEach((sk, i) => {\n      const cx = W / 2 + ((i % 4) - 1.5)","    const pages = Math.ceil(SKINS.length / 12);\n    if (skinPage >= pages) skinPage = 0;\n    [[-1, BX + 22], [1, BX + BW - 22]].forEach((a) => {\n      dot(a[1], top + 96, 17, t.panel);\n      line(a[1] - a[0] * 3, top + 88, a[1] + a[0] * 4, top + 96, t.btnText, 3); line(a[1] + a[0] * 4, top + 96, a[1] - a[0] * 3, top + 104, t.btnText, 3);\n      buttons.push({ x: a[1] - 26, y: top + 74, w: 52, h: 46, fn: () => { skinPage = (skinPage + a[0] + pages) % pages; } });\n    });\n    txt(W / 2 + 112, top + 96, (skinPage + 1) + '/' + pages, 12, t.btnText, 0.5, false);\n    SKINS.slice(skinPage * 12, skinPage * 12 + 12).forEach((sk, i) => {\n      const cx = W / 2 + ((i % 4) - 1.5)")
+rep("  let skinPick = null;","  let skinPick = null, skinPage = 0;")
+rep("const locked = SKINS.filter((s) => !skinOwned(s.id));","const locked = SKINS.filter((s) => !skinOwned(s.id) && s.cost <= 1000);   // the eggs only hold the cheaper skins")
+# menu
+rep("    drawDailyCard(484);\n","")
+rep("    rrect(W - BX - 62 - cw, 18, cw, 42, 21, t.panel, 0.7);\n    drawCoin(W - BX - 62 - cw + 24, 39, 11);\n    txt(W - BX - 62 - cw + 42, 39, coinText(DATA.coins), 16, t.accent, 0);","    rrect(W - BX - 118 - cw, 18, cw, 42, 21, t.panel, 0.7);\n    drawCoin(W - BX - 118 - cw + 24, 39, 11);\n    txt(W - BX - 118 - cw + 42, 39, coinText(DATA.coins), 16, t.accent, 0);\n    dot(W - BX - 76, 39, 22, t.panel, 0.7);\n    drawIcon('vibe', W - BX - 76, 39);\n    buttons.push({ x: W - BX - 102, y: 12, w: 52, h: 56, fn: toggleVibe });")
+rep("    roundButton(W / 2 - 176, 738, 'modes', 'Modes', () => openSheet(0));\n    roundButton(W / 2 - 88, 738, 'themes', 'Themes', () => openSheet(1));\n    roundButton(W / 2, 738, 'background', 'Background', () => openSheet(2));\n    roundButton(W / 2 + 88, 738, 'skins', 'Skins', () => openSheet(3));\n    roundButton(W / 2 + 176, 738, 'gifts', 'Gifts', () => openSheet(4), !spinReady() ? 0 : 1);",
+"    drawDailyCard(662);\n    roundButton(W / 2 - 190, 738, 'modes', 'Modes', () => openSheet(0));\n    roundButton(W / 2 - 114, 738, 'themes', 'Themes', () => openSheet(1));\n    roundButton(W / 2 - 38, 738, 'background', 'Pattern', () => openSheet(2));\n    roundButton(W / 2 + 38, 738, 'skins', 'Skins', () => openSheet(3));\n    roundButton(W / 2 + 114, 738, 'shop', 'Shop', () => openSheet(5));\n    roundButton(W / 2 + 190, 738, 'gifts', 'Gifts', () => openSheet(4), !spinReady() ? 0 : 1);")
+# sheet tabs
+a=s.index("    // tabs\n"); b=s.index("    if (DATA.tab === 0) {\n      MODE_KEYS")
+s=s[:a]+"""    // tabs
+    const tabs = [['Modes', 0], ['Themes', 1], ['Pattern', 2], ['Skins', 3], ['Shop', 5], ['Gifts', 4]], tw = BW / 6;
+    rrect(BX, top + 32, BW, 46, 23, t.panel);
+    tabs.forEach((tb, i) => {
+      const x = BX + i * tw;
+      if (DATA.tab === tb[1]) rrect(x + 2, top + 35, tw - 4, 40, 20, t.accent);
+      txt(x + tw / 2, top + 55, tb[0], 11.5, DATA.tab === tb[1] ? '#1b1b1b' : t.btnText);
+      buttons.push({ x: x, y: top + 32, w: tw, h: 46, fn: () => { if (DATA.tab === 3 && tb[1] !== 3) skinPick = DATA.skin; DATA.tab = tb[1]; writeData(); } });
+    });
+
+"""+s[b:]
+rep("        txt(W / 2, top + 316, 'Speed goes up slowly as you eat', 13, t.text, 0.5, false);\n      }","        txt(W / 2, top + 316, 'Speed goes up slowly as you eat', 13, t.text, 0.5, false);\n      }\n      txt(W / 2, top + 378, 'These modes are for Endless play. Levels have their own rules.', 12, t.text, 0.5, false);\n      button(W / 2, top + 412, 280, 40, 'Tap to steer: ' + (DATA.tapSteer ? 'On' : 'Off'), toggleTap, { size: 15 });")
+rep("      txt(W / 2, top + 262, t.name, 20, t.accent);","      txt(W / 2, top + 262, t.name, 20, t.accent);\n      txt(W / 2, top + 300, 'Your theme is used in Endless play.', 13, t.text, 0.5, false);\n      txt(W / 2, top + 322, 'Levels use the colors of their world.', 13, t.text, 0.5, false);")
+rep("      txt(W / 2, top + 262, BACKGROUNDS[DATA.bg], 20, t.accent);","      txt(W / 2, top + 262, BACKGROUNDS[DATA.bg], 20, t.accent);\n      txt(W / 2, top + 300, 'Your pattern is used in Endless play.', 13, t.text, 0.5, false);")
+rep("    } else if (DATA.tab === 3) {\n      drawSkinTab(top);\n    } else {","    } else if (DATA.tab === 3) {\n      drawSkinTab(top);\n    } else if (DATA.tab === 5) {\n      drawShop(top);\n    } else {")
+rep("button(W / 2, top + (DATA.tab === 3 ? 450 : 410), 260, 54, 'Done'","button(W / 2, top + (DATA.tab === 3 || DATA.tab === 0 || DATA.tab === 5 ? 462 : 410), 260, 48, 'Done'")
+# pointer handling
+rep("""        touches.set(e.pointerId, { x: e.clientX, y: e.clientY, moved: false });""","""        const w0 = toWorld(e), b0 = buttons.find((q) => w0.x >= q.x && w0.x <= q.x + q.w && w0.y >= q.y && w0.y <= q.y + q.h);
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY, moved: false, t: performance.now(), b: b0 ? { x: b0.x, y: b0.y } : null });""")
+rep("""        if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_PX) return;
+        turn(Math.abs(dx) > Math.abs(dy) ? [Math.sign(dx), 0] : [0, Math.sign(dy)]);""","""        const ax = Math.abs(dx), ay = Math.abs(dy), need = Math.max(SWIPE_PX, canvas.getBoundingClientRect().width * 0.04);
+        if (Math.max(ax, ay) < need) return;                         // small finger wobble is not a swipe
+        if (Math.min(ax, ay) > Math.max(ax, ay) * 0.8) return;       // clear diagonals wait until the direction is obvious
+        turn(ax > ay ? [Math.sign(dx), 0] : [0, Math.sign(dy)]);""")
+rep("""        if (b) { sfx.click(); b.fn(); }
+        else if (state === 'play') tapTurn(w.x, w.y);""","""        if (b) { if (s.b && s.b.x === b.x && s.b.y === b.y) { sfx.click(); b.fn(); } }   // press and release must be on the same button
+        else if (state === 'play' && DATA.tapSteer && performance.now() - s.t < 350) tapTurn(w.x, w.y);""")
+rep("const SWIPE_PX = 14;","const SWIPE_PX = 20;")
+rep("      acc = 0;\n      prevSnake = G.snake.map((p) => [p[0], p[1]]);\n      if (G.camp)","      acc *= 0.5;                                     // keeps the movement smooth instead of snapping back\n      prevSnake = G.snake.map((p) => [p[0], p[1]]);\n      if (G.camp)")
+rep("      delta = Math.min(delta, 100);\n      anim += delta;","      delta = Math.min(delta, 100);\n      anim += delta;\n      fpsAvg = fpsAvg * 0.97 + delta * 0.03;\n      if (!LITE && anim > 5000 && fpsAvg > 26) LITE = true;     // slow phone: switch off the decorations")
+rep("  let CT = null;","  let LITE = false, fpsAvg = 16;     // LITE = slow device, skip the decorations\n  let CT = null;")
+
+rep("    buttons.push({ x: x - 44, y: y - 36, w: 88, h: label ? 100 : 72, fn: fn });","    buttons.push({ x: x - 38, y: y - 36, w: 76, h: label ? 100 : 72, fn: fn });")
 # logic insert
 rep("  // ---------- Phaser scene ----------", logic+"\n  // ---------- Phaser scene ----------")
 # test hook
-rep("window.__snake = { get G() { return G; },","window.__snake = { camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, get G() { return G; },")
+rep("window.__snake = { get G() { return G; },","window.__snake = { camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, get G() { return G; },")
 open('game.camp.js','w').write(s)
 print('patched', len(s))

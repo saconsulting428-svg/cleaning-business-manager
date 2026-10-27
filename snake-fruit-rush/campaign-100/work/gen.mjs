@@ -515,7 +515,7 @@ const HAND = {
   5: () => hand(5, [2, 20], 1, [[2, 20], [7, 20], [7, 11], [16, 11], [16, 19]], [[5, 20], [7, 14], [13, 11]], [[3, 8, 19, 8], [10, 14, 10, 25]])
 };
 const HINTS = {
-  1: 'Swipe or tap to steer. Eat the fruit, then reach the exit.',
+  1: 'Swipe to steer. Eat the fruit, then reach the exit.',
   2: 'Walls are deadly. Go around the wall.',
   3: 'Follow the open path. Turn before you hit a wall.',
   4: 'Turn early! The wall is in your way.',

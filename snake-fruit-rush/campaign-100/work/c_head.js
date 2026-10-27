@@ -65,3 +65,16 @@
     }
     return o;
   }
+  // Power-ups that can be bought with coins and used inside levels.
+  const PW = {
+    slow: { name: 'Slow-Mo', cost: 60, desc: 'Snake moves slower for a while' },
+    shield: { name: 'Shield', cost: 90, desc: 'Saves you from one crash' },
+    sweep: { name: 'Defuse', cost: 80, desc: 'Removes bombs near you' },
+    coin2: { name: '2x Coins', cost: 70, desc: 'Double coins in this level' }
+  };
+  const PW_KEYS = Object.keys(PW);
+  function cleanPw(p) {
+    const o = {};
+    PW_KEYS.forEach((k) => { o[k] = num(p && p[k], 0, 99, 0); });
+    return o;
+  }

@@ -96,6 +96,23 @@ const res = await p.evaluate((routes) => {
     r.delay = L.d; r.secs = Math.round(L.par * L.d / 100) / 10; r.reactionMs = L.d * minSeg;
     r.mech = [rt.ice.some((v) => v) ? 'ice' : '', rt.bomb.some((v) => v) ? 'bombs' : '', rt.keys.length ? 'key/door' : '', rt.switches.length ? 'switch/gate' : '', rt.portalTo.some((v) => v >= 0) ? 'portal' : ''].filter(Boolean).join('+') || 'walls';
     r.walls = rt.wall.reduce((a, v) => a + v, 0); r.bombs = rt.bomb.reduce((a, v) => a + v, 0); r.ice = rt.ice.reduce((a, v) => a + v, 0);
+    // ---- random fruit places: the solution route must still win with every random layout ----
+    for (let k = 0; k < 25; k++) {
+      const L2 = window.__snake.camp.randomFruit(L), rt2 = E.makeRuntime(engineLevel(L2)), s2 = E.newState(rt2);
+      let ok2 = true, status2 = 'ok';
+      for (let i = 1; i < route.length; i++) {
+        const cur = route[i], head = s2.body[0];
+        const d = D4.findIndex((v) => v[0] === (cur % COLS) - (head % COLS) && v[1] === ((cur / COLS) | 0) - ((head / COLS) | 0));
+        if (d < 0) { ok2 = false; break; }
+        let q, g = 0;
+        do { q = E.step(rt2, s2, D4[d]); g++; } while (q.status === 'wait' && g < 5);
+        status2 = q.status;
+        if (status2 === 'fail') { ok2 = false; break; }
+        if ((L.P || []).some((pp) => (pp[1] * COLS + pp[0]) === cur)) i++;
+      }
+      if (!ok2 || status2 !== 'win') { err('random fruit layout ' + k + ' not winnable'); break; }
+      if (L2.F.some((f) => rt2.wall[f[1] * COLS + f[0]] || rt2.bomb[f[1] * COLS + f[0]])) { err('fruit placed on an obstacle'); break; }
+    }
     out.push(r);
   });
   return out;

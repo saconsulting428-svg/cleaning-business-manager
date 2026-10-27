@@ -4,11 +4,24 @@ const { X, Y, idx, COLS, ROWS } = G;
 const enc = (set) => { let s = ''; for (let y = 0; y < ROWS; y++) { let m = 0; for (let x = 0; x < COLS; x++) if (set.has(idx(x, y))) m |= 1 << x; for (let k = 3; k >= 0; k--) s += ((m >> (k * 5)) & 31).toString(32); } return s; };
 const xy = (c) => [X(c), Y(c)];
 const levels = [], routes = [], report = [];
+function eligible(lv) {                        // route cells where a fruit may be placed (never corners, start lane, exit approach, devices)
+  const path = lv.path, n = path.length, set = new Set();
+  const corners = new Set(G.cornersOf(path));
+  const special = (lv.specials || []).map((s) => s.pi);
+  const dev = new Set([].concat(lv.keys, lv.doors, lv.gates, lv.switches.map((s) => s.cell), ...lv.portals));
+  for (let i = 6; i < n - 3; i++) {
+    if (corners.has(i) || dev.has(path[i]) || lv.bombs.has(path[i])) continue;
+    if (special.some((p) => Math.abs(p - i) <= 2)) continue;
+    set.add(path[i]);
+  }
+  return set;
+}
 for (let id = 1; id <= 100; id++) {
   const lv = G.HAND[id] ? G.HAND[id]() : G.makeLevel(id);
   if (!lv) throw new Error('level ' + id + ' failed');
   const par = lv.replay.moves;
   const o = { w: lv.world, d: lv.delay, s: [lv.head[0], lv.head[1], lv.dir], F: lv.fruits.map(xy), E: xy(lv.exit), W: enc(lv.walls), par, s2: Math.ceil(par * 1.45), s3: Math.ceil(par * 1.18) + 2 };
+  const el = eligible(lv); o.Q = enc(el); if (el.size < lv.fruits.length * 4) throw new Error('too few fruit cells ' + id);
   if (lv.ice.size) o.I = enc(lv.ice);
   if (lv.bombs.size) o.B = enc(lv.bombs);
   if (lv.keys.length) { o.K = lv.keys.map(xy); o.D = lv.doors.map(xy); }

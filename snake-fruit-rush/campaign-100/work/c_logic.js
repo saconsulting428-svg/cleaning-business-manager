@@ -10,12 +10,26 @@
     setState('levels');
   }
   function playCampaign() { startLevel(campNext()); }
+  // Fruit goes to new random places on the route every time a level starts (always cells the solution passes, so it stays solvable).
+  function randomFruit(L) {
+    const q = lvLayer(L.Q), cells = [], want = L.F.length;
+    for (let i = 0; i < COLS * ROWS; i++) if (q[i]) cells.push(i);
+    for (const gap of [3, 2, 1]) {
+      const pool = cells.slice(), out = [];
+      while (pool.length && out.length < want) {
+        const c = pool.splice(rnd(pool.length), 1)[0], x = c % COLS, y = (c / COLS) | 0;
+        if (out.every((o) => Math.max(Math.abs(o[0] - x), Math.abs(o[1] - y)) >= gap)) out.push([x, y]);
+      }
+      if (out.length === want) return Object.assign({}, L, { F: out });
+    }
+    return L;
+  }
   function startLevel(id) {
     id = Math.min(LEVEL_COUNT, Math.max(1, id | 0));
     if (id > campUnlocked()) return;
-    const L = LV[id - 1], el = engineLevel(L), rt = E.makeRuntime(el), st = E.newState(rt);
+    const L = randomFruit(LV[id - 1]), el = engineLevel(L), rt = E.makeRuntime(el), st = E.newState(rt);
     G = {
-      camp: { id: id, L: L, rt: rt, st: st, ready: READY_MS, over: null, won: false, endT: 0, moves: 0, exitOpen: false, stars: 0, coins: 0, hint: L.h || '', flash: [], iceList: [], fr: [] },
+      camp: { id: id, L: L, rt: rt, st: st, ready: READY_MS, over: null, won: false, endT: 0, moves: 0, exitOpen: false, slowT: 0, shield: false, hold: false, coinMul: 1, stars: 0, coins: 0, hint: L.h || '', flash: [], iceList: [], fr: [] },
       snake: st.body.map((c) => [c % COLS, (c / COLS) | 0]), dir: st.dir, queue: [], score: 0, eaten: 0, fx: {}, combo: 0, combo_t: 0, bonus: null, power: null, gold: null,
       food: null, bombs: [], coins: 0, dailyCoins: 0, playMs: 0, adMsg: '', shareMsg: '', mode: 'classic', speed: DATA.speed
     };
@@ -36,21 +50,31 @@
   function campStep() {
     const C0 = G.camp, rt = C0.rt, st = C0.st;
     if (C0.over || C0.won) return;
+    if (C0.hold) { if (!G.queue.length) return; C0.hold = false; }          // after a shield save the snake waits for a turn
     let input = null;
     if (!campSliding() && G.queue.length) input = G.queue.shift();          // on ice the player cannot steer: the turn waits in the queue
+    const oldDir = st.dir;
     const res = E.step(rt, st, input);
+    if (res.status === 'fail' && C0.shield && res.reason !== 'stuck') {
+      st.done = false; st.dir = oldDir; G.dir = oldDir; C0.shield = false; C0.hold = true;
+      const hp = headXY(); ring(hp.x, hp.y, '#38bdf8'); burst(hp.x, hp.y, '#7dd3fc', 12);
+      showBanner('SHIELD SAVED YOU!', 'now steer away', '#38bdf8', 1400);
+      sfx.power(); buzz(40);
+      return;
+    }
     G.dir = st.dir;
     if (res.status === 'wait') return;                                      // slid safely to a stop: wait for a turn
     if (res.status !== 'fail') {
       G.snake = st.body.map((c) => [c % COLS, (c / COLS) | 0]);
       C0.moves = st.moves;
+      if (C0.slowT > 0) C0.slowT--;
       trailPuff();
       if (rt.ice[st.body[0]]) { const p = headXY(); if (fxs.length < MAX_FX - 6) fxs.push({ k: 0, x: p.x, y: p.y, vx: (Math.random() - 0.5) * 0.03, vy: (Math.random() - 0.5) * 0.03, r: 2.4, color: '#ffffff', life: 380, max: 380 }); }
     }
     res.events.forEach((e) => {
       const p = cellOf(e.cell);
       if (e.t === 'fruit') {
-        G.eaten++; G.coins += COIN_FRUIT; addCoins(COIN_FRUIT); dailyAdd('fruits', 1);
+        G.eaten++; G.coins += COIN_FRUIT * C0.coinMul; addCoins(COIN_FRUIT * C0.coinMul); dailyAdd('fruits', 1);
         burst(p.x, p.y, 'rand', 8); ring(p.x, p.y, th().accent);
         popup('+1', th().accent, 30);
         sfx.eat(0); buzz(12);
@@ -85,7 +109,7 @@
       C0.stars = moves <= L.s3 ? 3 : moves <= L.s2 ? 2 : 1;
       const prev = DATA.camp.stars[C0.id] | 0;
       if (C0.stars > prev) DATA.camp.stars[C0.id] = C0.stars;
-      C0.coins = 5 + 5 * C0.stars;
+      C0.coins = (5 + 5 * C0.stars) * C0.coinMul;
       addCoins(C0.coins); G.coins += C0.coins;
       if (C0.id < LEVEL_COUNT) { DATA.camp.cur = C0.id + 1; if (DATA.camp.unlocked < C0.id + 1) DATA.camp.unlocked = C0.id + 1; }
       else DATA.camp.cur = C0.id;
@@ -122,6 +146,63 @@
     }
     G.playMs += delta;
   }
+  function usePower(k) {
+    if (state !== 'play' || !campPlaying() || G.camp.ready > 0) return;
+    const C0 = G.camp, rt = C0.rt, st = C0.st, p = PW[k];
+    if ((k === 'shield' && C0.shield) || (k === 'coin2' && C0.coinMul > 1) || (k === 'slow' && C0.slowT > 0)) return;
+    const hx = st.body[0] % COLS, hy = (st.body[0] / COLS) | 0, near = [];
+    if (k === 'sweep') {
+      for (let i = 0; i < COLS * ROWS; i++) if (rt.bomb[i] && Math.max(Math.abs((i % COLS) - hx), Math.abs(((i / COLS) | 0) - hy)) <= 7) near.push(i);
+      if (!near.length) { popup('No bombs near', '#fca5a5', 34); sfx.err(); return; }
+    }
+    if (!DATA.pw[k]) {
+      if (DATA.coins < p.cost) { popup('Need ' + p.cost + ' coins', '#fca5a5', 34); sfx.err(); return; }
+      DATA.coins -= p.cost; DATA.pw[k]++;
+    }
+    DATA.pw[k]--; writeData();
+    const hp = headXY();
+    if (k === 'slow') C0.slowT = 28;
+    else if (k === 'shield') C0.shield = true;
+    else if (k === 'coin2') C0.coinMul = 2;
+    else near.forEach((i) => { rt.bomb[i] = 0; const q = cellOf(i); burst(q.x, q.y, '#fbbf24', 8); ring(q.x, q.y, '#fbbf24'); });
+    ring(hp.x, hp.y, '#38bdf8'); popup(p.name + '!', '#7dd3fc', 34);
+    sfx.power(); buzz(25);
+  }
+  let shopMsg = null;
+  function buyPower(k) {
+    const p = PW[k];
+    if (DATA.coins < p.cost) { shopMsg = { s: 'Need ' + (p.cost - DATA.coins) + ' more coins for ' + p.name + '!', until: anim + 2400, bad: true }; sfx.err(); buzz(40); return; }
+    DATA.coins -= p.cost; DATA.pw[k] = Math.min(99, DATA.pw[k] + 1); writeData(); sfx.coin();
+    shopMsg = { s: p.name + ' added!', until: anim + 1500 };
+  }
+  function drawShop(top) {
+    const t = th();
+    if (shopMsg && anim < shopMsg.until) {
+      txt(W / 2, top + 96, shopMsg.s, 15, shopMsg.bad ? '#f87171' : '#4ade80');
+    } else {
+      const ct = coinText(DATA.coins) + ' coins', ox = ct.length * 4.4;
+      drawCoin(W / 2 - ox - 12, top + 96, 10);
+      txt(W / 2 - ox + 2, top + 96, ct, 15, t.accent, 0);
+    }
+    PW_KEYS.forEach((k, i) => {
+      const p = PW[k], w = 212, h = 112, cx = W / 2 + (i % 2 ? 110 : -110), cy = top + 176 + Math.floor(i / 2) * 124, can = DATA.coins >= p.cost;
+      rrect(cx - w / 2, cy - h / 2 + 3, w, h, 15, shade(t.panel, -0.3));
+      rrect(cx - w / 2, cy - h / 2, w, h, 15, t.panel);
+      dot(cx - w / 2 + 30, cy - 22, 22, t.board1);
+      drawPwIcon(k, cx - w / 2 + 30, cy - 23, false);
+      txt(cx - w / 2 + 62, cy - 30, p.name, 16, t.btnText, 0);
+      wrapText(p.desc, 18).forEach((l, j) => txt(cx - w / 2 + 62, cy - 8 + j * 15, l, 11, t.btnText, 0, false));
+      txt(cx - w / 2 + 12, cy + 38, 'You have ' + (DATA.pw[k] | 0), 12, t.btnText, 0, false);
+      rrect(cx + w / 2 - 74, cy + 24, 64, 28, 14, can ? t.accent : shade(t.panel, -0.25));
+      drawCoin(cx + w / 2 - 60, cy + 38, 6.5);
+      txt(cx + w / 2 - 50, cy + 38, String(p.cost), 13, can ? '#1b1b1b' : t.btnText, 0);
+      buttons.push({ x: cx - w / 2, y: cy - h / 2, w: w, h: h, fn: () => buyPower(k) });
+    });
+    txt(W / 2, top + 396, 'Tap a power-up to buy it. Use them inside levels.', 12.5, t.text, 0.5, false);
+    txt(W / 2, top + 420, 'In a level you can also tap its button to buy and use it.', 12.5, t.text, 0.5, false);
+  }
+  function toggleVibe() { DATA.vibe = !DATA.vibe; writeData(); if (DATA.vibe) buzz(30); }
+  function toggleTap() { DATA.tapSteer = !DATA.tapSteer; writeData(); tone(660, 0.08, 'triangle', 0.2); }
   function campRetry() { startLevel(G.camp.id); }
   function campNextLevel() { if (G.camp.id < LEVEL_COUNT) startLevel(G.camp.id + 1); else openLevels(); }
   function leaveToLevels() { saveGame(); openLevels(); }
@@ -261,7 +342,7 @@
     boardG.fillRoundedRect(BX - 8, BY - 8, BW + 16, BH + 16, 14);
     boardG.fillStyle(C(t.board1), 1);
     boardG.fillRect(BX, BY, BW, BH);
-    drawPattern(boardG, DATA.worldLook ? WORLDS[w].pattern : DATA.bg, BX, BY, COLS, ROWS, CELL);
+    drawPattern(boardG, WORLDS[w].pattern, BX, BY, COLS, ROWS, CELL);
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const i = r * COLS + c;
       if (rt.wall[i]) continue;
@@ -380,16 +461,36 @@
     { const x = x0 + k * 24, open = C0.exitOpen; dot(x, 40, 10.5, open ? '#22c55e' : t.panel); g.fillStyle(C(open ? '#14532d' : t.text), open ? 1 : 0.5); g.fillTriangle(x - 3, 34, x - 3, 46, x + 5, 40); }
     txt(W / 2, 80, objective(C0), 12.5, t.text, 0.5, false);
   }
+  function drawPwIcon(k, x, y, on) {
+    if (k === 'slow') drawPower('slow', x, y, 0.95);
+    else if (k === 'coin2') drawPower('double', x, y, 0.95);
+    else if (k === 'shield') {
+      g.fillStyle(C(on ? '#ffffff' : '#38bdf8'), 1);
+      g.fillPoints([{ x: x - 10, y: y - 10 }, { x: x + 10, y: y - 10 }, { x: x + 10, y: y + 1 }, { x: x, y: y + 12 }, { x: x - 10, y: y + 1 }], true);
+      g.fillStyle(C('#0c4a6e'), 0.55); g.fillPoints([{ x: x - 5, y: y - 6 }, { x: x + 5, y: y - 6 }, { x: x + 5, y: y }, { x: x, y: y + 6 }, { x: x - 5, y: y }], true);
+    } else { drawBomb(x, y + 1, 0.8); line(x - 8, y + 8, x + 8, y - 8, '#4ade80', 3); }
+  }
+  function toggleBtn(cx, cy, kind, on, label, fn) {
+    const t = th();
+    dot(cx, cy + 3, 25, shade(t.panel, -0.3)); dot(cx, cy, 25, on ? t.accent : shade(t.panel, -0.15));
+    g.fillStyle(0x000000, 0); drawIcon(kind, cx, cy, on ? '#1b1b1b' : t.btnText);
+    txt(cx, cy + 40, label + (on ? '' : ' off'), 12, t.btnText, 0.5, false);
+    buttons.push({ x: cx - 40, y: cy - 30, w: 80, h: 80, fn: fn });
+  }
   function drawCampBottom() {
     const C0 = G.camp, t = th();
-    if (C0.hint) {
-      const lines = wrapText(C0.hint, 44), hgt = 14 + lines.length * 19;
-      rrect(BX, 700 + (lines.length === 1 ? 4 : 0), 352, hgt, 14, t.panel, 0.85);
-      lines.forEach((l, i) => txt(BX + 176, 713 + (lines.length === 1 ? 4 : 0) + i * 19, l, 13.5, t.btnText, 0.5, false));
-    } else {
-      txt(BX, 716, '3 stars: ' + C0.L.s3 + ' moves or less', 13, t.text, 0, false);
-      txt(BX, 738, '2 stars: ' + C0.L.s2 + ' moves or less', 13, t.text, 0, false);
-    }
+    PW_KEYS.forEach((k, i) => {
+      const x = BX + i * 58, y = 694, n = DATA.pw[k] | 0;
+      const on = (k === 'slow' && C0.slowT > 0) || (k === 'shield' && C0.shield) || (k === 'coin2' && C0.coinMul > 1);
+      rrect(x, y + 3, 52, 52, 13, shade(t.panel, -0.3));
+      rrect(x, y, 52, 52, 13, on ? '#0ea5e9' : t.panel);
+      drawPwIcon(k, x + 26, y + 23, on);
+      if (n > 0) { dot(x + 44, y + 8, 9.5, t.accent); txt(x + 44, y + 8, String(n), 12, '#1b1b1b'); }
+      else { drawCoin(x + 14, y + 43, 5.5); txt(x + 22, y + 43, String(PW[k].cost), 11, DATA.coins >= PW[k].cost ? t.accent : t.btnText, 0); }
+      buttons.push({ x: x - 3, y: y - 3, w: 58, h: 58, fn: () => usePower(k) });
+    });
+    txt(BX + 244, 706, '3 stars: ' + C0.L.s3 + ' moves', 12.5, t.text, 0, false);
+    txt(BX + 244, 728, '2 stars: ' + C0.L.s2 + ' moves', 12.5, t.text, 0, false);
     const px = BX + BW - 52, py = 692;
     rrect(px, py, 52, 52, 12, t.panel);
     line(px + 19, py + 15, px + 19, py + 37, t.btnText, 6);
@@ -400,9 +501,9 @@
     const C0 = G.camp, rt = C0.rt, st = C0.st, a = anim / 60, w = C0.L.w;
     drawCampHud();
     drawCampBottom();
-    drawAmbient(w);
+    if (!LITE) drawAmbient(w);
     // sparkles on the ice
-    for (let n = 0; n < C0.iceList.length; n++) {
+    for (let n = 0; n < C0.iceList.length && !LITE; n++) {
       if ((n * 7 + Math.floor(anim / 380)) % 11) continue;
       const i = C0.iceList[n], p = cellOf(i), s = 0.5 + 0.5 * Math.sin(anim / 120 + n);
       line(p.x - 3 * s - 1, p.y, p.x + 3 * s + 1, p.y, '#ffffff', 1.4); line(p.x, p.y - 3 * s - 1, p.x, p.y + 3 * s + 1, '#ffffff', 1.4);
@@ -430,6 +531,13 @@
       txt(W / 2, by - (banner.sub ? 7 : 0), banner.s, banner.sub ? 20 : 22, banner.color);
       if (banner.sub) txt(W / 2, by + 15, banner.sub, 11, '#ffffff', 0.5, false);
     }
+    if (C0.hint && G.playMs < 9000 && C0.ready <= 0 && !C0.over && !C0.won) {
+      const lines = wrapText(C0.hint, 40), hgt = 16 + lines.length * 22, ty = BY + BH - hgt - 14;
+      rrect(BX + 20, ty, BW - 40, hgt, 16, '#000000', 0.62);
+      lines.forEach((l, i) => txt(W / 2, ty + 18 + i * 22, l, 14.5, '#ffffff', 0.5, false));
+    }
+    if (C0.shield) { const p = headXY(); g.lineStyle(2.5, C('#38bdf8'), 0.75 + 0.25 * Math.sin(anim / 120)); g.strokeCircle(p.x, p.y, 17); }
+    if (C0.hold) txt(W / 2, BY + 60, 'Turn now!', 22, '#38bdf8');
     if (C0.ready > 0) {
       const go = C0.ready < 380, k = go ? C0.ready / 380 : 1, bw = 190;
       rrect(W / 2 - bw / 2, BY + BH * 0.42 - 34, bw, 68, 22, '#000000', 0.55);
@@ -444,16 +552,15 @@
     return top;
   }
   function drawCampPause() {
-    const t = th(), C0 = G.camp, top = drawCampOverlayFrame(470);
-    txt(W / 2, top + 40, 'Paused', 32, t.accent);
-    txt(W / 2, top + 76, 'Level ' + C0.id + '  -  ' + WORLDS[C0.L.w].name, 15, t.btnText);
-    txt(W / 2, top + 108, 'Theme', 13, t.btnText, 0.5, false);
-    themePicker(top + 140, 58, 18);
-    txt(W / 2, top + 184, 'Background', 13, t.btnText, 0.5, false);
-    bgPicker(top + 220, 58, 36);
-    button(W / 2, top + 296, 290, 56, 'Resume', togglePause, { primary: true, size: 21 });
-    button(W / 2, top + 362, 290, 50, 'Restart level', campRetry, { dark: true, size: 18 });
-    button(W / 2, top + 426, 290, 50, 'Levels', leaveToLevels, { dark: true, size: 18 });
+    const t = th(), C0 = G.camp, top = drawCampOverlayFrame(420);
+    txt(W / 2, top + 38, 'Paused', 33, t.accent);
+    txt(W / 2, top + 74, 'Level ' + C0.id + '  -  ' + WORLDS[C0.L.w].name, 16, t.btnText);
+    toggleBtn(W / 2 - 96, top + 122, 'sound', DATA.sound, 'Sound', toggleSound);
+    toggleBtn(W / 2, top + 122, 'vibe', DATA.vibe, 'Vibrate', toggleVibe);
+    toggleBtn(W / 2 + 96, top + 122, 'tap', DATA.tapSteer, 'Tap steer', toggleTap);
+    button(W / 2, top + 232, 290, 56, 'Resume', togglePause, { primary: true, size: 21 });
+    button(W / 2, top + 300, 290, 50, 'Restart level', campRetry, { dark: true, size: 18 });
+    button(W / 2, top + 362, 290, 50, 'Levels', leaveToLevels, { dark: true, size: 18 });
   }
   function drawCampFail() {
     const t = th(), C0 = G.camp, top = drawCampOverlayFrame(300);
@@ -478,7 +585,7 @@
     txt(W / 2, top + 208, C0.moves + ' moves', 20, t.btnText);
     txt(W / 2, top + 236, C0.stars < 3 ? (C0.stars < 2 ? '2 stars: ' + C0.L.s2 + ' moves   3 stars: ' + C0.L.s3 : '3 stars: ' + C0.L.s3 + ' moves or less') : 'Perfect run!', 13, t.btnText, 0.5, false);
     drawCoin(W / 2 - 52, top + 262, 9);
-    txt(W / 2 - 38, top + 262, '+' + (C0.coins + G.eaten * COIN_FRUIT) + ' coins', 15, '#fbbf24', 0);
+    txt(W / 2 - 38, top + 262, '+' + G.coins + ' coins', 15, '#fbbf24', 0);
     let y = top + 316;
     if (!last) { button(W / 2, y, 290, 58, 'Next level', campNextLevel, { primary: true, size: 22 }); y += 68; }
     button(W / 2, y, 290, 46, 'Replay', campRetry, { dark: true, size: 17 });
