@@ -165,6 +165,7 @@ rep("    txt(BX + 42, 39, 'Best  ' + best(DATA.mode), 16, t.text, 0);","    txt(
 rep("kb.on('keydown-ENTER', () => { if (state === 'menu') playCampaign();","kb.on('keydown-ENTER', () => { if (state === 'menu') playSelected();")
 rep("      demoReset();\n","      CT = menuPal();\n      demoReset();\n")
 rep("      fpsAvg = fpsAvg * 0.97 + delta * 0.03;","      fpsAvg = fpsAvg * 0.97 + delta * 0.03;")
+rep("    // live preview of the game\n    drawDemo();","    txt(W / 2, 9, 'v2.6', 9, t.text, 0.5, false);\n    // live preview of the game\n    drawDemo();")
 # logic insert
 rep("  // ---------- Phaser scene ----------", logic+"\n  // ---------- Phaser scene ----------")
 # test hook

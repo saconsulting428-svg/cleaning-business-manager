@@ -21,7 +21,7 @@ function rngOf(seed) {
 // ---------- difficulty schedule ----------
 function params(id) {
   const w = Math.floor((id - 1) / 20), k = (id - 1) % 20, t = k / 19;
-  const P = { id, world: w, k, delay: Math.round(214 - id * 0.62), minSeg: 3, ice: 0, bombs: 0, bands: [], stop: 0.3, cov: 0.1, gw: [0.2, 0.4, 0.4] };
+  const P = { id, world: w, k, delay: Math.round(180 - id * 0.6), minSeg: 3, ice: 0, bombs: 0, bands: [], stop: 0.3, cov: 0.1, gw: [0.2, 0.4, 0.4] };
   if (w === 0) { P.T = Math.round(18 + k * 2.1); P.maxSeg = 8 - Math.round(t * 2); P.fruits = k < 5 ? 2 : k < 11 ? 3 : k < 16 ? 3 : 4; P.cov = 0.05 + 0.13 * t; P.gw = [0.15 + 0.2 * t, 0.4, 0.45 - 0.2 * t]; P.stop = 0.2 + 0.2 * t; }
   else if (w === 1) { P.T = Math.round(46 + k * 2.4); P.maxSeg = 6; P.fruits = 3 + (k > 6) + (k > 13); P.cov = 0.2 + 0.12 * t; P.gw = [0.3 + 0.3 * t, 0.4, 0.3 - 0.3 * t + 0.0]; P.stop = 0.45; }
   else if (w === 2) { P.T = Math.round(52 + k * 2.1); P.maxSeg = 7; P.fruits = 3 + (k > 5) + (k > 12); P.cov = 0.17 + 0.12 * t; P.ice = 0.4 + 0.45 * t; P.gw = [0.3 + 0.2 * t, 0.4, 0.3 - 0.2 * t]; P.stop = 0.4; }

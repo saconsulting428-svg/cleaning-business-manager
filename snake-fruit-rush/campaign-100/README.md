@@ -9,7 +9,7 @@ The original modes still work (home screen > **Endless**).
 * Worlds: Garden (1-20) walls, Desert (21-40) bigger layouts, Ice (41-60) forced sliding, Volcano (61-80) bombs, Night (81-100) keys + doors, switches + gates, portals, combined with bombs, ice and walls. Level 100 combines everything.
 * Obstacles: walls (deadly), ice (cannot steer until you stop; a wall or the border stops you safely), bombs, key -> door, switch -> gate, paired portals, exit (locked until all fruit is eaten).
 * Levels 1-5 teach: straight line, a wall, a path around walls, a deliberate turn, fruit + wall + exit. Short contextual hints appear on levels 1-5, 41, 61, 81, 84 and 87.
-* Pace: every level has its own speed (213 ms per cell on level 1, 152 ms on level 100; the original endless mode is 150 ms) and a short READY/GO beat.
+* Pace: every level has its own speed (179 ms per cell on level 1, 120 ms on level 100; the original endless mode is 150 ms) and a short READY/GO beat.
 * Progress (highest unlocked, current level, stars) is stored in the existing save under `camp`; old saves load unchanged.
 * Testing aid: open the HTML with `?unlock=1` to open every level (nothing is saved by it).
 
