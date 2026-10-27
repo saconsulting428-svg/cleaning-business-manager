@@ -10,6 +10,9 @@ python3 patch.py >/dev/null || exit 1
   echo '<script>'
   cat levels-data.js
   echo '</script>'
+  echo '<script>'
+  cat ads-bridge.js
+  echo '</script>'
   cat game.camp.js
 } > "$1"
 node -e "

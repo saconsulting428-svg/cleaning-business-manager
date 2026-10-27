@@ -31,17 +31,18 @@
     }
     return L;
   }
-  function startLevel(id) {
+  function startLevel(id, showRoute) {
     id = Math.min(LEVEL_COUNT, Math.max(1, id | 0));
     if (id > campUnlocked()) return;
     const L = randomFruit(LV[id - 1]), el = engineLevel(L), rt = E.makeRuntime(el), st = E.newState(rt);
     G = {
-      camp: { id: id, L: L, rt: rt, st: st, ready: READY_MS, over: null, won: false, endT: 0, moves: 0, exitOpen: false, slowT: 0, shield: false, hold: false, coinMul: 1, stars: 0, coins: 0, hint: L.h || '', flash: [], iceList: [], fr: [] },
+      camp: { id: id, L: L, rt: rt, st: st, ready: READY_MS, over: null, won: false, endT: 0, moves: 0, route: showRoute ? L.R : null, routeIdx: null, exitOpen: false, slowT: 0, shield: false, hold: false, coinMul: 1, stars: 0, coins: 0, hint: L.h || '', flash: [], iceList: [], fr: [] },
       snake: st.body.map((c) => [c % COLS, (c / COLS) | 0]), dir: st.dir, queue: [], score: 0, eaten: 0, fx: {}, combo: 0, combo_t: 0, bonus: null, power: null, gold: null,
       food: null, bombs: [], coins: 0, dailyCoins: 0, playMs: 0, adMsg: '', shareMsg: '', mode: 'classic', speed: DATA.speed
     };
     const C0 = G.camp;
     for (let i = 0; i < COLS * ROWS; i++) if (rt.ice[i]) C0.iceList.push(i);
+    if (C0.route) { C0.routeIdx = new Map(); C0.route.forEach((cell, i) => C0.routeIdx.set(cell, i)); }
     rt.fruits.forEach((f, i) => C0.fr.push({ cell: f.cell, kind: FRUITS[(i + id) % FRUITS.length] }));
     popups = []; fxs = []; banner = null; prevSnake = null; acc = 0;
     adToken++; gift = null; sheetOpen = false; sheetT = 0;
@@ -112,6 +113,7 @@
     }
     if (res.status === 'win') {
       C0.won = true; C0.endT = 0;
+      adsMeta.levels++;                                  // counts toward the next interstitial (shown only after the result screen)
       const moves = st.moves, L = C0.L;
       C0.stars = moves <= L.s3 ? 3 : moves <= L.s2 ? 2 : 1;
       const prev = DATA.camp.stars[C0.id] | 0;
@@ -206,13 +208,18 @@
       txt(cx + w / 2 - 50, cy + 38, String(p.cost), 13, can ? '#1b1b1b' : t.btnText, 0);
       buttons.push({ x: cx - w / 2, y: cy - h / 2, w: w, h: h, fn: () => buyPower(k) });
     });
-    txt(W / 2, top + 396, 'Tap a power-up to buy it. Use them inside levels.', 12.5, t.text, 0.5, false);
-    txt(W / 2, top + 420, 'In a level you can also tap its button to buy and use it.', 12.5, t.text, 0.5, false);
+    if (!(DATA.coins < 90 && adCoinsButton(top + 404))) {
+      txt(W / 2, top + 396, 'Tap a power-up to buy it. Use them inside levels.', 12.5, t.text, 0.5, false);
+      txt(W / 2, top + 420, 'In a level you can also tap its button to buy and use it.', 12.5, t.text, 0.5, false);
+    }
   }
   function toggleVibe() { DATA.vibe = !DATA.vibe; writeData(); if (DATA.vibe) buzz(30); }
   function toggleTap() { DATA.tapSteer = !DATA.tapSteer; writeData(); tone(660, 0.08, 'triangle', 0.2); }
-  function campRetry() { startLevel(G.camp.id); }
-  function campNextLevel() { if (G.camp.id < LEVEL_COUNT) startLevel(G.camp.id + 1); else openLevels(); }
+  function campRetry() { startLevel(G.camp.id, !!G.camp.route); }          // a hint bought with an ad stays for the rest of that level
+  function campNextLevel() {
+    const next = G.camp.id < LEVEL_COUNT ? () => startLevel(G.camp.id + 1) : openLevels;
+    maybeInter('level', next);                       // an ad only if one is due AND ready; otherwise straight on
+  }
   function leaveToLevels() { saveGame(); openLevels(); }
   function goHome() { setState('menu'); }
 
@@ -528,6 +535,10 @@
       const i = C0.iceList[n], p = cellOf(i), s = 0.5 + 0.5 * Math.sin(anim / 120 + n);
       line(p.x - 3 * s - 1, p.y, p.x + 3 * s + 1, p.y, '#ffffff', 1.4); line(p.x, p.y - 3 * s - 1, p.x, p.y + 3 * s + 1, '#ffffff', 1.4);
     }
+    if (C0.route) {                                   // hint: a trail of dots along the way to the exit
+      const hi = C0.routeIdx.get(st.body[0]), from = hi === undefined ? 0 : hi + 1, pulse = anim / 170;
+      for (let i = from; i < C0.route.length; i += LITE ? 2 : 1) { const p = cellOf(C0.route[i]); dot(p.x, p.y, 3, '#ffffff', 0.3 + 0.3 * Math.sin(pulse - i * 0.55)); }
+    }
     drawExitTile(cellOf(rt.exit).x, cellOf(rt.exit).y, C0.exitOpen);
     rt.portalTo.forEach((to, i) => { if (to >= 0) { const p = cellOf(i), cols = ['#c084fc', '#38bdf8']; drawPortal(p.x, p.y, cols[(i < to) ? 0 : 1], i < to); } });
     rt.switches.forEach((s) => { const p = cellOf(s.cell); drawSwitch(p.x, p.y, GATE_COLS[s.gateIdx % GATE_COLS.length], E.gateOpen(rt, st, s.gateIdx)); });
@@ -583,13 +594,16 @@
     button(W / 2, top + 362, 290, 50, 'Levels', leaveToLevels, { dark: true, size: 18 });
   }
   function drawCampFail() {
-    const t = th(), C0 = G.camp, top = drawCampOverlayFrame(300);
+    const t = th(), C0 = G.camp, hintOk = !C0.route && adAvailable(), top = drawCampOverlayFrame(hintOk ? 366 : 300);
     txt(W / 2, top + 44, C0.over === 'trap' ? 'Boom!' : 'Oops!', 34, '#ff5a5f');
     const why = C0.over === 'gate' ? 'The gate is closed - use the switch' : C0.over === 'door' ? 'The door is locked - get the key first' : (FAIL_TEXT[C0.over] || 'Try again');
     txt(W / 2, top + 88, why, 15, t.btnText);
     txt(W / 2, top + 114, 'Level ' + C0.id, 13, t.btnText, 0.5, false);
     button(W / 2, top + 176, 290, 58, 'Try again', campRetry, { primary: true, size: 22 });
-    button(W / 2, top + 246, 290, 50, 'Levels', leaveToLevels, { dark: true, size: 18 });
+    let y = top + 246;
+    if (hintOk) { adBtn(W / 2, y, 290, 50, 'Watch ad - get hint', adHint, 17); y += 62; }
+    button(W / 2, y, 290, 50, 'Levels', leaveToLevels, { dark: true, size: 18 });
+    if (G.adMsg) txt(W / 2, top + 146, G.adMsg, 12.5, '#ff5a5f', 0.5, false);
   }
   function drawCampWon() {
     const t = th(), C0 = G.camp, last = C0.id >= LEVEL_COUNT, top = drawCampOverlayFrame(last ? 430 : 490);

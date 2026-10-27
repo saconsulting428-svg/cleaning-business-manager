@@ -1,0 +1,20 @@
+
+# ================= AdMob integration (placement + policy; the SDK lives in ads-bridge.js) =================
+a=s.index("  function endAd(token, ok, msg) {"); b=s.index("  // The snake comes back in the middle")
+s=s[:a]+open('adblock.js').read()+"\n"+s[b:]
+rep("    if (s === 'menu') CT = menuPal();\n","    if (s === 'menu') CT = menuPal();\n    if (window.SFRAds) window.SFRAds.screen(s);            // the banner only lives on menu screens\n")
+rep("        if (adLeft <= 0) revive();","        if (adLeft <= 0) endAd(adToken, true);")
+rep("  function drawAd() {\n    const t = th();","  const AD_NOTE = { revive: 'You get the revive after the ad finishes', hint: 'You get the hint after the ad finishes', coins: 'You get +50 coins after the ad finishes', inter: 'Your game goes on right after' };\n  function drawAd() {\n    buttons = [];\n    const t = th();")
+rep("      txt(W / 2, 410, 'You get the revive after the ad finishes', 12, t.btnText, 0.5, false);","      txt(W / 2, 410, AD_NOTE[adKind] || '', 12, t.btnText, 0.5, false);")
+rep("    txt(W / 2, 326, 'TEST AD', 26, t.accent);","    txt(W / 2, 326, adKind === 'inter' ? 'TEST INTERSTITIAL' : 'TEST AD', 26, t.accent);")
+rep("    } else {\n      if (G.camp) drawCampGame(); else drawGame();\n      useLayer(1);","    } else if (state === 'ad' && adJob && (adJob.back === 'menu' || adJob.back === 'levels')) {\n      if (adJob.back === 'menu') drawMenu(); else drawLevels();\n      useLayer(1);\n      drawAd();\n    } else {\n      if (G.camp) drawCampGame(); else drawGame();\n      useLayer(1);")
+rep("btns.push(['Play again', newGame, canRevive","btns.push(['Play again', playAgain, canRevive")
+rep("  function gameOver() {\n    DATA.save = null;","  function gameOver() {\n    adsMeta.endless++;\n    DATA.save = null;")
+rep("    else button(W / 2, by, 260, 44, 'Need ' + (sk.cost - DATA.coins) + ' more coins', () => skinError('Not enough coins for ' + sk.name + '!'), { dark: true, size: 16 });","    else { button(W / 2, by, 260, 44, 'Need ' + (sk.cost - DATA.coins) + ' more coins', () => skinError('Not enough coins for ' + sk.name + '!'), { dark: true, size: 16 }); adCoinsButton(top + 432); }")
+rep("    else txt(W / 2, top + 330, 'Free spin every day  -  Egg: coins or a new skin!', 12, t.text, 0.5, false);\n  }","    else txt(W / 2, top + 330, 'Free spin every day  -  Egg: coins or a new skin!', 12, t.text, 0.5, false);\n    if (DATA.coins < EGG_COST) adCoinsButton(top + 376);\n  }")
+rep("    buttons = [];                                    // only the sheet reacts to taps now","    buttons = [];                                    // only the sheet reacts to taps now\n    sheetAdBtn = false;")
+rep("    button(W / 2, top + (DATA.tab === 3 || DATA.tab === 0 || DATA.tab === 5 ? 462 : 410), 260, 48, 'Done', closeSheet, { primary: true, size: 20 });","    button(W / 2, top + (sheetAdBtn ? (DATA.tab === 3 ? 478 : DATA.tab === 4 ? 436 : 470) : (DATA.tab === 3 || DATA.tab === 0 || DATA.tab === 5 ? 462 : 410)), 260, 48, 'Done', closeSheet, { primary: true, size: 20 });\n    if (toast && anim < toast.until) { rrect(W / 2 - 160, top - 54, 320, 38, 19, toast.ok ? '#16a34a' : '#b91c1c'); txt(W / 2, top - 35, toast.s, 15, '#ffffff'); }")
+rep("camp: null, menuMode: 'levels',","camp: null, adCoins: null, menuMode: 'levels',")
+rep("    d.menuMode = d.menuMode === 'endless'","    d.adCoins = d.adCoins && typeof d.adCoins === 'object' && DATE_RE.test(d.adCoins.d) ? { d: d.adCoins.d, n: num(d.adCoins.n, 0, 99, 0) } : null;\n    d.menuMode = d.menuMode === 'endless'")
+rep("window.__snake = { camp: {","window.__snake = { ads: { meta: adsMeta, claimAdCoins: claimAdCoins, adHint: adHint, maybeInter: maybeInter, playAgain: playAgain, coinsLeft: adCoinsLeft, requestRewarded: requestRewarded, get kind() { return adKind; }, get job() { return adJob; } }, camp: {")
+rep("      CT = menuPal();\n      demoReset();\n","      CT = menuPal();\n      if (window.SFRAds) window.SFRAds.screen(state);\n      demoReset();\n")

@@ -1,0 +1,15 @@
+import { createRequire } from 'module'; const { chromium } = createRequire('/opt/node22/lib/node_modules/')('playwright');
+const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 480, height: 800 } });
+const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+await p.addInitScript(() => localStorage.setItem('snakeFruitRush.v1', JSON.stringify({ coins: 20, menuMode: 'levels', camp: { unlocked: 60, cur: 5, stars: {} } })));
+await p.goto('file://' + process.cwd() + '/test.html?testads=1'); await p.waitForTimeout(2200);
+const shot = async (n) => { await p.waitForTimeout(500); await p.screenshot({ path: 'shots/ad_' + n + '.png' }); };
+await shot('menu');
+await p.evaluate(() => __snake.openSheet(5)); await shot('shop');
+await p.evaluate(() => { __snake.openSheet(3); __snake.skinPick = 'diamond'; }); await shot('skins');
+await p.evaluate(() => __snake.openSheet(4)); await shot('gifts');
+await p.evaluate(() => { __snake.closeSheet(); __snake.camp.open(); }); await shot('levels');
+await p.evaluate(() => { window.__speedMul = 3; __snake.camp.start(2); }); await p.waitForFunction(() => __snake.state === 'over'); await shot('fail');
+await p.evaluate(() => __snake.ads.adHint()); await p.waitForTimeout(800); await p.screenshot({ path: 'shots/ad_testad.png' });
+console.log(errs);
+await b.close();

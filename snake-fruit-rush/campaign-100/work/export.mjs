@@ -27,6 +27,7 @@ for (let id = 1; id <= 100; id++) {
   if (lv.keys.length) { o.K = lv.keys.map(xy); o.D = lv.doors.map(xy); }
   if (lv.switches.length) { o.S = lv.switches.map((s) => xy(s.cell).concat([s.gate])); o.G = lv.gates.map(xy); }
   if (lv.portals.length) o.P = lv.portals.map((p) => xy(p[0]).concat(xy(p[1])));
+  o.R = lv.path;
   if (G.HINTS[id]) o.h = G.HINTS[id];
   levels.push(o);
   routes.push(lv.path);
