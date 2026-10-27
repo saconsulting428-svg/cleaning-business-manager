@@ -28,7 +28,7 @@ This is an **update of the app already on Google Play**:
 - Rewards are paid once: first clear 5 + fruit coins, first 3-star +5, replay +1.
 
 ## Rewarded ads (optional hint)
-The game has no ad SDK. After 3 failures of a level it offers "Show route (watch ad)", **only if** the app provides
+The game has no ad SDK. After 2 failed attempts at a level it offers "Show route (watch ad)", **only if** the app provides
 `window.showRewardedAd = () => Promise<boolean>` (resolve `true` only from AdMob's earned-reward callback; optional `window.isRewardedAdReady()`). Nothing is granted without `true`. Open the game with `?testads=1` on a desktop to try the flow with a clearly labelled test countdown. AdMob itself is **not** integrated yet.
 
 ## Project layout
