@@ -468,7 +468,7 @@ window.SFR_LEVELS=[{"w":0,"d":213,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
 
   function loadData() {
     const d = { high: 0, highs: {}, mode: 'classic', speed: 5, tab: 0, theme: 0, bg: 0, sound: true, save: null,
-      coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [], camp: null, vibe: true, tapSteer: false, pw: null };
+      coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [], camp: null, menuMode: 'levels', vibe: true, tapSteer: false, pw: null };
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       if (saved && typeof saved === 'object') Object.assign(d, saved);
@@ -492,7 +492,7 @@ window.SFR_LEVELS=[{"w":0,"d":213,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
     d.lastClaim = typeof d.lastClaim === 'string' && DATE_RE.test(d.lastClaim) ? d.lastClaim : '';
     d.spinDates = Array.isArray(d.spinDates) ? d.spinDates.filter((x) => typeof x === 'string' && DATE_RE.test(x)).slice(-60) : [];
     d.daily = cleanDaily(d.daily);
-    d.vibe = d.vibe !== false; d.tapSteer = d.tapSteer === true; d.pw = cleanPw(d.pw);
+    d.menuMode = d.menuMode === 'endless' ? 'endless' : 'levels'; d.vibe = d.vibe !== false; d.tapSteer = d.tapSteer === true; d.pw = cleanPw(d.pw);
 d.camp = cleanCamp(d.camp);                                         // campaign progress: unlocked level, current level, stars per level
     return d;
   }
@@ -1159,7 +1159,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     // top bar: best score + coins + sound
     rrect(BX, 18, 104 + String(best(DATA.mode)).length * 11, 42, 21, t.panel, 0.7);
     drawIcon('star', BX + 24, 39);
-    txt(BX + 42, 39, 'Best  ' + best(DATA.mode), 16, t.text, 0);
+    txt(BX + 42, 39, DATA.menuMode === 'endless' ? 'Best  ' + best(DATA.mode) : 'Stars  ' + Object.keys(DATA.camp.stars).reduce((a, k) => a + DATA.camp.stars[k], 0), 16, t.text, 0);
     const cw = 52 + coinText(DATA.coins).length * 11;
     rrect(W - BX - 118 - cw, 18, cw, 42, 21, t.panel, 0.7);
     drawCoin(W - BX - 118 - cw + 24, 39, 11);
@@ -1180,31 +1180,38 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     txt(W / 2, 436, 'Fruit Rush', 24, t.text);
 
 
-    // play: continue the level campaign
-    const cp = DATA.camp, nl = campNext(), pw = 300, ph = 72, py = 500;
-    rrect(W / 2 - pw / 2, py - ph / 2 + 7, pw, ph, 36, shade(t.accent, -0.35));
-    rrect(W / 2 - pw / 2, py - ph / 2, pw, ph, 36, t.accent);
+    // choose what to play: Levels or Endless
+    const lv = DATA.menuMode !== 'endless', cp = DATA.camp, nl = campNext();
+    rrect(W / 2 - 158, 453, 316, 48, 24, t.panel, 0.9);
+    [['Levels', true], ['Endless', false]].forEach((o, i) => {
+      const cx = W / 2 + (i ? 79 : -79), on = lv === o[1];
+      if (on) rrect(cx - 75, 457, 150, 40, 20, t.accent);
+      txt(cx, 478, o[0], 18, on ? '#1b1b1b' : t.btnText);
+      buttons.push({ x: cx - 79, y: 453, w: 158, h: 48, fn: () => setMenuMode(o[1]) });
+    });
+    // play
+    const hasSave = !!DATA.save, side = lv || hasSave, ph = 68, py = 548, pw = side ? 196 : 316, pcx = side ? W / 2 - 60 : W / 2;
+    rrect(pcx - pw / 2, py - ph / 2 + 7, pw, ph, 34, shade(t.accent, -0.35));
+    rrect(pcx - pw / 2, py - ph / 2, pw, ph, 34, t.accent);
     g.fillStyle(0x1b1b1b, 1);
-    g.fillTriangle(W / 2 - 52, py - 15, W / 2 - 52, py + 15, W / 2 - 26, py);
-    txt(W / 2 + 18, py - 1, 'Play', 34, '#1b1b1b');
-    buttons.push({ x: W / 2 - pw / 2, y: py - ph / 2, w: pw, h: ph + 7, fn: playCampaign });
+    g.fillTriangle(pcx - 44, py - 14, pcx - 44, py + 14, pcx - 20, py);
+    txt(pcx + 14, py - 1, 'Play', 32, '#1b1b1b');
+    buttons.push({ x: pcx - pw / 2, y: py - ph / 2, w: pw, h: ph + 7, fn: playSelected });
+    if (side) {
+      const sx = W / 2 + 104;
+      rrect(sx - 48, py - ph / 2 + 7, 96, ph, 34, shade(t.panel, -0.3));
+      rrect(sx - 48, py - ph / 2, 96, ph, 34, t.panel);
+      txt(sx, py - 1, lv ? 'Map' : 'Resume', lv ? 20 : 17, t.btnText);
+      buttons.push({ x: sx - 48, y: py - ph / 2, w: 96, h: ph + 7, fn: lv ? openLevels : continueGame });
+    }
     let totalStars = 0;
     for (let i = 1; i <= LEVEL_COUNT; i++) totalStars += cp.stars[i] | 0;
-    txt(W / 2, 562, 'Level ' + nl + '  -  ' + WORLDS[Math.floor((nl - 1) / 20)].name + '     ' + totalStars + ' stars', 16, t.text, 0.5, false);
+    if (lv) txt(W / 2, 604, 'Level ' + nl + '  -  ' + WORLDS[Math.floor((nl - 1) / 20)].name + '   -   ' + totalStars + ' stars', 15, t.text, 0.5, false);
+    else txt(W / 2, 604, MODES[DATA.mode].name + ' mode' + (DATA.mode === 'ultimate' ? ', speed ' + DATA.speed : '') + (hasSave ? '   -   game saved' : ''), 15, t.text, 0.5, false);
 
-    // levels / endless / continue
-    const hasSave = !!DATA.save, pw2 = hasSave ? 140 : 215, gx = hasSave ? 150 : 224, x2 = W / 2 - (hasSave ? 150 : 112);
-    button(x2, 606, pw2, 44, 'Levels', openLevels, { size: 17 });
-    button(x2 + gx, 606, pw2, 44, hasSave ? 'Endless' : 'Endless ' + MODES[DATA.mode].name, newGame, { size: hasSave ? 16 : 15 });
-    if (hasSave) button(x2 + gx * 2, 606, pw2, 44, 'Resume', continueGame, { size: 16 });
-
-    drawDailyCard(662);
-    roundButton(W / 2 - 190, 738, 'modes', 'Modes', () => openSheet(0));
-    roundButton(W / 2 - 114, 738, 'themes', 'Themes', () => openSheet(1));
-    roundButton(W / 2 - 38, 738, 'background', 'Pattern', () => openSheet(2));
-    roundButton(W / 2 + 38, 738, 'skins', 'Skins', () => openSheet(3));
-    roundButton(W / 2 + 114, 738, 'shop', 'Shop', () => openSheet(5));
-    roundButton(W / 2 + 190, 738, 'gifts', 'Gifts', () => openSheet(4), !spinReady() ? 0 : 1);
+    drawDailyCard(654);
+    const rb = DATA.menuMode === 'endless' ? [['modes', 'Modes', 0], ['themes', 'Themes', 1], ['background', 'Pattern', 2], ['skins', 'Skins', 3], ['shop', 'Shop', 5], ['gifts', 'Gifts', 4]] : [['skins', 'Skins', 3], ['shop', 'Shop', 5], ['gifts', 'Gifts', 4]];
+    rb.forEach((r, k) => roundButton(W / 2 + (k - (rb.length - 1) / 2) * (rb.length > 3 ? 76 : 110), 738, r[0], r[1], () => openSheet(r[2]), r[2] === 4 && spinReady() ? 1 : 0));
   }
 
   // Skin picker: tap a skin to look at it, then Equip or Unlock.
@@ -1368,12 +1375,12 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     buttons = [];                                    // only the sheet reacts to taps now
 
     // tabs
-    const tabs = [['Modes', 0], ['Themes', 1], ['Pattern', 2], ['Skins', 3], ['Shop', 5], ['Gifts', 4]], tw = BW / 6;
+    const tabs = DATA.menuMode === 'endless' ? [['Modes', 0], ['Themes', 1], ['Pattern', 2], ['Skins', 3], ['Shop', 5], ['Gifts', 4]] : [['Skins', 3], ['Shop', 5], ['Gifts', 4]], tw = BW / tabs.length;
     rrect(BX, top + 32, BW, 46, 23, t.panel);
     tabs.forEach((tb, i) => {
       const x = BX + i * tw;
       if (DATA.tab === tb[1]) rrect(x + 2, top + 35, tw - 4, 40, 20, t.accent);
-      txt(x + tw / 2, top + 55, tb[0], 11.5, DATA.tab === tb[1] ? '#1b1b1b' : t.btnText);
+      txt(x + tw / 2, top + 55, tb[0], tabs.length > 3 ? 11.5 : 15, DATA.tab === tb[1] ? '#1b1b1b' : t.btnText);
       buttons.push({ x: x, y: top + 32, w: tw, h: 46, fn: () => { if (DATA.tab === 3 && tb[1] !== 3) skinPick = DATA.skin; DATA.tab = tb[1]; writeData(); } });
     });
 
@@ -1396,17 +1403,13 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       } else {
         txt(W / 2, top + 316, 'Speed goes up slowly as you eat', 13, t.text, 0.5, false);
       }
-      txt(W / 2, top + 378, 'These modes are for Endless play. Levels have their own rules.', 12, t.text, 0.5, false);
       button(W / 2, top + 412, 280, 40, 'Tap to steer: ' + (DATA.tapSteer ? 'On' : 'Off'), toggleTap, { size: 15 });
     } else if (DATA.tab === 1) {
       themePicker(top + 190, 80, 28);
       txt(W / 2, top + 262, t.name, 20, t.accent);
-      txt(W / 2, top + 300, 'Your theme is used in Endless play.', 13, t.text, 0.5, false);
-      txt(W / 2, top + 322, 'Levels use the colors of their world.', 13, t.text, 0.5, false);
     } else if (DATA.tab === 2) {
       bgPicker(top + 190, 80, 54);
       txt(W / 2, top + 262, BACKGROUNDS[DATA.bg], 20, t.accent);
-      txt(W / 2, top + 300, 'Your pattern is used in Endless play.', 13, t.text, 0.5, false);
     } else if (DATA.tab === 3) {
       drawSkinTab(top);
     } else if (DATA.tab === 5) {
@@ -1684,7 +1687,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
 
   function setState(s) {
     state = s;
-    if (s === 'menu') CT = null;
+    if (s === 'menu') CT = menuPal();
     applyTheme();
   }
   function applyTheme() {
@@ -2054,6 +2057,13 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     useWorld(lvPage);
     setState('levels');
   }
+  const menuPal = () => (DATA.menuMode === 'endless' ? null : WORLDS[Math.floor((campNext() - 1) / 20)].pal);
+  function setMenuMode(levels) {
+    DATA.menuMode = levels ? 'levels' : 'endless';
+    if (levels && DATA.tab < 3) DATA.tab = 3;                 // Modes / Themes / Pattern only exist in Endless
+    writeData(); CT = menuPal(); applyTheme();
+  }
+  function playSelected() { if (DATA.menuMode === 'endless') newGame(); else playCampaign(); }
   function playCampaign() { startLevel(campNext()); }
   // Fruit goes to new random places on the route every time a level starts (always cells the solution passes, so it stays solvable).
   function randomFruit(L) {
@@ -2251,7 +2261,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   function campRetry() { startLevel(G.camp.id); }
   function campNextLevel() { if (G.camp.id < LEVEL_COUNT) startLevel(G.camp.id + 1); else openLevels(); }
   function leaveToLevels() { saveGame(); openLevels(); }
-  function goHome() { CT = null; setState('menu'); }
+  function goHome() { setState('menu'); }
 
   // ---------- Level select + campaign drawing ----------
   function starShape(x, y, r, color, alpha) {
@@ -2644,6 +2654,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       boardG = this.add.graphics();
       layers = [0, 1].map((i) => ({ g: this.add.graphics().setDepth(i * 20 + 1), texts: [], n: 0, depth: i * 20 + 1 }));
       useLayer(0);
+      CT = menuPal();
       demoReset();
       this.cameras.main.setZoom(ZOOM);
       this.cameras.main.centerOn(W / 2, H / 2);
@@ -2691,7 +2702,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
         const dirs = { UP: [0, -1], W: [0, -1], DOWN: [0, 1], S: [0, 1], LEFT: [-1, 0], A: [-1, 0], RIGHT: [1, 0], D: [1, 0] };
         Object.keys(dirs).forEach((k) => kb.on('keydown-' + k, () => turn(dirs[k])));
         kb.on('keydown-SPACE', togglePause);
-        kb.on('keydown-ENTER', () => { if (state === 'menu') playCampaign(); else if (state === 'levels') startLevel(Math.min(campUnlocked(), lvPage * 20 + 1)); else if (state === 'won') campNextLevel(); else if (state === 'over') { if (G.camp) campRetry(); else newGame(); } else if (state === 'paused') togglePause(); });
+        kb.on('keydown-ENTER', () => { if (state === 'menu') playSelected(); else if (state === 'levels') startLevel(Math.min(campUnlocked(), lvPage * 20 + 1)); else if (state === 'won') campNextLevel(); else if (state === 'over') { if (G.camp) campRetry(); else newGame(); } else if (state === 'paused') togglePause(); });
         kb.on('keydown-ESC', () => { if (state === 'levels') goHome(); else if (G && G.camp && state !== 'menu') leaveToLevels(); else if (state !== 'menu') goMenu(); else closeSheet(); });
         kb.on('keydown-T', () => setTheme(DATA.theme + 1));
         kb.on('keydown-B', () => setBackground(DATA.bg + 1));

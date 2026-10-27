@@ -9,6 +9,13 @@
     useWorld(lvPage);
     setState('levels');
   }
+  const menuPal = () => (DATA.menuMode === 'endless' ? null : WORLDS[Math.floor((campNext() - 1) / 20)].pal);
+  function setMenuMode(levels) {
+    DATA.menuMode = levels ? 'levels' : 'endless';
+    if (levels && DATA.tab < 3) DATA.tab = 3;                 // Modes / Themes / Pattern only exist in Endless
+    writeData(); CT = menuPal(); applyTheme();
+  }
+  function playSelected() { if (DATA.menuMode === 'endless') newGame(); else playCampaign(); }
   function playCampaign() { startLevel(campNext()); }
   // Fruit goes to new random places on the route every time a level starts (always cells the solution passes, so it stays solvable).
   function randomFruit(L) {
@@ -206,7 +213,7 @@
   function campRetry() { startLevel(G.camp.id); }
   function campNextLevel() { if (G.camp.id < LEVEL_COUNT) startLevel(G.camp.id + 1); else openLevels(); }
   function leaveToLevels() { saveGame(); openLevels(); }
-  function goHome() { CT = null; setState('menu'); }
+  function goHome() { setState('menu'); }
 
   // ---------- Level select + campaign drawing ----------
   function starShape(x, y, r, color, alpha) {

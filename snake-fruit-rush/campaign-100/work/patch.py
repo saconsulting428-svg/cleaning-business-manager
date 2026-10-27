@@ -7,11 +7,11 @@ def rep(old,new,count=1):
     s=s.replace(old,new)
 head=open('c_head.js').read(); logic=open('c_logic.js').read()
 rep("  function loadData() {", head+"\n  function loadData() {")
-rep("coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [] };","coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [], camp: null, vibe: true, tapSteer: false, pw: null };")
-rep("    d.daily = cleanDaily(d.daily);\n    return d;","    d.daily = cleanDaily(d.daily);\n    d.vibe = d.vibe !== false; d.tapSteer = d.tapSteer === true; d.pw = cleanPw(d.pw);\nd.camp = cleanCamp(d.camp);                                         // campaign progress: unlocked level, current level, stars per level\n    return d;")
+rep("coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [] };","coins: 0, skin: 'default', skins: ['default'], daily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [], camp: null, menuMode: 'levels', vibe: true, tapSteer: false, pw: null };")
+rep("    d.daily = cleanDaily(d.daily);\n    return d;","    d.daily = cleanDaily(d.daily);\n    d.menuMode = d.menuMode === 'endless' ? 'endless' : 'levels'; d.vibe = d.vibe !== false; d.tapSteer = d.tapSteer === true; d.pw = cleanPw(d.pw);\nd.camp = cleanCamp(d.camp);                                         // campaign progress: unlocked level, current level, stars per level\n    return d;")
 rep("  const th = () => THEMES[DATA.theme];","  let CT = null;                      // world palette while a campaign screen is open\n  const th = () => CT || THEMES[DATA.theme];")
 rep("    if (G.mode === 'ultimate') d = speedDelay","    if (G.camp) return G.camp.L.d * SPEED_MUL() * (G.camp.slowT > 0 ? 1.7 : 1);                                         // campaign: every level has its own pace\n    if (G.mode === 'ultimate') d = speedDelay")
-rep("  function setState(s) {\n    state = s;","  function setState(s) {\n    state = s;\n    if (s === 'menu') CT = null;")
+rep("  function setState(s) {\n    state = s;","  function setState(s) {\n    state = s;\n    if (s === 'menu') CT = menuPal();")
 rep("  function newGame() {\n    const mc","  function newGame() {\n    CT = null;\n    const mc")
 rep("    const s = DATA.save;\n    if (!s) return;","    const s = DATA.save;\n    if (!s) return;\n    CT = null;")
 rep("    if (G && (state === 'play' || state === 'paused')) DATA.save = G;","    if (G && !G.camp && (state === 'play' || state === 'paused')) DATA.save = G;")
@@ -30,23 +30,34 @@ rep("    revive: () => [440, 660, 880].forEach((f, i) => tone(f, 0.18, 'triangle
 # menu
 a=s.index("    // play\n    const pw = 300")
 b=s.index("    roundButton(W / 2 - 176, 738")
-menu = """    // play: continue the level campaign
-    const cp = DATA.camp, nl = campNext(), pw = 300, ph = 72, py = 500;
-    rrect(W / 2 - pw / 2, py - ph / 2 + 7, pw, ph, 36, shade(t.accent, -0.35));
-    rrect(W / 2 - pw / 2, py - ph / 2, pw, ph, 36, t.accent);
+menu = """    // choose what to play: Levels or Endless
+    const lv = DATA.menuMode !== 'endless', cp = DATA.camp, nl = campNext();
+    rrect(W / 2 - 158, 453, 316, 48, 24, t.panel, 0.9);
+    [['Levels', true], ['Endless', false]].forEach((o, i) => {
+      const cx = W / 2 + (i ? 79 : -79), on = lv === o[1];
+      if (on) rrect(cx - 75, 457, 150, 40, 20, t.accent);
+      txt(cx, 478, o[0], 18, on ? '#1b1b1b' : t.btnText);
+      buttons.push({ x: cx - 79, y: 453, w: 158, h: 48, fn: () => setMenuMode(o[1]) });
+    });
+    // play
+    const hasSave = !!DATA.save, side = lv || hasSave, ph = 68, py = 548, pw = side ? 196 : 316, pcx = side ? W / 2 - 60 : W / 2;
+    rrect(pcx - pw / 2, py - ph / 2 + 7, pw, ph, 34, shade(t.accent, -0.35));
+    rrect(pcx - pw / 2, py - ph / 2, pw, ph, 34, t.accent);
     g.fillStyle(0x1b1b1b, 1);
-    g.fillTriangle(W / 2 - 52, py - 15, W / 2 - 52, py + 15, W / 2 - 26, py);
-    txt(W / 2 + 18, py - 1, 'Play', 34, '#1b1b1b');
-    buttons.push({ x: W / 2 - pw / 2, y: py - ph / 2, w: pw, h: ph + 7, fn: playCampaign });
+    g.fillTriangle(pcx - 44, py - 14, pcx - 44, py + 14, pcx - 20, py);
+    txt(pcx + 14, py - 1, 'Play', 32, '#1b1b1b');
+    buttons.push({ x: pcx - pw / 2, y: py - ph / 2, w: pw, h: ph + 7, fn: playSelected });
+    if (side) {
+      const sx = W / 2 + 104;
+      rrect(sx - 48, py - ph / 2 + 7, 96, ph, 34, shade(t.panel, -0.3));
+      rrect(sx - 48, py - ph / 2, 96, ph, 34, t.panel);
+      txt(sx, py - 1, lv ? 'Map' : 'Resume', lv ? 20 : 17, t.btnText);
+      buttons.push({ x: sx - 48, y: py - ph / 2, w: 96, h: ph + 7, fn: lv ? openLevels : continueGame });
+    }
     let totalStars = 0;
     for (let i = 1; i <= LEVEL_COUNT; i++) totalStars += cp.stars[i] | 0;
-    txt(W / 2, 562, 'Level ' + nl + '  -  ' + WORLDS[Math.floor((nl - 1) / 20)].name + '     ' + totalStars + ' stars', 16, t.text, 0.5, false);
-
-    // levels / endless / continue
-    const hasSave = !!DATA.save, pw2 = hasSave ? 140 : 215, gx = hasSave ? 150 : 224, x2 = W / 2 - (hasSave ? 150 : 112);
-    button(x2, 606, pw2, 44, 'Levels', openLevels, { size: 17 });
-    button(x2 + gx, 606, pw2, 44, hasSave ? 'Endless' : 'Endless ' + MODES[DATA.mode].name, newGame, { size: hasSave ? 16 : 15 });
-    if (hasSave) button(x2 + gx * 2, 606, pw2, 44, 'Resume', continueGame, { size: 16 });
+    if (lv) txt(W / 2, 604, 'Level ' + nl + '  -  ' + WORLDS[Math.floor((nl - 1) / 20)].name + '   -   ' + totalStars + ' stars', 15, t.text, 0.5, false);
+    else txt(W / 2, 604, MODES[DATA.mode].name + ' mode' + (DATA.mode === 'ultimate' ? ', speed ' + DATA.speed : '') + (hasSave ? '   -   game saved' : ''), 15, t.text, 0.5, false);
 
 """
 s=s[:a]+menu+s[b:]
@@ -115,23 +126,23 @@ rep("const locked = SKINS.filter((s) => !skinOwned(s.id));","const locked = SKIN
 rep("    drawDailyCard(484);\n","")
 rep("    rrect(W - BX - 62 - cw, 18, cw, 42, 21, t.panel, 0.7);\n    drawCoin(W - BX - 62 - cw + 24, 39, 11);\n    txt(W - BX - 62 - cw + 42, 39, coinText(DATA.coins), 16, t.accent, 0);","    rrect(W - BX - 118 - cw, 18, cw, 42, 21, t.panel, 0.7);\n    drawCoin(W - BX - 118 - cw + 24, 39, 11);\n    txt(W - BX - 118 - cw + 42, 39, coinText(DATA.coins), 16, t.accent, 0);\n    dot(W - BX - 76, 39, 22, t.panel, 0.7);\n    drawIcon('vibe', W - BX - 76, 39);\n    buttons.push({ x: W - BX - 102, y: 12, w: 52, h: 56, fn: toggleVibe });")
 rep("    roundButton(W / 2 - 176, 738, 'modes', 'Modes', () => openSheet(0));\n    roundButton(W / 2 - 88, 738, 'themes', 'Themes', () => openSheet(1));\n    roundButton(W / 2, 738, 'background', 'Background', () => openSheet(2));\n    roundButton(W / 2 + 88, 738, 'skins', 'Skins', () => openSheet(3));\n    roundButton(W / 2 + 176, 738, 'gifts', 'Gifts', () => openSheet(4), !spinReady() ? 0 : 1);",
-"    drawDailyCard(662);\n    roundButton(W / 2 - 190, 738, 'modes', 'Modes', () => openSheet(0));\n    roundButton(W / 2 - 114, 738, 'themes', 'Themes', () => openSheet(1));\n    roundButton(W / 2 - 38, 738, 'background', 'Pattern', () => openSheet(2));\n    roundButton(W / 2 + 38, 738, 'skins', 'Skins', () => openSheet(3));\n    roundButton(W / 2 + 114, 738, 'shop', 'Shop', () => openSheet(5));\n    roundButton(W / 2 + 190, 738, 'gifts', 'Gifts', () => openSheet(4), !spinReady() ? 0 : 1);")
+"    drawDailyCard(654);\n    const rb = DATA.menuMode === 'endless' ? [['modes', 'Modes', 0], ['themes', 'Themes', 1], ['background', 'Pattern', 2], ['skins', 'Skins', 3], ['shop', 'Shop', 5], ['gifts', 'Gifts', 4]] : [['skins', 'Skins', 3], ['shop', 'Shop', 5], ['gifts', 'Gifts', 4]];\n    rb.forEach((r, k) => roundButton(W / 2 + (k - (rb.length - 1) / 2) * (rb.length > 3 ? 76 : 110), 738, r[0], r[1], () => openSheet(r[2]), r[2] === 4 && spinReady() ? 1 : 0));")
 # sheet tabs
 a=s.index("    // tabs\n"); b=s.index("    if (DATA.tab === 0) {\n      MODE_KEYS")
 s=s[:a]+"""    // tabs
-    const tabs = [['Modes', 0], ['Themes', 1], ['Pattern', 2], ['Skins', 3], ['Shop', 5], ['Gifts', 4]], tw = BW / 6;
+    const tabs = DATA.menuMode === 'endless' ? [['Modes', 0], ['Themes', 1], ['Pattern', 2], ['Skins', 3], ['Shop', 5], ['Gifts', 4]] : [['Skins', 3], ['Shop', 5], ['Gifts', 4]], tw = BW / tabs.length;
     rrect(BX, top + 32, BW, 46, 23, t.panel);
     tabs.forEach((tb, i) => {
       const x = BX + i * tw;
       if (DATA.tab === tb[1]) rrect(x + 2, top + 35, tw - 4, 40, 20, t.accent);
-      txt(x + tw / 2, top + 55, tb[0], 11.5, DATA.tab === tb[1] ? '#1b1b1b' : t.btnText);
+      txt(x + tw / 2, top + 55, tb[0], tabs.length > 3 ? 11.5 : 15, DATA.tab === tb[1] ? '#1b1b1b' : t.btnText);
       buttons.push({ x: x, y: top + 32, w: tw, h: 46, fn: () => { if (DATA.tab === 3 && tb[1] !== 3) skinPick = DATA.skin; DATA.tab = tb[1]; writeData(); } });
     });
 
 """+s[b:]
-rep("        txt(W / 2, top + 316, 'Speed goes up slowly as you eat', 13, t.text, 0.5, false);\n      }","        txt(W / 2, top + 316, 'Speed goes up slowly as you eat', 13, t.text, 0.5, false);\n      }\n      txt(W / 2, top + 378, 'These modes are for Endless play. Levels have their own rules.', 12, t.text, 0.5, false);\n      button(W / 2, top + 412, 280, 40, 'Tap to steer: ' + (DATA.tapSteer ? 'On' : 'Off'), toggleTap, { size: 15 });")
-rep("      txt(W / 2, top + 262, t.name, 20, t.accent);","      txt(W / 2, top + 262, t.name, 20, t.accent);\n      txt(W / 2, top + 300, 'Your theme is used in Endless play.', 13, t.text, 0.5, false);\n      txt(W / 2, top + 322, 'Levels use the colors of their world.', 13, t.text, 0.5, false);")
-rep("      txt(W / 2, top + 262, BACKGROUNDS[DATA.bg], 20, t.accent);","      txt(W / 2, top + 262, BACKGROUNDS[DATA.bg], 20, t.accent);\n      txt(W / 2, top + 300, 'Your pattern is used in Endless play.', 13, t.text, 0.5, false);")
+rep("        txt(W / 2, top + 316, 'Speed goes up slowly as you eat', 13, t.text, 0.5, false);\n      }","        txt(W / 2, top + 316, 'Speed goes up slowly as you eat', 13, t.text, 0.5, false);\n      }\n      button(W / 2, top + 412, 280, 40, 'Tap to steer: ' + (DATA.tapSteer ? 'On' : 'Off'), toggleTap, { size: 15 });")
+rep("      txt(W / 2, top + 262, t.name, 20, t.accent);","      txt(W / 2, top + 262, t.name, 20, t.accent);")
+rep("      txt(W / 2, top + 262, BACKGROUNDS[DATA.bg], 20, t.accent);","      txt(W / 2, top + 262, BACKGROUNDS[DATA.bg], 20, t.accent);")
 rep("    } else if (DATA.tab === 3) {\n      drawSkinTab(top);\n    } else {","    } else if (DATA.tab === 3) {\n      drawSkinTab(top);\n    } else if (DATA.tab === 5) {\n      drawShop(top);\n    } else {")
 rep("button(W / 2, top + (DATA.tab === 3 ? 450 : 410), 260, 54, 'Done'","button(W / 2, top + (DATA.tab === 3 || DATA.tab === 0 || DATA.tab === 5 ? 462 : 410), 260, 48, 'Done'")
 # pointer handling
@@ -151,6 +162,9 @@ rep("      delta = Math.min(delta, 100);\n      anim += delta;","      delta = M
 rep("  let CT = null;","  let LITE = false, fpsAvg = 16;     // LITE = slow device, skip the decorations\n  let CT = null;")
 
 rep("    buttons.push({ x: x - 44, y: y - 36, w: 88, h: label ? 100 : 72, fn: fn });","    buttons.push({ x: x - 38, y: y - 36, w: 76, h: label ? 100 : 72, fn: fn });")
+rep("    txt(BX + 42, 39, 'Best  ' + best(DATA.mode), 16, t.text, 0);","    txt(BX + 42, 39, DATA.menuMode === 'endless' ? 'Best  ' + best(DATA.mode) : 'Stars  ' + Object.keys(DATA.camp.stars).reduce((a, k) => a + DATA.camp.stars[k], 0), 16, t.text, 0);")
+rep("kb.on('keydown-ENTER', () => { if (state === 'menu') playCampaign();","kb.on('keydown-ENTER', () => { if (state === 'menu') playSelected();")
+rep("      demoReset();\n","      CT = menuPal();\n      demoReset();\n")
 # logic insert
 rep("  // ---------- Phaser scene ----------", logic+"\n  // ---------- Phaser scene ----------")
 # test hook

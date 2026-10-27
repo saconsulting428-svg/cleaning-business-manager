@@ -21,7 +21,7 @@ const click = async (p, x, y) => { const [cx, cy] = await world(p, x, y); await 
 {
   const { ctx, p } = await fresh();
   ok(await S(p, () => __snake.DATA.camp.unlocked === 1 && __snake.DATA.camp.cur === 1), 'fresh unlocked=1');
-  await click(p, 240, 500);                                   // Play
+  await click(p, 170, 548);                                   // Play
   await p.waitForTimeout(300);
   ok(await S(p, () => __snake.state === 'play' && __snake.camp.C.id === 1), 'Play starts level 1');
   ok(await S(p, () => __snake.G.snake.length === 3 && __snake.G.camp.ready > 0), 'READY beat and snake length 3');
@@ -38,7 +38,7 @@ const click = async (p, x, y) => { const [cx, cy] = await world(p, x, y); await 
   await p.reload(); await p.waitForTimeout(900);
   ok(await S(p, () => __snake.DATA.camp.unlocked === 2 && __snake.DATA.camp.cur === 2 && __snake.DATA.camp.stars[1] === 3), 'progress survives reload');
   // level select: L2 open, L3 locked
-  await click(p, 128, 606);                                   // Levels pill (left)
+  await click(p, 344, 548);                                   // Map button
   await p.waitForTimeout(300);
   let st = await S(p, () => __snake.state);
   
@@ -117,7 +117,7 @@ const click = async (p, x, y) => { const [cx, cy] = await world(p, x, y); await 
 // ---- e. endless mode still works ----
 {
   const { ctx, p } = await fresh();
-  await click(p, 352, 606);                    // Endless pill (right, no save)
+  await click(p, 319, 478); await p.waitForTimeout(200); await click(p, 240, 548);                    // Endless pill (right, no save)
   await p.waitForTimeout(300);
   ok(await S(p, () => __snake.state === 'play' && !__snake.G.camp && __snake.G.food), 'Endless pill starts the classic game');
   await p.waitForTimeout(1500);
