@@ -84,7 +84,7 @@
     ui.drawFade();
     G.end();
     // music: calm tune on menus, quieter while playing, silent on overlays that end an attempt
-    const mode = SC.name === 'play' ? (P.mode === 'run' ? 'play' : null) : 'menu';
+    const mode = SC.name === 'play' ? (P.mode === 'run' || P.mode === 'ready' ? 'play' : null) : 'menu';
     A.musicTick(SC.ov === 'complete' || SC.ov === 'failed' ? null : mode);
   }
 
@@ -143,7 +143,7 @@
 
     // Pause and save when the app goes to the background.
     const away = () => {
-      if (SC.name === 'play' && P.mode === 'run' && !SC.ov) SC.pause();
+      if (SC.name === 'play' && (P.mode === 'run' || P.mode === 'ready') && !SC.ov) SC.pause();
       else if (SC.name === 'play') { const a = P.snapshot(); if (a && P.mode === 'paused') S.save.data.attempt = a; S.save.write(); }
       else S.save.write();
       A.suspend();

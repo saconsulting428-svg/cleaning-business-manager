@@ -26,14 +26,20 @@
   // Board position/size. Computed from the screen height so tall phones use the extra room.
   P.layout = function () {
     const W = S.W, H = S.H, dpad = S.save.data.dpad;
-    const cell = Math.floor((W - 30) / 8), size = cell * 8;
-    const top = 156, bottom = H - (dpad ? 236 : 116);
-    const by = Math.round(top + Math.max(0, (bottom - top - size) / 2)) + 4;
-    return { cell: cell, size: size, bx: Math.round((W - size) / 2), by: by, statY: by + size + 22, dpadY: H - 108 };
+    const cell = Math.floor((W - 12) / 8), size = cell * 8;       // the board uses almost the full width
+    const top = 84, bottom = H - (dpad ? 226 : 66);
+    const by = Math.round(top + Math.max(0, (bottom - top - size) / 2));
+    return { cell: cell, size: size, bx: Math.round((W - size) / 2), by: by, statY: by + size + 16, dpadY: H - 104 };
   };
   const cellXY = (c, L) => ({ x: L.bx + (c % 8) * L.cell + L.cell / 2, y: L.by + ((c / 8) | 0) * L.cell + L.cell / 2 });
   P.cellXY = (c) => cellXY(c, P.layout());
 
+  // Easy to learn, gradually faster: the first levels are slow and forgiving, later levels use the level's own tick.
+  P.tickFor = function (lv) {
+    const id = lv.id;
+    const ramp = id <= 3 ? 280 : id <= 10 ? 250 - (id - 4) * 3 : id <= 20 ? 228 - (id - 11) * 2.2 : id <= 60 ? 206 - (id - 21) * 0.5 : 186;
+    return Math.round(Math.max(lv.tickMs || TICK_MS, ramp));
+  };
   // ---------- starting / restarting ----------
   P.start = function (id, opts) {
     opts = opts || {};
@@ -45,8 +51,10 @@
     P.fruitsEaten = 0; P.coinsFromFruit = 0; P.attemptMs = 0;
     P.prevF = bodyXY(P.st.body);
     P.hintCells = opts.hint ? S.solutionCells(lv) : null;
-    P.mode = 'run';
-    P.tickMs = P.lv.tickMs || TICK_MS;
+    P.baseTick = P.tickFor(P.lv);
+    P.tickMs = P.baseTick;
+    P.mode = 'ready';                       // short READY / GO before the snake starts to move
+    P.readyT = 0; P.readyDur = P.lv.id <= 3 ? 1700 : 850; P.lastReadyStep = -1;
     if (opts.snapshot) restore(opts.snapshot);
     P.startedAt = P.now;
     if (opts.snapshot) P.mode = 'paused';
@@ -63,14 +71,14 @@
     const st = P.st;
     return { level: P.lv.id, body: st.body.slice(), dir: st.dir.slice(), fruitMask: st.fruitMask, keyMask: st.keyMask, gateMask: st.gateMask, moves: st.moves, swLog: st.swLog, fruitLog: st.fruitLog };
   };
-  P.active = () => P.mode === 'run';
-  P.pause = function () { if (P.mode === 'run') { P.mode = 'paused'; S.save.data.attempt = P.snapshot(); S.save.write(); } };
-  P.resume = function () { if (P.mode === 'paused') { P.mode = 'run'; P.acc = Math.min(P.acc, P.tickMs * 0.5); } };
+  P.active = () => P.mode === 'run' || P.mode === 'ready';
+  P.pause = function () { if (P.mode === 'run' || P.mode === 'ready') { P.pausedFrom = P.mode; P.mode = 'paused'; S.save.data.attempt = P.snapshot(); S.save.write(); } };
+  P.resume = function () { if (P.mode === 'paused') { P.mode = P.pausedFrom === 'ready' ? 'ready' : 'run'; P.pausedFrom = 'run'; P.acc = Math.min(P.acc, P.tickMs * 0.5); } };
 
   // ---------- input ----------
   const opposite = E.opposite, same = E.sameDir;
   P.turn = function (d) {
-    if (P.mode !== 'run') return false;
+    if (P.mode !== 'run' && P.mode !== 'ready') return false;     // a swipe during READY is remembered and used on the first move
     const last = P.queue.length ? P.queue[P.queue.length - 1] : P.st.dir;
     if (same(d, last) || opposite(d, last) || P.queue.length >= 2) return false;
     P.queue.push(d);
@@ -181,7 +189,7 @@
     }
   }
 
-  function delayNow() { return P.rt.ice[P.st.body[0]] ? Math.round(ICE_MS * (P.lv.tickMs || TICK_MS) / TICK_MS) : (P.lv.tickMs || TICK_MS); }
+  function delayNow() { return P.rt.ice[P.st.body[0]] ? Math.round(ICE_MS * P.baseTick / TICK_MS) : P.baseTick; }
 
   // One tick of the snake. Returns false if the snake waited (ice stop).
   function tick(L) {
@@ -255,6 +263,13 @@
     updateFx(dt);
     if (P.mode === 'idle' || P.mode === 'paused' || P.mode === 'done') return;
     const L = P.layout();
+    if (P.mode === 'ready') {
+      P.readyT += dt;
+      const step = P.readyDur > 1000 ? Math.min(3, Math.floor(P.readyT / (P.readyDur / 4))) : (P.readyT < P.readyDur * 0.55 ? 0 : 1);
+      if (step !== P.lastReadyStep) { P.lastReadyStep = step; const last = P.readyDur > 1000 ? step === 3 : step === 1; S.audio.sfx[last ? 'exitOpen' : 'click'](); }
+      if (P.readyT >= P.readyDur) { P.mode = 'run'; P.acc = 0; P.k = 1; }
+      return;
+    }
     if (P.mode === 'run') {
       P.attemptMs += dt;
       if (!P.waiting) P.acc += dt;

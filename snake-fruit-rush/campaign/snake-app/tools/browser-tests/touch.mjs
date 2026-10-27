@@ -31,7 +31,7 @@ await tapW(pl[0], pl[1]); await page.waitForTimeout(400);
 ok(await page.evaluate(() => __sfr.screens.ov === 'tutorial'), 'first level shows the basics tutorial');
 const got = await page.evaluate(() => { const b = __sfr.ui.buttons.find((x) => x.id === 'gotit'); return [b.x + b.w / 2, b.y + b.h / 2]; });
 await page.waitForTimeout(400);
-await tapW(got[0], got[1]); await page.waitForTimeout(700);
+await tapW(got[0], got[1]); await page.waitForFunction(() => __sfr.play.mode === 'run', null, { timeout: 5000 });
 ok(await page.evaluate(() => __sfr.screens.name === 'play' && __sfr.play.mode === 'run'), 'GOT IT starts level 1 and the snake is moving');
 const x0 = await page.evaluate(() => __sfr.play.st.body[0]);
 await page.waitForTimeout(600);
@@ -42,7 +42,8 @@ await page.waitForTimeout(1500);
 ok(await page.evaluate(() => __sfr.screens.ov === 'complete' && __sfr.play.result.stars >= 1), 'level 1 completes by driving straight (stars ' + await page.evaluate(() => __sfr.play.result && __sfr.play.result.stars) + ')');
 // --- real swipe on a level that needs turns
 await page.evaluate(() => { const S = __sfr; S.screens.ov = null; S.screens.beginPlay(12); });
-await page.waitForTimeout(900);
+await page.waitForFunction(() => __sfr.play.mode === 'run', null, { timeout: 5000 });
+await page.waitForTimeout(300);
 const dir0 = await page.evaluate(() => __sfr.play.st.dir.join());
 const b = await box();
 const horiz = dir0 === '1,0' || dir0 === '-1,0';
@@ -59,10 +60,10 @@ await page.waitForTimeout(900);
 ok(await page.evaluate(() => __sfr.screens.ov === 'failed'), 'Level Failed overlay shown');
 const retry = await page.evaluate(() => { const b = __sfr.ui.buttons.find((x) => x.id === 'retry'); return [b.x + b.w / 2, b.y + b.h / 2]; });
 await tapW(retry[0], retry[1]); await page.waitForTimeout(700);
-ok(await page.evaluate(() => __sfr.play.mode === 'run' && __sfr.play.st.moves < 4), 'TRY AGAIN restarts the level');
+ok(await page.evaluate(() => (__sfr.play.mode === 'ready' || __sfr.play.mode === 'run') && __sfr.play.st.moves < 4), 'TRY AGAIN restarts the level');
 // --- tap-to-turn: a tap to the right of a downward-moving head turns the snake right
 await page.evaluate(() => { __sfr.screens.ov = null; __sfr.play.start(12); });
-await page.waitForTimeout(120);
+await page.waitForFunction(() => __sfr.play.mode === 'run');
 const hp = await page.evaluate(() => { const P = __sfr.play, h = P.cellXY(P.st.body[0]); return [h.x, h.y, P.st.dir.join()]; });
 await tapW(hp[0] + 150, hp[1] - 10); await page.waitForTimeout(350);
 ok(hp[2] === '0,1' && await page.evaluate(() => __sfr.play.st.dir.join() === '1,0'), 'tap to the right of the head turns the snake right');
@@ -76,7 +77,8 @@ const q = await page.evaluate(() => { const P = __sfr.play; const a = P.turn([0,
 ok(q[0] && q[1] && q[2] >= 1, 'input buffer accepts two queued turns ' + JSON.stringify(q));
 // --- pause by button (real tap) stops movement
 await page.evaluate(() => { __sfr.play.start(3); });
-await page.waitForTimeout(200);
+await page.waitForFunction(() => __sfr.play.mode === 'run');
+await page.waitForTimeout(300);
 const pause = await page.evaluate(() => { const b = __sfr.ui.buttons.find((x) => x.id === 'pause'); return [b.x + b.w / 2, b.y + b.h / 2]; });
 await tapW(pause[0], pause[1]); await page.waitForTimeout(300);
 const m1 = await page.evaluate(() => __sfr.play.st.moves);

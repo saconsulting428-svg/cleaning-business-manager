@@ -63,7 +63,7 @@ const tap = async (page, id) => { const p = await page.evaluate((id) => { const 
 {
   const { ctx, page } = await open();
   await page.evaluate(() => { const S = __sfr; S.save.complete(1, 3, { first: 5, replay: 1, perfect: 5 }); S.save.complete(2, 2, { first: 5, replay: 1, perfect: 5 }); S.screens.name = 'play'; S.screens.ov = null; S.play.start(3); });
-  await page.waitForTimeout(500);
+  await page.waitForFunction(() => __sfr.play.mode === 'run'); await page.waitForTimeout(500);
   await page.evaluate(() => __sfr.screens.pause());
   const snap = await page.evaluate(() => JSON.stringify(__sfr.save.data.attempt));
   await page.reload();

@@ -66,63 +66,45 @@
     const g = G(), d = S.save.data, wi = worldAt(), w = S.WORLDS[wi], H = S.H;
     S.drawWorldBg(wi, now);
     g.use(4);
-    // top row
-    ui().round(36, 34, 22, 'gear', () => SC.go('settings', { from: 'menu' }), { id: 'gear' });
-    ui().round(S.W - 36, 34, 22, d.sfx || d.music ? 'sound' : 'mute', () => { const on = !(d.sfx || d.music); d.sfx = on; d.music = on; S.save.write(); }, { id: 'snd' });
-    coinChip(S.W - 70, 16);
-    const dy = Math.max(0, Math.round((H - 770) * 0.32));
-    // logo
-    const t = now / 1000;
-    g.img('fruits', 64, 98 + dy + Math.sin(t * 2) * 3, 46, 46, { frame: 'apple', rot: -0.25 });
-    g.img('fruits', S.W - 64, 108 + dy + Math.sin(t * 2 + 1) * 3, 42, 42, { frame: 'cherry', rot: 0.25 });
-    g.text(S.W / 2, 96 + dy, 'SNAKE', 66, U.cream, { shadow: '#07170e', shadowDy: 6 });
-    g.text(S.W / 2, 148 + dy, 'FRUIT RUSH', 31, U.gold1, { shadow: '#5a3a08', shadowDy: 4 });
-    g.text(S.W / 2, 180 + dy, 'EAT  •  GROW  •  SOLVE  •  ESCAPE', 11.5, U.cream, { alpha: 0.85 });
-    // hero preview
-    const hy = 198 + dy, hw = 392, hh = 204, hx = (S.W - hw) / 2;
-    g.rrect(hx - 6, hy - 6 + 6, hw + 12, hh + 12, 30, '#000000', 0.3);
-    g.rrect(hx - 6, hy - 6, hw + 12, hh + 12, 30, S.shade(w.frame, 0.25));
-    g.rrect(hx - 3, hy - 3, hw + 6, hh + 6, 28, w.frame);
-    const fx = hx + 4, fy = hy + 4, cs = (hw - 8) / DEMO.cols;
-    g.rrect(fx, fy, hw - 8, hh - 8, 22, w.floorA);
+    ui().round(34, 34, 21, 'gear', () => SC.go('settings', { from: 'menu' }), { id: 'gear' });
+    ui().round(S.W - 34, 34, 21, d.sfx || d.music ? 'sound' : 'mute', () => { const on = !(d.sfx || d.music); d.sfx = on; d.music = on; S.save.write(); }, { id: 'snd' });
+    coinChip(S.W - 66, 16);
+    const dy = Math.max(0, Math.round((H - 780) * 0.35)), t = now / 1000;
+    // title: the snake and fruit are the identity
+    g.img('fruits', 62, 112 + dy + Math.sin(t * 2) * 3, 52, 52, { frame: 'apple', rot: -0.25 });
+    g.img('fruits', S.W - 62, 120 + dy + Math.sin(t * 2 + 1) * 3, 48, 48, { frame: 'cherry', rot: 0.25 });
+    g.img('fruits', S.W - 92, 70 + dy + Math.sin(t * 2.4) * 3, 30, 30, { frame: 'orange', rot: 0.4 });
+    g.text(S.W / 2, 104 + dy, 'SNAKE', 78, U.cream, { shadow: '#07170e', shadowDy: 7 });
+    g.text(S.W / 2, 162 + dy, 'FRUIT RUSH', 34, U.gold1, { shadow: '#5a3a08', shadowDy: 4 });
+    // live snake stage (decoration only: it is NOT the game)
+    const hy = 204 + dy, hw = S.W - 28, hh = 262, hx = 14;
+    g.rrect(hx, hy + 6, hw, hh, 28, '#000000', 0.3);
+    g.rrect(hx, hy, hw, hh, 28, S.shade(w.frame, 0.25));
+    g.rrect(hx + 3, hy + 3, hw - 6, hh - 6, 26, w.frame);
+    const fx = hx + 8, fy = hy + 8, fw = hw - 16, fh = hh - 16, cs = fw / DEMO.cols;
+    g.rrect(fx, fy, fw, fh, 20, w.floorA);
     for (let r = 0; r < DEMO.rows; r++) for (let q = 0; q < DEMO.cols; q++) if ((r + q) & 1) g.rect(fx + q * cs, fy + r * cs, cs, cs, w.floorB);
-    g.rrectStroke(fx - 5, fy - 5, hw - 8 + 10, hh - 8 + 10, 25, w.frame, 1, 11);
+    g.rrectStroke(fx - 4, fy - 4, fw + 8, fh + 8, 24, w.frame, 1, 9);
     if (!demo) demoReset();
-    const k = Math.min(1, demo.acc / DEMO.ms), xy = (c, r) => ({ x: fx + (c + 0.5) * cs, y: fy + (r + 0.5) * cs });
+    const k = Math.min(1, demo.acc / DEMO.ms), xy = (c, r) => ({ x: fx + (c + 0.5) * cs, y: fy + (r + 0.5) * (fh / DEMO.rows) });
     const f = xy(demo.food[0], demo.food[1]);
-    g.img('fruits', f.x, f.y + Math.sin(now / 160) * 2, cs * 0.85, cs * 0.85, { frame: S.art.FRUIT_FRAMES[demo.kind] });
+    g.img('fruits', f.x, f.y + Math.sin(now / 160) * 2, cs * 0.8, cs * 0.8, { frame: S.art.FRUIT_FRAMES[demo.kind] });
     const pts = demo.snake.map((cur, i) => {
       const prev = (demo.prev && demo.prev[i]) || cur, jump = Math.abs(cur[0] - prev[0]) + Math.abs(cur[1] - prev[1]) > 1;
       return jump ? xy(cur[0], cur[1]) : xy(prev[0] + (cur[0] - prev[0]) * k, prev[1] + (cur[1] - prev[1]) * k);
     });
     S.snakeClock(now);
-    S.snakeDraw.snake(pts, demo.dir, cs / 22, { cell: cs });
-    // adventure card
-    const ay = hy + hh + 22;
-    g.text(S.W / 2, ay, 'YOUR ADVENTURE CONTINUES', 11.5, U.cream, { alpha: 0.8 });
-    const cur = frontier(), done = S.save.completedCount(), hasRun = done > 0 || d.attempt;
-    ui().panel(14 + 6, ay + 14, S.W - 40, 62, { r: 20, shadow: 5 });
-    g.text(40, ay + 36, 'LEVEL ' + cur, 15, U.ink, { ox: 0 });
-    g.text(40, ay + 58, w.name + ' · ' + done + ' of ' + S.levelCount() + ' cleared', 11.5, U.inkSoft, { ox: 0, bold: false });
-    ui().bar(S.W - 40 - 132, ay + 44, 132, 12, done / S.levelCount(), U.green, '#d9c690');
-    g.text(S.W - 40 - 132, ay + 30, S.save.totalStars() + ' ★ earned', 11, U.inkSoft, { ox: 0 });
-    // play / continue
-    const by = ay + 108;
-    const lab = d.attempt ? 'CONTINUE' : (hasRun ? 'CONTINUE' : 'PLAY');
-    ui().button(S.W / 2, by, S.W - 40, 66, lab, () => SC.playCurrent(), { style: 'primary', size: 26, id: 'play' });
-    if (hasRun || d.attempt) g.text(S.W / 2, by + 20, 'WORLD ' + (wi + 1) + ' · LEVEL ' + cur, 10, '#6d4b12', { alpha: 0.9 });
-    // bottom row
-    const ry = by + 56;
-    ui().panel(20, ry, S.W - 40 - 148, 62, { r: 20, shadow: 5 });
-    g.text(38, ry + 24, 'LEVEL MAP', 15, U.ink, { ox: 0 });
-    g.text(38, ry + 44, S.save.totalStars() + ' / ' + (S.levelCount() * 3) + ' stars earned', 11.5, U.inkSoft, { ox: 0, bold: false });
-    ui().star(S.W - 40 - 148 - 26, ry + 31, 26, 1);
-    S.ui.reg('mapcard', 20, ry, S.W - 40 - 148, 62 + 6, () => SC.go('map', { world: worldAt() }), true);
-    const sx = S.W - 20 - 62 * 2 - 12;
-    ui().round(sx + 31, ry + 31, 29, 'skins', () => SC.go('skins', { from: 'menu' }), { id: 'skinsbtn' });
-    ui().round(sx + 62 + 12 + 31, ry + 31, 29, 'gear', () => SC.go('settings', { from: 'menu' }), { id: 'gear2' });
-    g.text(sx + 31, ry + 74, 'Skins', 10.5, U.cream, { alpha: 0.8 });
-    g.text(sx + 62 + 12 + 31, ry + 74, 'Settings', 10.5, U.cream, { alpha: 0.8 });
+    S.snakeDraw.snake(pts, demo.dir, cs / 30, { cell: cs });
+    // progress + play
+    const cur = frontier(), done = S.save.completedCount(), hasRun = done > 0 || d.attempt, ay = hy + hh + 28;
+    g.text(S.W / 2, ay, (hasRun ? 'LEVEL ' + cur + '  ·  ' : 'WORLD 1  ·  ') + w.name.toUpperCase() + '  ·  ' + S.save.totalStars() + ' ★', 13, U.cream, { shadow: '#000000', shadowDy: 1.5 });
+    ui().bar(S.W / 2 - 90, ay + 14, 180, 8, done / S.levelCount(), w.accent);
+    const by = ay + 62;
+    ui().button(S.W / 2, by, S.W - 56, 76, hasRun ? 'CONTINUE' : 'PLAY', () => SC.playCurrent(), { style: 'primary', size: 30, id: 'play', icon: 'play' });
+    const ry = by + 82;
+    ui().round(S.W / 2 - 120, ry, 28, 'skins', () => SC.go('skins', { from: 'menu' }), { id: 'skinsbtn' });
+    ui().button(S.W / 2, ry, 150, 54, 'LEVEL MAP', () => SC.go('map', { world: worldAt() }), { size: 15, id: 'mapbtn', icon: 'map' });
+    ui().round(S.W / 2 + 120, ry, 28, 'gear', () => SC.go('settings', { from: 'menu' }), { id: 'gear2' });
   }
 
   // From the home screen: resume an unfinished attempt, otherwise open the current level.
@@ -195,9 +177,9 @@
     }
     // path panel
     const py = 206, rowGap = S.clamp(Math.round((S.H - 560) / 5 + 8), 64, 80), ph = 64 + rowGap * 4 + 56;
-    ui().panel(14, py, S.W - 28, ph, { r: 24, shadow: 6 });
-    g.text(34, py + 24, 'FOLLOW THE PATH', 11, U.inkSoft, { ox: 0 });
-    g.text(S.W - 34, py + 24, done + ' / 20', 11, U.inkSoft, { ox: 1 });
+    g.rrect(14, py, S.W - 28, ph, 26, '#000000', 0.26);
+    g.text(34, py + 24, 'FOLLOW THE PATH', 11, U.cream, { ox: 0, alpha: 0.75 });
+    g.text(S.W - 34, py + 24, done + ' / 20', 11, U.cream, { ox: 1, alpha: 0.75 });
     const cols = [87, 179, 271, 363], pos = [];
     for (let n = 0; n < 20; n++) { const r = (n / 4) | 0, c = n % 4, cc = r % 2 ? 3 - c : c; pos.push({ x: cols[cc], y: py + 70 + r * rowGap, level: first + n }); }
     // dotted path
@@ -207,7 +189,7 @@
       for (let s = 1; s < steps; s++) {
         const t = s / steps; let x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
         if (a.y !== b.y) { const bulge = (n % 4 === 3) ? 1 : 0; x = a.x + (b.x - a.x) * t + bulge * Math.sin(t * Math.PI) * (a.x > 200 ? 26 : -26); }
-        g.circle(x, y, 2.6, lit ? w.accent : '#b7a574', lit ? 0.95 : 0.55);
+        g.circle(x, y, 2.8, lit ? w.accent2 : '#ffffff', lit ? 0.95 : 0.3);
       }
     }
     const slide = (1 - S.ease.out(S.prog(now, SC.worldChangeAt, 0, 260))) * 26;
@@ -277,14 +259,6 @@
       g.text(70, yy, r[1], 15, U.ink, { ox: 0 });
     });
     goals.extras.forEach((e, i) => g.text(70, gy + 52 + 3 * 30 + 4 + i * 18 - 6, '+ ' + e, 12, U.inkSoft, { ox: 0, bold: false }));
-    // snake length tip
-    const ty = gy + 150 + goals.extras.length * 18;
-    ui().panel(14, ty, S.W - 28, 86, { r: 22, shadow: 6 });
-    g.text(32, ty + 22, 'SNAKE LENGTH', 10.5, U.inkSoft, { ox: 0 });
-    g.text(32, ty + 50, 'Every fruit adds one segment.', 14, U.ink, { ox: 0 });
-    g.text(32, ty + 70, 'Leave room to reach the exit!', 12, U.inkSoft, { ox: 0, bold: false });
-    S.snakeClock(now);
-    const k = 1.05; S.snakeDraw.snake([{ x: S.W - 40, y: ty + 46 }, { x: S.W - 66, y: ty + 46 }, { x: S.W - 92, y: ty + 46 }, { x: S.W - 118, y: ty + 46 }, { x: S.W - 144, y: ty + 46 }], [1, 0], k, { cell: 26 });
     // play
     const by = S.H - 56;
     ui().button(S.W / 2, by, S.W - 40, 62, 'PLAY LEVEL ' + id, () => SC.startLevel(id), { style: 'primary', size: 23, id: 'playlevel' });

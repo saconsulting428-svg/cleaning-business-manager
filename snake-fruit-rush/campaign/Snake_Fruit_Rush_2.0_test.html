@@ -829,6 +829,35 @@ window.SFR.SVG = {
       add('patterns', V['world-pattern-overlays'], 1, [[0, 0, 0, 256, 256], [1, 256, 0, 256, 256], [2, 512, 0, 256, 256], [3, 768, 0, 256, 256], [4, 1024, 0, 256, 256]]);
       return Promise.all(jobs).then(() => { art.ready = true; });
     },
+    // Scenery above and below the board (painted once, so it costs nothing per frame)
+    scenery(ctx, wi, w, h) {
+      const E = (x, y, rx, ry, c, a) => { ctx.globalAlpha = a; ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1; };
+      const T = (x1, y1, x2, y2, x3, y3, c, a) => { ctx.globalAlpha = a; ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x3, y3); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1; };
+      const rnd = (i) => ((Math.imul(i + 7 * wi + 3, 2654435761) >>> 0) % 1000) / 1000;
+      if (wi === 0) {                                              // garden: hills, bushes, flowers
+        E(60, h + 10, 190, 70, '#0e3a1c', 0.55); E(w - 40, h + 20, 210, 80, '#0e3a1c', 0.5); E(w / 2, h + 40, 220, 60, '#1d5a2e', 0.5);
+        [[40, h - 50], [90, h - 36], [w - 50, h - 48], [w - 105, h - 34]].forEach((b) => { E(b[0], b[1], 30, 24, '#2f8a43', 0.8); E(b[0] + 14, b[1] - 8, 20, 17, '#46bd61', 0.8); });
+        for (let i = 0; i < 12; i++) { const x = rnd(i) * w, y = h - 20 - rnd(i + 40) * 40; E(x, y, 4, 4, ['#ffd0e0', '#fff3a0', '#ffffff'][i % 3], 0.9); }
+        for (let i = 0; i < 6; i++) E(rnd(i + 60) * w, 20 + rnd(i + 70) * 30, 22, 9, '#7fe08a', 0.18);
+      } else if (wi === 1) {                                       // desert: sun, dunes, cactus
+        E(w - 62, h - 118, 34, 34, '#ffd47a', 0.6); E(w - 62, h - 118, 50, 50, '#ffd47a', 0.18);
+        E(70, h + 10, 230, 80, '#8a5628', 0.55); E(w - 30, h + 20, 220, 70, '#a8672f', 0.5); E(w / 2, h + 50, 200, 60, '#c78a45', 0.45);
+        [[60, h - 52], [w - 60, h - 44]].forEach((c) => { ctx.globalAlpha = 0.8; ctx.fillStyle = '#2f7a4a'; ctx.fillRect(c[0] - 5, c[1] - 26, 10, 40); ctx.fillRect(c[0] - 18, c[1] - 14, 8, 6); ctx.fillRect(c[0] - 18, c[1] - 24, 7, 16); ctx.fillRect(c[0] + 10, c[1] - 10, 8, 6); ctx.fillRect(c[0] + 11, c[1] - 22, 7, 16); ctx.globalAlpha = 1; });
+      } else if (wi === 2) {                                       // ice: snowy peaks, snowflakes
+        T(20, h, 100, h - 90, 180, h, '#dff4ff', 0.3); T(w - 190, h, w - 100, h - 70, w - 10, h, '#cfeeff', 0.3); T(150, h, 230, h - 50, 310, h, '#bfe6fb', 0.28);
+        for (let i = 0; i < 26; i++) E(rnd(i) * w, rnd(i + 30) * 70 + (i % 2 ? h - 110 : 0), 2 + rnd(i + 5) * 2.5, 2 + rnd(i + 5) * 2.5, '#ffffff', 0.55);
+        E(w / 2, h + 30, 260, 50, '#eaf8ff', 0.35);
+      } else if (wi === 3) {                                       // volcano: lava glow, volcano, embers
+        E(w / 2, h + 30, 300, 90, '#ff5a2a', 0.28);
+        T(w / 2 - 130, h, w / 2, h - 110, w / 2 + 130, h, '#0f0a09', 0.8); E(w / 2, h - 108, 26, 8, '#ff7047', 0.9); E(w / 2, h - 118, 12, 14, '#ffb347', 0.35);
+        for (let i = 0; i < 24; i++) E(rnd(i) * w, h - 130 + rnd(i + 20) * 150 - (i % 3) * 100, 1.6 + rnd(i + 9) * 1.8, 1.6 + rnd(i + 9) * 1.8, i % 2 ? '#ff9a52' : '#ffd27a', 0.6);
+      } else {                                                     // night: moon, stars, hills
+        E(60, h - 92, 28, 28, '#f5f4ff', 0.9); E(69, h - 98, 24, 24, '#0c1030', 1);
+        for (let i = 0; i < 40; i++) E(rnd(i) * w, rnd(i + 50) * h, 0.8 + rnd(i + 3) * 1.6, 0.8 + rnd(i + 3) * 1.6, i % 5 ? '#ffffff' : '#a58cff', 0.35 + rnd(i + 8) * 0.5);
+        E(80, h + 30, 220, 70, '#0a0d24', 0.8); E(w - 60, h + 36, 230, 76, '#0c1030', 0.8);
+        [[70, h - 40], [w - 80, h - 34]].forEach((t) => { T(t[0] - 16, t[1] + 30, t[0], t[1] - 20, t[0] + 16, t[1] + 30, '#06081c', 0.9); });
+      }
+    },
     // World backgrounds are painted once into a canvas texture (gradient + soft glow + pattern) and then drawn as ONE image
     // per frame - much cheaper than redrawing the pattern tiles every frame on weak phones.
     bgCache: [],
@@ -849,6 +878,7 @@ window.SFR.SVG = {
           for (let y = 0; y < h + sz; y += sz) for (let x = -20; x < w; x += sz) ctx.drawImage(src, W.pattern * 256, 0, 256, 256, x, y, sz, sz);
           ctx.globalAlpha = 1;
         }
+        art.scenery(ctx, wi, w, h);
         tex.refresh();
         art.bgCache.push(key);
         while (art.bgCache.length > 3) scene.textures.remove(art.bgCache.shift());
@@ -2146,14 +2176,20 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
   // Board position/size. Computed from the screen height so tall phones use the extra room.
   P.layout = function () {
     const W = S.W, H = S.H, dpad = S.save.data.dpad;
-    const cell = Math.floor((W - 30) / 8), size = cell * 8;
-    const top = 156, bottom = H - (dpad ? 236 : 116);
-    const by = Math.round(top + Math.max(0, (bottom - top - size) / 2)) + 4;
-    return { cell: cell, size: size, bx: Math.round((W - size) / 2), by: by, statY: by + size + 22, dpadY: H - 108 };
+    const cell = Math.floor((W - 12) / 8), size = cell * 8;       // the board uses almost the full width
+    const top = 84, bottom = H - (dpad ? 226 : 66);
+    const by = Math.round(top + Math.max(0, (bottom - top - size) / 2));
+    return { cell: cell, size: size, bx: Math.round((W - size) / 2), by: by, statY: by + size + 16, dpadY: H - 104 };
   };
   const cellXY = (c, L) => ({ x: L.bx + (c % 8) * L.cell + L.cell / 2, y: L.by + ((c / 8) | 0) * L.cell + L.cell / 2 });
   P.cellXY = (c) => cellXY(c, P.layout());
 
+  // Easy to learn, gradually faster: the first levels are slow and forgiving, later levels use the level's own tick.
+  P.tickFor = function (lv) {
+    const id = lv.id;
+    const ramp = id <= 3 ? 280 : id <= 10 ? 250 - (id - 4) * 3 : id <= 20 ? 228 - (id - 11) * 2.2 : id <= 60 ? 206 - (id - 21) * 0.5 : 186;
+    return Math.round(Math.max(lv.tickMs || TICK_MS, ramp));
+  };
   // ---------- starting / restarting ----------
   P.start = function (id, opts) {
     opts = opts || {};
@@ -2165,8 +2201,10 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
     P.fruitsEaten = 0; P.coinsFromFruit = 0; P.attemptMs = 0;
     P.prevF = bodyXY(P.st.body);
     P.hintCells = opts.hint ? S.solutionCells(lv) : null;
-    P.mode = 'run';
-    P.tickMs = P.lv.tickMs || TICK_MS;
+    P.baseTick = P.tickFor(P.lv);
+    P.tickMs = P.baseTick;
+    P.mode = 'ready';                       // short READY / GO before the snake starts to move
+    P.readyT = 0; P.readyDur = P.lv.id <= 3 ? 1700 : 850; P.lastReadyStep = -1;
     if (opts.snapshot) restore(opts.snapshot);
     P.startedAt = P.now;
     if (opts.snapshot) P.mode = 'paused';
@@ -2183,14 +2221,14 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
     const st = P.st;
     return { level: P.lv.id, body: st.body.slice(), dir: st.dir.slice(), fruitMask: st.fruitMask, keyMask: st.keyMask, gateMask: st.gateMask, moves: st.moves, swLog: st.swLog, fruitLog: st.fruitLog };
   };
-  P.active = () => P.mode === 'run';
-  P.pause = function () { if (P.mode === 'run') { P.mode = 'paused'; S.save.data.attempt = P.snapshot(); S.save.write(); } };
-  P.resume = function () { if (P.mode === 'paused') { P.mode = 'run'; P.acc = Math.min(P.acc, P.tickMs * 0.5); } };
+  P.active = () => P.mode === 'run' || P.mode === 'ready';
+  P.pause = function () { if (P.mode === 'run' || P.mode === 'ready') { P.pausedFrom = P.mode; P.mode = 'paused'; S.save.data.attempt = P.snapshot(); S.save.write(); } };
+  P.resume = function () { if (P.mode === 'paused') { P.mode = P.pausedFrom === 'ready' ? 'ready' : 'run'; P.pausedFrom = 'run'; P.acc = Math.min(P.acc, P.tickMs * 0.5); } };
 
   // ---------- input ----------
   const opposite = E.opposite, same = E.sameDir;
   P.turn = function (d) {
-    if (P.mode !== 'run') return false;
+    if (P.mode !== 'run' && P.mode !== 'ready') return false;     // a swipe during READY is remembered and used on the first move
     const last = P.queue.length ? P.queue[P.queue.length - 1] : P.st.dir;
     if (same(d, last) || opposite(d, last) || P.queue.length >= 2) return false;
     P.queue.push(d);
@@ -2301,7 +2339,7 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
     }
   }
 
-  function delayNow() { return P.rt.ice[P.st.body[0]] ? Math.round(ICE_MS * (P.lv.tickMs || TICK_MS) / TICK_MS) : (P.lv.tickMs || TICK_MS); }
+  function delayNow() { return P.rt.ice[P.st.body[0]] ? Math.round(ICE_MS * P.baseTick / TICK_MS) : P.baseTick; }
 
   // One tick of the snake. Returns false if the snake waited (ice stop).
   function tick(L) {
@@ -2375,6 +2413,13 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
     updateFx(dt);
     if (P.mode === 'idle' || P.mode === 'paused' || P.mode === 'done') return;
     const L = P.layout();
+    if (P.mode === 'ready') {
+      P.readyT += dt;
+      const step = P.readyDur > 1000 ? Math.min(3, Math.floor(P.readyT / (P.readyDur / 4))) : (P.readyT < P.readyDur * 0.55 ? 0 : 1);
+      if (step !== P.lastReadyStep) { P.lastReadyStep = step; const last = P.readyDur > 1000 ? step === 3 : step === 1; S.audio.sfx[last ? 'exitOpen' : 'click'](); }
+      if (P.readyT >= P.readyDur) { P.mode = 'run'; P.acc = 0; P.k = 1; }
+      return;
+    }
     if (P.mode === 'run') {
       P.attemptMs += dt;
       if (!P.waiting) P.acc += dt;
@@ -2441,13 +2486,23 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
     const cellC = (i) => ({ x: L.bx + (i % 8) * c + c / 2, y: L.by + ((i / 8) | 0) * c + c / 2, r: (i / 8) | 0 });
     // --- frame + floor (layer 1)
     g.use(1);
-    const fx = L.bx - 10, fy = L.by - 10, fs = L.size + 20;
-    g.rrect(fx, fy + 8, fs, fs, 26, '#000000', 0.32);
-    g.rrect(fx, fy, fs, fs, 26, S.shade(w.frame, 0.2));
-    g.rrect(fx + 3, fy + 3, fs - 6, fs - 6, 23, w.frame);
+    const fx = L.bx - 5, fy = L.by - 5, fs = L.size + 10;
+    g.rrect(fx, fy + 6, fs, fs, 18, '#000000', 0.32);
+    g.rrect(fx, fy, fs, fs, 18, S.shade(w.frame, 0.25));
+    g.rrect(fx + 2, fy + 2, fs - 4, fs - 4, 16, w.frame);
     g.rrect(L.bx, L.by, L.size, L.size, 6, w.floorA);
     for (let r = 0; r < 8; r++) for (let q = 0; q < 8; q++) if ((r + q) & 1) g.rect(L.bx + q * c, L.by + r * c, c, c, w.floorB);
-    g.rrectStroke(L.bx - 4, L.by - 4, L.size + 8, L.size + 8, 13, w.frame, 1, 9);      // hides the square floor corners
+    g.rrectStroke(L.bx - 2, L.by - 2, L.size + 4, L.size + 4, 9, w.frame, 1, 6);      // hides the square floor corners
+    for (let i = 0; i < 64; i++) {                                    // tiny floor details: grass, pebbles, snow, embers, stars
+      const h = (Math.imul(i + 11 + wi * 97, 2654435761) >>> 0), cx = L.bx + (i % 8) * c, cy = L.by + ((i / 8) | 0) * c;
+      if (h % 5 > 1 || rt.wall[i]) continue;
+      const ox = cx + 8 + (h >>> 3) % (c - 16), oy = cy + 8 + (h >>> 9) % (c - 16);
+      if (wi === 0) { g.line(ox, oy, ox - 2, oy - 6, '#6aa22a', 2, 0.45); g.line(ox, oy, ox + 2, oy - 7, '#6aa22a', 2, 0.45); g.line(ox, oy, ox + 5, oy - 4, '#6aa22a', 2, 0.45); }
+      else if (wi === 1) { g.circle(ox, oy, 2.4, '#b88f55', 0.4); g.circle(ox + 5, oy + 2, 1.6, '#b88f55', 0.35); }
+      else if (wi === 2) { g.circle(ox, oy, 2, '#ffffff', 0.9); g.circle(ox + 6, oy + 3, 1.4, '#ffffff', 0.8); }
+      else if (wi === 3) { g.line(ox, oy, ox + 7, oy + 4, '#ff7047', 2, 0.35); g.circle(ox, oy, 1.6, '#ffb347', 0.5); }
+      else { g.circle(ox, oy, 1.8, '#ffffff', 0.55); g.circle(ox + 7, oy + 4, 1.2, '#a58cff', 0.6); }
+    }
     if (S.save.data.pattern) g.img('patterns', L.bx, L.by, L.size, L.size, { frame: w.pattern, alpha: 0.16, ox: 0, oy: 0, z: 0 });
     // link lines (faint dotted): switch -> gate, portal <-> portal
     const dotted = (a, b, color, alpha) => {
@@ -2560,7 +2615,7 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
 
     // --- snake (layer 3)
     g.use(3);
-    const vis = P.visualCells(), k = c / 22, pts = vis.map((q) => ({ x: L.bx + (q.x + 0.5) * c, y: L.by + (q.y + 0.5) * c }));
+    const vis = P.visualCells(), k = c / 32, pts = vis.map((q) => ({ x: L.bx + (q.x + 0.5) * c, y: L.by + (q.y + 0.5) * c }));
     const dying = P.mode === 'dying' || (P.mode === 'done' && P.failInfo);
     if (dying) {                                                    // head bumps into what it hit
       const age = Math.min(1, (now - P.endAt) / 140), off = S.ease.out(age) * c * 0.3;
@@ -2608,59 +2663,49 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
     P.fx.forEach((e) => { if (e.k === 'text') { const t = e.life / e.max; g.text(e.x, e.y, e.s, e.size, e.color, { alpha: Math.min(1, t * 2.2), shadow: '#000000', shadowDy: 1.5 }); } });
   };
 
-  // ---------- HUD ----------
+  // ---------- HUD (compact: the board is the hero) ----------
   P.drawHud = function (now) {
     const lv = P.lv, rt = P.rt, st = P.st, wi = S.worldIndex(lv.id), w = S.WORLDS[wi], g = G(), ui = S.ui, L = P.layout();
     g.use(4);
-    // top row: world / level chip + pause
-    const label = w.name.toUpperCase() + ' · LEVEL ' + lv.id, cw = 56 + label.length * 8.6;
-    ui.chip(14, 12, cw, 36);
-    g.circle(14 + 20, 30, 8, w.accent); g.circle(14 + 20, 30, 4, '#ffffff', 0.85);
-    g.text(14 + 36, 30, label, 14, U.ink, { ox: 0 });
-    ui.round(S.W - 14 - 26, 30, 25, 'pause', () => S.screens.pause(), { id: 'pause' });
-    // objective card
-    const y0 = 62, h0 = 84;
-    ui.panel(14, y0, S.W - 28, h0, { r: 20, shadow: 5 });
-    g.text(30, y0 + 20, 'OBJECTIVE', 10, U.inkSoft, { ox: 0 });
-    g.text(30, y0 + 39, S.objectiveText(lv), 13.5, U.ink, { ox: 0, oy: 0.5, wrap: 250, align: 'left' });
-    // required fruit icons + key
+    // top row: level, pause
+    ui.chip(12, 10, 112, 34);
+    g.circle(31, 27, 8, w.accent); g.circle(31, 27, 3.6, '#ffffff', 0.9);
+    g.text(46, 27, 'LEVEL ' + lv.id, 15, U.ink, { ox: 0 });
+    ui.round(S.W - 12 - 23, 27, 22, 'pause', () => S.screens.pause(), { id: 'pause' });
+    // objective: one line, straight on the background
+    g.text(S.W / 2, 64, S.objectiveText(lv), 13.5, '#fff6dc', { shadow: '#000000', shadowDy: 1.5, wrap: 420 });
+    // bottom bar: fruit / key progress, moves, stars
+    const sy = L.statY, par = lv.parMoves, cap = lv.hardMoveLimit, over = st.moves > par, nearCap = cap && st.moves >= cap * 0.85;
+    g.rrect(12, sy, S.W - 24, 44, 22, '#000000', 0.38);
     let ix = 34;
     rt.fruits.forEach((f, i) => {
       if (!f.required) return;
-      const got = (st.fruitMask >> i) & 1;
-      const frame = f.species === 'golden' || f.species === 'bigfruit' ? 'apple' : f.species;
-      g.img('fruits', ix, y0 + 69, 22, 22, { frame: frame, alpha: got ? 1 : 0.32 });
-      if (got) { g.circle(ix + 9, y0 + 76, 6, U.green); g.line(ix + 6, y0 + 76, ix + 8.5, y0 + 78.5, '#ffffff', 2); g.line(ix + 8.5, y0 + 78.5, ix + 12.5, y0 + 73.5, '#ffffff', 2); }
-      ix += 28;
+      const got = (st.fruitMask >> i) & 1, frame = f.species === 'golden' || f.species === 'bigfruit' ? 'apple' : f.species;
+      g.img('fruits', ix, sy + 22, 26, 26, { frame: frame, alpha: got ? 1 : 0.4 });
+      if (got) { g.circle(ix + 10, sy + 31, 7, U.green); g.line(ix + 6.5, sy + 31, ix + 9, sy + 33.5, '#ffffff', 2); g.line(ix + 9, sy + 33.5, ix + 13.5, sy + 28, '#ffffff', 2); }
+      ix += 32;
     });
-    rt.keys.forEach((k, i) => { const got = (st.keyMask >> i) & 1; g.img('key', ix, y0 + 69, 22, 22, { alpha: got ? 1 : 0.32 }); ix += 28; });
-    const req = rt.fruits.filter((f) => f.required).length, have = rt.fruits.filter((f, i) => f.required && ((st.fruitMask >> i) & 1)).length;
-    g.text(ix + 4, y0 + 69, have + '/' + req, 13, U.inkSoft, { ox: 0 });
-    // moves pill (right side of the card)
-    const par = lv.parMoves, cap = lv.hardMoveLimit, over = st.moves > par, nearCap = cap && st.moves >= cap * 0.85;
-    const px = S.W - 14 - 88, py = y0 + 18;
-    g.rrect(px, py, 76, 44, 14, nearCap ? '#fde2e0' : (over ? '#efe6c4' : '#e1f3d6'));
-    g.rrectStroke(px, py, 76, 44, 14, nearCap ? '#e5483d' : (over ? '#c9b77a' : '#8fcf7a'), 1, 2);
-    g.text(px + 38, py + 17, st.moves + ' / ' + (cap || par), 18, nearCap ? U.redDark : '#2d7a3c');
-    g.text(px + 38, py + 35, cap ? 'MOVE CAP' : 'MOVES', 9.5, nearCap ? U.redDark : '#5c8a52');
-    // bottom stat bar
-    const sy = L.statY;
-    ui.panel(14, sy, S.W - 28, 52, { r: 18, shadow: 4 });
-    g.text(34, sy + 27, 'LENGTH', 10.5, U.inkSoft, { ox: 0 });
-    g.text(92, sy + 27, String(st.body.length), 22, U.ink, { ox: 0 });
-    g.text(150, sy + 27, 'MOVES', 10.5, U.inkSoft, { ox: 0 });
-    g.text(204, sy + 27, st.moves + (cap ? ' / ' + cap : ' / ' + par), 19, over && !cap ? '#b9791f' : U.ink, { ox: 0 });
-    // potential stars
+    rt.keys.forEach((k, i) => { const got = (st.keyMask >> i) & 1; g.img('key', ix, sy + 22, 24, 24, { alpha: got ? 1 : 0.4 }); ix += 30; });
+    g.text(S.W / 2 + 18, sy + 22, st.moves + ' / ' + (cap || par), 18, nearCap ? '#ff8a7a' : (over && !cap ? '#ffd27a' : '#ffffff'), { shadow: '#000000', shadowDy: 1.5 });
+    g.text(S.W / 2 + 18 - 62, sy + 23, 'MOVES', 9.5, '#fff6dc', { alpha: 0.7 });
     const stars = P.starsPossible();
-    for (let i = 0; i < 3; i++) S.ui.star(S.W - 14 - 74 + i * 26, sy + 26, 24, i < stars);
-    // hint line
-    if (!S.save.data.dpad) {
-      g.text(S.W / 2, sy + 78, 'Swipe to turn  ·  the snake never stops', 14, '#fff6dc', { alpha: 0.82 });
-      g.text(S.W / 2, sy + 98, 'Tap near the board to turn toward it', 11.5, '#fff6dc', { alpha: 0.5, bold: false });
-    } else P.drawDpad(L);
-    // ready cue for a fresh attempt on the very first level
-    if (lv.id === 1 && st.moves === 0 && P.mode === 'run' && !S.save.data.seen.swipe) {
-      g.text(S.W / 2, L.by - 22, 'Swipe to steer the snake', 15, '#ffe879', { shadow: '#000000' });
+    for (let i = 0; i < 3; i++) ui.star(S.W - 24 - 70 + i * 26, sy + 22, 24, i < stars);
+    // beginner help on the first levels: a swipe hand until the player has swiped once
+    if (lv.id <= 3 && !S.save.data.seen.swipe && (P.mode === 'ready' || P.mode === 'run')) {
+      const d = st.dir, tx = -d[1] || 1, ty = d[0] || 1, t = (now % 1500) / 1500, e = S.ease.inOut(t);       // swipe sideways relative to the heading
+      const hx = L.bx + L.size / 2 + tx * (e - 0.5) * 120, hy = L.by + L.size * 0.8 + ty * (e - 0.5) * 120 * (tx ? 0 : 1);
+      g.circle(hx, hy, 17, '#ffffff', 0.85 * (1 - Math.abs(e - 0.5) * 0.6)); g.circle(hx, hy, 9, '#ffe879', 0.9);
+      g.text(S.W / 2, L.by + L.size * 0.8 - 40, 'SWIPE TO TURN', 16, '#ffffff', { shadow: '#000000', shadowDy: 2 });
+      g.text(S.W / 2, L.by + L.size * 0.8 + 46, 'the snake keeps moving by itself', 12, '#fff6dc', { alpha: 0.9, bold: false });
+    } else if (S.save.data.dpad) P.drawDpad(L);
+    // READY -> GO
+    if (P.mode === 'ready') {
+      const long = P.readyDur > 1000, seg = P.readyDur / (long ? 4 : 1.8), step = long ? Math.min(3, Math.floor(P.readyT / seg)) : (P.readyT < P.readyDur * 0.55 ? 0 : 1);
+      const local = long ? (P.readyT - step * seg) / seg : (step ? (P.readyT - P.readyDur * 0.55) / (P.readyDur * 0.45) : P.readyT / (P.readyDur * 0.55));
+      const label = long ? (step === 3 ? 'GO!' : String(3 - step)) : (step ? 'GO!' : 'READY');
+      const sc = 1 + 0.45 * (1 - S.ease.out(S.clamp(local * 2.2, 0, 1))), cx = S.W / 2, cy = L.by + L.size * 0.42;
+      g.rrect(L.bx, L.by, L.size, L.size, 8, '#000000', 0.2);
+      g.text(cx, cy, label, (label.length > 2 ? 72 : 110) * 1, label === 'GO!' ? '#ffe879' : '#ffffff', { shadow: '#000000', shadowDy: 6, scale: sc, alpha: 1 - Math.max(0, local - 0.7) * 2 });
     }
   };
 
@@ -2767,63 +2812,45 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
     const g = G(), d = S.save.data, wi = worldAt(), w = S.WORLDS[wi], H = S.H;
     S.drawWorldBg(wi, now);
     g.use(4);
-    // top row
-    ui().round(36, 34, 22, 'gear', () => SC.go('settings', { from: 'menu' }), { id: 'gear' });
-    ui().round(S.W - 36, 34, 22, d.sfx || d.music ? 'sound' : 'mute', () => { const on = !(d.sfx || d.music); d.sfx = on; d.music = on; S.save.write(); }, { id: 'snd' });
-    coinChip(S.W - 70, 16);
-    const dy = Math.max(0, Math.round((H - 770) * 0.32));
-    // logo
-    const t = now / 1000;
-    g.img('fruits', 64, 98 + dy + Math.sin(t * 2) * 3, 46, 46, { frame: 'apple', rot: -0.25 });
-    g.img('fruits', S.W - 64, 108 + dy + Math.sin(t * 2 + 1) * 3, 42, 42, { frame: 'cherry', rot: 0.25 });
-    g.text(S.W / 2, 96 + dy, 'SNAKE', 66, U.cream, { shadow: '#07170e', shadowDy: 6 });
-    g.text(S.W / 2, 148 + dy, 'FRUIT RUSH', 31, U.gold1, { shadow: '#5a3a08', shadowDy: 4 });
-    g.text(S.W / 2, 180 + dy, 'EAT  •  GROW  •  SOLVE  •  ESCAPE', 11.5, U.cream, { alpha: 0.85 });
-    // hero preview
-    const hy = 198 + dy, hw = 392, hh = 204, hx = (S.W - hw) / 2;
-    g.rrect(hx - 6, hy - 6 + 6, hw + 12, hh + 12, 30, '#000000', 0.3);
-    g.rrect(hx - 6, hy - 6, hw + 12, hh + 12, 30, S.shade(w.frame, 0.25));
-    g.rrect(hx - 3, hy - 3, hw + 6, hh + 6, 28, w.frame);
-    const fx = hx + 4, fy = hy + 4, cs = (hw - 8) / DEMO.cols;
-    g.rrect(fx, fy, hw - 8, hh - 8, 22, w.floorA);
+    ui().round(34, 34, 21, 'gear', () => SC.go('settings', { from: 'menu' }), { id: 'gear' });
+    ui().round(S.W - 34, 34, 21, d.sfx || d.music ? 'sound' : 'mute', () => { const on = !(d.sfx || d.music); d.sfx = on; d.music = on; S.save.write(); }, { id: 'snd' });
+    coinChip(S.W - 66, 16);
+    const dy = Math.max(0, Math.round((H - 780) * 0.35)), t = now / 1000;
+    // title: the snake and fruit are the identity
+    g.img('fruits', 62, 112 + dy + Math.sin(t * 2) * 3, 52, 52, { frame: 'apple', rot: -0.25 });
+    g.img('fruits', S.W - 62, 120 + dy + Math.sin(t * 2 + 1) * 3, 48, 48, { frame: 'cherry', rot: 0.25 });
+    g.img('fruits', S.W - 92, 70 + dy + Math.sin(t * 2.4) * 3, 30, 30, { frame: 'orange', rot: 0.4 });
+    g.text(S.W / 2, 104 + dy, 'SNAKE', 78, U.cream, { shadow: '#07170e', shadowDy: 7 });
+    g.text(S.W / 2, 162 + dy, 'FRUIT RUSH', 34, U.gold1, { shadow: '#5a3a08', shadowDy: 4 });
+    // live snake stage (decoration only: it is NOT the game)
+    const hy = 204 + dy, hw = S.W - 28, hh = 262, hx = 14;
+    g.rrect(hx, hy + 6, hw, hh, 28, '#000000', 0.3);
+    g.rrect(hx, hy, hw, hh, 28, S.shade(w.frame, 0.25));
+    g.rrect(hx + 3, hy + 3, hw - 6, hh - 6, 26, w.frame);
+    const fx = hx + 8, fy = hy + 8, fw = hw - 16, fh = hh - 16, cs = fw / DEMO.cols;
+    g.rrect(fx, fy, fw, fh, 20, w.floorA);
     for (let r = 0; r < DEMO.rows; r++) for (let q = 0; q < DEMO.cols; q++) if ((r + q) & 1) g.rect(fx + q * cs, fy + r * cs, cs, cs, w.floorB);
-    g.rrectStroke(fx - 5, fy - 5, hw - 8 + 10, hh - 8 + 10, 25, w.frame, 1, 11);
+    g.rrectStroke(fx - 4, fy - 4, fw + 8, fh + 8, 24, w.frame, 1, 9);
     if (!demo) demoReset();
-    const k = Math.min(1, demo.acc / DEMO.ms), xy = (c, r) => ({ x: fx + (c + 0.5) * cs, y: fy + (r + 0.5) * cs });
+    const k = Math.min(1, demo.acc / DEMO.ms), xy = (c, r) => ({ x: fx + (c + 0.5) * cs, y: fy + (r + 0.5) * (fh / DEMO.rows) });
     const f = xy(demo.food[0], demo.food[1]);
-    g.img('fruits', f.x, f.y + Math.sin(now / 160) * 2, cs * 0.85, cs * 0.85, { frame: S.art.FRUIT_FRAMES[demo.kind] });
+    g.img('fruits', f.x, f.y + Math.sin(now / 160) * 2, cs * 0.8, cs * 0.8, { frame: S.art.FRUIT_FRAMES[demo.kind] });
     const pts = demo.snake.map((cur, i) => {
       const prev = (demo.prev && demo.prev[i]) || cur, jump = Math.abs(cur[0] - prev[0]) + Math.abs(cur[1] - prev[1]) > 1;
       return jump ? xy(cur[0], cur[1]) : xy(prev[0] + (cur[0] - prev[0]) * k, prev[1] + (cur[1] - prev[1]) * k);
     });
     S.snakeClock(now);
-    S.snakeDraw.snake(pts, demo.dir, cs / 22, { cell: cs });
-    // adventure card
-    const ay = hy + hh + 22;
-    g.text(S.W / 2, ay, 'YOUR ADVENTURE CONTINUES', 11.5, U.cream, { alpha: 0.8 });
-    const cur = frontier(), done = S.save.completedCount(), hasRun = done > 0 || d.attempt;
-    ui().panel(14 + 6, ay + 14, S.W - 40, 62, { r: 20, shadow: 5 });
-    g.text(40, ay + 36, 'LEVEL ' + cur, 15, U.ink, { ox: 0 });
-    g.text(40, ay + 58, w.name + ' · ' + done + ' of ' + S.levelCount() + ' cleared', 11.5, U.inkSoft, { ox: 0, bold: false });
-    ui().bar(S.W - 40 - 132, ay + 44, 132, 12, done / S.levelCount(), U.green, '#d9c690');
-    g.text(S.W - 40 - 132, ay + 30, S.save.totalStars() + ' ★ earned', 11, U.inkSoft, { ox: 0 });
-    // play / continue
-    const by = ay + 108;
-    const lab = d.attempt ? 'CONTINUE' : (hasRun ? 'CONTINUE' : 'PLAY');
-    ui().button(S.W / 2, by, S.W - 40, 66, lab, () => SC.playCurrent(), { style: 'primary', size: 26, id: 'play' });
-    if (hasRun || d.attempt) g.text(S.W / 2, by + 20, 'WORLD ' + (wi + 1) + ' · LEVEL ' + cur, 10, '#6d4b12', { alpha: 0.9 });
-    // bottom row
-    const ry = by + 56;
-    ui().panel(20, ry, S.W - 40 - 148, 62, { r: 20, shadow: 5 });
-    g.text(38, ry + 24, 'LEVEL MAP', 15, U.ink, { ox: 0 });
-    g.text(38, ry + 44, S.save.totalStars() + ' / ' + (S.levelCount() * 3) + ' stars earned', 11.5, U.inkSoft, { ox: 0, bold: false });
-    ui().star(S.W - 40 - 148 - 26, ry + 31, 26, 1);
-    S.ui.reg('mapcard', 20, ry, S.W - 40 - 148, 62 + 6, () => SC.go('map', { world: worldAt() }), true);
-    const sx = S.W - 20 - 62 * 2 - 12;
-    ui().round(sx + 31, ry + 31, 29, 'skins', () => SC.go('skins', { from: 'menu' }), { id: 'skinsbtn' });
-    ui().round(sx + 62 + 12 + 31, ry + 31, 29, 'gear', () => SC.go('settings', { from: 'menu' }), { id: 'gear2' });
-    g.text(sx + 31, ry + 74, 'Skins', 10.5, U.cream, { alpha: 0.8 });
-    g.text(sx + 62 + 12 + 31, ry + 74, 'Settings', 10.5, U.cream, { alpha: 0.8 });
+    S.snakeDraw.snake(pts, demo.dir, cs / 30, { cell: cs });
+    // progress + play
+    const cur = frontier(), done = S.save.completedCount(), hasRun = done > 0 || d.attempt, ay = hy + hh + 28;
+    g.text(S.W / 2, ay, (hasRun ? 'LEVEL ' + cur + '  ·  ' : 'WORLD 1  ·  ') + w.name.toUpperCase() + '  ·  ' + S.save.totalStars() + ' ★', 13, U.cream, { shadow: '#000000', shadowDy: 1.5 });
+    ui().bar(S.W / 2 - 90, ay + 14, 180, 8, done / S.levelCount(), w.accent);
+    const by = ay + 62;
+    ui().button(S.W / 2, by, S.W - 56, 76, hasRun ? 'CONTINUE' : 'PLAY', () => SC.playCurrent(), { style: 'primary', size: 30, id: 'play', icon: 'play' });
+    const ry = by + 82;
+    ui().round(S.W / 2 - 120, ry, 28, 'skins', () => SC.go('skins', { from: 'menu' }), { id: 'skinsbtn' });
+    ui().button(S.W / 2, ry, 150, 54, 'LEVEL MAP', () => SC.go('map', { world: worldAt() }), { size: 15, id: 'mapbtn', icon: 'map' });
+    ui().round(S.W / 2 + 120, ry, 28, 'gear', () => SC.go('settings', { from: 'menu' }), { id: 'gear2' });
   }
 
   // From the home screen: resume an unfinished attempt, otherwise open the current level.
@@ -2896,9 +2923,9 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
     }
     // path panel
     const py = 206, rowGap = S.clamp(Math.round((S.H - 560) / 5 + 8), 64, 80), ph = 64 + rowGap * 4 + 56;
-    ui().panel(14, py, S.W - 28, ph, { r: 24, shadow: 6 });
-    g.text(34, py + 24, 'FOLLOW THE PATH', 11, U.inkSoft, { ox: 0 });
-    g.text(S.W - 34, py + 24, done + ' / 20', 11, U.inkSoft, { ox: 1 });
+    g.rrect(14, py, S.W - 28, ph, 26, '#000000', 0.26);
+    g.text(34, py + 24, 'FOLLOW THE PATH', 11, U.cream, { ox: 0, alpha: 0.75 });
+    g.text(S.W - 34, py + 24, done + ' / 20', 11, U.cream, { ox: 1, alpha: 0.75 });
     const cols = [87, 179, 271, 363], pos = [];
     for (let n = 0; n < 20; n++) { const r = (n / 4) | 0, c = n % 4, cc = r % 2 ? 3 - c : c; pos.push({ x: cols[cc], y: py + 70 + r * rowGap, level: first + n }); }
     // dotted path
@@ -2908,7 +2935,7 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
       for (let s = 1; s < steps; s++) {
         const t = s / steps; let x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
         if (a.y !== b.y) { const bulge = (n % 4 === 3) ? 1 : 0; x = a.x + (b.x - a.x) * t + bulge * Math.sin(t * Math.PI) * (a.x > 200 ? 26 : -26); }
-        g.circle(x, y, 2.6, lit ? w.accent : '#b7a574', lit ? 0.95 : 0.55);
+        g.circle(x, y, 2.8, lit ? w.accent2 : '#ffffff', lit ? 0.95 : 0.3);
       }
     }
     const slide = (1 - S.ease.out(S.prog(now, SC.worldChangeAt, 0, 260))) * 26;
@@ -2978,14 +3005,6 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
       g.text(70, yy, r[1], 15, U.ink, { ox: 0 });
     });
     goals.extras.forEach((e, i) => g.text(70, gy + 52 + 3 * 30 + 4 + i * 18 - 6, '+ ' + e, 12, U.inkSoft, { ox: 0, bold: false }));
-    // snake length tip
-    const ty = gy + 150 + goals.extras.length * 18;
-    ui().panel(14, ty, S.W - 28, 86, { r: 22, shadow: 6 });
-    g.text(32, ty + 22, 'SNAKE LENGTH', 10.5, U.inkSoft, { ox: 0 });
-    g.text(32, ty + 50, 'Every fruit adds one segment.', 14, U.ink, { ox: 0 });
-    g.text(32, ty + 70, 'Leave room to reach the exit!', 12, U.inkSoft, { ox: 0, bold: false });
-    S.snakeClock(now);
-    const k = 1.05; S.snakeDraw.snake([{ x: S.W - 40, y: ty + 46 }, { x: S.W - 66, y: ty + 46 }, { x: S.W - 92, y: ty + 46 }, { x: S.W - 118, y: ty + 46 }, { x: S.W - 144, y: ty + 46 }], [1, 0], k, { cell: 26 });
     // play
     const by = S.H - 56;
     ui().button(S.W / 2, by, S.W - 40, 62, 'PLAY LEVEL ' + id, () => SC.startLevel(id), { style: 'primary', size: 23, id: 'playlevel' });
@@ -3066,77 +3085,42 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
 
   // ---------- pause ----------
   SC.pause = function () {
-    if (P.mode !== 'run') return;
+    if (P.mode !== 'run' && P.mode !== 'ready') return;
     P.pause(); A().sfx.click();
     SC.openOverlay('pause', {});
   };
   function drawPause(now) {
-    const g = G(), d = S.save.data, lv = P.lv, c = card(now, SC.ovT0, 348, 424, cy0());
+    const g = G(), d = S.save.data, lv = P.lv, c = card(now, SC.ovT0, 290, 250, cy0(), 0.38);
     g.use(5);
-    g.text(c.cx, c.y + 48, 'PAUSED', 34, U.ink);
-    g.text(c.cx, c.y + 80, 'Level ' + lv.id + ' · progress saved', 13, U.inkSoft, { bold: false });
-    S.snakeClock(now);
-    S.snakeDraw.head(S.activeSkin(), c.cx, c.y + 124, 1, 0, 1.6, null);
-    ui().button(c.cx, c.y + 188, 292, 58, SC.ovP && SC.ovP.resumed ? 'RESUME' : 'RESUME', () => { SC.closeOverlay(); P.resume(); }, { style: 'primary', size: 21, id: 'resume' });
-    ui().button(c.cx, c.y + 252, 292, 50, 'RESTART LEVEL', () => { SC.closeOverlay(); SC.beginPlay(lv.id); }, { size: 17, id: 'restart' });
-    ui().button(c.cx, c.y + 310, 292, 50, 'LEVEL MAP', () => { SC.closeOverlay(); d.world = S.worldIndex(lv.id); SC.go('map'); }, { size: 17, id: 'tomap' });
-    g.text(c.x + 40, c.y + 376, 'SOUND', 12, U.inkSoft, { ox: 0 });
-    ui().toggle(c.x + 130, c.y + 376, d.sfx, () => { d.sfx = !d.sfx; S.save.write(); }, 'p-sfx');
-    g.text(c.x + 196, c.y + 376, 'MUSIC', 12, U.inkSoft, { ox: 0 });
-    ui().toggle(c.x + 290, c.y + 376, d.music, () => { d.music = !d.music; S.save.write(); }, 'p-mus');
+    g.text(c.cx, c.y + 38, 'PAUSED', 28, U.ink);
+    g.text(c.cx, c.y + 64, 'Level ' + lv.id + ' · progress saved', 12, U.inkSoft, { bold: false });
+    ui().button(c.cx, c.y + 118, 238, 58, 'RESUME', () => { SC.closeOverlay(); P.resume(); }, { style: 'primary', size: 22, id: 'resume' });
+    const ry = c.y + 198, snd = d.sfx || d.music;
+    ui().round(c.cx - 70, ry, 25, 'retry', () => { SC.closeOverlay(); SC.beginPlay(lv.id); }, { id: 'restart' });
+    ui().round(c.cx, ry, 25, 'map', () => { SC.closeOverlay(); d.world = S.worldIndex(lv.id); SC.go('map'); }, { id: 'tomap' });
+    ui().round(c.cx + 70, ry, 25, snd ? 'sound' : 'mute', () => { const on = !snd; d.sfx = on; d.music = on; S.save.write(); }, { id: 'p-snd' });
   }
 
   // ---------- level complete ----------
   function drawComplete(now) {
     const g = G(), r = P.result, lv = P.lv, wi = S.worldIndex(lv.id), w = S.WORLDS[wi], d = S.save.data;
-    const last = lv.id >= S.levelCount(), goals = S.starGoals(lv);
-    const c = card(now, SC.ovT0, 360, 548, cy0(), 0.5), age = c.age;
+    const last = lv.id >= S.levelCount(), c = card(now, SC.ovT0, 330, 318, cy0() + 10, 0.42), age = c.age;
     g.use(5);
-    // medal
-    const bob = Math.sin(now / 400) * 2;
-    g.circle(c.cx, c.y + 20 + bob, 46, '#000000', 0.18);
-    g.circle(c.cx, c.y + 14 + bob, 44, w.accent);
-    g.circle(c.cx, c.y + 14 + bob, 38, S.shade(w.accent, -0.35));
-    g.circle(c.cx, c.y + 14 + bob, 34, S.shade(w.accent, 0.15));
-    ui().star(c.cx, c.y + 14 + bob, 44, 1);
-    g.text(c.cx, c.y + 84, last ? 'CAMPAIGN COMPLETE!' : 'LEVEL COMPLETE!', last ? 24 : 28, U.ink);
-    g.text(c.cx, c.y + 110, w.name.toUpperCase() + ' · LEVEL ' + lv.id, 12, U.inkSoft);
-    // stars (reveal one by one)
-    ui().starRow(c.cx, c.y + 164, 54, r.stars, now, SC.ovT0 + 200);
+    g.text(c.cx, c.y + 40, last ? 'CAMPAIGN COMPLETE!' : 'LEVEL CLEAR!', last ? 23 : 28, U.ink);
+    ui().starRow(c.cx, c.y + 106, 58, r.stars, now, SC.ovT0 + 150);
     for (let i = 0; i < r.stars; i++) {
-      const t = SC.ovT0 + 200 + 240 + i * 260;
-      if (now >= t && !SC.ovP['s' + i]) { SC.ovP['s' + i] = 1; A().sfx.star(i); A().buzz(15); const L = P.layout(); P.burst(S.W / 2 + (i - 1) * 64, c.y + 164, '#ffe879', 8, 0.14); }
+      if (now >= SC.ovT0 + 150 + 240 + i * 260 && !SC.ovP['s' + i]) { SC.ovP['s' + i] = 1; A().sfx.star(i); A().buzz(15); P.burst(S.W / 2 + (i - 1) * 68, c.y + 106, '#ffe879', 8, 0.14); }
     }
-    const label = r.stars === 3 ? 'PERFECT ESCAPE!' : (r.stars === 2 ? 'GREAT ESCAPE!' : 'ESCAPED!');
-    g.text(c.cx, c.y + 214, label, 15, w.id === 'night' ? '#7a5cd6' : '#2d7a3c');
-    if (r.newBest && !r.first) { ui().chip(c.x + c.w - 98, c.y + 202, 70, 24, { fill: '#e8f5c8', edge: '#a3d849' }); g.text(c.x + c.w - 63, c.y + 214, 'NEW BEST', 10, '#3f6a1b'); }
-    // stats
-    g.rrect(c.x + 22, c.y + 234, c.w - 44, 72, 18, U.cream2); g.rrectStroke(c.x + 22, c.y + 234, c.w - 44, 72, 18, U.creamEdge, 1, 2);
-    g.text(c.x + 22 + 70, c.y + 254, 'MOVES', 10.5, U.inkSoft);
-    g.text(c.x + 22 + 70, c.y + 282, r.moves + ' / ' + lv.starRules.two.value, 24, U.ink);
-    g.line(c.cx, c.y + 246, c.cx, c.y + 294, U.creamEdge, 2);
-    const shown = Math.round(r.coins * S.ease.out(S.prog(now, SC.ovT0, 700, 800)));
-    g.img('coin', c.cx + 42, c.y + 276, 34, 34);
-    g.text(c.cx + 66, c.y + 276, '+' + shown, 26, '#a8631a', { ox: 0 });
-    g.text(c.cx + 96, c.y + 252, r.first ? 'FIRST CLEAR' : 'REPLAY', 10, U.inkSoft);
-    // goals
-    const stars = r.stars;
-    [[1, goals.one], [2, goals.two], [3, goals.three]].forEach((row, i) => {
-      const yy = c.y + 330 + i * 27;
-      ui().star(c.x + 38, yy, 20, stars >= row[0]);
-      g.text(c.x + 56, yy, row[1], 13, stars >= row[0] ? U.ink : U.inkFaint, { ox: 0, bold: stars >= row[0] });
-      if (stars >= row[0]) { g.circle(c.x + c.w - 36, yy, 9, U.green); ui().icon('check', c.x + c.w - 36, yy, 11, '#ffffff'); }
-    });
-    if (r.unlockedNew && lv.id % 20 === 0 && !last) {
-      ui().chip(c.cx - 110, c.y + 416, 220, 26, { fill: '#fff1a6', edge: '#d9b640' });
-      g.text(c.cx, c.y + 429, 'WORLD ' + (wi + 2) + ' UNLOCKED!', 12, '#6d4b12');
-    }
-    // buttons (live after a short delay so a late swipe cannot tap them)
-    const live = age > 650;
-    const nextLabel = last ? 'LEVEL MAP' : 'NEXT LEVEL';
-    ui().button(c.cx, c.y + c.h - 106, c.w - 52, 56, nextLabel, () => { if (last) { SC.go('map'); } else { d.world = S.worldIndex(lv.id + 1); SC.go('intro', { level: lv.id + 1, from: 'map' }); } }, { style: 'primary', size: 21, id: 'next', disabled: !live });
-    ui().button(c.x + 22 + 80, c.y + c.h - 44, 160, 44, 'REPLAY', () => SC.beginPlay(lv.id), { size: 15, id: 'replay', disabled: !live });
-    ui().button(c.x + c.w - 22 - 80, c.y + c.h - 44, 160, 44, 'LEVEL MAP', () => { d.world = S.worldIndex(lv.id); SC.go('map'); }, { size: 15, id: 'cmap', disabled: !live });
+    const shown = Math.round(r.coins * S.ease.out(S.prog(now, SC.ovT0, 700, 700)));
+    g.img('coin', c.cx - 44, c.y + 172, 30, 30);
+    g.text(c.cx - 24, c.y + 172, '+' + shown, 26, '#a8631a', { ox: 0 });
+    g.text(c.cx + 44, c.y + 164, r.moves + ' moves', 13, U.ink, { ox: 0 });
+    g.text(c.cx + 44, c.y + 182, r.stars === 3 ? 'PERFECT!' : (r.newBest && !r.first ? 'NEW BEST' : (r.first ? 'FIRST CLEAR' : 'REPLAY')), 10.5, r.stars === 3 ? '#2d7a3c' : U.inkSoft, { ox: 0 });
+    if (r.unlockedNew && lv.id % 20 === 0 && !last) { ui().chip(c.cx - 90, c.y + 200, 180, 22, { fill: '#fff1a6', edge: '#d9b640' }); g.text(c.cx, c.y + 211, 'WORLD ' + (wi + 2) + ' UNLOCKED!', 11, '#6d4b12'); }
+    const live = age > 600, by = c.y + c.h - 52;
+    ui().button(c.cx, by, 190, 58, last ? 'MAP' : 'NEXT', () => { if (last) SC.go('map'); else { d.world = S.worldIndex(lv.id + 1); SC.go('intro', { level: lv.id + 1, from: 'map' }); } }, { style: 'primary', size: 24, id: 'next', disabled: !live, icon: last ? undefined : 'next' });
+    ui().round(c.x + 44, by, 25, 'retry', () => SC.beginPlay(lv.id), { id: 'replay' });
+    ui().round(c.x + c.w - 44, by, 25, 'map', () => { d.world = S.worldIndex(lv.id); SC.go('map'); }, { id: 'cmap' });
   }
 
   // ---------- level failed ----------
@@ -3153,25 +3137,18 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
   function drawFailed(now) {
     const g = G(), lv = P.lv, d = S.save.data, info = P.failInfo || { reason: 'wall' }, rs = REASON[info.reason] || REASON.wall;
     const hint = S.ads.available() && lv.solution && SC.failCount(lv.id) >= 2;
-    const c = card(now, SC.ovT0, 348, hint ? 470 : 404, cy0());
+    const c = card(now, SC.ovT0, 310, hint ? 300 : 244, cy0() + 10, 0.35);
     g.use(5);
     S.snakeClock(now);
-    S.snakeDraw.head(S.activeSkin(), c.cx, c.y + 70, 1, 0, 1.7, null);
-    for (let i = 0; i < 3; i++) { const a = now / 300 + i * 2.1; g.circle(c.cx + Math.cos(a) * 34, c.y + 38 + Math.sin(a) * 9, 4, '#ffd34d'); }
-    g.text(c.cx, c.y + 126, 'LEVEL FAILED', 28, U.ink);
-    g.text(c.cx, c.y + 162, rs[1], 14, U.inkSoft, { wrap: 290, bold: false });
-    const req = P.rt.fruits.filter((f) => f.required).length, have = P.rt.fruits.filter((f, i) => f.required && ((P.st.fruitMask >> i) & 1)).length;
-    ui().chip(c.cx - 100, c.y + 196, 200, 28, { fill: '#efe6c4', edge: '#c9b77a' });
-    g.text(c.cx, c.y + 210, 'LEVEL ' + lv.id + ' · ' + have + ' / ' + req + ' FRUIT', 11.5, U.inkSoft);
-    const live = c.age > 500;
-    ui().button(c.cx, c.y + 266, 292, 62, 'TRY AGAIN', () => SC.beginPlay(lv.id), { style: 'primary', size: 23, id: 'retry', disabled: !live, icon: 'retry' });
-    let y = c.y + 336;
-    if (hint) {
-      ui().button(c.cx, y, 292, 48, 'SHOW ROUTE (WATCH AD)', () => SC.watchHint(lv.id), { size: 14.5, id: 'hintad', icon: 'video', disabled: !live });
-      y += 62;
-    }
-    ui().button(c.cx, y, 292, 48, 'LEVEL MAP', () => { d.world = S.worldIndex(lv.id); SC.go('map'); }, { size: 16, id: 'fmap', disabled: !live });
-    g.text(c.cx, c.y + c.h - 18, SC.failCount(lv.id) >= 3 ? 'Tip: the star goals show what a perfect route looks like.' : 'Every try shows you more of the route.', 10.5, U.inkFaint, { bold: false });
+    S.snakeDraw.head(S.activeSkin(), c.cx, c.y + 44, 1, 0, 1.15, null);
+    for (let i = 0; i < 3; i++) { const a = now / 300 + i * 2.1; g.circle(c.cx + Math.cos(a) * 26, c.y + 22 + Math.sin(a) * 7, 3.4, '#ffd34d'); }
+    g.text(c.cx, c.y + 92, 'OOPS!', 26, U.ink);
+    g.text(c.cx, c.y + 120, rs[1], 13, U.inkSoft, { wrap: 260, bold: false });
+    const live = c.age > 450;
+    let y = c.y + 172;
+    ui().button(c.cx + 10, y, 180, 56, 'RETRY', () => SC.beginPlay(lv.id), { style: 'primary', size: 22, id: 'retry', disabled: !live, icon: 'retry' });
+    ui().round(c.x + 36, y, 24, 'map', () => { d.world = S.worldIndex(lv.id); SC.go('map'); }, { id: 'fmap' });
+    if (hint) ui().button(c.cx, y + 66, 262, 46, 'SHOW ROUTE (WATCH AD)', () => SC.watchHint(lv.id), { size: 14, id: 'hintad', icon: 'video', disabled: !live });
   }
   // watch a rewarded ad, then restart with the route shown
   SC.watchHint = function (id) {
@@ -3508,7 +3485,7 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
     ui.drawFade();
     G.end();
     // music: calm tune on menus, quieter while playing, silent on overlays that end an attempt
-    const mode = SC.name === 'play' ? (P.mode === 'run' ? 'play' : null) : 'menu';
+    const mode = SC.name === 'play' ? (P.mode === 'run' || P.mode === 'ready' ? 'play' : null) : 'menu';
     A.musicTick(SC.ov === 'complete' || SC.ov === 'failed' ? null : mode);
   }
 
@@ -3567,7 +3544,7 @@ window.SFR_LEVELS = (window.SFR_LEVELS || []).concat([
 
     // Pause and save when the app goes to the background.
     const away = () => {
-      if (SC.name === 'play' && P.mode === 'run' && !SC.ov) SC.pause();
+      if (SC.name === 'play' && (P.mode === 'run' || P.mode === 'ready') && !SC.ov) SC.pause();
       else if (SC.name === 'play') { const a = P.snapshot(); if (a && P.mode === 'paused') S.save.data.attempt = a; S.save.write(); }
       else S.save.write();
       A.suspend();

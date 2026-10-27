@@ -35,13 +35,23 @@
     const cellC = (i) => ({ x: L.bx + (i % 8) * c + c / 2, y: L.by + ((i / 8) | 0) * c + c / 2, r: (i / 8) | 0 });
     // --- frame + floor (layer 1)
     g.use(1);
-    const fx = L.bx - 10, fy = L.by - 10, fs = L.size + 20;
-    g.rrect(fx, fy + 8, fs, fs, 26, '#000000', 0.32);
-    g.rrect(fx, fy, fs, fs, 26, S.shade(w.frame, 0.2));
-    g.rrect(fx + 3, fy + 3, fs - 6, fs - 6, 23, w.frame);
+    const fx = L.bx - 5, fy = L.by - 5, fs = L.size + 10;
+    g.rrect(fx, fy + 6, fs, fs, 18, '#000000', 0.32);
+    g.rrect(fx, fy, fs, fs, 18, S.shade(w.frame, 0.25));
+    g.rrect(fx + 2, fy + 2, fs - 4, fs - 4, 16, w.frame);
     g.rrect(L.bx, L.by, L.size, L.size, 6, w.floorA);
     for (let r = 0; r < 8; r++) for (let q = 0; q < 8; q++) if ((r + q) & 1) g.rect(L.bx + q * c, L.by + r * c, c, c, w.floorB);
-    g.rrectStroke(L.bx - 4, L.by - 4, L.size + 8, L.size + 8, 13, w.frame, 1, 9);      // hides the square floor corners
+    g.rrectStroke(L.bx - 2, L.by - 2, L.size + 4, L.size + 4, 9, w.frame, 1, 6);      // hides the square floor corners
+    for (let i = 0; i < 64; i++) {                                    // tiny floor details: grass, pebbles, snow, embers, stars
+      const h = (Math.imul(i + 11 + wi * 97, 2654435761) >>> 0), cx = L.bx + (i % 8) * c, cy = L.by + ((i / 8) | 0) * c;
+      if (h % 5 > 1 || rt.wall[i]) continue;
+      const ox = cx + 8 + (h >>> 3) % (c - 16), oy = cy + 8 + (h >>> 9) % (c - 16);
+      if (wi === 0) { g.line(ox, oy, ox - 2, oy - 6, '#6aa22a', 2, 0.45); g.line(ox, oy, ox + 2, oy - 7, '#6aa22a', 2, 0.45); g.line(ox, oy, ox + 5, oy - 4, '#6aa22a', 2, 0.45); }
+      else if (wi === 1) { g.circle(ox, oy, 2.4, '#b88f55', 0.4); g.circle(ox + 5, oy + 2, 1.6, '#b88f55', 0.35); }
+      else if (wi === 2) { g.circle(ox, oy, 2, '#ffffff', 0.9); g.circle(ox + 6, oy + 3, 1.4, '#ffffff', 0.8); }
+      else if (wi === 3) { g.line(ox, oy, ox + 7, oy + 4, '#ff7047', 2, 0.35); g.circle(ox, oy, 1.6, '#ffb347', 0.5); }
+      else { g.circle(ox, oy, 1.8, '#ffffff', 0.55); g.circle(ox + 7, oy + 4, 1.2, '#a58cff', 0.6); }
+    }
     if (S.save.data.pattern) g.img('patterns', L.bx, L.by, L.size, L.size, { frame: w.pattern, alpha: 0.16, ox: 0, oy: 0, z: 0 });
     // link lines (faint dotted): switch -> gate, portal <-> portal
     const dotted = (a, b, color, alpha) => {
@@ -154,7 +164,7 @@
 
     // --- snake (layer 3)
     g.use(3);
-    const vis = P.visualCells(), k = c / 22, pts = vis.map((q) => ({ x: L.bx + (q.x + 0.5) * c, y: L.by + (q.y + 0.5) * c }));
+    const vis = P.visualCells(), k = c / 32, pts = vis.map((q) => ({ x: L.bx + (q.x + 0.5) * c, y: L.by + (q.y + 0.5) * c }));
     const dying = P.mode === 'dying' || (P.mode === 'done' && P.failInfo);
     if (dying) {                                                    // head bumps into what it hit
       const age = Math.min(1, (now - P.endAt) / 140), off = S.ease.out(age) * c * 0.3;
@@ -202,59 +212,49 @@
     P.fx.forEach((e) => { if (e.k === 'text') { const t = e.life / e.max; g.text(e.x, e.y, e.s, e.size, e.color, { alpha: Math.min(1, t * 2.2), shadow: '#000000', shadowDy: 1.5 }); } });
   };
 
-  // ---------- HUD ----------
+  // ---------- HUD (compact: the board is the hero) ----------
   P.drawHud = function (now) {
     const lv = P.lv, rt = P.rt, st = P.st, wi = S.worldIndex(lv.id), w = S.WORLDS[wi], g = G(), ui = S.ui, L = P.layout();
     g.use(4);
-    // top row: world / level chip + pause
-    const label = w.name.toUpperCase() + ' · LEVEL ' + lv.id, cw = 56 + label.length * 8.6;
-    ui.chip(14, 12, cw, 36);
-    g.circle(14 + 20, 30, 8, w.accent); g.circle(14 + 20, 30, 4, '#ffffff', 0.85);
-    g.text(14 + 36, 30, label, 14, U.ink, { ox: 0 });
-    ui.round(S.W - 14 - 26, 30, 25, 'pause', () => S.screens.pause(), { id: 'pause' });
-    // objective card
-    const y0 = 62, h0 = 84;
-    ui.panel(14, y0, S.W - 28, h0, { r: 20, shadow: 5 });
-    g.text(30, y0 + 20, 'OBJECTIVE', 10, U.inkSoft, { ox: 0 });
-    g.text(30, y0 + 39, S.objectiveText(lv), 13.5, U.ink, { ox: 0, oy: 0.5, wrap: 250, align: 'left' });
-    // required fruit icons + key
+    // top row: level, pause
+    ui.chip(12, 10, 112, 34);
+    g.circle(31, 27, 8, w.accent); g.circle(31, 27, 3.6, '#ffffff', 0.9);
+    g.text(46, 27, 'LEVEL ' + lv.id, 15, U.ink, { ox: 0 });
+    ui.round(S.W - 12 - 23, 27, 22, 'pause', () => S.screens.pause(), { id: 'pause' });
+    // objective: one line, straight on the background
+    g.text(S.W / 2, 64, S.objectiveText(lv), 13.5, '#fff6dc', { shadow: '#000000', shadowDy: 1.5, wrap: 420 });
+    // bottom bar: fruit / key progress, moves, stars
+    const sy = L.statY, par = lv.parMoves, cap = lv.hardMoveLimit, over = st.moves > par, nearCap = cap && st.moves >= cap * 0.85;
+    g.rrect(12, sy, S.W - 24, 44, 22, '#000000', 0.38);
     let ix = 34;
     rt.fruits.forEach((f, i) => {
       if (!f.required) return;
-      const got = (st.fruitMask >> i) & 1;
-      const frame = f.species === 'golden' || f.species === 'bigfruit' ? 'apple' : f.species;
-      g.img('fruits', ix, y0 + 69, 22, 22, { frame: frame, alpha: got ? 1 : 0.32 });
-      if (got) { g.circle(ix + 9, y0 + 76, 6, U.green); g.line(ix + 6, y0 + 76, ix + 8.5, y0 + 78.5, '#ffffff', 2); g.line(ix + 8.5, y0 + 78.5, ix + 12.5, y0 + 73.5, '#ffffff', 2); }
-      ix += 28;
+      const got = (st.fruitMask >> i) & 1, frame = f.species === 'golden' || f.species === 'bigfruit' ? 'apple' : f.species;
+      g.img('fruits', ix, sy + 22, 26, 26, { frame: frame, alpha: got ? 1 : 0.4 });
+      if (got) { g.circle(ix + 10, sy + 31, 7, U.green); g.line(ix + 6.5, sy + 31, ix + 9, sy + 33.5, '#ffffff', 2); g.line(ix + 9, sy + 33.5, ix + 13.5, sy + 28, '#ffffff', 2); }
+      ix += 32;
     });
-    rt.keys.forEach((k, i) => { const got = (st.keyMask >> i) & 1; g.img('key', ix, y0 + 69, 22, 22, { alpha: got ? 1 : 0.32 }); ix += 28; });
-    const req = rt.fruits.filter((f) => f.required).length, have = rt.fruits.filter((f, i) => f.required && ((st.fruitMask >> i) & 1)).length;
-    g.text(ix + 4, y0 + 69, have + '/' + req, 13, U.inkSoft, { ox: 0 });
-    // moves pill (right side of the card)
-    const par = lv.parMoves, cap = lv.hardMoveLimit, over = st.moves > par, nearCap = cap && st.moves >= cap * 0.85;
-    const px = S.W - 14 - 88, py = y0 + 18;
-    g.rrect(px, py, 76, 44, 14, nearCap ? '#fde2e0' : (over ? '#efe6c4' : '#e1f3d6'));
-    g.rrectStroke(px, py, 76, 44, 14, nearCap ? '#e5483d' : (over ? '#c9b77a' : '#8fcf7a'), 1, 2);
-    g.text(px + 38, py + 17, st.moves + ' / ' + (cap || par), 18, nearCap ? U.redDark : '#2d7a3c');
-    g.text(px + 38, py + 35, cap ? 'MOVE CAP' : 'MOVES', 9.5, nearCap ? U.redDark : '#5c8a52');
-    // bottom stat bar
-    const sy = L.statY;
-    ui.panel(14, sy, S.W - 28, 52, { r: 18, shadow: 4 });
-    g.text(34, sy + 27, 'LENGTH', 10.5, U.inkSoft, { ox: 0 });
-    g.text(92, sy + 27, String(st.body.length), 22, U.ink, { ox: 0 });
-    g.text(150, sy + 27, 'MOVES', 10.5, U.inkSoft, { ox: 0 });
-    g.text(204, sy + 27, st.moves + (cap ? ' / ' + cap : ' / ' + par), 19, over && !cap ? '#b9791f' : U.ink, { ox: 0 });
-    // potential stars
+    rt.keys.forEach((k, i) => { const got = (st.keyMask >> i) & 1; g.img('key', ix, sy + 22, 24, 24, { alpha: got ? 1 : 0.4 }); ix += 30; });
+    g.text(S.W / 2 + 18, sy + 22, st.moves + ' / ' + (cap || par), 18, nearCap ? '#ff8a7a' : (over && !cap ? '#ffd27a' : '#ffffff'), { shadow: '#000000', shadowDy: 1.5 });
+    g.text(S.W / 2 + 18 - 62, sy + 23, 'MOVES', 9.5, '#fff6dc', { alpha: 0.7 });
     const stars = P.starsPossible();
-    for (let i = 0; i < 3; i++) S.ui.star(S.W - 14 - 74 + i * 26, sy + 26, 24, i < stars);
-    // hint line
-    if (!S.save.data.dpad) {
-      g.text(S.W / 2, sy + 78, 'Swipe to turn  ·  the snake never stops', 14, '#fff6dc', { alpha: 0.82 });
-      g.text(S.W / 2, sy + 98, 'Tap near the board to turn toward it', 11.5, '#fff6dc', { alpha: 0.5, bold: false });
-    } else P.drawDpad(L);
-    // ready cue for a fresh attempt on the very first level
-    if (lv.id === 1 && st.moves === 0 && P.mode === 'run' && !S.save.data.seen.swipe) {
-      g.text(S.W / 2, L.by - 22, 'Swipe to steer the snake', 15, '#ffe879', { shadow: '#000000' });
+    for (let i = 0; i < 3; i++) ui.star(S.W - 24 - 70 + i * 26, sy + 22, 24, i < stars);
+    // beginner help on the first levels: a swipe hand until the player has swiped once
+    if (lv.id <= 3 && !S.save.data.seen.swipe && (P.mode === 'ready' || P.mode === 'run')) {
+      const d = st.dir, tx = -d[1] || 1, ty = d[0] || 1, t = (now % 1500) / 1500, e = S.ease.inOut(t);       // swipe sideways relative to the heading
+      const hx = L.bx + L.size / 2 + tx * (e - 0.5) * 120, hy = L.by + L.size * 0.8 + ty * (e - 0.5) * 120 * (tx ? 0 : 1);
+      g.circle(hx, hy, 17, '#ffffff', 0.85 * (1 - Math.abs(e - 0.5) * 0.6)); g.circle(hx, hy, 9, '#ffe879', 0.9);
+      g.text(S.W / 2, L.by + L.size * 0.8 - 40, 'SWIPE TO TURN', 16, '#ffffff', { shadow: '#000000', shadowDy: 2 });
+      g.text(S.W / 2, L.by + L.size * 0.8 + 46, 'the snake keeps moving by itself', 12, '#fff6dc', { alpha: 0.9, bold: false });
+    } else if (S.save.data.dpad) P.drawDpad(L);
+    // READY -> GO
+    if (P.mode === 'ready') {
+      const long = P.readyDur > 1000, seg = P.readyDur / (long ? 4 : 1.8), step = long ? Math.min(3, Math.floor(P.readyT / seg)) : (P.readyT < P.readyDur * 0.55 ? 0 : 1);
+      const local = long ? (P.readyT - step * seg) / seg : (step ? (P.readyT - P.readyDur * 0.55) / (P.readyDur * 0.45) : P.readyT / (P.readyDur * 0.55));
+      const label = long ? (step === 3 ? 'GO!' : String(3 - step)) : (step ? 'GO!' : 'READY');
+      const sc = 1 + 0.45 * (1 - S.ease.out(S.clamp(local * 2.2, 0, 1))), cx = S.W / 2, cy = L.by + L.size * 0.42;
+      g.rrect(L.bx, L.by, L.size, L.size, 8, '#000000', 0.2);
+      g.text(cx, cy, label, (label.length > 2 ? 72 : 110) * 1, label === 'GO!' ? '#ffe879' : '#ffffff', { shadow: '#000000', shadowDy: 6, scale: sc, alpha: 1 - Math.max(0, local - 0.7) * 2 });
     }
   };
 

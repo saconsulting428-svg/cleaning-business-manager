@@ -17,77 +17,42 @@
 
   // ---------- pause ----------
   SC.pause = function () {
-    if (P.mode !== 'run') return;
+    if (P.mode !== 'run' && P.mode !== 'ready') return;
     P.pause(); A().sfx.click();
     SC.openOverlay('pause', {});
   };
   function drawPause(now) {
-    const g = G(), d = S.save.data, lv = P.lv, c = card(now, SC.ovT0, 348, 424, cy0());
+    const g = G(), d = S.save.data, lv = P.lv, c = card(now, SC.ovT0, 290, 250, cy0(), 0.38);
     g.use(5);
-    g.text(c.cx, c.y + 48, 'PAUSED', 34, U.ink);
-    g.text(c.cx, c.y + 80, 'Level ' + lv.id + ' · progress saved', 13, U.inkSoft, { bold: false });
-    S.snakeClock(now);
-    S.snakeDraw.head(S.activeSkin(), c.cx, c.y + 124, 1, 0, 1.6, null);
-    ui().button(c.cx, c.y + 188, 292, 58, SC.ovP && SC.ovP.resumed ? 'RESUME' : 'RESUME', () => { SC.closeOverlay(); P.resume(); }, { style: 'primary', size: 21, id: 'resume' });
-    ui().button(c.cx, c.y + 252, 292, 50, 'RESTART LEVEL', () => { SC.closeOverlay(); SC.beginPlay(lv.id); }, { size: 17, id: 'restart' });
-    ui().button(c.cx, c.y + 310, 292, 50, 'LEVEL MAP', () => { SC.closeOverlay(); d.world = S.worldIndex(lv.id); SC.go('map'); }, { size: 17, id: 'tomap' });
-    g.text(c.x + 40, c.y + 376, 'SOUND', 12, U.inkSoft, { ox: 0 });
-    ui().toggle(c.x + 130, c.y + 376, d.sfx, () => { d.sfx = !d.sfx; S.save.write(); }, 'p-sfx');
-    g.text(c.x + 196, c.y + 376, 'MUSIC', 12, U.inkSoft, { ox: 0 });
-    ui().toggle(c.x + 290, c.y + 376, d.music, () => { d.music = !d.music; S.save.write(); }, 'p-mus');
+    g.text(c.cx, c.y + 38, 'PAUSED', 28, U.ink);
+    g.text(c.cx, c.y + 64, 'Level ' + lv.id + ' · progress saved', 12, U.inkSoft, { bold: false });
+    ui().button(c.cx, c.y + 118, 238, 58, 'RESUME', () => { SC.closeOverlay(); P.resume(); }, { style: 'primary', size: 22, id: 'resume' });
+    const ry = c.y + 198, snd = d.sfx || d.music;
+    ui().round(c.cx - 70, ry, 25, 'retry', () => { SC.closeOverlay(); SC.beginPlay(lv.id); }, { id: 'restart' });
+    ui().round(c.cx, ry, 25, 'map', () => { SC.closeOverlay(); d.world = S.worldIndex(lv.id); SC.go('map'); }, { id: 'tomap' });
+    ui().round(c.cx + 70, ry, 25, snd ? 'sound' : 'mute', () => { const on = !snd; d.sfx = on; d.music = on; S.save.write(); }, { id: 'p-snd' });
   }
 
   // ---------- level complete ----------
   function drawComplete(now) {
     const g = G(), r = P.result, lv = P.lv, wi = S.worldIndex(lv.id), w = S.WORLDS[wi], d = S.save.data;
-    const last = lv.id >= S.levelCount(), goals = S.starGoals(lv);
-    const c = card(now, SC.ovT0, 360, 548, cy0(), 0.5), age = c.age;
+    const last = lv.id >= S.levelCount(), c = card(now, SC.ovT0, 330, 318, cy0() + 10, 0.42), age = c.age;
     g.use(5);
-    // medal
-    const bob = Math.sin(now / 400) * 2;
-    g.circle(c.cx, c.y + 20 + bob, 46, '#000000', 0.18);
-    g.circle(c.cx, c.y + 14 + bob, 44, w.accent);
-    g.circle(c.cx, c.y + 14 + bob, 38, S.shade(w.accent, -0.35));
-    g.circle(c.cx, c.y + 14 + bob, 34, S.shade(w.accent, 0.15));
-    ui().star(c.cx, c.y + 14 + bob, 44, 1);
-    g.text(c.cx, c.y + 84, last ? 'CAMPAIGN COMPLETE!' : 'LEVEL COMPLETE!', last ? 24 : 28, U.ink);
-    g.text(c.cx, c.y + 110, w.name.toUpperCase() + ' · LEVEL ' + lv.id, 12, U.inkSoft);
-    // stars (reveal one by one)
-    ui().starRow(c.cx, c.y + 164, 54, r.stars, now, SC.ovT0 + 200);
+    g.text(c.cx, c.y + 40, last ? 'CAMPAIGN COMPLETE!' : 'LEVEL CLEAR!', last ? 23 : 28, U.ink);
+    ui().starRow(c.cx, c.y + 106, 58, r.stars, now, SC.ovT0 + 150);
     for (let i = 0; i < r.stars; i++) {
-      const t = SC.ovT0 + 200 + 240 + i * 260;
-      if (now >= t && !SC.ovP['s' + i]) { SC.ovP['s' + i] = 1; A().sfx.star(i); A().buzz(15); const L = P.layout(); P.burst(S.W / 2 + (i - 1) * 64, c.y + 164, '#ffe879', 8, 0.14); }
+      if (now >= SC.ovT0 + 150 + 240 + i * 260 && !SC.ovP['s' + i]) { SC.ovP['s' + i] = 1; A().sfx.star(i); A().buzz(15); P.burst(S.W / 2 + (i - 1) * 68, c.y + 106, '#ffe879', 8, 0.14); }
     }
-    const label = r.stars === 3 ? 'PERFECT ESCAPE!' : (r.stars === 2 ? 'GREAT ESCAPE!' : 'ESCAPED!');
-    g.text(c.cx, c.y + 214, label, 15, w.id === 'night' ? '#7a5cd6' : '#2d7a3c');
-    if (r.newBest && !r.first) { ui().chip(c.x + c.w - 98, c.y + 202, 70, 24, { fill: '#e8f5c8', edge: '#a3d849' }); g.text(c.x + c.w - 63, c.y + 214, 'NEW BEST', 10, '#3f6a1b'); }
-    // stats
-    g.rrect(c.x + 22, c.y + 234, c.w - 44, 72, 18, U.cream2); g.rrectStroke(c.x + 22, c.y + 234, c.w - 44, 72, 18, U.creamEdge, 1, 2);
-    g.text(c.x + 22 + 70, c.y + 254, 'MOVES', 10.5, U.inkSoft);
-    g.text(c.x + 22 + 70, c.y + 282, r.moves + ' / ' + lv.starRules.two.value, 24, U.ink);
-    g.line(c.cx, c.y + 246, c.cx, c.y + 294, U.creamEdge, 2);
-    const shown = Math.round(r.coins * S.ease.out(S.prog(now, SC.ovT0, 700, 800)));
-    g.img('coin', c.cx + 42, c.y + 276, 34, 34);
-    g.text(c.cx + 66, c.y + 276, '+' + shown, 26, '#a8631a', { ox: 0 });
-    g.text(c.cx + 96, c.y + 252, r.first ? 'FIRST CLEAR' : 'REPLAY', 10, U.inkSoft);
-    // goals
-    const stars = r.stars;
-    [[1, goals.one], [2, goals.two], [3, goals.three]].forEach((row, i) => {
-      const yy = c.y + 330 + i * 27;
-      ui().star(c.x + 38, yy, 20, stars >= row[0]);
-      g.text(c.x + 56, yy, row[1], 13, stars >= row[0] ? U.ink : U.inkFaint, { ox: 0, bold: stars >= row[0] });
-      if (stars >= row[0]) { g.circle(c.x + c.w - 36, yy, 9, U.green); ui().icon('check', c.x + c.w - 36, yy, 11, '#ffffff'); }
-    });
-    if (r.unlockedNew && lv.id % 20 === 0 && !last) {
-      ui().chip(c.cx - 110, c.y + 416, 220, 26, { fill: '#fff1a6', edge: '#d9b640' });
-      g.text(c.cx, c.y + 429, 'WORLD ' + (wi + 2) + ' UNLOCKED!', 12, '#6d4b12');
-    }
-    // buttons (live after a short delay so a late swipe cannot tap them)
-    const live = age > 650;
-    const nextLabel = last ? 'LEVEL MAP' : 'NEXT LEVEL';
-    ui().button(c.cx, c.y + c.h - 106, c.w - 52, 56, nextLabel, () => { if (last) { SC.go('map'); } else { d.world = S.worldIndex(lv.id + 1); SC.go('intro', { level: lv.id + 1, from: 'map' }); } }, { style: 'primary', size: 21, id: 'next', disabled: !live });
-    ui().button(c.x + 22 + 80, c.y + c.h - 44, 160, 44, 'REPLAY', () => SC.beginPlay(lv.id), { size: 15, id: 'replay', disabled: !live });
-    ui().button(c.x + c.w - 22 - 80, c.y + c.h - 44, 160, 44, 'LEVEL MAP', () => { d.world = S.worldIndex(lv.id); SC.go('map'); }, { size: 15, id: 'cmap', disabled: !live });
+    const shown = Math.round(r.coins * S.ease.out(S.prog(now, SC.ovT0, 700, 700)));
+    g.img('coin', c.cx - 44, c.y + 172, 30, 30);
+    g.text(c.cx - 24, c.y + 172, '+' + shown, 26, '#a8631a', { ox: 0 });
+    g.text(c.cx + 44, c.y + 164, r.moves + ' moves', 13, U.ink, { ox: 0 });
+    g.text(c.cx + 44, c.y + 182, r.stars === 3 ? 'PERFECT!' : (r.newBest && !r.first ? 'NEW BEST' : (r.first ? 'FIRST CLEAR' : 'REPLAY')), 10.5, r.stars === 3 ? '#2d7a3c' : U.inkSoft, { ox: 0 });
+    if (r.unlockedNew && lv.id % 20 === 0 && !last) { ui().chip(c.cx - 90, c.y + 200, 180, 22, { fill: '#fff1a6', edge: '#d9b640' }); g.text(c.cx, c.y + 211, 'WORLD ' + (wi + 2) + ' UNLOCKED!', 11, '#6d4b12'); }
+    const live = age > 600, by = c.y + c.h - 52;
+    ui().button(c.cx, by, 190, 58, last ? 'MAP' : 'NEXT', () => { if (last) SC.go('map'); else { d.world = S.worldIndex(lv.id + 1); SC.go('intro', { level: lv.id + 1, from: 'map' }); } }, { style: 'primary', size: 24, id: 'next', disabled: !live, icon: last ? undefined : 'next' });
+    ui().round(c.x + 44, by, 25, 'retry', () => SC.beginPlay(lv.id), { id: 'replay' });
+    ui().round(c.x + c.w - 44, by, 25, 'map', () => { d.world = S.worldIndex(lv.id); SC.go('map'); }, { id: 'cmap' });
   }
 
   // ---------- level failed ----------
@@ -104,25 +69,18 @@
   function drawFailed(now) {
     const g = G(), lv = P.lv, d = S.save.data, info = P.failInfo || { reason: 'wall' }, rs = REASON[info.reason] || REASON.wall;
     const hint = S.ads.available() && lv.solution && SC.failCount(lv.id) >= 2;
-    const c = card(now, SC.ovT0, 348, hint ? 470 : 404, cy0());
+    const c = card(now, SC.ovT0, 310, hint ? 300 : 244, cy0() + 10, 0.35);
     g.use(5);
     S.snakeClock(now);
-    S.snakeDraw.head(S.activeSkin(), c.cx, c.y + 70, 1, 0, 1.7, null);
-    for (let i = 0; i < 3; i++) { const a = now / 300 + i * 2.1; g.circle(c.cx + Math.cos(a) * 34, c.y + 38 + Math.sin(a) * 9, 4, '#ffd34d'); }
-    g.text(c.cx, c.y + 126, 'LEVEL FAILED', 28, U.ink);
-    g.text(c.cx, c.y + 162, rs[1], 14, U.inkSoft, { wrap: 290, bold: false });
-    const req = P.rt.fruits.filter((f) => f.required).length, have = P.rt.fruits.filter((f, i) => f.required && ((P.st.fruitMask >> i) & 1)).length;
-    ui().chip(c.cx - 100, c.y + 196, 200, 28, { fill: '#efe6c4', edge: '#c9b77a' });
-    g.text(c.cx, c.y + 210, 'LEVEL ' + lv.id + ' · ' + have + ' / ' + req + ' FRUIT', 11.5, U.inkSoft);
-    const live = c.age > 500;
-    ui().button(c.cx, c.y + 266, 292, 62, 'TRY AGAIN', () => SC.beginPlay(lv.id), { style: 'primary', size: 23, id: 'retry', disabled: !live, icon: 'retry' });
-    let y = c.y + 336;
-    if (hint) {
-      ui().button(c.cx, y, 292, 48, 'SHOW ROUTE (WATCH AD)', () => SC.watchHint(lv.id), { size: 14.5, id: 'hintad', icon: 'video', disabled: !live });
-      y += 62;
-    }
-    ui().button(c.cx, y, 292, 48, 'LEVEL MAP', () => { d.world = S.worldIndex(lv.id); SC.go('map'); }, { size: 16, id: 'fmap', disabled: !live });
-    g.text(c.cx, c.y + c.h - 18, SC.failCount(lv.id) >= 3 ? 'Tip: the star goals show what a perfect route looks like.' : 'Every try shows you more of the route.', 10.5, U.inkFaint, { bold: false });
+    S.snakeDraw.head(S.activeSkin(), c.cx, c.y + 44, 1, 0, 1.15, null);
+    for (let i = 0; i < 3; i++) { const a = now / 300 + i * 2.1; g.circle(c.cx + Math.cos(a) * 26, c.y + 22 + Math.sin(a) * 7, 3.4, '#ffd34d'); }
+    g.text(c.cx, c.y + 92, 'OOPS!', 26, U.ink);
+    g.text(c.cx, c.y + 120, rs[1], 13, U.inkSoft, { wrap: 260, bold: false });
+    const live = c.age > 450;
+    let y = c.y + 172;
+    ui().button(c.cx + 10, y, 180, 56, 'RETRY', () => SC.beginPlay(lv.id), { style: 'primary', size: 22, id: 'retry', disabled: !live, icon: 'retry' });
+    ui().round(c.x + 36, y, 24, 'map', () => { d.world = S.worldIndex(lv.id); SC.go('map'); }, { id: 'fmap' });
+    if (hint) ui().button(c.cx, y + 66, 262, 46, 'SHOW ROUTE (WATCH AD)', () => SC.watchHint(lv.id), { size: 14, id: 'hintad', icon: 'video', disabled: !live });
   }
   // watch a rewarded ad, then restart with the route shown
   SC.watchHint = function (id) {
