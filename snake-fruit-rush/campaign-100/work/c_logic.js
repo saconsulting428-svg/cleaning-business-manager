@@ -144,13 +144,14 @@
       return;
     }
     if (C0.ready > 0) { C0.ready -= delta; acc = 0; if (C0.ready <= 0) { C0.ready = 0; sfx.click(); } return; }
-    acc += delta;
-    let delay = stepDelay();
-    while (state === 'play' && !C0.over && !C0.won && acc >= delay) {
+    acc += Math.min(delta, 50);
+    let delay = stepDelay(), guardSteps = 0;
+    while (state === 'play' && !C0.over && !C0.won && acc >= delay && guardSteps++ < 2) {
       acc -= delay;
       prevSnake = G.snake.map((s) => [s[0], s[1]]);
       campStep();
     }
+    if (acc > delay) acc = delay;
     G.playMs += delta;
   }
   function usePower(k) {

@@ -165,11 +165,95 @@ rep("    txt(BX + 42, 39, 'Best  ' + best(DATA.mode), 16, t.text, 0);","    txt(
 rep("kb.on('keydown-ENTER', () => { if (state === 'menu') playCampaign();","kb.on('keydown-ENTER', () => { if (state === 'menu') playSelected();")
 rep("      demoReset();\n","      CT = menuPal();\n      demoReset();\n")
 rep("      fpsAvg = fpsAvg * 0.97 + delta * 0.03;","      fpsAvg = fpsAvg * 0.97 + delta * 0.03;")
-rep("    // live preview of the game\n    drawDemo();","    txt(W / 2, 9, 'v2.7', 9, t.text, 0.5, false);\n    // live preview of the game\n    drawDemo();")
+rep("    // live preview of the game\n    drawDemo();","    txt(W / 2, 9, 'v2.8', 9, t.text, 0.5, false);\n    // live preview of the game\n    drawDemo();")
 # logic insert
 rep("  // ---------- Phaser scene ----------", logic+"\n  // ---------- Phaser scene ----------")
 # test hook
 rep("window.__snake = { get G() { return G; },","window.__snake = { camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, pts: snakePoints, get G() { return G; },")
+
+
+rep("  function startGame() {","  // WebGL is tested first on a throw-away canvas (including \"software only\" WebGL, which is slower than Canvas), so a device without it\n  // simply gets Canvas instead of an error. ?canvas=1 / ?webgl=1 only force one of them for testing.\n  function pickRenderer() {\n    if (/[?&]canvas=1/.test(location.search)) return Phaser.CANVAS;\n    if (/[?&]webgl=1/.test(location.search)) return Phaser.WEBGL;\n    try {\n      const c = document.createElement('canvas');\n      const gl = c.getContext('webgl', { failIfMajorPerformanceCaveat: true }) || c.getContext('experimental-webgl', { failIfMajorPerformanceCaveat: true });\n      if (gl) { const x = gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); return Phaser.WEBGL; }\n    } catch (e) { /* fall through */ }\n    return Phaser.CANVAS;\n  }\n  function startGame() {")
+# ================= movement / performance polish =================
+# renderer: WebGL when the device really has a GPU, Canvas otherwise. No URL parameter needed (?canvas=1 / ?webgl=1 only force one for testing).
+rep("    type: /[?&]webgl=1/.test(location.search) ? Phaser.WEBGL : Phaser.CANVAS,   // Canvas is smooth everywhere; add ?webgl=1 to compare",
+    "    type: pickRenderer(),   // WebGL first when the device has a real GPU, Canvas as the safe fallback")
+rep("    render: { antialias: true },","    render: { antialias: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: !/[?&]webgl=1/.test(location.search) },   // software WebGL is slower than Canvas, so it falls back")
+# resolution chosen once at launch (never changed while playing); the governor below stores a lower value for the next launch if the phone is slow
+rep("  const ZOOM = 2;                    // render at 2x so it is sharp on phones",
+    "  const ZOOM_KEY = 'snakeFruitRush.zoom';\n  const ZOOM = (() => { const m = /[?&]zoom=([0-9.]+)/.exec(location.search); if (m) return Math.min(3, Math.max(1, +m[1])); try { const z = parseFloat(localStorage.getItem(ZOOM_KEY)); if (z >= 1 && z <= 2) return z; } catch (e) { /* no storage */ } return 2; })();   // 2x = sharp; lower only after a slow session")
+rep("const SWIPE_PX = 20; ","const SWIPE_PX = 15; ")
+rep("const INSTANT_TURN = 0.25; ","const INSTANT_TURN = 0.15; ")
+# reduced motion + low effects
+rep("  const MAX_FX = 48;","  const REDUCED = (() => { try { return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; } })();   // fewer particles / decorations, the snake still glides\n  const MAX_FX = 48;")
+rep("  function burst(x, y, color, n) {\n","  function burst(x, y, color, n) {\n    if (LITE || REDUCED) n = (n + 1) >> 1;\n")
+rep("    if (!LITE) drawAmbient(w);","    if (!LITE && !REDUCED) drawAmbient(w);")
+rep("    for (let n = 0; n < C0.iceList.length && !LITE; n++) {","    for (let n = 0; n < C0.iceList.length && !LITE && !REDUCED; n++) {")
+rep("    popups.push({ x: Math.min(W - 60, Math.max(60, h.x))","    if (popups.length > 8) popups.shift();                      // bounded\n    popups.push({ x: Math.min(W - 60, Math.max(60, h.x))")
+# no-jump early turns: the snake continues from where it is drawn right now
+rep("      acc = 0;\n      prevSnake = G.snake.map((p) => [p[0], p[1]]);\n      if (G.camp) campStep(); else step();","      prevSnake = visualCells();                      // start from where the snake is drawn right now: nothing jumps\n      acc = 0;\n      if (G.camp) campStep(); else step();")
+rep("  function snakePoints() {\n    const delay = stepDelay();\n    const k = state === 'play' ? Math.min(1, acc / delay) : 1;\n    return G.snake.map((cur, i) => {\n      const prev = (prevSnake && prevSnake[i]) || cur;\n      const jump = Math.abs(cur[0] - prev[0]) + Math.abs(cur[1] - prev[1]) > 1;\n      const c = jump ? cur[0] : prev[0] + (cur[0] - prev[0]) * k;\n      const r = jump ? cur[1] : prev[1] + (cur[1] - prev[1]) * k;\n      return cellXY(c, r);\n    });\n  }",
+"""  // Where a segment glided from. After a wrap-around or a portal it slides in from outside the edge instead of freezing for a whole step.
+  function prevOf(i) {
+    const cur = G.snake[i], prev = (prevSnake && prevSnake[i]) || cur;
+    if (Math.abs(cur[0] - prev[0]) + Math.abs(cur[1] - prev[1]) <= 1.95) return prev;
+    let dx, dy;
+    if (i === 0) { dx = G.dir[0]; dy = G.dir[1]; }
+    else { const nx = G.snake[i - 1], ex = nx[0] - cur[0], ey = nx[1] - cur[1]; if (Math.abs(ex) + Math.abs(ey) !== 1) return cur; dx = ex; dy = ey; }
+    return [cur[0] - dx, cur[1] - dy];
+  }
+  // Where every segment is drawn right now, in cell units (fractions while it glides between two cells).
+  function visualCells() {
+    const k = state === 'play' ? Math.min(1, acc / stepDelay()) : 1;
+    return G.snake.map((cur, i) => { const prev = prevOf(i); return [prev[0] + (cur[0] - prev[0]) * k, prev[1] + (cur[1] - prev[1]) * k]; });
+  }
+  const ptsOut = [];                                   // reused every frame (no garbage on slow phones)
+  function snakePoints() {
+    const k = state === 'play' ? Math.min(1, acc / stepDelay()) : 1, n = G.snake.length;
+    for (let i = 0; i < n; i++) {
+      const cur = G.snake[i], prev = prevOf(i);
+      const c = prev[0] + (cur[0] - prev[0]) * k, r = prev[1] + (cur[1] - prev[1]) * k;
+      const p = ptsOut[i] || (ptsOut[i] = { x: 0, y: 0 });
+      p.x = BX + c * CELL + CELL / 2; p.y = BY + r * CELL + CELL / 2;
+    }
+    ptsOut.length = n;
+    return ptsOut;
+  }
+  // The head turns smoothly instead of snapping to the new direction.
+  const edir = [1, 0];
+  let easeT = 0;
+  function easedDir() {
+    const dt = Math.min(50, Math.max(0, anim - easeT)), f = 1 - Math.exp(-dt / 40);
+    easeT = anim;
+    edir[0] += (G.dir[0] - edir[0]) * f; edir[1] += (G.dir[1] - edir[1]) * f;
+    const l = Math.hypot(edir[0], edir[1]) || 1;
+    return [edir[0] / l, edir[1] / l];
+  }""")
+rep("    drawSnake(snakePoints(), G.dir, fxKeys.length ?","    drawSnake(snakePoints(), easedDir(), fxKeys.length ?")
+s=s.replace("drawSnake(snakePoints(), G.dir, null);","drawSnake(snakePoints(), easedDir(), null);")
+# swipes: one intended turn per swipe, dominant axis, long swipes never repeat
+a=s.index("      window.addEventListener('pointermove', (e) => {"); b=s.index("      const end = (e, cancelled) => {")
+s=s[:a]+"""      window.addEventListener('pointermove', (e) => {
+        const s = touches.get(e.pointerId);
+        if (!s || state !== 'play') return;
+        const dx = e.clientX - s.x, dy = e.clientY - s.y, ax = Math.abs(dx), ay = Math.abs(dy);
+        if (Math.max(ax, ay) < SWIPE_PX * (s.axis ? 1.4 : 1)) return;      // small finger wobble is not a swipe (a 2nd turn in one touch needs a clearer move)
+        const axis = ax >= ay ? 'x' : 'y';                                  // diagonals follow the stronger axis
+        s.moved = true;
+        if (axis === s.axis) { s.x = e.clientX; s.y = e.clientY; return; }  // a long swipe in the same direction makes no extra turns
+        turn(axis === 'x' ? [Math.sign(dx), 0] : [0, Math.sign(dy)]);
+        s.axis = axis; s.x = e.clientX; s.y = e.clientY;
+      }, { passive: true });
+"""+s[b:]
+# frame-time safety: never more than 2 steps in a frame, a freeze never turns into a burst of moves
+rep("        acc += delta;\n        let delay = stepDelay();\n        while (state === 'play' && acc >= delay) {\n          acc -= delay;\n          prevSnake = G.snake.map((s) => [s[0], s[1]]);\n          step();\n          delay = stepDelay();\n        }",
+    "        acc += Math.min(delta, 50);\n        let delay = stepDelay(), guardSteps = 0;\n        while (state === 'play' && acc >= delay && guardSteps++ < 2) {\n          acc -= delay;\n          prevSnake = G.snake.map((s) => [s[0], s[1]]);\n          step();\n          delay = stepDelay();\n        }\n        if (acc > delay) acc = delay;")
+# governor: measure real frame time while playing; a slow phone gets a lower resolution at the NEXT launch (never a resize during play)
+rep("      fpsAvg = fpsAvg * 0.97 + delta * 0.03;","      fpsAvg = fpsAvg * 0.97 + delta * 0.03;\n      const realDt = this._lt ? time - this._lt : 16.7;\n      this._lt = time;\n      if (state === 'play' && !govDone && realDt < 500) {\n        govT += realDt; govN++;\n        if (govT > 10000) {\n          govDone = true;\n          if (govT / govN > 27) { LITE = true; try { localStorage.setItem(ZOOM_KEY, String(Math.max(1.25, ZOOM - 0.5))); } catch (e) { /* no storage */ } }\n        }\n      }")
+rep("  let LITE = false, fpsAvg = 16;","  let govT = 0, govN = 0, govDone = false;      // frame-time governor\n  let LITE = false, fpsAvg = 16;")
+rep("pts: snakePoints,","pts: snakePoints, get renderer() { return scene && scene.sys.game.renderer.type === Phaser.WEBGL ? 'webgl' : 'canvas'; }, get fxCount() { return fxs.length; }, get popupCount() { return popups.length; }, get ZOOM() { return ZOOM; }, get textPool() { return layers.map((l) => l.texts.length); },")
+
+rep("  const C = (hex) => parseInt(hex.slice(1), 16);","  const colCache = {};                              // colour strings -> numbers (parsing them every draw call is wasted work)\n  let colCount = 0;\n  const C = (hex) => { const v = colCache[hex]; if (v !== undefined) return v; if (colCount > 600) { for (const k in colCache) delete colCache[k]; colCount = 0; } colCount++; return (colCache[hex] = parseInt(hex.slice(1), 16)); };")
+rep("    placeFood();\n    DATA.save = null;\n    setState('play');","    placeFood();\n    DATA.save = null;\n    prevSnake = G.snake.map((c, i) => G.snake[i + 1] || [c[0] - G.dir[0], c[1] - G.dir[1]]);   // the snake glides from the very first frame\n    setState('play');")
 
 open('game.camp.js','w').write(s)
 print('patched', len(s))

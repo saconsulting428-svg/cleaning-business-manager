@@ -26,3 +26,10 @@ Per level numbers: `LEVELS.md`, `validation.json`.
 
 ## Rebuild
 Copy `work/` to a folder, `node export.mjs && ./build.sh out.html` (needs Node 22; tests need Playwright).
+
+## Movement and performance (v2.8)
+* Renderer: WebGL is tested first on a throw-away canvas (software-only WebGL is rejected because it is slower); devices without a real GPU get Canvas automatically. No URL parameter is needed (`?canvas=1` / `?webgl=1` only force one for testing).
+* Movement keeps the original design (one cell per tick, drawn interpolated). A turn made part-way into a step starts from where the snake is drawn right now, so nothing jumps; the head cuts the corner smoothly and eases its look direction. After a wrap-around or a portal the snake slides in from the edge instead of freezing for one step.
+* Swipes: 15 px threshold, one turn per swipe, long swipes never repeat, diagonals follow the stronger axis, queue of 2. Frame safety: at most 2 steps per frame and a 50 ms cap per frame, so a freeze never produces a burst of moves.
+* The resolution is chosen once at launch (2x by default). If a session of 10 s of play averages slower than ~37 fps the lower value (1.5x, then 1.25x) is saved for the NEXT launch; it never resizes during play. `prefers-reduced-motion` reduces particles and decorations; the snake still glides.
+* `work/t_polish.mjs` checks all of this (steady speed, turns, swipes, long snake, bounded effects, no leaks after 80 restarts, 6x slower CPU, freeze).
