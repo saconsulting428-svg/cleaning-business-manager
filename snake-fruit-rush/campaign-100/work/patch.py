@@ -16,7 +16,7 @@ rep("  function newGame() {\n    const mc","  function newGame() {\n    CT = nul
 rep("    const s = DATA.save;\n    if (!s) return;","    const s = DATA.save;\n    if (!s) return;\n    CT = null;")
 rep("    if (G && (state === 'play' || state === 'paused')) DATA.save = G;","    if (G && !G.camp && (state === 'play' || state === 'paused')) DATA.save = G;")
 rep("    if (G.queue.length === 1 && acc >= stepDelay() * INSTANT_TURN) {","    if (G.queue.length === 1 && acc >= stepDelay() * INSTANT_TURN && !(G.camp && (G.camp.ready > 0 || campSliding()))) {")
-rep("      step();\n    }\n    return true;","      if (G.camp) campStep(); else step();\n      const after = snakePoints();                    // the same moment after the step: smooth out the jump instead of snapping\n      visOff = after.map((q, i) => { const b = before[i]; return b && Math.abs(b.x - q.x) + Math.abs(b.y - q.y) < CELL * 2.2 ? { x: b.x - q.x, y: b.y - q.y } : { x: 0, y: 0 }; });\n      visOffLeft = VOFF_MS;\n    }\n    return true;")
+rep("      step();\n    }\n    return true;","      if (G.camp) campStep(); else step();\n    }\n    return true;")
 rep("      if (state === 'play') {\n        acc += delta;","      if (state === 'play' && G.camp) {\n        campTick(delta);\n        popups.forEach((p) => { p.life -= delta; });\n        popups = popups.filter((p) => p.life > 0);\n      } else if (state === 'play') {\n        acc += delta;")
 rep("      if (state === 'play' || state === 'over') {            // short effects fade out","      if (state === 'play' || state === 'over' || state === 'won') {            // short effects fade out")
 rep("    if (!DATA.sound || !unlocked || (state !== 'play' && state !== 'menu')) { musicNext = 0; return; }","    if (!DATA.sound || !unlocked || (state !== 'play' && state !== 'menu' && state !== 'levels')) { musicNext = 0; return; }")
@@ -157,7 +157,6 @@ rep("""        if (b) { sfx.click(); b.fn(); }
         else if (state === 'play') tapTurn(w.x, w.y);""","""        if (b) { if (s.b && s.b.x === b.x && s.b.y === b.y) { sfx.click(); b.fn(); } }   // press and release must be on the same button
         else if (state === 'play' && DATA.tapSteer && performance.now() - s.t < 350) tapTurn(w.x, w.y);""")
 rep("const SWIPE_PX = 14;","const SWIPE_PX = 20;")
-rep("      acc = 0;\n      prevSnake = G.snake.map((p) => [p[0], p[1]]);\n      if (G.camp)","      const before = snakePoints();                   // where the snake is drawn right now\n      visOff = null;\n      prevSnake = G.snake.map((p) => [p[0], p[1]]);\n      if (G.camp)")
 rep("      delta = Math.min(delta, 100);\n      anim += delta;","      delta = Math.min(delta, 100);\n      anim += delta;\n      fpsAvg = fpsAvg * 0.97 + delta * 0.03;\n      if (!LITE && anim > 5000 && fpsAvg > 26) LITE = true;     // slow phone: switch off the decorations")
 rep("  let CT = null;","  let LITE = false, fpsAvg = 16;     // LITE = slow device, skip the decorations\n  let CT = null;")
 
@@ -165,21 +164,11 @@ rep("    buttons.push({ x: x - 44, y: y - 36, w: 88, h: label ? 100 : 72, fn: fn
 rep("    txt(BX + 42, 39, 'Best  ' + best(DATA.mode), 16, t.text, 0);","    txt(BX + 42, 39, DATA.menuMode === 'endless' ? 'Best  ' + best(DATA.mode) : 'Stars  ' + Object.keys(DATA.camp.stars).reduce((a, k) => a + DATA.camp.stars[k], 0), 16, t.text, 0);")
 rep("kb.on('keydown-ENTER', () => { if (state === 'menu') playCampaign();","kb.on('keydown-ENTER', () => { if (state === 'menu') playSelected();")
 rep("      demoReset();\n","      CT = menuPal();\n      demoReset();\n")
-rep("  function snakePoints() {\n    const delay = stepDelay();","  const VOFF_MS = 120;\n  let visOff = null, visOffLeft = 0;                  // visual offset that fades out after an early turn\n  function snakePoints() {\n    const delay = stepDelay();")
-rep("      return cellXY(c, r);\n    });\n  }","      const p = cellXY(c, r);\n      if (visOff && visOff[i] && visOffLeft > 0) { const f = visOffLeft / VOFF_MS, e = f * f; p.x += visOff[i].x * e; p.y += visOff[i].y * e; }\n      return p;\n    });\n  }")
-rep("      fpsAvg = fpsAvg * 0.97 + delta * 0.03;","      if (visOffLeft > 0) visOffLeft -= delta;\n      fpsAvg = fpsAvg * 0.97 + delta * 0.03;")
-rep("  const ZOOM = 2;                    // render at 2x so it is sharp on phones","  // Render at 2x so it is sharp; phones with little memory get 1.5x so the movement stays smooth (?zoom=2 forces it).\n  const ZOOM = (() => { const m = /[?&]zoom=([0-9.]+)/.exec(location.search); if (m) return Math.min(3, Math.max(1, +m[1])); return (navigator.deviceMemory || 8) <= 4 ? 1.5 : 2; })();")
+rep("      fpsAvg = fpsAvg * 0.97 + delta * 0.03;","      fpsAvg = fpsAvg * 0.97 + delta * 0.03;")
 # logic insert
 rep("  // ---------- Phaser scene ----------", logic+"\n  // ---------- Phaser scene ----------")
 # test hook
 rep("window.__snake = { get G() { return G; },","window.__snake = { camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, pts: snakePoints, get G() { return G; },")
 
-# ---- smoother turns: no early step, the snake speeds up a little to the next cell centre and turns there ----
-a=s.index("    // Respond right away: if the snake is already part-way")
-b=s.index("    return true;\n  }", a)
-s=s[:a]+"    // A turn waits for the next cell centre. The snake hurries there (see turnBoost) so it still answers fast, without any jump.\n"+s[b:]
-rep("  function turn(d) {","  const turnBoost = () => (G && G.queue.length && !(G.camp && (G.camp.ready > 0 || campSliding())) ? 2.6 : 1);\n  function turn(d) {")
-rep("        acc += delta;\n        let delay = stepDelay();\n        while (state === 'play' && acc >= delay) {\n          acc -= delay;\n          prevSnake = G.snake.map((s) => [s[0], s[1]]);\n          step();","        acc += delta * turnBoost();\n        let delay = stepDelay();\n        while (state === 'play' && acc >= delay) {\n          acc -= delay;\n          prevSnake = G.snake.map((s) => [s[0], s[1]]);\n          step();")
-rep("      delta = Math.min(delta, 100);\n      anim += delta;","      const rawT = this._lt ? time - this._lt : delta;   // real frame time (Phaser's smoothed delta makes the movement uneven)\n      this._lt = time;\n      delta = Math.min(Math.max(rawT, 1), 100);\n      anim += delta;")
 open('game.camp.js','w').write(s)
 print('patched', len(s))
