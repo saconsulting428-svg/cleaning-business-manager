@@ -339,6 +339,17 @@
     gr.lineStyle(1.2, 0x38bdf8, 0.9); gr.strokeRoundedRect(x + 1, y + 1, CELL - 2, CELL - 2, 4);
     gr.lineStyle(1.6, 0xffffff, 0.95); gr.lineBetween(x + 4, y + 8, x + 9, y + 3.5); gr.lineBetween(x + 7, y + 12, x + 15, y + 4.5);
   }
+  // The board (floor, walls, ice) never changes during a level, so it is drawn once into a texture instead of being redrawn every frame.
+  let boardRT = null;
+  function bakeBoard() {
+    try {
+      if (!boardRT) { boardRT = scene.add.renderTexture(0, 0, W * ZOOM, H * ZOOM); boardRT.setOrigin(0, 0); boardRT.setScale(1 / ZOOM); boardRT.setDepth(boardG.depth); }
+      boardRT.clear(); boardRT.setVisible(true);
+      boardG.setScale(ZOOM); boardG.setVisible(true);
+      boardRT.draw(boardG, 0, 0);
+      boardG.setScale(1); boardG.setVisible(false);
+    } catch (e) { boardG.setScale(1); boardG.setVisible(true); if (boardRT) boardRT.setVisible(false); }
+  }
   function drawCampBoard() {
     const C0 = G.camp, rt = C0.rt, w = C0.L.w, t = th();
     boardG.clear();
@@ -356,6 +367,7 @@
       if (rt.ice[i]) iceTile(boardG, c, r, C0.id); else floorDecor(boardG, w, c, r, C0.id);
     }
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (rt.wall[r * COLS + c]) wallTile(boardG, w, c, r, C0.id);
+    bakeBoard();
   }
 
   // ----- dynamic items -----
