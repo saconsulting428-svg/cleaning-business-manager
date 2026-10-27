@@ -144,7 +144,7 @@
       return;
     }
     if (C0.ready > 0) { C0.ready -= delta; acc = 0; if (C0.ready <= 0) { C0.ready = 0; sfx.click(); } return; }
-    acc += delta;
+    acc += delta * turnBoost();
     let delay = stepDelay();
     while (state === 'play' && !C0.over && !C0.won && acc >= delay) {
       acc -= delay;

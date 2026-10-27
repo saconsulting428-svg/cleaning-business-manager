@@ -173,5 +173,13 @@ rep("  const ZOOM = 2;                    // render at 2x so it is sharp on phon
 rep("  // ---------- Phaser scene ----------", logic+"\n  // ---------- Phaser scene ----------")
 # test hook
 rep("window.__snake = { get G() { return G; },","window.__snake = { camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, pts: snakePoints, get G() { return G; },")
+
+# ---- smoother turns: no early step, the snake speeds up a little to the next cell centre and turns there ----
+a=s.index("    // Respond right away: if the snake is already part-way")
+b=s.index("    return true;\n  }", a)
+s=s[:a]+"    // A turn waits for the next cell centre. The snake hurries there (see turnBoost) so it still answers fast, without any jump.\n"+s[b:]
+rep("  function turn(d) {","  const turnBoost = () => (G && G.queue.length && !(G.camp && (G.camp.ready > 0 || campSliding())) ? 2.6 : 1);\n  function turn(d) {")
+rep("        acc += delta;\n        let delay = stepDelay();\n        while (state === 'play' && acc >= delay) {\n          acc -= delay;\n          prevSnake = G.snake.map((s) => [s[0], s[1]]);\n          step();","        acc += delta * turnBoost();\n        let delay = stepDelay();\n        while (state === 'play' && acc >= delay) {\n          acc -= delay;\n          prevSnake = G.snake.map((s) => [s[0], s[1]]);\n          step();")
+rep("      delta = Math.min(delta, 100);\n      anim += delta;","      const rawT = this._lt ? time - this._lt : delta;   // real frame time (Phaser's smoothed delta makes the movement uneven)\n      this._lt = time;\n      delta = Math.min(Math.max(rawT, 1), 100);\n      anim += delta;")
 open('game.camp.js','w').write(s)
 print('patched', len(s))

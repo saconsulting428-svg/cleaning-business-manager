@@ -2003,22 +2003,13 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   const opposite = (a, b) => a[0] === -b[0] && a[1] === -b[1];
   const same = (a, b) => a[0] === b[0] && a[1] === b[1];
 
+  const turnBoost = () => (G && G.queue.length && !(G.camp && (G.camp.ready > 0 || campSliding())) ? 2.6 : 1);
   function turn(d) {
     if (state !== 'play') return false;
     const last = G.queue.length ? G.queue[G.queue.length - 1] : G.dir;
     if (same(d, last) || opposite(d, last) || G.queue.length >= 2) return false;
     G.queue.push(d);
-    // Respond right away: if the snake is already part-way into its step, take the turn now
-    // instead of waiting for the next step.
-    if (G.queue.length === 1 && acc >= stepDelay() * INSTANT_TURN && !(G.camp && (G.camp.ready > 0 || campSliding()))) {
-      const before = snakePoints();                   // where the snake is drawn right now
-      visOff = null;
-      prevSnake = G.snake.map((p) => [p[0], p[1]]);
-      if (G.camp) campStep(); else step();
-      const after = snakePoints();                    // the same moment after the step: smooth out the jump instead of snapping
-      visOff = after.map((q, i) => { const b = before[i]; return b && Math.abs(b.x - q.x) + Math.abs(b.y - q.y) < CELL * 2.2 ? { x: b.x - q.x, y: b.y - q.y } : { x: 0, y: 0 }; });
-      visOffLeft = VOFF_MS;
-    }
+    // A turn waits for the next cell centre. The snake hurries there (see turnBoost) so it still answers fast, without any jump.
     return true;
   }
   // Tap: the snake turns towards the tapped point.
@@ -2203,7 +2194,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       return;
     }
     if (C0.ready > 0) { C0.ready -= delta; acc = 0; if (C0.ready <= 0) { C0.ready = 0; sfx.click(); } return; }
-    acc += delta;
+    acc += delta * turnBoost();
     let delay = stepDelay();
     while (state === 'play' && !C0.over && !C0.won && acc >= delay) {
       acc -= delay;
@@ -2742,7 +2733,9 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     }
 
     update(time, delta) {
-      delta = Math.min(delta, 100);
+      const rawT = this._lt ? time - this._lt : delta;   // real frame time (Phaser's smoothed delta makes the movement uneven)
+      this._lt = time;
+      delta = Math.min(Math.max(rawT, 1), 100);
       anim += delta;
       if (visOffLeft > 0) visOffLeft -= delta;
       fpsAvg = fpsAvg * 0.97 + delta * 0.03;
@@ -2761,7 +2754,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
         popups.forEach((p) => { p.life -= delta; });
         popups = popups.filter((p) => p.life > 0);
       } else if (state === 'play') {
-        acc += delta;
+        acc += delta * turnBoost();
         let delay = stepDelay();
         while (state === 'play' && acc >= delay) {
           acc -= delay;
