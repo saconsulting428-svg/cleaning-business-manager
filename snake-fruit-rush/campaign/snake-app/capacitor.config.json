@@ -1,0 +1,7 @@
+{
+  "appId": "com.snakefruitrush.game",
+  "appName": "Snake Fruit Rush",
+  "webDir": "www",
+  "backgroundColor": "#0f1220",
+  "android": { "backgroundColor": "#0f1220" }
+}
