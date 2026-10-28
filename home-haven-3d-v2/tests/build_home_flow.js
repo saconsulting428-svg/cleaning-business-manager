@@ -17,7 +17,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright'); const H
      for(const [k,v] of [['floor','marble'],['wall','brick'],['furn','luxury']]){ const ok=await p.evaluate(([k,v])=>{ const e=document.querySelector(`.bhopt[data-k=${k}][data-v=${v}]`); if(e){e.click();return true;} return false; },[k,v]); await p.waitForTimeout(900); if(ok) console.log('  design',k,v); }
      await p.screenshot({path:`bhf_${tag}_${shots++}.png`}); await click('gdGo'); await p.waitForTimeout(1200); continue; }
    const pick=await p.evaluate(()=>{ const ids=(WORLD.sites||[]).map(s=>s.id); for(const id of ids){ const sc=WORLD.siteScreen(id); if(!sc) continue; const el=document.elementFromPoint(sc[0],sc[1]); if(el&&el.tagName==='CANVAS'&&WORLD.pickSite(sc[0],sc[1])===id) return {id,x:sc[0],y:sc[1]}; } return null; });
-   if(!pick){ console.log('no tappable site; sites under UI -> using Build it all'); await click('gdGo'); await p.waitForTimeout(1500); continue; }
+   if(!pick){ console.log('no tappable site at',st.title,st.count,'-> using Build it all'); await click('gdGo'); await p.waitForTimeout(1500); continue; }
    await p.mouse.click(pick.x,pick.y); await p.waitForTimeout(800);
  }
  await p.waitForTimeout(1500); console.log('END',JSON.stringify(await info())); await p.screenshot({path:`bhf_${tag}_end.png`});
