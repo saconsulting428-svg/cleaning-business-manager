@@ -406,12 +406,35 @@
     const key = Math.round(((cam.yaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI / 2) * 4); if (key !== W3._yk) { W3._yk = key; if (W3.interior) W3.applyAlpha(); }
     tickChars(dt * 1000);
     if (anims.length) { const tn = performance.now(); for (let i = anims.length - 1; i >= 0; i--) { const a = anims[i], k = Math.min(1, Math.max(0, (tn - a.t0) / a.dur)), e = a.e; if (!e.g.parent) { anims.splice(i, 1); continue; } const s = k <= 0 ? .001 : 1 + 1.70158 * Math.pow(k - 1, 3) + .70158 * Math.pow(k - 1, 2); if (a.wall) e.g.scale.set(1, Math.max(.001, s), 1); else e.g.scale.setScalar(Math.max(.001, s)); if (k >= 1) { e.g.scale.set(1, 1, 1); anims.splice(i, 1); } } dirty = Math.max(dirty, 2); }
+    if (sites.length) { const tn = performance.now() / 1000; sites.forEach(s => { s.mesh.material.opacity = .3 + .18 * Math.sin(tn * 4 + s.ph); s.icon.position.y = s.base + .12 * Math.sin(tn * 5 + s.ph); }); dirty = Math.max(dirty, 1); }
+    for (let i = hammers.length - 1; i >= 0; i--) { const h = hammers[i], k = (performance.now() - h.t0) / 620; if (k >= 1) { root.remove(h.g); hammers.splice(i, 1); continue; } const sw = Math.abs(Math.sin(k * Math.PI * 3)); h.g.rotation.x = -1.2 + sw * 1.5; const hit = Math.floor(k * 3 + .35); if (hit > h.hits && sw < .5) { h.hits = hit; W3.dustAt(h.x, h.y, h.z, 3); } dirty = Math.max(dirty, 2); }
     if (roomPrev) { const f = roomPrev.children[0]; if (f && f.material) f.material.opacity = .42 + .16 * Math.sin(performance.now() / 260); dirty = Math.max(dirty, 1); }
     for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t += dt; f.s.position.x += f.v[0] * dt; f.s.position.y += f.v[1] * dt; f.s.position.z += f.v[2] * dt; f.s.scale.setScalar(.4 + f.t * 1.6); f.s.material.opacity = Math.max(0, .8 - f.t * 1.4); if (f.t > .6) { root.remove(f.s); f.s.material.dispose(); fx.splice(i, 1); } }
     if (foundation && foundation.visible && foundation.userData.label) foundation.userData.label.position.y = .06;
     if (dirty > 0 || W3.chars.some(c => c.moving) || fx.length) { renderer.shadowMap.needsUpdate = true; if (dirty > 0) dirty--; }
     renderer.render(scene, camera); W3.cb.frame && W3.cb.frame();
   }
+  // ---- Build Home: glowing construction sites, hammer swing, dust
+  let siteGrp = null; const sites = [], hammers = [];
+  const hammerIcon = () => toTex(cvs(96, 96, (x) => { x.fillStyle = 'rgba(255,255,255,.96)'; x.beginPath(); x.arc(48, 48, 40, 0, 7); x.fill(); x.strokeStyle = '#F59E2B'; x.lineWidth = 6; x.stroke(); x.save(); x.translate(48, 48); x.rotate(-.7); x.fillStyle = '#8A5A2B'; x.fillRect(-4, -4, 8, 36); x.fillStyle = '#5B646D'; x.fillRect(-20, -22, 40, 20); x.restore(); }));
+  W3.setSites = (list) => {
+    if (siteGrp) { root.remove(siteGrp); siteGrp = null; } sites.length = 0; dirty = 2; W3.sites = null; if (!list || !list.length) return;
+    const g = new T.Group(), tex = hammerIcon();
+    list.forEach((s, i) => { const w_ = s.x1 - s.x0, h = s.y1 - s.y0, d = s.z1 - s.z0, cx = (s.x0 + s.x1) / 2, cy = (s.y0 + s.y1) / 2, cz = (s.z0 + s.z1) / 2;
+      const m = new T.Mesh(new T.BoxGeometry(w_, h, d), new T.MeshBasicMaterial({ color: s.color || 0xffc93c, transparent: true, opacity: .4, depthWrite: false })); m.position.set(cx, cy, cz); m.userData.siteId = s.id; m.renderOrder = 40; g.add(m);
+      const e = new T.LineSegments(new T.EdgesGeometry(m.geometry), new T.LineBasicMaterial({ color: 0xfff1a8 })); e.position.copy(m.position); e.renderOrder = 41; g.add(e);
+      const ic = new T.Sprite(new T.SpriteMaterial({ map: tex, transparent: true, depthTest: false })); ic.scale.set(.85, .85, 1); ic.position.set(cx, s.y1 + .55, cz); ic.renderOrder = 62; g.add(ic);
+      sites.push({ id: s.id, mesh: m, icon: ic, base: ic.position.y, ph: i * .7 }); });
+    root.add(g); siteGrp = g; W3.sites = sites;
+  };
+  W3.pickSite = (cx, cy) => { if (!sites.length) return null; setRay(cx, cy); const hit = ray.intersectObjects(sites.map(s => s.mesh), false); return hit.length ? hit[0].object.userData.siteId : null; };
+  W3.siteScreen = (id) => { const s = sites.find(q => q.id === id); if (!s) return null; const p = s.mesh.position; return W3.toScreen(p.x, p.z, p.y); };
+  W3.dustAt = (x, y, z, n = 8) => { for (let i = 0; i < n; i++) { const s = new T.Sprite(new T.SpriteMaterial({ map: RENO.glowTex(), color: 0xf3e6cf, transparent: true, opacity: .85, depthWrite: false })); s.position.set(x + (Math.random() - .5) * .9, y + Math.random() * .3, z + (Math.random() - .5) * .9); s.scale.setScalar(.3); root.add(s); fx.push({ s, t: 0, v: [(Math.random() - .5) * 1.1, .4 + Math.random() * .7, (Math.random() - .5) * 1.1] }); } dirty = 2; };
+  W3.hammer = (x, y, z) => {
+    const g = new T.Group(), wood = new T.MeshStandardMaterial({ color: '#8A5A2B', roughness: .8 }), steel = new T.MeshStandardMaterial({ color: '#6B747D', roughness: .45, metalness: .5 });
+    const hd = new T.Mesh(new T.BoxGeometry(.06, .55, .06), wood); hd.position.y = .27; hd.castShadow = true; const hh = new T.Mesh(new T.BoxGeometry(.34, .16, .16), steel); hh.position.y = .58; hh.castShadow = true; g.add(hd, hh);
+    g.position.set(x, y + .9, z); g.rotation.y = W3._cam ? W3._cam.yaw : 0; root.add(g); hammers.push({ g, t0: performance.now(), x, y, z, hits: 0 }); dirty = 3;
+  };
   const anims = [];
   // construction animation: floors pop in one after another, then walls rise, then furniture
   W3.buildIn = (ids) => { const t0 = performance.now(); let nf = 0, nw = 0; const list = ids.map(id => objs.get(id)).filter(Boolean); list.forEach(e => { const k = PART[e.o.part].kind; if (k === 'floor') { anims.push({ e, t0: t0 + (nf++) * 28, dur: 380 }); e.g.scale.setScalar(.001); } }); const base = t0 + nf * 28 + 120; list.forEach(e => { const k = PART[e.o.part].kind; if (k === 'wall') { anims.push({ e, t0: base + (nw++) * 45, dur: 520, wall: true }); e.g.scale.set(1, .001, 1); } else if (k !== 'floor') { anims.push({ e, t0: base + nw * 45 + 200, dur: 420 }); e.g.scale.setScalar(.001); } }); dirty = 3; return base + nw * 45 + 600 - t0; };
@@ -473,7 +496,7 @@
     });
     const up = (e) => {
       const was = ptrs.has(e.pointerId); ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!was) return;
-      if (drag && e.type === 'pointerup') { if (drag.room && drag.moved && drag.rect) W3.cb.roomRect && W3.cb.roomRect(drag.rect, true); else if (!drag.moved) { let used = false; if (W3.mode === 'build' && W3.roomMode && !W3.roomDrag && W3.cb.roomTap) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); used = W3.cb.roomTap(c.cx, c.cz); } if (!used) W3.tap(e.clientX, e.clientY); } }
+      if (drag && e.type === 'pointerup') { if (drag.room && drag.moved && drag.rect) W3.cb.roomRect && W3.cb.roomRect(drag.rect, true); else if (!drag.moved) { let used = false; if (W3.mode === 'build' && W3.sites && W3.cb.siteTap) { const sid = W3.pickSite(e.clientX, e.clientY); if (sid) { W3.cb.siteTap(sid); used = true; } } if (!used && W3.mode === 'build' && W3.roomMode && !W3.roomDrag && W3.cb.roomTap) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); used = W3.cb.roomTap(c.cx, c.cz); } if (!used) W3.tap(e.clientX, e.clientY); } }
       if (!ptrs.size) drag = null;
     };
     dom.addEventListener('pointerup', up); dom.addEventListener('pointercancel', up);

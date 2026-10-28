@@ -13,7 +13,7 @@ android/             Capacitor 6 wrapper scaffold (NOT built/tested here, see an
 docs/                features, bugs fixed (with root causes), tests performed, known limitations
 ```
 
-**Build Mode UX update:** story building is tap-only: pick a room type → a ghost room of a preset size appears at a valid spot → tap ✓ Build → follow Door → Windows → Furniture → Complete (one button each, everything placed automatically). Free-size room dragging and per-piece placement are the *Advanced Build* mode of Dream Home. Details and tests: `docs/FEATURES_BUGS_TESTS.md`.
+**Build Home update:** story building is now construction you do: pick a room → ✓ Build → tap the glowing sites (hammer, dust, +coins, combos) for foundation, walls, door & windows, roof → Design (floor/wall/furniture looks) → Furnish → ROOM COMPLETE with stars and reward. Free-size rooms and per-piece placement stay in *Advanced Build* (Dream Home). Details and tests: `docs/FEATURES_BUGS_TESTS.md`.
 
 ## Technology decision
 The original architecture was kept and extended instead of migrating to Unity:

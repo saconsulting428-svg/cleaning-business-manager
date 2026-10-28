@@ -12,7 +12,7 @@ R=lambda f:open(f,encoding='utf-8').read()
 rep("@media (prefers-reduced-motion:reduce){.cl,.ld-build i{animation:none}}\n</style>","@media (prefers-reduced-motion:reduce){.cl,.ld-build i{animation:none}}\n"+R('extra3.css')+"</style>")
 rep('<div id="game"></div>','<div id="game"></div>\n  <div id="reno3d"></div>')
 rep('<button class="nb" id="navStory"><span class="ic" data-ic="book"></span>Story</button>','<button class="nb" id="navStory"><span class="ic" data-ic="book"></span>Story</button>\n      <button class="nb" id="navProj"><span class="ic" data-ic="house"></span>Projects</button>')
-rep('<button class="btn primary sm" id="btnBuildDone">Done</button>\n    </header>','<button class="btn secondary sm noedit" id="bRooms">Rooms</button>\n      <button class="btn secondary sm reonly" id="reBack">‹ Rooms</button><span class="rename reonly" id="reName"></span>\n      <button class="btn primary sm" id="btnBuildDone">Done</button>\n    </header>\n    <div class="guide hidden" id="guide"><div class="gsteps"><span class="gs">Door</span><span class="gs">Windows</span><span class="gs">Furniture</span><span class="gs">Done</span></div><div class="gtxt" id="gdTxt"></div><div class="grow"><button class="btn accent" id="gdGo">Next</button><button class="btn primary sm hidden" id="gdDone">Complete ▶</button><button class="btn secondary sm" id="reMore">✎ Style</button></div></div>\n    <div class="retools reonly"><button class="btn blue" id="reWalls">Wall color</button><button class="btn blue" id="reFloor">Floor color</button><button class="btn accent" id="reSave">Save room</button><button class="btn secondary" id="reRestore">Restore</button></div>')
+rep('<button class="btn primary sm" id="btnBuildDone">Done</button>\n    </header>','<button class="btn secondary sm noedit" id="bRooms">Rooms</button>\n      <button class="btn secondary sm reonly" id="reBack">‹ Rooms</button><span class="rename reonly" id="reName"></span>\n      <button class="btn primary sm" id="btnBuildDone">Done</button>\n    </header>\n    <div class="guide hidden" id="guide"><div class="gsteps"></div><div class="bhobj"><b id="bhTitle"></b><span id="bhCount"></span></div><div class="bhbar"><i id="bhFill"></i></div><div class="gtxt" id="gdTxt"></div><div class="bhdesign hidden" id="bhDesign"></div><div class="grow"><button class="btn accent" id="gdGo">Build</button><button class="btn primary sm hidden" id="gdDone">Complete ▶</button><button class="btn secondary sm hidden" id="gdSkip">Skip roof</button><button class="btn secondary sm" id="reMore">✎ Style</button></div></div><div id="bhCombo" class="bhcombo hidden"></div>\n    <div class="retools reonly"><button class="btn blue" id="reWalls">Wall color</button><button class="btn blue" id="reFloor">Floor color</button><button class="btn accent" id="reSave">Save room</button><button class="btn secondary" id="reRestore">Restore</button></div>')
 # ---------------------------------------------------------------- engine scripts
 three=open('../vendor/three.min.js',encoding='utf-8').read()
 mods=''.join('<script>'+R('../engine/'+f)+'\n</script>\n' for f in ['lib.js','furn1.js','furn2.js','furn3.js','furn4.js','parts3d.js','world3d.js','thumb.js'])
@@ -76,7 +76,7 @@ rep("prop: 'home', props: {},","autoRot: false, prop: 'home', props: {},")
 # extension block + bindings
 marker="  // ------------------------------------------------------------ SHOP"
 assert s.count(marker)==1
-s=s.replace(marker,R('flow_ext.js')+R('flow_room.js')+"""
+s=s.replace(marker,R('flow_ext.js')+R('flow_room.js')+R('flow_bh.js')+"""
   function buildInsets() { const land = innerWidth > innerHeight, dr = $('#build .drawer'); if (roomEdit) return; if (land) { WORLD.setInset(dr ? dr.offsetWidth : 0); WORLD.focus(0, (dr ? dr.offsetWidth : 0) / 2); } else { WORLD.setInset(0); WORLD.focus(60, 0); } }
   window.addEventListener('resize', () => { if ($('#build').classList.contains('on')) buildInsets(); });
 """+"\n"+marker)
@@ -98,13 +98,13 @@ rep('<div class="actbar hidden" id="ghostBar">','<div class="actbar hidden" id="
 rep('<button id="sStore" class="ab warn">','<button id="sRoom" class="ab hidden">🏠<br>Room</button><button id="sStore" class="ab warn">')
 rep('<button class="btn accent" id="reSave">Save room</button>','<button class="btn accent" id="reNew">＋ Room</button><button class="btn blue" id="reFloorS">Floor style</button><button class="btn blue" id="reWallS">Wall style</button><button class="btn accent" id="reAuto">Auto doors &amp; windows</button><button class="btn accent" id="reSave">Save room</button>')
 rep('<div class="drawer">','<div id="tut" class="tut hidden"><div class="tbub"><b id="tutT"></b><p id="tutP"></p><div class="trow"><span id="tutDots"></span><span><button class="btn secondary sm" id="tutSkip">Skip</button> <button class="btn primary sm" id="tutNext">Next</button></span></div></div><div class="hand" id="tutHand"></div></div>\n    <div class="drawer">')
-rep("autoRot: false, prop: 'home',","adv: false, autoRot: false, prop: 'home',")
+rep("autoRot: false, prop: 'home',","adv: false, plan: null, rscore: {}, autoRot: false, prop: 'home',")
 rep("'Pick a part below, or tap a placed part to edit'","(buildMode() === 'room' ? 'Pick a room type, then tap ✓ Build' : 'Pick a part below, or tap a placed part to edit')")
 rep("    renderTabs(); renderItems(); updateHud(); hint(); renderHome();\n  }","    renderTabs(); renderItems(); updateHud(); hint(); renderHome(); refreshRoomPlan(); tutMaybe();\n  }")
-rep("  function exitBuild() { lockOri('portrait'); if (roomEdit) exitRoomEdit();","  function exitBuild() { lockOri('portrait'); tutStop(false); WORLD.setRoomMode(false); $('#roomBar').classList.add('hidden'); if (roomEdit) exitRoomEdit();")
+rep("  function exitBuild() { lockOri('portrait'); if (roomEdit) exitRoomEdit();","  function exitBuild() { lockOri('portrait'); tutStop(false); if (typeof bhStop === 'function') bhStop(); WORLD.setRoomMode(false); $('#roomBar').classList.add('hidden'); if (roomEdit) exitRoomEdit();")
 rep("S.chapter++; S.stats.chapters = S.chapter; S.chBefore = null; save();\n","S.chapter++; S.stats.chapters = S.chapter; S.chBefore = null; save(); if (typeof refreshBuildUI === 'function') refreshBuildUI();\n")
 rep("    if (op.t === 'multi') op.ops.forEach","    if (op.t === 'bulk') bulkUndo(op); else\n    if (op.t === 'multi') op.ops.forEach")
-rep("Open <b>Build</b> to place them. Every puzzle you win earns more.","Open <b>Build</b>, tap a room type, then ✓ Build. Every puzzle you win earns more.")
+rep("Open <b>Build</b> to place them. Every puzzle you win earns more.","Open <b>Build</b>, tap a room type, press ✓ Build, then tap the glowing spots. Every puzzle you win earns more.")
 rep("bindWorld(); bindWorldExt();","bindWorld(); bindWorldExt(); bindRoomWorld();")
 open(sys.argv[1] if len(sys.argv)>1 else '../Home_Haven_3D.html','w',encoding='utf-8').write(s)
 print('built',len(s)//1024,'KB')

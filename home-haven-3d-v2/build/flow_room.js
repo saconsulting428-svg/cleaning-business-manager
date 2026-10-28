@@ -10,6 +10,7 @@
   const FURN_TAB = { living: 'furniture', kitchen: 'kitchen', bedroom: 'bedroom', bath: 'bath', hall: 'furniture', study: 'furniture' }, GRID = 12;
   const ROOM_TABS = ['rooms', 'roof', 'openings', 'build', 'furniture', 'decor', 'kitchen', 'bath', 'bedroom', 'garden'];
   const buildMode = () => (S.adv && finished() ? 'adv' : 'room');
+  let bh = null; // Build Home panel state (flow_bh.js)
   const roomTool = { type: 'living', rect: null, plan: null, flip: false, cands: [], ci: 0 };
   const EDG = [[0, -.5], [.5, 0], [0, .5], [-.5, 0]], DIRS4 = [[0, -1], [1, 0], [0, 1], [-1, 0]];
   const edgeKey = (x, z, rot) => ((x + .5 + EDG[rot][0]) * 2) + ',' + ((z + .5 + EDG[rot][1]) * 2);
@@ -39,7 +40,7 @@
   }
   function refreshBuildUI() { try { if ($('#build').classList.contains('on')) { renderTabs(); renderItems(); refreshRoomPlan(); } } catch (e) { } }
   function refreshRoomPlan() {
-    const bar = $('#roomBar'); if (!roomTool.rect || curCat !== 'rooms' || roomEdit) { bar.classList.add('hidden'); WORLD.setRoomPreview(null); roomTool.plan = null; return; }
+    const bar = $('#roomBar'); if (!roomTool.rect || curCat !== 'rooms' || roomEdit || bh || S.plan) { bar.classList.add('hidden'); WORLD.setRoomPreview(null); roomTool.plan = null; return; }
     const t = ROOM_TYPES.find(x => x.id === roomTool.type), p = roomTool.plan = planRoom(roomTool.rect, t), w = p.r.x1 - p.r.x0, d = p.r.z1 - p.r.z0;
     const free = buildMode() === 'adv'; WORLD.setRoomPreview(roomTool.rect, p.ok, free ? `${w} × ${d}` : t.name); bar.classList.remove('hidden'); bar.classList.toggle('story', !free); $('#rbRot').style.display = !free && w !== d ? '' : 'none';
     $('#rInfo').innerHTML = p.ok ? `<b>${t.name}${free ? ` ${w}×${d}` : ''}</b><br>${costText(p.cost)}` : `<b>${p.reason}</b>`; $('#rbOk').disabled = !p.ok && !/^Need/.test(p.reason);
@@ -66,10 +67,10 @@
     roomTool.rect = roomTool.cands[roomTool.ci] || null; refreshRoomPlan();
     if (!roomTool.rect) { $('#roomBar').classList.add('hidden'); hint(`No free space for a ${t.name} on this floor — try the other floor or clear debris`); }
   }
-  const storyRooms = () => $('#build').classList.contains('on') && buildMode() === 'room' && curCat === 'rooms' && !roomEdit;
+  const storyRooms = () => $('#build').classList.contains('on') && buildMode() === 'room' && curCat === 'rooms' && !roomEdit && !bh && !S.plan;
   function ensureGhost() { if (storyRooms() && !roomTool.rect) autoSpot(); }
   function buildRoomNow() {
-    const p = roomTool.plan; if (!p) return; if (!p.ok) { if (/^Need/.test(p.reason)) needCoins(p.cost.coins - S.coins); return; } const t = p.t; pay(p.cost);
+    const p = roomTool.plan; if (!p) return; if (buildMode() === 'room') return bhStartPlan(p); if (!p.ok) { if (/^Need/.test(p.reason)) needCoins(p.cost.coins - S.coins); return; } const t = p.t; pay(p.cost);
     const objs = [...p.floors.map(([x, z]) => mkObj(p.floorPart, x, z, 0, p.lvl, { rt: t.id })), ...p.walls.map(w => mkObj('wall_plaster', w.x, w.z, w.rot, p.lvl))];
     objs.forEach(o => S.layout.push(o)); S.stats.placed += objs.length; undoStack.push({ t: 'bulk', ids: objs.map(o => o.id), inv: p.cost.inv, coins: p.cost.coins });
     const r0 = p.r; roomTool.rect = null; roomTool.plan = null; $('#roomBar').classList.add('hidden'); WORLD.setRoomPreview(null);
@@ -135,7 +136,7 @@
   const tabIcon = (id) => id === 'rooms' ? thumb('p:sofa:0', 30, 26) : thumb(`p:${CAT_ICON[id]}:0`, 30, 26);
   const tabList = () => buildMode() === 'room' ? ROOM_TABS : ['rooms'].concat(CATS.map(c => c[0]));
   function initCat() { const list = tabList(); if (!curCat || !list.includes(curCat)) curCat = list[0]; }
-  function syncTool() { const on = $('#build').classList.contains('on') && curCat === 'rooms' && !roomEdit; WORLD.roomDrag = buildMode() === 'adv'; WORLD.setRoomMode(on); if (!on) { roomTool.rect = null; $('#roomBar').classList.add('hidden'); } }
+  function syncTool() { const on = $('#build').classList.contains('on') && curCat === 'rooms' && !roomEdit && !bh && !S.plan; WORLD.roomDrag = buildMode() === 'adv'; WORLD.setRoomMode(on); if (!on) { roomTool.rect = null; $('#roomBar').classList.add('hidden'); } }
   function renderTabs() {
     initCat(); const T_ = $('#tabs'), un = unlockedCats(); T_.innerHTML = '';
     tabList().forEach(id => {
@@ -182,6 +183,7 @@
     };
     WORLD.cb.cellFree = (cx, cz) => buildMode() !== 'room' || roomEdit || curCat !== 'rooms' || !WORLD.hasFloor(cx, cz, WORLD.level);
     const prev = WORLD.cb.selected; WORLD.cb.selected = (o) => {
+      if (o && S.plan && bh) { setTimeout(() => WORLD.deselect(), 0); return; }
       if (o && buildMode() === 'room' && !roomEdit && !WORLD.place) { // tapping a built room opens the room editor instead of selecting a single tile
         const rm = GAME_DATA.detectRooms(S.layout).find(r => r.lvl === o.lvl && (r.floors.includes(o) || r.walls.includes(o) || r.items.includes(o) || r.cells.some(c => c[0] === o.x && c[1] === o.z)));
         if (rm) { setTimeout(() => { WORLD.deselect(); enterRoomEdit(rm); }, 0); return; }
@@ -196,20 +198,6 @@
     const info = boundaryInfo(r), has = (re) => info.some(x => re.test(x.o.part)), t = rtOf(r), need = ROOM_FURN[t] || [], parts = r.items.map(o => o.part), missing = need.filter(id => !parts.includes(id));
     const un = unlockedCats(), openLock = !un.includes('openings'), furnLock = !un.includes(FURN_TAB[t] || 'furniture'); // parts that are not unlocked yet in this chapter are not asked for
     return { t, door: has(/^door_|^arch$/) || openLock, win: has(/^window_|wall_glass/) || openLock, furn: !missing.length || furnLock, missing, openLock, furnLock };
-  }
-  const guideLast = { key: '', step: -2 };
-  function guideRefresh() {
-    const g = $('#guide'), B = $('#build'), on = B.classList.contains('on') && roomEdit && buildMode() === 'room'; B.classList.toggle('guided', !!on); if (!on) { g.classList.add('hidden'); guideLast.key = ''; return; }
-    const r = curRoom(); if (!r) return; const st = roomState(r), flags = [st.door, st.win, st.furn], cur = flags.findIndex(x => !x), step = cur < 0 ? 3 : cur;
-    $$('.gs', g).forEach((el, i) => { el.classList.toggle('lock', i === 0 || i === 1 ? st.openLock : i === 2 ? st.furnLock : false); el.classList.toggle('done', i < 3 ? flags[i] : cur < 0); el.classList.toggle('cur', i === step); });
-    const goals = questProgress(), allDone = goals.every(p => p.have >= p.q.n), nxt = goals.find(p => p.have < p.q.n), go = $('#gdGo'), tx = $('#gdTxt');
-    if (step === 0) { tx.textContent = `Your ${r.name} needs a door. We will pick a good spot.`; go.textContent = '🚪 Add door'; }
-    else if (step === 1) { tx.textContent = 'Let some light in — add windows on the outside walls.'; go.textContent = '🪟 Add windows'; }
-    else if (step === 2) { tx.textContent = `Furnish it: ${st.missing.map(id => PART[id].name).join(', ')}. Tap the button, or pick items below.`; go.textContent = '🛋 Furnish for me'; }
-    else { const sg = suggestNext(), sgn = sg && (ROOM_TYPES.find(t => t.id === sg) || {}).name; tx.textContent = allDone ? 'All chapter goals are done — complete the chapter, or keep building more rooms.' : `${r.name} is ready!${st.openLock || st.furnLock ? ' Doors, windows and furniture unlock in the next chapter.' : ''}${nxt ? ' Next goal: ' + nxt.q.text : ''}`; go.textContent = allDone ? 'Complete chapter ▶' : `＋ Next room${sgn ? ': ' + sgn : ''}`; if (roomEdit && !roomEdit.cheered) { roomEdit.cheered = 1; sfx('win'); confetti(45); toast(`${r.name} complete!`); } }
-    const gd = $('#gdDone'); gd.classList.toggle('hidden', !(allDone)); gd.textContent = step < 3 ? 'Complete ▶' : '＋ More rooms'; g.classList.remove('hidden'); const key = r.key + ':' + step;
-    if (key !== guideLast.key) { guideLast.key = key; if (step === 2) { const tab = FURN_TAB[st.t]; if (tab && unlockedCats().includes(tab) && curCat !== tab) { curCat = tab; renderTabs(); renderItems(); return; } } }
-    if (step === 3 && typeof tutEvent === 'function') tutEvent('done');
   }
   function needCoins(n) {
     sfx('bad'); sheet({ ribbon: [`${n} more coins needed`], html: '<p class="body">Win a puzzle to earn coins (about 100–150 each), then come back and keep building. Your room is saved just as it is.</p>', actions: [{ text: '▶ Play a puzzle', fn: () => { exitBuild(); setTimeout(startLevel, 350); } }, { text: 'Not now', cls: 'secondary' }] });
@@ -226,14 +214,6 @@
     renderTabs(); renderItems(); buildInsets(); WORLD.resetFocus(); hint(nxt ? 'Next goal: ' + nxt.q.text : 'Pick your next room');
   }
   const completeNow = () => { exitBuild(); setTimeout(() => completeChapter(), 500); };
-  function finishRoom() {
-    const goals = questProgress(), allDone = goals.every(p => p.have >= p.q.n), nxt = goals.find(p => p.have < p.q.n);
-    if (allDone) { exitBuild(); setTimeout(() => completeChapter(), 500); return; }
-    exitRoomEdit(); curCat = 'rooms'; roomTool.rect = null; renderTabs(); renderItems(); buildInsets(); WORLD.resetFocus(); hint(nxt ? 'Next goal: ' + nxt.q.text : 'Pick your next room');
-  }
-  $('#gdGo').onclick = () => { sfx('click'); const r = curRoom(); if (!r) return; const st = roomState(r); if (!st.door) autoOpenings('door'); else if (!st.win) autoOpenings('windows'); else if (!st.furn) autoFurnish(); else if (questProgress().every(p => p.have >= p.q.n)) completeNow(); else nextRoom(); guideRefresh(); tutEvent('guide'); };
-  $('#gdDone').onclick = () => { sfx('click'); const r = curRoom(), st = r && roomState(r); if (st && st.door && st.win && st.furn) nextRoom(); else completeNow(); };
-  $('#reMore').onclick = () => { sfx('click'); $('.retools').classList.toggle('open'); };
   // furniture is placed along walls, facing into the room (rot 0 faces +z, 1 faces -x, 2 faces -z, 3 faces +x), never in front of a door
   const FACE = [[0, 1], [-1, 0], [0, -1], [1, 0]];
   const autoFurnish = () => { const r = curRoom(); if (!r) return; const st = roomState(r); if (!st.missing.length) return toast('Already furnished'); autoPlaceIn(r, st.missing); };
@@ -276,8 +256,9 @@
     const set = (t, p, pos) => { $('#tutT').textContent = t; $('#tutP').textContent = p; $('#tutNext').textContent = n === TUT_N ? 'Got it' : 'Next'; $('#tutDots').textContent = '●'.repeat(n) + '○'.repeat(TUT_N - n); $('.tbub', T_).style.cssText = pos || ''; };
     const tapAt = (el) => { const [x, y] = el ? rel(el) : [100, 600]; tut.anim = hand.animate([{ transform: `translate(${x}px,${y}px) scale(1)` }, { transform: `translate(${x}px,${y}px) scale(.7)` }, { transform: `translate(${x}px,${y}px) scale(1)` }], { duration: 1100, iterations: Infinity }); };
     if (n === 1) { curCat = 'rooms'; renderTabs(); renderItems(); set('1. Pick a room', 'Tap a room card. A green ghost room shows where it will go.', 'top:96px'); tapAt($('#items .it:nth-child(2)') || $('#items .it')); }
-    else if (n === 2) { if ($('#roomBar').classList.contains('hidden')) return tutStep(1); set('2. Tap ✓ Build', 'Walls and floor appear for you. To move the room, tap another spot on the grid.', 'top:96px'); tapAt($('#rbOk')); }
-    else { const b = $('#gdGo'); set('3. Follow the steps', 'Tap the big orange button for each step — we place everything for you.', 'top:' + (b && !$('#guide').classList.contains('hidden') ? Math.round($('#guide').getBoundingClientRect().bottom - $('#app').getBoundingClientRect().top + 8) : 210) + 'px'); if (b && !$('#guide').classList.contains('hidden')) tapAt(b); else hand.style.opacity = 0; }
+    else if (n === 2) { if ($('#roomBar').classList.contains('hidden')) return tutStep(1); set('2. Tap ✓ Build', 'This starts construction. To move the room first, tap another spot on the grid.', 'top:96px'); tapAt($('#rbOk')); }
+    else { const sid = bh && bh.sites && bh.sites[0], sp = sid && WORLD.siteScreen(sid.id), cv = $('#reno3d canvas').getBoundingClientRect(), ap = $('#app').getBoundingClientRect(); set('3. Tap the glowing spots', 'Tap each glowing spot to build it piece by piece. Quick taps in a row make a BUILD COMBO!', 'top:' + Math.round($('#guide').getBoundingClientRect().bottom - ap.top + 8) + 'px');
+      if (sp) { const x = sp[0] + cv.left - ap.left, y = sp[1] + cv.top - ap.top; tut.anim = hand.animate([{ transform: `translate(${x}px,${y}px) scale(1)` }, { transform: `translate(${x}px,${y}px) scale(.7)` }, { transform: `translate(${x}px,${y}px) scale(1)` }], { duration: 1100, iterations: Infinity }); } else hand.style.opacity = 0; }
   }
   function tutEvent(ev) { if (!tut || !$('#build').classList.contains('on')) return; if (ev === 'type' && tut.step === 1) setTimeout(() => tutStep(2), 300); else if (ev === 'built' && tut.step <= 2) setTimeout(() => tutStep(3), 1200); }
   function tutMaybe(force) { if ((!force && S.seen.buildTut) || buildMode() !== 'room' || roomEdit) return; setTimeout(() => { if ($('#build').classList.contains('on') && !roomEdit) { tut = {}; tutStep(1); } }, 700); }
@@ -285,9 +266,3 @@
   $('#tutNext').onclick = () => { sfx('click'); if (!tut) return; if (tut.step >= TUT_N) tutStop(true); else tutStep(tut.step + 1); };
   $('#bHelp').onclick = () => { sfx('click'); if (buildMode() !== 'room') { toast('The tutorial covers the story building mode'); return; } if (roomEdit) exitRoomEdit(); curCat = 'rooms'; renderTabs(); renderItems(); tutMaybe(true); };
 
-  $('#btnBuildDone').addEventListener('click', (e) => {
-    if (buildMode() !== 'room' || finished() || !roomEdit) return; const r = curRoom(), st = r && roomState(r); if (!st) return;
-    const miss = [!st.door && 'a door', !st.win && 'windows', !st.furn && 'furniture'].filter(Boolean); if (!miss.length) return;
-    e.stopImmediatePropagation(); e.preventDefault(); sfx('click');
-    sheet({ ribbon: ['Leave building?'], html: `<p class="body">Your ${r.name} still needs ${miss.length > 1 ? miss.slice(0, -1).join(', ') + ' and ' + miss[miss.length - 1] : miss[0]}. Everything you built is saved.</p>`, actions: [{ text: 'Keep building', cls: 'primary' }, { text: 'Back to home', cls: 'secondary', fn: () => exitBuild() }] });
-  }, true);

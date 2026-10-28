@@ -45,7 +45,7 @@
     curCat = ['furniture', 'decor', 'kitchen', 'bath', 'bedroom'].find(c => unlockedCats().includes(c)) || curCat; renderTabs(); renderItems(); $('#reName').textContent = r.name; hint(`Designing the ${r.name}`);
     WORLD.setRoomLabel(r.cells, r.lvl, r.name); if (typeof guideRefresh === 'function') guideRefresh();
   }
-  function exitRoomEdit() { roomEdit = null; $('#build').classList.remove('roomedit', 'guided'); $('#guide').classList.add('hidden'); WORLD.setRoomLabel(null); WORLD.setInterior(S.interior); WORLD.resetFocus(); }
+  function exitRoomEdit() { roomEdit = null; if (typeof bhStop === 'function') bhStop(); $('#build').classList.remove('roomedit', 'guided'); $('#guide').classList.add('hidden'); WORLD.setRoomLabel(null); WORLD.setInterior(S.interior); WORLD.resetFocus(); }
   function roomRecolor(kind, col) {
     const r = roomEdit.room, list = kind === 'walls' ? roomWallPieces(r) : S.layout.filter(o => o.lvl === r.lvl && PART[o.part].kind === 'floor' && o.part !== 'path_stone' && r.cells.some(c => c[0] === o.x && c[1] === o.z));
     const ops = list.filter(o => (o.color || PART[o.part].color) !== col).map(o => { const old = o.color; o.color = col; return { t: 'paint', id: o.id, old }; });
@@ -79,7 +79,7 @@
   // ---- properties
   function switchProperty(id) {
     if (id === S.prop) return true; const def = propDef(id); if (!def || !def.unlocked(S)) return false; if (roomEdit) exitRoomEdit();
-    S.props[S.prop] = { layout: S.layout }; const t = S.props[id];            // park the current property in S.props
+    S.props[S.prop] = { layout: S.layout, plan: S.plan }; const t = S.props[id]; S.plan = t && t.plan || null;            // park the current property in S.props
     S.layout = t && t.layout ? t.layout : (def.preset ? def.preset() : []); delete S.props[id]; S.prop = id; // the active property always lives in S.layout
     WORLD.setLayout(S.layout); WORLD.setTheme(def.theme); initDebris(); undoStack.length = 0; save(); renderHome(); return true;
   }

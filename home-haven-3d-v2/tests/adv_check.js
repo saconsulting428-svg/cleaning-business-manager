@@ -1,0 +1,16 @@
+const { chromium } = require('/opt/node-tools/node_modules/playwright'); const H=require('./helpers.js');
+(async()=>{ const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--no-sandbox']});
+ const p=await b.newPage({viewport:{width:360,height:740}}); p.setDefaultTimeout(120000); p.on('pageerror',e=>console.log('PAGEERR',e.message));
+ await p.goto('file:///home/user/cleaning-business-manager/home-haven-3d-v2/Home_Haven_3D.html'); await p.waitForSelector('#menu.on',{timeout:90000});
+ await p.click('#btnContinue'); await p.waitForTimeout(1000); await p.evaluate(H.install); await p.evaluate(()=>window.skipDialogs()); await p.waitForTimeout(300); await p.evaluate(()=>window.closeModal());
+ await p.evaluate(()=>{ for(let i=0;i<8;i++){ if(!__game.S.cleared.includes(i)){ __game.S.cleared.push(i); WORLD.clearDebris(i);} } const S=__game.S; S.chapter=7; S.storyDone=true; S.coins=3000; __game.save(); });
+ await p.evaluate(()=>document.getElementById('navBuild').click()); await p.waitForTimeout(2000); await p.evaluate(()=>window.closeModal());
+ await p.evaluate(()=>document.querySelector('.mg[data-m=adv]').click()); await p.waitForTimeout(600);
+ await p.evaluate(()=>{ [...document.querySelectorAll('.tab')].find(t=>/Rooms/.test(t.textContent)).click(); }); await p.waitForTimeout(400);
+ await p.evaluate(()=>document.querySelectorAll('#items .it')[1].click()); await p.waitForTimeout(300);
+ const a=await p.evaluate(()=>WORLD.toScreen(2.5,2.5,0)), c=await p.evaluate(()=>WORLD.toScreen(6.5,4.5,0));
+ await p.mouse.move(a[0],a[1]); await p.mouse.down(); for(let i=1;i<=12;i++){await p.mouse.move(a[0]+(c[0]-a[0])*i/12,a[1]+(c[1]-a[1])*i/12);await p.waitForTimeout(40);} await p.mouse.up(); await p.waitForTimeout(600);
+ console.log('adv drag preview:',(await p.textContent('#rInfo')).replace(/\s+/g,' '));
+ await p.evaluate(()=>document.getElementById('rbOk').click()); await p.waitForTimeout(2000);
+ console.log('adv built instantly:',await p.evaluate(()=>({floors:__game.S.layout.filter(o=>SPRITES.parts[o.part].kind==='floor').length,plan:__game.S.plan,cls:document.getElementById('build').className})));
+ await b.close(); })();
