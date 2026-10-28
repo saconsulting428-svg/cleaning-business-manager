@@ -80,10 +80,10 @@
         box(inner, .03, h, .05, frame, (x0 + x1) / 2, y0, 0, .004); box(inner, w, .03, .05, frame, (x0 + x1) / 2, (y0 + y1) / 2 - .015, 0, .004); const gl = new T.Mesh(new T.PlaneGeometry(w, h), getGlass()); gl.position.set((x0 + x1) / 2, (y0 + y1) / 2, 0); gl.userData.glass = 1; inner.add(gl); box(inner, w + .16, .04, .16, frame, (x0 + x1) / 2, y0 - fw - .03, .0, .008);
       } else if (id === 'door_wood') {
         const x0 = hole.x0 - L / 2, x1 = hole.x1 - L / 2, w = x1 - x0; box(inner, .06, 2.1, WT + .06, frame, x0 - .03, 0, 0, .008); box(inner, .06, 2.1, WT + .06, frame, x1 + .03, 0, 0, .008); box(inner, w + .12, .06, WT + .06, frame, (x0 + x1) / 2, 2.05, 0, .008);
-        const dl = grp(inner, x0, 0, WT / 2 - .0); dl.rotation.y = -1.25; box(dl, w, 2.03, .05, M('#8a5a3a', { r: .55 }), w / 2, 0, 0, .01); box(dl, w - .2, .8, .02, M('#774a2e', { r: .6 }), w / 2, 1.1, .03, .005); box(dl, w - .2, .8, .02, M('#774a2e', { r: .6 }), w / 2, .15, .03, .005); sph(dl, .035, M('#c9a24a', { m: .8, r: .3 }), w - .1, 1.0, .06);
+        const dl = grp(inner, x0, 0, WT / 2 - .0); dl.userData.leaf = 1; dl.rotation.y = -1.25; box(dl, w, 2.03, .05, M('#8a5a3a', { r: .55 }), w / 2, 0, 0, .01); box(dl, w - .2, .8, .02, M('#774a2e', { r: .6 }), w / 2, 1.1, .03, .005); box(dl, w - .2, .8, .02, M('#774a2e', { r: .6 }), w / 2, .15, .03, .005); sph(dl, .035, M('#c9a24a', { m: .8, r: .3 }), w - .1, 1.0, .06);
       } else if (id === 'door_glass') {
         const x0 = hole.x0 - L / 2, x1 = hole.x1 - L / 2, w = x1 - x0, fm = M('#2f3a46', { m: .5, r: .3 }); box(inner, .06, 2.1, WT + .06, frame, x0 - .03, 0, 0, .008); box(inner, .06, 2.1, WT + .06, frame, x1 + .03, 0, 0, .008); box(inner, w + .12, .06, WT + .06, frame, (x0 + x1) / 2, 2.05, 0, .008);
-        const dl = grp(inner, x0, 0, WT / 2); dl.rotation.y = -1.2; box(dl, .06, 2.0, .05, fm, .03, 0, 0, .008); box(dl, .06, 2.0, .05, fm, w - .03, 0, 0, .008); box(dl, w, .06, .05, fm, w / 2, 0, 0, .008); box(dl, w, .06, .05, fm, w / 2, 1.96, 0, .008); box(dl, w, .04, .05, fm, w / 2, 1.0, 0, .008); const gl = new T.Mesh(new T.PlaneGeometry(w - .1, 1.9), getGlass()); gl.position.set(w / 2, 1.0, 0); gl.userData.glass = 1; dl.add(gl); box(dl, .03, .3, .04, M('#c9ced3', { m: .8 }), w - .1, .9, .05, .005);
+        const dl = grp(inner, x0, 0, WT / 2); dl.userData.leaf = 1; dl.rotation.y = -1.2; box(dl, .06, 2.0, .05, fm, .03, 0, 0, .008); box(dl, .06, 2.0, .05, fm, w - .03, 0, 0, .008); box(dl, w, .06, .05, fm, w / 2, 0, 0, .008); box(dl, w, .06, .05, fm, w / 2, 1.96, 0, .008); box(dl, w, .04, .05, fm, w / 2, 1.0, 0, .008); const gl = new T.Mesh(new T.PlaneGeometry(w - .1, 1.9), getGlass()); gl.position.set(w / 2, 1.0, 0); gl.userData.glass = 1; dl.add(gl); box(dl, .03, .3, .04, M('#c9ced3', { m: .8 }), w - .1, .9, .05, .005);
       } else if (id === 'arch') { /* plain arched opening */ }
       return g;
     }
@@ -133,7 +133,11 @@
   W3.drawObj = drawObj;
   const clearObjs = () => { objs.forEach(e => objGroup.remove(e.g)); objs.clear(); };
   W3.setLayout = (layout) => { W3.layout = layout; W3.redraw(); };
-  W3.redraw = () => { clearObjs(); W3.layout.forEach(o => drawObj(o)); W3.applyAlpha(); drawFoundation(); dirty = 3; };
+  W3.redraw = () => {
+    const keep = anims.map(a => ({ a, id: a.e.o.id })); clearObjs(); W3.layout.forEach(o => drawObj(o)); W3.applyAlpha(); drawFoundation(); dirty = 3;
+    keep.forEach(({ a, id }) => { const e = objs.get(id); if (!e) { a.dead = true; return; } a.e = e; a.base = e.g.position.clone(); a.rot = e.g.rotation.y; if (a.kind === 'door' || a.kind === 'window') e.g.traverse(m => { if (m.userData && m.userData.leaf) { a.leaf = m; a.leafRot = m.rotation.y; } if (m.userData && m.userData.glass) a.glass = m; }); });
+    for (let i = anims.length - 1; i >= 0; i--) if (anims[i].dead) anims.splice(i, 1);
+  };
   W3.refreshAll = W3.redraw;
 
   // ---------------------------------------------------------------- visibility: levels, roofs, interior cutaway
@@ -399,45 +403,101 @@
   function frame(t) {
     requestAnimationFrame(frame); if (!active) return; const dt = Math.min(.05, (t - last) / 1000 || .016); last = t;
     if ((W3.night ? 1 : 0) !== nightK) { nightK += ((W3.night ? 1 : 0) - nightK) * Math.min(1, dt * 4); if (Math.abs((W3.night ? 1 : 0) - nightK) < .01) nightK = W3.night ? 1 : 0; nightAll(); }
-    const k = 1 - Math.exp(-dt * 7); ['tx', 'tz', 'dist', 'pitch', 'yaw', 'sx', 'sy'].forEach(p => cam[p] += (goal[p] - cam[p]) * k);
+    const k = 1 - Math.exp(-dt * (W3.camRate || 7)); ['tx', 'tz', 'dist', 'pitch', 'yaw', 'sx', 'sy'].forEach(p => cam[p] += (goal[p] - cam[p]) * k);
     const cp = Math.cos(cam.pitch); camera.position.set(cam.tx + cam.dist * Math.sin(cam.yaw) * cp, cam.ty + cam.dist * Math.sin(cam.pitch), cam.tz + cam.dist * Math.cos(cam.yaw) * cp); camera.lookAt(cam.tx, cam.ty, cam.tz);
+    if (shake.amp > 0) { shake.t += dt; const d = Math.max(0, 1 - shake.t / .3); camera.position.x += (Math.random() - .5) * shake.amp * d * 2; camera.position.y += (Math.random() - .5) * shake.amp * d * 2; camera.position.z += (Math.random() - .5) * shake.amp * d * 2; if (shake.t > .3) shake.amp = 0; dirty = Math.max(dirty, 1); }
     if (Math.abs(cam.sx) > .3 || Math.abs(cam.sy) > .3) camera.setViewOffset(Wd, Hd, -cam.sx, cam.sy, Wd, Hd); else camera.clearViewOffset();
     // yaw changes toggle which walls are "in front"
     const key = Math.round(((cam.yaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI / 2) * 4); if (key !== W3._yk) { W3._yk = key; if (W3.interior) W3.applyAlpha(); }
     tickChars(dt * 1000);
-    if (anims.length) { const tn = performance.now(); for (let i = anims.length - 1; i >= 0; i--) { const a = anims[i], k = Math.min(1, Math.max(0, (tn - a.t0) / a.dur)), e = a.e; if (!e.g.parent) { anims.splice(i, 1); continue; } const s = k <= 0 ? .001 : 1 + 1.70158 * Math.pow(k - 1, 3) + .70158 * Math.pow(k - 1, 2); if (a.wall) e.g.scale.set(1, Math.max(.001, s), 1); else e.g.scale.setScalar(Math.max(.001, s)); if (k >= 1) { e.g.scale.set(1, 1, 1); anims.splice(i, 1); } } dirty = Math.max(dirty, 2); }
-    if (sites.length) { const tn = performance.now() / 1000; sites.forEach(s => { s.mesh.material.opacity = .3 + .18 * Math.sin(tn * 4 + s.ph); s.icon.position.y = s.base + .12 * Math.sin(tn * 5 + s.ph); }); dirty = Math.max(dirty, 1); }
-    for (let i = hammers.length - 1; i >= 0; i--) { const h = hammers[i], k = (performance.now() - h.t0) / 620; if (k >= 1) { root.remove(h.g); hammers.splice(i, 1); continue; } const sw = Math.abs(Math.sin(k * Math.PI * 3)); h.g.rotation.x = -1.2 + sw * 1.5; const hit = Math.floor(k * 3 + .35); if (hit > h.hits && sw < .5) { h.hits = hit; W3.dustAt(h.x, h.y, h.z, 3); } dirty = Math.max(dirty, 2); }
+    bhTick(dt);
     if (roomPrev) { const f = roomPrev.children[0]; if (f && f.material) f.material.opacity = .42 + .16 * Math.sin(performance.now() / 260); dirty = Math.max(dirty, 1); }
     for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t += dt; f.s.position.x += f.v[0] * dt; f.s.position.y += f.v[1] * dt; f.s.position.z += f.v[2] * dt; f.s.scale.setScalar(.4 + f.t * 1.6); f.s.material.opacity = Math.max(0, .8 - f.t * 1.4); if (f.t > .6) { root.remove(f.s); f.s.material.dispose(); fx.splice(i, 1); } }
     if (foundation && foundation.visible && foundation.userData.label) foundation.userData.label.position.y = .06;
     if (dirty > 0 || W3.chars.some(c => c.moving) || fx.length) { renderer.shadowMap.needsUpdate = true; if (dirty > 0) dirty--; }
     renderer.render(scene, camera); W3.cb.frame && W3.cb.frame();
   }
-  // ---- Build Home: glowing construction sites, hammer swing, dust
-  let siteGrp = null; const sites = [], hammers = [];
-  const hammerIcon = () => toTex(cvs(96, 96, (x) => { x.fillStyle = 'rgba(255,255,255,.96)'; x.beginPath(); x.arc(48, 48, 40, 0, 7); x.fill(); x.strokeStyle = '#F59E2B'; x.lineWidth = 6; x.stroke(); x.save(); x.translate(48, 48); x.rotate(-.7); x.fillStyle = '#8A5A2B'; x.fillRect(-4, -4, 8, 36); x.fillStyle = '#5B646D'; x.fillRect(-20, -22, 40, 20); x.restore(); }));
-  W3.setSites = (list) => {
+  // ---- Build Home v2: glowing construction sites, typed build animations, impact camera, particles
+  const sites = [], hammers = [], anims = [], sparksL = [], floaters = [], shake = { t: 0, amp: 0 }; let siteGrp = null, camBase = null;
+  const clamp01 = (k) => Math.min(1, Math.max(0, k)), lerp = (a, b, k) => a + (b - a) * k;
+  const easeOutBack = (k) => 1 + 2.70158 * Math.pow(k - 1, 3) + 1.70158 * Math.pow(k - 1, 2), easeOutCubic = (k) => 1 - Math.pow(1 - k, 3);
+  const easeOutBounce = (k) => { const n = 7.5625, d = 2.75; if (k < 1 / d) return n * k * k; if (k < 2 / d) return n * (k -= 1.5 / d) * k + .75; if (k < 2.5 / d) return n * (k -= 2.25 / d) * k + .9375; return n * (k -= 2.625 / d) * k + .984375; };
+  const icoCache = {}, ico = (key, w_, h_, fn) => icoCache[key] || (icoCache[key] = toTex(cvs(w_, h_, fn)));
+  const hammerIcon = () => ico('ham', 96, 96, (x) => { x.fillStyle = 'rgba(255,255,255,.96)'; x.beginPath(); x.arc(48, 48, 40, 0, 7); x.fill(); x.strokeStyle = '#F59E2B'; x.lineWidth = 6; x.stroke(); x.save(); x.translate(48, 48); x.rotate(-.7); x.fillStyle = '#8A5A2B'; x.fillRect(-4, -4, 8, 36); x.fillStyle = '#5B646D'; x.fillRect(-20, -22, 40, 20); x.restore(); });
+  const arrowIcon = () => ico('arr', 96, 96, (x) => { x.fillStyle = '#FFB04A'; x.strokeStyle = '#fff'; x.lineWidth = 7; x.lineJoin = 'round'; x.beginPath(); x.moveTo(48, 88); x.lineTo(12, 42); x.lineTo(34, 42); x.lineTo(34, 8); x.lineTo(62, 8); x.lineTo(62, 42); x.lineTo(84, 42); x.closePath(); x.stroke(); x.fill(); });
+  const labelIcon = (txt, bg) => ico('lab' + txt + bg, 320, 90, (x, W_, H_) => { x.fillStyle = bg; const r = 40; x.beginPath(); x.moveTo(r, 6); x.arcTo(W_ - 6, 6, W_ - 6, H_ - 6, r); x.arcTo(W_ - 6, H_ - 6, 6, H_ - 6, r); x.arcTo(6, H_ - 6, 6, 6, r); x.arcTo(6, 6, W_ - 6, 6, r); x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 6; x.stroke(); x.font = 'bold 40px Poppins, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#fff'; x.fillText(txt, W_ / 2, H_ / 2 + 2); });
+  const spr = (map, s, op = 1, col = 0xffffff) => { const m = new T.Sprite(new T.SpriteMaterial({ map, color: col, transparent: true, opacity: op, depthTest: false, depthWrite: false })); m.scale.set(s, s, 1); m.renderOrder = 62; return m; };
+  W3.setSites = (list, opts = {}) => {
     if (siteGrp) { root.remove(siteGrp); siteGrp = null; } sites.length = 0; dirty = 2; W3.sites = null; if (!list || !list.length) return;
-    const g = new T.Group(), tex = hammerIcon();
-    list.forEach((s, i) => { const w_ = s.x1 - s.x0, h = s.y1 - s.y0, d = s.z1 - s.z0, cx = (s.x0 + s.x1) / 2, cy = (s.y0 + s.y1) / 2, cz = (s.z0 + s.z1) / 2;
-      const m = new T.Mesh(new T.BoxGeometry(w_, h, d), new T.MeshBasicMaterial({ color: s.color || 0xffc93c, transparent: true, opacity: .4, depthWrite: false })); m.position.set(cx, cy, cz); m.userData.siteId = s.id; m.renderOrder = 40; g.add(m);
-      const e = new T.LineSegments(new T.EdgesGeometry(m.geometry), new T.LineBasicMaterial({ color: 0xfff1a8 })); e.position.copy(m.position); e.renderOrder = 41; g.add(e);
-      const ic = new T.Sprite(new T.SpriteMaterial({ map: tex, transparent: true, depthTest: false })); ic.scale.set(.85, .85, 1); ic.position.set(cx, s.y1 + .55, cz); ic.renderOrder = 62; g.add(ic);
-      sites.push({ id: s.id, mesh: m, icon: ic, base: ic.position.y, ph: i * .7 }); });
+    const g = new T.Group();
+    list.forEach((s, i) => { const prim = i === 0, w_ = Math.max(.9, s.x1 - s.x0), h = Math.max(.5, s.y1 - s.y0), d = Math.max(.9, s.z1 - s.z0), cx = (s.x0 + s.x1) / 2, cy = (s.y0 + s.y1) / 2, cz = (s.z0 + s.z1) / 2, col = s.color || 0xffc93c;
+      const m = new T.Mesh(new T.BoxGeometry(w_, h, d), new T.MeshBasicMaterial({ color: col, transparent: true, opacity: .25, depthWrite: false })); m.position.set(cx, cy, cz); m.userData.siteId = s.id; m.renderOrder = 40; g.add(m);
+      const e = new T.LineSegments(new T.EdgesGeometry(m.geometry), new T.LineBasicMaterial({ color: 0xfff1a8, transparent: true, opacity: prim ? 1 : .6 })); e.position.copy(m.position); e.renderOrder = 41; g.add(e);
+      const rr = Math.min(.95, Math.max(.55, Math.min(s.x1 - s.x0, s.z1 - s.z0) * .55)), ring = new T.Mesh(new T.RingGeometry(rr * .78, rr, 48), new T.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: prim ? .95 : .55, depthWrite: false, side: T.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.set(cx, s.y0 + .08, cz); ring.userData.siteId = s.id; ring.renderOrder = 42; g.add(ring);
+      const ic = spr(hammerIcon(), prim ? 1.0 : .8); ic.position.set(cx, s.y1 + .6, cz); g.add(ic);
+      let ar = null, lb = null; if (prim) { ar = spr(arrowIcon(), .6); ar.position.set(cx, s.y1 + 1.35, cz); g.add(ar); if (opts.label) { lb = spr(labelIcon('TAP TO BUILD', '#F59E2B'), 1.6); lb.scale.set(1.9, .54, 1); lb.position.set(cx, s.y1 + 2.0, cz); g.add(lb); } }
+      const parts = []; for (let n = 0; n < (prim ? 7 : 3); n++) { const p = spr(RENO.glowTex(), .22, .9, 0xffe08a); p.userData.ph = Math.random(); p.userData.ox = (Math.random() - .5) * w_ * .8; p.userData.oz = (Math.random() - .5) * d * .8; p.renderOrder = 61; g.add(p); parts.push(p); }
+      sites.push({ id: s.id, mesh: m, edge: e, ring, rr, icon: ic, arrow: ar, label: lb, parts, base: ic.position.y, cx, cz, y0: s.y0, y1: s.y1, ph: i * .7, prim }); });
     root.add(g); siteGrp = g; W3.sites = sites;
   };
-  W3.pickSite = (cx, cy) => { if (!sites.length) return null; setRay(cx, cy); const hit = ray.intersectObjects(sites.map(s => s.mesh), false); return hit.length ? hit[0].object.userData.siteId : null; };
-  W3.siteScreen = (id) => { const s = sites.find(q => q.id === id); if (!s) return null; const p = s.mesh.position; return W3.toScreen(p.x, p.z, p.y); };
+  W3.pickSite = (cx, cy) => { if (!sites.length) return null; setRay(cx, cy); const hit = ray.intersectObjects(sites.flatMap(s => [s.mesh, s.ring]), false); return hit.length ? hit[0].object.userData.siteId : null; };
+  W3.siteScreen = (id) => { const s = sites.find(q => q.id === id); if (!s) return null; return W3.toScreen(s.cx, s.cz, (s.y0 + s.y1) / 2); };
   W3.dustAt = (x, y, z, n = 8) => { for (let i = 0; i < n; i++) { const s = new T.Sprite(new T.SpriteMaterial({ map: RENO.glowTex(), color: 0xf3e6cf, transparent: true, opacity: .85, depthWrite: false })); s.position.set(x + (Math.random() - .5) * .9, y + Math.random() * .3, z + (Math.random() - .5) * .9); s.scale.setScalar(.3); root.add(s); fx.push({ s, t: 0, v: [(Math.random() - .5) * 1.1, .4 + Math.random() * .7, (Math.random() - .5) * 1.1] }); } dirty = 2; };
+  W3.sparksAt = (x, y, z, n = 10, col = 0xffd166) => { for (let i = 0; i < n; i++) { const s = spr(RENO.glowTex(), .16 + Math.random() * .1, 1, col); s.position.set(x, y, z); root.add(s); const a = Math.random() * 6.28, sp = 1.2 + Math.random() * 2; sparksL.push({ s, t: 0, v: [Math.cos(a) * sp, 2 + Math.random() * 2.5, Math.sin(a) * sp] }); } dirty = 2; };
+  W3.floatLabel = (txt, x, y, z, bg = '#3E9D3A') => { const s = spr(labelIcon(txt, bg), 1); s.scale.set(1.7, .48, 1); s.position.set(x, y, z); root.add(s); floaters.push({ s, t: 0, y }); dirty = 2; };
   W3.hammer = (x, y, z) => {
     const g = new T.Group(), wood = new T.MeshStandardMaterial({ color: '#8A5A2B', roughness: .8 }), steel = new T.MeshStandardMaterial({ color: '#6B747D', roughness: .45, metalness: .5 });
-    const hd = new T.Mesh(new T.BoxGeometry(.06, .55, .06), wood); hd.position.y = .27; hd.castShadow = true; const hh = new T.Mesh(new T.BoxGeometry(.34, .16, .16), steel); hh.position.y = .58; hh.castShadow = true; g.add(hd, hh);
-    g.position.set(x, y + .9, z); g.rotation.y = W3._cam ? W3._cam.yaw : 0; root.add(g); hammers.push({ g, t0: performance.now(), x, y, z, hits: 0 }); dirty = 3;
+    const hd = new T.Mesh(new T.BoxGeometry(.07, .62, .07), wood); hd.position.y = .3; hd.castShadow = true; const hh = new T.Mesh(new T.BoxGeometry(.4, .19, .19), steel); hh.position.y = .66; hh.castShadow = true; g.add(hd, hh);
+    g.position.set(x, y + 1.0, z); g.rotation.y = W3._cam ? W3._cam.yaw : 0; root.add(g); hammers.push({ g, t0: performance.now(), x, y, z, hits: 0 }); dirty = 3;
   };
-  const anims = [];
-  // construction animation: floors pop in one after another, then walls rise, then furniture
-  W3.buildIn = (ids) => { const t0 = performance.now(); let nf = 0, nw = 0; const list = ids.map(id => objs.get(id)).filter(Boolean); list.forEach(e => { const k = PART[e.o.part].kind; if (k === 'floor') { anims.push({ e, t0: t0 + (nf++) * 28, dur: 380 }); e.g.scale.setScalar(.001); } }); const base = t0 + nf * 28 + 120; list.forEach(e => { const k = PART[e.o.part].kind; if (k === 'wall') { anims.push({ e, t0: base + (nw++) * 45, dur: 520, wall: true }); e.g.scale.set(1, .001, 1); } else if (k !== 'floor') { anims.push({ e, t0: base + nw * 45 + 200, dur: 420 }); e.g.scale.setScalar(.001); } }); dirty = 3; return base + nw * 45 + 600 - t0; };
+  // typed construction animations: floors drop in, walls rise, door frame then leaf, window frame then glass, roof slides, furniture drops and settles
+  W3.buildIn = (ids, o = {}) => {
+    const list = ids.map(id => objs.get(id)).filter(Boolean), t00 = performance.now() + (o.delay || 0), DUR = { floor: 520, wall: 660, door: 900, window: 900, roof: 720, item: 840 }, GAP = { floor: 55, wall: 120, door: 0, window: 0, roof: 80, item: 170 };
+    const kindOf = (e) => { const P = PART[e.o.part], id = e.o.part; if (P.kind === 'floor') return 'floor'; if (/^door_/.test(id)) return 'door'; if (/^window_|wall_glass/.test(id)) return 'window'; if (P.kind === 'wall') return 'wall'; if (P.kind === 'roof') return 'roof'; return 'item'; };
+    let cursor = t00, end = t00;
+    ['floor', 'wall', 'door', 'window', 'roof', 'item'].forEach(kind => {
+      const grp = list.filter(e => kindOf(e) === kind); if (!grp.length) return; if (kind === 'floor') { const mx = grp.reduce((a, e) => a + e.g.position.x, 0) / grp.length, mz = grp.reduce((a, e) => a + e.g.position.z, 0) / grp.length; grp.sort((a, b) => Math.hypot(a.g.position.x - mx, a.g.position.z - mz) - Math.hypot(b.g.position.x - mx, b.g.position.z - mz)); }
+      grp.forEach((e, i) => { const a = { e, kind, t0: cursor + i * GAP[kind], dur: DUR[kind], landed: false, base: e.g.position.clone(), rot: e.g.rotation.y, sgn: Math.random() < .5 ? -1 : 1 };
+        if (kind === 'door' || kind === 'window') e.g.traverse(m => { if (m.userData && m.userData.leaf) { a.leaf = m; a.leafRot = m.rotation.y; } if (m.userData && m.userData.glass) a.glass = m; });
+        e.g.visible = false; anims.push(a); end = Math.max(end, a.t0 + a.dur); });
+      cursor += (grp.length - 1) * GAP[kind] + DUR[kind] * .55;
+    });
+    dirty = 3; return end - t00;
+  };
+  const finishAnim = (a) => { const g = a.e.g; g.position.copy(a.base); g.rotation.y = a.rot; g.rotation.z = 0; g.scale.set(1, 1, 1); g.visible = true; if (a.leaf) a.leaf.rotation.y = a.leafRot; if (a.glass) a.glass.scale.y = 1; };
+  const LAND = { floor: .6, wall: .82, door: .5, window: .5, roof: .72, item: .6 };
+  function bhTick(dt) {
+    const tn = performance.now();
+    for (let i = anims.length - 1; i >= 0; i--) {
+      const a = anims[i], e = a.e; if (!e.g.parent) { anims.splice(i, 1); continue; } if (tn < a.t0) { e.g.visible = false; continue; }
+      const k = clamp01((tn - a.t0) / a.dur), g = e.g, b = a.base; g.visible = true;
+      if (a.kind === 'floor') { g.position.set(b.x, b.y + (1 - easeOutBounce(k)) * 1.7, b.z); g.rotation.y = a.rot + (1 - easeOutCubic(k)) * .55 * a.sgn; }
+      else if (a.kind === 'wall') { g.scale.set(1, Math.max(.001, easeOutBack(k)), 1); }
+      else if (a.kind === 'door' || a.kind === 'window') { const kf = clamp01(k / .5), kl = clamp01((k - .45) / .55); g.scale.setScalar(Math.max(.001, easeOutBack(kf))); if (a.leaf) a.leaf.rotation.y = lerp(-2.5, a.leafRot, easeOutBack(kl)); if (a.glass) a.glass.scale.y = Math.max(.001, easeOutCubic(kl)); }
+      else if (a.kind === 'roof') { const e2 = easeOutBack(k); g.position.set(b.x, b.y + (1 - e2) * 2.5, b.z); g.rotation.z = (1 - e2) * .35 * a.sgn; }
+      else { g.position.set(b.x, b.y + (1 - easeOutBounce(k)) * 1.9, b.z); g.rotation.y = a.rot + (1 - easeOutCubic(k)) * 1.0 * a.sgn; if (k > .6 && k < .88) { const s = Math.sin((k - .6) / .28 * Math.PI); g.scale.set(1 + .07 * s, 1 - .11 * s, 1 + .07 * s); } else g.scale.set(1, 1, 1); }
+      if (!a.landed && k >= LAND[a.kind]) { a.landed = true; W3.dustAt(b.x, b.y + .12, b.z, a.kind === 'floor' ? 3 : 6); if (a.kind !== 'floor') W3.sparksAt(b.x, b.y + (a.kind === 'wall' ? 1.3 : .8), b.z, a.kind === 'item' ? 6 : 5); }
+      if (k >= 1) { finishAnim(a); anims.splice(i, 1); }
+    }
+    if (anims.length) dirty = Math.max(dirty, 2);
+    for (let i = sparksL.length - 1; i >= 0; i--) { const p = sparksL[i]; p.t += dt; p.v[1] -= 7 * dt; p.s.position.x += p.v[0] * dt; p.s.position.y += p.v[1] * dt; p.s.position.z += p.v[2] * dt; p.s.material.opacity = Math.max(0, 1 - p.t / .75); if (p.t > .75) { root.remove(p.s); p.s.material.dispose(); sparksL.splice(i, 1); } dirty = Math.max(dirty, 1); }
+    for (let i = floaters.length - 1; i >= 0; i--) { const f = floaters[i]; f.t += dt; f.s.position.y = f.y + f.t * 1.1; f.s.material.opacity = Math.max(0, 1 - Math.max(0, f.t - .5) / .6); if (f.t > 1.1) { root.remove(f.s); f.s.material.dispose(); floaters.splice(i, 1); } dirty = Math.max(dirty, 1); }
+    if (sites.length) { const t = tn / 1000; sites.forEach(s => { const pz = Math.sin(t * 4 + s.ph), mul = s.prim ? 1 : .75; s.mesh.material.opacity = (s.prim ? .28 : .17) + .1 * pz; s.ring.scale.setScalar(1 + .1 * pz * mul); s.ring.material.opacity = (s.prim ? .85 : .5) + .15 * pz; s.icon.position.y = s.base + .13 * Math.sin(t * 5 + s.ph); if (s.arrow) s.arrow.position.y = s.y1 + 1.3 + .22 * Math.abs(Math.sin(t * 3.2)); if (s.label) s.label.position.y = s.y1 + 2.05 + .06 * Math.sin(t * 3); s.parts.forEach(p => { const u = (t * .55 + p.userData.ph) % 1; p.position.set(s.cx + p.userData.ox, s.y0 + .2 + u * 1.7, s.cz + p.userData.oz); p.material.opacity = Math.sin(u * Math.PI) * .9; }); }); dirty = Math.max(dirty, 1); }
+    for (let i = hammers.length - 1; i >= 0; i--) { const h = hammers[i], k = (tn - h.t0) / 640; if (k >= 1) { root.remove(h.g); hammers.splice(i, 1); continue; } const sw = Math.abs(Math.sin(k * Math.PI * 3)); h.g.rotation.x = -1.25 + sw * 1.6; const hit = Math.floor(k * 3 + .35); if (hit > h.hits && sw < .5) { h.hits = hit; W3.dustAt(h.x, h.y, h.z, 3); } dirty = Math.max(dirty, 2); }
+  }
+  // camera takes part in the construction: small focus + impact shake, then drifts back to the overall view
+  W3.camBase = () => { camBase = { tx: goal.tx, tz: goal.tz, dist: goal.dist, sx: goal.sx, sy: goal.sy }; };
+  W3.camHome = (rate = 2.6) => { if (!camBase) return; goal.tx = camBase.tx; goal.tz = camBase.tz; goal.dist = camBase.dist; W3.camRate = rate; clearTimeout(W3._cr); W3._cr = setTimeout(() => { W3.camRate = 7; }, 1500); };
+  W3.camPunch = (x, z, amp = .06) => { if (!camBase) W3.camBase(); goal.tx = camBase.tx + (x - camBase.tx) * .28; goal.tz = camBase.tz + (z - camBase.tz) * .28; goal.dist = camBase.dist * .94; W3.camRate = 9; shake.t = 0; shake.amp = amp; clearTimeout(W3._ct); W3._ct = setTimeout(() => W3.camHome(), 900); };
+  W3.camPull = (f = 1.28, hold = 2400) => { if (!camBase) W3.camBase(); goal.dist = camBase.dist * f; W3.camRate = 2.2; clearTimeout(W3._ct); W3._ct = setTimeout(() => W3.camHome(), hold); };
+  // frame a rectangle of cells so it fills `fracV` of the screen height / `fracH` of the free width (leftPx = UI column on the left)
+  W3.frameRoom = (cells, lvl, o = {}) => {
+    const xs = cells.map(c => c[0]), zs = cells.map(c => c[1]), x0 = Math.min(...xs), x1 = Math.max(...xs) + 1, z0 = Math.min(...zs), z1 = Math.max(...zs) + 1, w_ = x1 - x0, d = z1 - z0, t = Math.tan(FOV * Math.PI / 360);
+    goal.tx = (x0 + x1) / 2; goal.tz = (z0 + z1) / 2 + .3; goal.ty = lvl * H + .7;
+    const extV = (w_ + d) * .5 * Math.SQRT2 * Math.sin(goal.pitch) + H * Math.cos(goal.pitch), extH = (w_ + d) * .5 * Math.SQRT2, asp = Math.max(.3, (Wd - (o.leftPx || 0)) / Hd);
+    goal.dist = Math.min(60, Math.max(7, Math.max(extV / (o.fracV || .62), extH / ((o.fracH || .85) * asp)) / (2 * t)));
+  };
+  W3.sendChar = (kind, start, path) => { const c = W3.chars.find(q => q.kind === kind); if (!c) return false; c.x = start[0] + .5; c.z = start[1] + .5; c.path = path.slice(); c.wait = 0; return true; };
   let roomLbl; W3.setRoomLabel = (cells, lvl, text) => {
     if (roomLbl) { root.remove(roomLbl); roomLbl = null; } dirty = 2; if (!cells || !cells.length) return;
     const xs = cells.map(c => c[0]), zs = cells.map(c => c[1]), x0 = Math.min(...xs), x1 = Math.max(...xs) + 1, z0 = Math.min(...zs), z1 = Math.max(...zs) + 1;

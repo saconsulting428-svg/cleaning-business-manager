@@ -83,10 +83,16 @@
     bh = { p, key, plan: false }; bhEnter();
   }
   function bhEnter() {
-    const p = bh.p, B = $('#build'); B.classList.add('roomedit', 'guided'); B.classList.toggle('bhplan', bh.plan); $('#reName').textContent = typeOf(p).name; $$('.sg').forEach(b => b.classList.toggle('on', +b.dataset.l === p.lvl)); WORLD.setLevel(p.lvl); WORLD.setInterior(true); WORLD.focusRoom(rcells(p), p.lvl); { const g = WORLD._goal, land = innerWidth > innerHeight, dr = $('#build .drawer'); g.dist = Math.min(g.dist * (land ? 1.05 : 1.3), (WORLD._fit || 24) * 1.5); if (land) { WORLD.setInset(dr ? dr.offsetWidth : 0); WORLD.focus(-50, (dr ? dr.offsetWidth : 0) / 2); } else WORLD.focus(-60); }
-    WORLD.setRoomLabel(rcells(p), p.lvl, typeOf(p).name); WORLD.setRoomMode(false); $('#roomBar').classList.add('hidden'); WORLD.setRoomPreview(null); bhRefresh();
+    const p = bh.p, B = $('#build'); B.classList.add('roomedit', 'guided'); B.classList.toggle('bhplan', bh.plan); $('#reName').textContent = typeOf(p).name; $$('.sg').forEach(b => b.classList.toggle('on', +b.dataset.l === p.lvl)); WORLD.setLevel(p.lvl); WORLD.setInterior(true); WORLD.focusRoom(rcells(p), p.lvl); bhFrame();
+    WORLD.setRoomLabel(bh.plan ? null : rcells(p), p.lvl, typeOf(p).name); WORLD.setRoomMode(false); $('#roomBar').classList.add('hidden'); WORLD.setRoomPreview(null); bhRefresh();
   }
-  function bhStop() { comboPay(); bh = null; WORLD.setSites(null); $('#guide').classList.add('hidden'); $('#build').classList.remove('guided', 'bhplan'); if (!roomEdit) $('#build').classList.remove('roomedit'); }
+  // frame the room so it is the hero of the screen: landscape = big room right of the build panel, portrait = room between panel and tray
+  function bhFrame() {
+    if (!bh) return; const p = bh.p, land = innerWidth > innerHeight, panel = land && bh.plan ? 186 : 0;
+    WORLD.frameRoom(rcells(p), p.lvl, { leftPx: panel, fracV: land ? .66 : .36, fracH: .88 }); if (land) WORLD.focus(-14, panel / 2); else WORLD.focus(-24, 0); WORLD.camBase();
+  }
+  window.addEventListener('resize', () => { if (bh) { clearTimeout(bh.rz); clearTimeout(bh.rz2); const again = () => { if (bh) { $('#build').classList.toggle('bhplan', bh.plan); bhFrame(); } }; bh.rz = setTimeout(again, 380); bh.rz2 = setTimeout(again, 1000); } });
+  function bhStop() { comboPay(); bh = null; WORLD.setSites(null); $('#guide').classList.add('hidden'); $('#build').classList.remove('guided', 'bhplan', 'bhland'); if (!roomEdit) $('#build').classList.remove('roomedit'); }
   function guideRefresh() {
     const on = $('#build').classList.contains('on') && buildMode() === 'room';
     if (!on) { if (bh) bhStop(); return; }
@@ -111,8 +117,8 @@
     $('#gdTxt').textContent = stage ? BH_HELP[stage] + (locked && stage === 'design' ? ' Doors, windows and furniture unlock in later chapters.' : '') : (allDone ? 'All chapter goals are done!' : 'Your room is ready.');
     const design = $('#bhDesign'); design.classList.toggle('hidden', !(stage === 'design' || !stage)); if (stage === 'design' || !stage) bhRenderDesign();
     $('#gdSkip').classList.toggle('hidden', stage !== 'roof'); $('#gdDone').classList.toggle('hidden', !allDone || !stage && !bh.plan);
-    go.disabled = false; go.textContent = stage === 'design' ? 'Continue ▶' : stage === 'furn' ? '🛋 Furnish for me' : stage ? '🔨 Build it all' : (allDone ? 'Complete chapter ▶' : '＋ Next task');
-    g.classList.remove('hidden'); WORLD.setSites(bh.sites.map(s => ({ id: s.id, x0: s.box.x0, x1: s.box.x1, y0: s.box.y0, y1: s.box.y1, z0: s.box.z0, z1: s.box.z1, color: BH_COL[s.stage] })));
+    go.disabled = false; go.className = !stage ? 'btn accent' : stage === 'design' ? 'btn accent' : 'btn secondary sm'; go.textContent = stage === 'design' ? 'Continue ▶' : stage === 'furn' ? '🛋 Furnish for me' : stage ? '🔨 Build it all' : (allDone ? 'Complete chapter ▶' : '＋ Next task');
+    g.dataset.stage = stage || 'done'; g.classList.remove('hidden'); WORLD.setSites(bh.sites.map(s => ({ id: s.id, x0: s.box.x0, x1: s.box.x1, y0: s.box.y0, y1: s.box.y1, z0: s.box.z0, z1: s.box.z1, color: BH_COL[s.stage] })), { label: (S.seen.bhHint || 0) < 3 });
     if (!cur && S.plan === p) bhComplete(); else if (!cur && !bh.plan && !bh.shown) bh.shown = 1;
   }
   const curFloorSty = (p) => { const f = S.layout.find(o => o.lvl === p.lvl && PART[o.part].kind === 'floor' && o.x >= p.x0 && o.x < p.x1 && o.z >= p.z0 && o.z < p.z1); return f ? Object.keys(FLOOR_STY).find(k => FLOOR_STY[k] === f.part) || null : null; };
@@ -120,7 +126,7 @@
   function bhRenderDesign() {
     const p = bh.p, rows = [['floor', 'Floor', ['wood', 'tile', 'marble'], curFloorSty(p)], ['wall', 'Wall', ['cream', 'modern', 'brick'], curWallSty(p)]], un = unlockedCats();
     if ((ROOM_FURN[p.t] || []).length && un.includes(FURN_TAB[p.t] || 'furniture')) rows.push(['furn', 'Furniture', ['basic', 'modern', 'luxury'], (p.style || {}).furn || 'basic']);
-    const D = $('#bhDesign'); D.innerHTML = rows.map(([k, lab, opts, sel]) => `<div class="bhrow"><label>${lab}</label>${opts.map(v => `<button class="bhopt${sel === v ? ' on' : ''}" data-k="${k}" data-v="${v}">${v[0].toUpperCase() + v.slice(1)}</button>`).join('')}</div>`).join('');
+    const D = $('#bhDesign'); D.innerHTML = rows.map(([k, lab, opts, sel]) => `<div class="bhrow"><label>${lab}</label>${opts.map(v => `<button class="bhopt${sel === v ? ' on' : ''}" data-k="${k}" data-v="${v}">${sel === v ? '<i class="ck">✓ </i>' : ''}${v[0].toUpperCase() + v.slice(1)}</button>`).join('')}</div>`).join('');
     $$('.bhopt', D).forEach(b => b.onclick = () => bhStyle(b.dataset.k, b.dataset.v));
   }
   function bhStyle(kind, v) {
@@ -128,7 +134,7 @@
     if (kind === 'floor') { const part = FLOOR_STY[v]; S.layout.filter(o => o.lvl === p.lvl && PART[o.part].kind === 'floor' && o.part !== 'path_stone' && cells.has(o.x + ',' + o.z)).forEach(o => { o.part = part; o.color = PART[part].color; ids.push(o.id); }); p.floorPart = part; }
     else if (kind === 'wall') { const [part, col] = WALL_STY[v]; roomWallPieces(roomLike(p)).filter(o => PART[o.part].cat === 'walls' && o.part !== 'wall_half').forEach(o => { o.part = part; o.color = col || PART[part].color; ids.push(o.id); }); }
     else { let i = 0; S.layout.filter(o => o.lvl === p.lvl && PART[o.part].kind === 'item' && PART[o.part].layer !== 'rug' && WORLD.cellsOf(o).some(c => cells.has(c.join()))).forEach(o => { o.color = v === 'basic' ? PART[o.part].color : furnColor({ style: { furn: v } }, o.part, i++); ids.push(o.id); }); }
-    p.style = p.style || {}; p.style[kind] = v; p.chosen = p.chosen || {}; p.chosen[kind] = 1; WORLD.redraw(); WORLD.buildIn(ids); save(); sfx('pop'); renderQuest(); bhRefresh();
+    p.style = p.style || {}; p.style[kind] = v; p.chosen = p.chosen || {}; p.chosen[kind] = 1; WORLD.redraw(); WORLD.buildIn(ids); roomSparks(p, 34, kind === 'furn' && v === 'luxury' ? 0xffd166 : 0xffffff); WORLD.camPull(1.12, 1100); save(); sfx('pop'); vib(15); renderQuest(); bhRefresh();
   }
 
   // ---- effects: floating coins, combo banner
@@ -136,24 +142,40 @@
     const el = document.createElement('div'), cv = $('#reno3d canvas').getBoundingClientRect(), ap = $('#app').getBoundingClientRect(); el.className = 'fcoin'; el.innerHTML = txt || `+${n} ${coinI}`; el.style.left = (sx + cv.left - ap.left) + 'px'; el.style.top = (sy + cv.top - ap.top) + 'px'; $('#app').appendChild(el); setTimeout(() => el.remove(), 1100);
   }
   function banner(txt, cls) { const b = $('#bhCombo'); b.textContent = txt; b.className = 'bhcombo ' + (cls || ''); void b.offsetWidth; b.classList.add('pop'); clearTimeout(b._t); b._t = setTimeout(() => b.classList.add('hidden'), 1300); }
-  function comboTick() { const n = combo.n; combo.n = n + 1; clearTimeout(combo.timer); combo.timer = setTimeout(comboPay, 4300); if (combo.n >= 2) { banner(`BUILD COMBO ×${Math.min(combo.n, 5)}`, 'combo'); sfx('tick'); } if (bh && bh.p) bh.p.best = Math.max(bh.p.best || 0, combo.n); }
+  function comboTick(stage) {
+    const n = combo.n + 1; combo.n = n; clearTimeout(combo.timer); combo.timer = setTimeout(comboPay, 4300); const c = Math.min(n, 5);
+    banner(n === 1 ? 'BUILD!' : `BUILD COMBO ×${c}`, n === 1 ? 'first' : 'combo'); if (n >= 2) { sfx('tick'); vib(15 + c * 4); WORLD.sparksAt(...(WORLD._cam ? [WORLD._cam.tx, WORLD._cam.ty + 1.2, WORLD._cam.tz] : [6, 2, 6]), 4 + c * 3, 0xffb04a); } if (bh && bh.p) bh.p.best = Math.max(bh.p.best || 0, n);
+  }
   function comboPay() {
     clearTimeout(combo.timer); const n = combo.n; combo.n = 0; if (n < 2) return; const bonus = (Math.min(n, 5) - 1) * 3 + Math.max(0, n - 5) * 2; S.coins += bonus; updateHud(); save();
     const cv = $('#reno3d canvas').getBoundingClientRect(); floatCoins(bonus, cv.width / 2, cv.height * .62, `COMBO BONUS +${bonus} ${coinI}`); sfx('win');
   }
 
-  // ---- tapping a glowing site
+  // ---- tapping a glowing site: tap focus -> hammer swings -> build (typed animation) -> impact -> coin flies up -> next target
+  function flyCoin(sx, sy, n) {
+    const cv = $('#reno3d canvas').getBoundingClientRect(), ap = $('#app').getBoundingClientRect(), tgt = $('#bCoins') ? $('#bCoins').getBoundingClientRect() : null; if (!tgt) return;
+    for (let i = 0; i < Math.min(3, Math.max(1, n)); i++) { const el = document.createElement('div'); el.className = 'flycoin'; el.innerHTML = coinI; $('#app').appendChild(el); const x0 = sx + cv.left - ap.left, y0 = sy + cv.top - ap.top, x1 = tgt.left - ap.left + 16, y1 = tgt.top - ap.top + tgt.height / 2;
+      el.animate([{ transform: `translate(${x0}px,${y0}px) scale(.6)`, opacity: 1 }, { transform: `translate(${x0 + (Math.random() - .5) * 30}px,${y0 - 46}px) scale(1.2)`, opacity: 1, offset: .3 }, { transform: `translate(${x1}px,${y1}px) scale(.7)`, opacity: .9 }], { duration: 750 + i * 90, delay: i * 70, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' }).onfinish = () => el.remove(); }
+  }
+  function roomSparks(p, n, col) { const y = p.lvl * H_ + .3; for (let i = 0; i < n; i++) WORLD.sparksAt(p.x0 + Math.random() * (p.x1 - p.x0), y + Math.random() * 1.6, p.z0 + Math.random() * (p.z1 - p.z0), 1, col); }
   function bhTap(id, quick) {
     if (!bh || bhBusy) return false; const fresh = bhCompute(), s = fresh.cur && fresh.cur.sites.find(x => x.id === id); if (!s) return false; bh.st = fresh; bh.sites = fresh.cur.sites;
     if (S.coins < s.cost.coins) { needCoins(s.cost.coins - S.coins); return false; }
-    bhBusy = true; const cx = (s.box.x0 + s.box.x1) / 2, cz = (s.box.z0 + s.box.z1) / 2, top = s.box.y1; WORLD.hammer(cx, top - .2, cz); sfx('hammer'); vib(12);
+    bhBusy = true; const cx = (s.box.x0 + s.box.x1) / 2, cz = (s.box.z0 + s.box.z1) / 2, top = s.box.y1; sfx('tick'); vib(10); WORLD.camPunch(cx, cz, 0); WORLD.hammer(cx, top - .2, cz);
+    setTimeout(() => sfx('hammer'), quick ? 80 : 150);
     setTimeout(() => {
-      if (!bh) { bhBusy = false; return; } const p = bh.p, stage = s.stage, ids = s.apply(); WORLD.redraw(); WORLD.buildIn(ids); WORLD.dustAt(cx, s.box.y0 + .2, cz, 10); sfx('pop');
-      const sp = WORLD.toScreen(cx, cz, (s.box.y0 + s.box.y1) / 2); let reward = 0; p.rw = p.rw || {}; if (!p.rw[s.key]) { p.rw[s.key] = 1; reward = 2; S.coins += reward; } if (sp) { floatCoins(reward, sp[0], sp[1] - 20, reward ? `+${reward} ${coinI}` : '✓'); }
-      comboTick(); save(); updateHud(); renderQuest(); checkQuestToast(); bhBusy = false; const before = bh.st && bh.st.by[stage]; bhRefresh();
-      const after = bh && bh.st && bh.st.by[stage]; if (after && after.complete && before && !before.complete) { comboPay(); banner(BH_NAME[stage].replace(/^(BUILD|ADD) /, '') + ' DONE!', 'done'); sfx('fix'); confetti(18); }
-    }, quick ? 330 : 430);
+      if (!bh) { bhBusy = false; return; } const p = bh.p, stage = s.stage, ids = s.apply(); WORLD.redraw(); const dur = WORLD.buildIn(ids); sfx('pop'); vib(18); WORLD.camPunch(cx, cz, .085); WORLD.sparksAt(cx, s.box.y0 + .4, cz, 12); WORLD.dustAt(cx, s.box.y0 + .2, cz, 8); WORLD.floatLabel('✓ BUILT', cx, top + .9, cz);
+      const sp = WORLD.toScreen(cx, cz, (s.box.y0 + s.box.y1) / 2); let reward = 0; p.rw = p.rw || {}; if (!p.rw[s.key]) { p.rw[s.key] = 1; reward = 2; S.coins += reward; } if (sp) { floatCoins(reward, sp[0], sp[1] - 20, reward ? `+${reward} ${coinI}` : '✓'); if (reward) flyCoin(sp[0], sp[1], reward); }
+      if ((S.seen.bhHint || 0) < 3) { S.seen.bhHint = (S.seen.bhHint || 0) + 1; }
+      comboTick(s.stage); save(); updateHud(); renderQuest(); checkQuestToast(); bhBusy = false; const before = bh.st && bh.st.by[stage]; bhRefresh();
+      const after = bh && bh.st && bh.st.by[stage]; if (after && after.complete && before && !before.complete) setTimeout(() => { if (bh) bhStageDone(stage); }, Math.min(dur, 900));
+    }, quick ? 300 : 440);
     return true;
+  }
+  // a whole stage is finished: short celebration (no modal) — camera pull-back, sparks, sound, stage bonus, next stage lights up
+  function bhStageDone(stage) {
+    const p = bh.p; comboPay(); banner(BH_NAME[stage].replace(/^(BUILD|ADD) /, '') + ' COMPLETE!', 'done'); sfx('fix'); vib([20, 40, 20]); confetti(14); roomSparks(p, 26, 0xffd166); WORLD.camPull(1.22, 1500);
+    p.rw = p.rw || {}; if (!p.rw['stage:' + stage]) { p.rw['stage:' + stage] = 1; S.coins += 4; updateHud(); save(); const sp = WORLD.toScreen((p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2, p.lvl * H_ + 1); if (sp) { floatCoins(4, sp[0], sp[1], `+4 ${coinI}`); flyCoin(sp[0], sp[1], 3); } }
   }
   function bhAuto() {
     if (!bh || !bh.st || !bh.st.cur) return; const stage = bh.st.cur.stage; if (stage === 'design') { bh.p.designed = true; save(); sfx('click'); return bhRefresh(); }
@@ -170,10 +192,17 @@
   function bhComplete() {
     const p = bh.p; if (p.fin) return; p.fin = true; const sc = bhScore(), key = rkey(p), nm = typeOf(p).name; comboPay();
     const reward = 15 + 8 * (sc.d + sc.c + sc.f) + Math.max(0, (p.best || 0) - 1) * 2; S.coins += reward; S.rscore[key] = { d: sc.d, c: sc.c, f: sc.f, at: Date.now() }; S.plan = null; save(); updateHud(); renderQuest(); checkQuestToast();
-    const room = detectRooms(S.layout).find(r => r.key === key), goals = questProgress(), allDone = goals.every(q => q.have >= q.q.n), sg = suggestNext(), sgn = sg && (ROOM_TYPES.find(t => t.id === sg) || {}).name; bhStop();
-    sfx('win'); confetti(80); vib([40, 60, 80]);
-    sheet({ ribbon: ['ROOM COMPLETE!', 'green'], close: false, html: `<p class="sub"><b>${nm}</b> is finished.</p><div class="score"><div><span>Design</span><b>${starsTxt(sc.d)}</b></div><div><span>Comfort</span><b>${starsTxt(sc.c)}</b></div><div><span>Function</span><b>${starsTxt(sc.f)}</b></div></div><div class="coinline">+${reward} ${coinI}</div>`,
-      actions: [allDone ? { text: 'Complete chapter ▶', fn: () => completeNow() } : { text: `＋ Next task${sgn ? ': ' + sgn : ''}`, fn: () => nextRoom() }, { text: 'Admire & decorate', cls: 'secondary', fn: () => { if (room) enterRoomEdit(room); } }] });
+    const room = detectRooms(S.layout).find(r => r.key === key), goals = questProgress(), allDone = goals.every(q => q.have >= q.q.n), sg = suggestNext(), sgn = sg && (ROOM_TYPES.find(t => t.id === sg) || {}).name, wasNight = WORLD.night, wasInt = WORLD.interior;
+    // the big moment: panel and targets leave, camera pulls back to the whole house, lights turn on, sparks + confetti, a character walks in — then the result
+    bhStop(); $('#build').classList.add('bhcine'); WORLD.setInterior(false); WORLD.camBase(); WORLD.camPull(1.45, 3600); WORLD.setNight(true); sfx('win'); vib([40, 60, 80]); confetti(70); roomSparks(p, 40, 0xffd166);
+    setTimeout(() => { roomSparks(p, 30, 0xffffff); confetti(40); }, 900);
+    try { const door = boundaryInfo(roomLike(p)).find(x => /^door_|^arch$/.test(x.o.part)); if (door) { const a = [door.o.x, door.o.z], b = [door.o.x + DIRS4[door.o.rot][0], door.o.z + DIRS4[door.o.rot][1]], inA = rcells(p).some(c => c.join() === a.join()), ins = inA ? a : b, out = inA ? b : a; WORLD.sendChar('ben', [out[0] + (out[0] - ins[0]), out[1] + (out[1] - ins[1])], [out, ins, [Math.floor((p.x0 + p.x1) / 2), Math.floor((p.z0 + p.z1) / 2)]]); } } catch (e) { }
+    const restore = () => { $('#build').classList.remove('bhcine'); WORLD.setNight(wasNight); WORLD.setInterior(wasInt); WORLD.camHome(); };
+    setTimeout(() => {
+      sfx('fix'); sheet({ ribbon: ['ROOM COMPLETE!', 'green'], close: false, html: `<p class="sub"><b>${nm}</b> is finished.</p><div class="score"><div><span>Design</span><b>${starsTxt(sc.d)}</b></div><div><span>Comfort</span><b>${starsTxt(sc.c)}</b></div><div><span>Function</span><b>${starsTxt(sc.f)}</b></div></div><div class="coinline">+${reward} ${coinI}</div>`,
+        actions: [allDone ? { text: 'Complete chapter ▶', fn: () => { restore(); completeNow(); } } : { text: `＋ Next task${sgn ? ': ' + sgn : ''}`, fn: () => { restore(); nextRoom(); } }, { text: 'Admire & decorate', cls: 'secondary', fn: () => { restore(); if (room) enterRoomEdit(room); } }] });
+      WORLD.floatLabel('★ ' + nm, (p.x0 + p.x1) / 2, p.lvl * H_ + 3.2, (p.z0 + p.z1) / 2, '#3E9D3A');
+    }, 2600);
   }
   $('#gdGo').onclick = () => { sfx('click'); if (!bh) return; const st = bh.st; if (!st) return; if (!st.cur) { const allDone = questProgress().every(q => q.have >= q.q.n); if (allDone) completeNow(); else nextRoom(); } else bhAuto(); };
   $('#gdDone').onclick = () => { sfx('click'); completeNow(); };

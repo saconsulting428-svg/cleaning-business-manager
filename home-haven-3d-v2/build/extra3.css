@@ -166,3 +166,49 @@
 #build.bhplan #reBack{display:none!important}
 @media (orientation:landscape) and (max-height:520px){.bhdesign{flex-direction:row;flex-wrap:wrap}.bhrow{flex:1 1 45%}.bhrow label{flex-basis:50px;font-size:11px}.bhopt{min-height:30px}.bhobj b,.bhobj span{font-size:13px}.bhbar{margin-bottom:4px}.gsteps{margin-bottom:3px}}
 .guide .grow #gdGo{flex:1 1 0!important;min-height:40px!important;font-size:15px}.guide .grow #reMore{flex:0 0 auto}.gsteps{margin-bottom:4px}.gs{font-size:10.5px!important;padding:3px 1px!important}.gtxt{margin-bottom:5px!important;font-size:12.5px}
+
+/* ---- Build Home v2: landscape-first composition (construction column on the left, the room is the hero) */
+.flycoin{position:absolute;left:0;top:0;z-index:45;pointer-events:none;width:22px;height:22px}.flycoin svg,.flycoin img{width:22px;height:22px}
+.bhcombo.first{font-size:20px;background:linear-gradient(#8ED081,#4CAF50);text-shadow:0 3px 0 #2A7027}
+@media (orientation:landscape) and (max-height:560px){
+  #build.bhplan .drawer{display:none!important}
+  #build.bhplan .btop{margin-left:196px!important}
+  #build.bhplan .mrow,#build.bhplan .bhint,#build.bhplan .retools{display:none!important}
+  #build.bhplan #guide{left:8px!important;right:auto!important;top:8px!important;bottom:8px;width:176px;max-width:none;display:flex;flex-direction:column;padding:9px 10px 10px;border-radius:20px;overflow:hidden}
+  #build.bhplan #guide.hidden{display:none}
+  #build.bhplan #guide .gsteps{flex-direction:column;gap:2px;margin:0 0 7px}
+  #build.bhplan #guide .gs{display:flex;align-items:center;gap:8px;text-align:left;background:transparent!important;box-shadow:none!important;border-radius:10px;padding:3px 7px!important;font-size:12.5px!important;color:#a89a88;font-weight:700;flex:none}
+  #build.bhplan #guide .gs::before{content:"○";width:14px;text-align:center;font-size:13px}
+  #build.bhplan #guide .gs.done{color:#2E7D32}#build.bhplan #guide .gs.done::before{content:"✓";color:#3E9D3A;font-weight:800}#build.bhplan #guide .gs.done::after{content:""}
+  #build.bhplan #guide .gs.cur{background:linear-gradient(#FFB04A,#F59E2B)!important;color:#fff;box-shadow:0 2px 0 #C46F12!important}#build.bhplan #guide .gs.cur::before{content:"●"}
+  #build.bhplan #guide .bhobj b{font-size:12px}#build.bhplan #guide .bhobj span{font-size:16px}
+  #build.bhplan #guide .gtxt{font-size:11px;line-height:1.25;margin:0 0 6px;color:#6b5d4d}
+  #build.bhplan #guide .bhdesign{flex-direction:column;gap:4px;flex:1;overflow:hidden}#build.bhplan #guide .bhrow{flex-wrap:wrap}#build.bhplan #guide .bhrow label{flex:0 0 100%;font-size:10.5px}#build.bhplan #guide .bhopt{min-height:28px;font-size:11px;padding:0 2px}
+  #build.bhplan #guide .grow{margin-top:auto;flex-wrap:wrap;gap:5px}#build.bhplan #guide .grow .btn{flex:1 1 100%!important;min-height:34px!important;font-size:12.5px!important}
+  #build.bhplan #reMore{display:none}
+  #build.bhplan .side.right{right:8px}
+}
+/* secondary look for Build all, in every orientation */
+#gdGo.secondary{background:#fff;color:#3A2E25;box-shadow:0 3px 0 var(--line,#e4d8c4)}
+
+.bhopt{position:relative}
+@media (orientation:landscape) and (max-height:560px){
+  .bhcombo{top:16%;left:calc(50% + 96px);font-size:22px;padding:4px 16px}
+  #build.bhplan #guide .gs{padding:2px 7px!important;font-size:11.5px!important}
+  #build.bhplan #guide .gsteps{margin-bottom:4px}
+  #build.bhplan #guide .bhdesign{gap:3px;flex:none}
+  #build.bhplan #guide .bhrow{flex-wrap:nowrap;gap:3px}#build.bhplan #guide .bhrow label{flex:0 0 40px;font-size:10px}
+  #build.bhplan #guide .bhopt{min-height:27px;font-size:10px;padding:0;letter-spacing:-.2px}
+  #build.bhplan #guide .bhopt .ck{display:none}
+  #build.bhplan #guide .bhopt.on::after{content:"✓";position:absolute;top:-5px;right:-3px;width:14px;height:14px;line-height:14px;text-align:center;background:#3E9D3A;color:#fff;font-size:9px;border-radius:50%;box-shadow:0 1px 0 rgba(0,0,0,.25)}
+}
+
+@media (orientation:landscape) and (max-height:560px){
+  #build.bhplan #guide[data-stage=design] .gsteps,#build.bhplan #guide[data-stage=furn] .gsteps{flex-direction:row;flex-wrap:wrap;gap:2px 3px}
+  #build.bhplan #guide[data-stage=design] .gs,#build.bhplan #guide[data-stage=furn] .gs{flex:0 0 auto;padding:1px 5px!important;font-size:10px!important;gap:3px}
+  #build.bhplan #guide[data-stage=design] .gs::before,#build.bhplan #guide[data-stage=furn] .gs::before{width:auto;font-size:10px}
+  .sheet .score{flex-direction:row;gap:6px;margin:4px 0}.sheet .score div{flex-direction:column;align-items:center;flex:1;padding:5px 4px;font-size:11px}.sheet .score b{font-size:14px}
+  .sheet .coinline{font-size:20px!important}.sheet .sub{margin:0 0 2px}
+}
+
+#build.bhcine .drawer,#build.bhcine .btop,#build.bhcine .mrow,#build.bhcine .bhint,#build.bhcine #roomBar,#build.bhcine .actbar,#build.bhcine .retools{opacity:0!important;pointer-events:none!important;transition:opacity .35s}
