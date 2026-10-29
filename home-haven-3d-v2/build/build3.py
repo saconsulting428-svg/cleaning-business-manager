@@ -74,9 +74,10 @@ rep("  function exitBuild() { if (roomEdit) exitRoomEdit();","  function exitBui
 rep("row('music', 'Music') + row('sfx', 'Sound effects') + row('vib', 'Vibration')","row('music', 'Music') + row('sfx', 'Sound effects') + row('vib', 'Vibration') + row('autoRot', 'Auto landscape in Build mode')")
 rep("prop: 'home', props: {},","autoRot: true, rotV: 2, prop: 'home', props: {},")
 # extension block + bindings
+rep("actions: [{ text: `${icon('hammer')} Start building`, fn: () => { renderHome(); enterBuild(); } }, { text: 'Later', cls: 'secondary' }] });","actions: [(!S.tut || !S.tut.off) && S.cleared.length < 8 ? { text: '🧹 Clear the plot first', fn: () => { renderHome(); } } : { text: `${icon('hammer')} Start building`, fn: () => { renderHome(); enterBuild(); } }, { text: 'Later', cls: 'secondary' }] });")
 marker="  // ------------------------------------------------------------ SHOP"
 assert s.count(marker)==1
-s=s.replace(marker,R('flow_ext.js')+R('flow_room.js')+R('flow_bh.js')+R('flow_design.js')+"""
+s=s.replace(marker,R('flow_ext.js')+R('flow_room.js')+R('flow_bh.js')+R('flow_design.js')+R('flow_tut.js')+"""
   function buildInsets() { const land = innerWidth > innerHeight, dr = $('#build .drawer'); if (roomEdit) return; if (land) { WORLD.setInset(dr ? dr.offsetWidth : 0); WORLD.focus(0, (dr ? dr.offsetWidth : 0) / 2); } else { WORLD.setInset(0); WORLD.focus(60, 0); } }
   window.addEventListener('resize', () => { if ($('#build').classList.contains('on')) buildInsets(); });
 """+"\n"+marker)
@@ -91,7 +92,7 @@ rep("window.__game = { get S() { return S; }, set S(v) { S = v; }, save,","windo
 import base64
 a=s.index('<script>window.TITLE_ART="'); b=s.index('</script>',a)
 s=s[:a]+'<script>window.TITLE_ART="data:image/webp;base64,'+base64.b64encode(open('art.webp','rb').read()).decode()+'";'+s[b:]
-rep("    const s = Object.assign(DEF(), d);\n","    const s = Object.assign(DEF(), d); if (s.rotV !== 2) { s.rotV = 2; s.autoRot = true; }\n")
+rep("    const s = Object.assign(DEF(), d);\n","    const s = Object.assign(DEF(), d); if (s.rotV !== 2) { s.rotV = 2; s.autoRot = true; } if (!s.tut) s.tut = (s.level > 1 || s.chapter > 0 || (s.layout && s.layout.length > 0)) ? { off: true, done: {}, rooms: 9 } : { off: false, done: {}, rooms: 0 };\n")
 rep("    if (!(S.inv[id] > 0)) return buyPart(id, () => pickPart(id));","    if (!(S.inv[id] > 0) && !(typeof dzAuto === 'function' && dzAuto(id))) return buyPart(id, () => pickPart(id));")
 rep("    selPart = id; WORLD.startPlace(id); renderItems(); hint(); $('#selBar').classList.add('hidden');","    selPart = id; WORLD.startPlace(id); renderItems(); hint(); $('#selBar').classList.add('hidden'); if (typeof dzClose === 'function' && WORLD.dropMode) { WORLD.spawnGhost(); }")
 # ---- room-based building

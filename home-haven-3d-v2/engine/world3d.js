@@ -264,7 +264,7 @@
     else { for (let i = 0; i < 10; i++) { const w = cyl(g, .01, .03, .5 + R() * .4, M(shade('#6d8f3a', (R() - .5) * .3), { r: 1 }), (R() - .5) * .7, 0, (R() - .5) * .7, 5); w.rotation.z = (R() - .5) * .6; } }
     return g;
   }
-  W3.setDebris = (idx) => { if (!debrisGroup) { debrisGroup = new T.Group(); root.add(debrisGroup); } while (debrisGroup.children.length) debrisGroup.remove(debrisGroup.children[0]); W3.debris = idx.slice(); idx.forEach(i => { const [x, z, k] = DEBRIS_SPOTS[i]; const m = debrisModel(k, i + 1); m.position.set(x + .5, 0, z + .5); m.rotation.y = i; m.userData.debris = i; debrisGroup.add(m); }); dirty = 3; };
+  W3.setDebris = (idx) => { if (!debrisGroup) { debrisGroup = new T.Group(); root.add(debrisGroup); } while (debrisGroup.children.length) debrisGroup.remove(debrisGroup.children[0]); W3.debris = idx.slice(); idx.forEach(i => { const [x, z, k] = DEBRIS_SPOTS[i]; const m = debrisModel(k, i + 1); m.position.set(x + .5, 0, z + .5); m.rotation.y = i; m.userData.debris = i; { const hp = new T.Mesh(new T.BoxGeometry(.9, .6, .9), new T.MeshBasicMaterial({ visible: false })); hp.position.y = .3; m.add(hp); } debrisGroup.add(m); }); dirty = 3; };
   W3.clearDebris = (i) => { const m = debrisGroup && debrisGroup.children.find(c => c.userData.debris === i); if (!m) return; debrisGroup.remove(m); W3.debris = W3.debris.filter(d => d !== i); const [x, z] = DEBRIS_SPOTS[i]; puff({ part: 'chair', x, z, rot: 0, lvl: 0 }); dirty = 3; };
   const debrisAt = (x, z) => W3.debris.some(i => DEBRIS_SPOTS[i][0] === x && DEBRIS_SPOTS[i][1] === z);
   // ---------------------------------------------------------------- picking

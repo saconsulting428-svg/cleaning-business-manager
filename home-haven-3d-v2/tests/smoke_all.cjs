@@ -1,0 +1,29 @@
+// Full-game smoke: visits every screen/sheet/puzzle type, records JS errors, clipped/offscreen UI and obstructed or tiny controls.
+const { chromium } = require('/opt/node-tools/node_modules/playwright'); const H=require('./helpers.js');
+(async()=>{ const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--no-sandbox']});
+ const [W,Hh]=(process.argv[2]||'800x400').split('x').map(Number), tag=process.argv[3]||'sm'; const p=await b.newPage({viewport:{width:W,height:Hh}}); p.setDefaultTimeout(60000);
+ const errs=[]; p.on('pageerror',e=>{errs.push(e.message);console.log('PAGEERR',e.message)}); p.on('console',m=>{ if(m.type()==='error'&&!/favicon|net::/.test(m.text())) { errs.push('console:'+m.text()); console.log('CONSOLE',m.text().slice(0,150)); } });
+ await p.goto('file:///home/user/cleaning-business-manager/home-haven-3d-v2/Home_Haven_3D.html'); await p.waitForSelector('#menu.on',{timeout:90000}); await p.waitForTimeout(800);
+ const audit=(n)=>p.evaluate((n)=>{ const out=[]; const vw=innerWidth,vh=innerHeight; const vis=e=>{ const r=e.getBoundingClientRect(); if(r.width<2||r.height<2) return null; const cs=getComputedStyle(e); if(cs.visibility==='hidden'||cs.display==='none'||+cs.opacity<.05) return null; if(e.closest('.hidden')||e.closest('[hidden]')||e.closest('#tg')) return null; return r; };
+  const ctl=[...document.querySelectorAll('button, .it, .nb, .boost, .tab, input, select, .bhopt')]; 
+  ctl.forEach(e=>{ const r=vis(e); if(!r) return; const nm=(e.id||e.className||e.tagName).toString().slice(0,24)+'['+(e.textContent||'').trim().slice(0,14)+']'; const sc=e.closest('#items,#tabs,.drawer,#mbox,.sheet'); 
+    if(!sc && (r.right>vw+1||r.left<-1||r.bottom>vh+1||r.top<-1)) out.push('OFFSCREEN '+nm); 
+    if(r.width<28||r.height<28){ if(!e.closest('#tabs')) out.push('TINY '+nm+' '+Math.round(r.width)+'x'+Math.round(r.height)); }
+    const cx=Math.min(Math.max(r.left+r.width/2,1),vw-1), cy=Math.min(Math.max(r.top+r.height/2,1),vh-1); if(cx!==r.left+r.width/2||cy!==r.top+r.height/2) return; const t=document.elementFromPoint(cx,cy); if(t&&!(e.contains(t)||t.contains(e))&&!t.closest('#tg')) { const sx=e.closest('#mbox,.sheet'); if(!sx||!sx.contains(e)||true) out.push('OBSTRUCTED '+nm+' by '+(t.id||t.className||t.tagName).toString().slice(0,24)); } });
+  document.querySelectorAll('body *').forEach(e=>{ if(e.children.length||!e.textContent.trim()) return; const r=vis(e); if(!r) return; const cs=getComputedStyle(e); if((cs.overflow==='hidden'||cs.textOverflow==='ellipsis')&&e.scrollWidth>e.clientWidth+2) out.push('CLIPTXT '+e.textContent.trim().slice(0,26)); });
+  return [...new Set(out)].slice(0,14); },n);
+ let total=0; const shot=async(n)=>{ await p.screenshot({path:`${tag}_${n}.png`}); const c=await audit(n); total+=c.length; console.log(n.padEnd(14), c.length?JSON.stringify(c):'ok'); };
+ await shot('menu'); await p.click('#btnContinue'); await p.waitForTimeout(1500); await p.evaluate(H.install);
+ await p.evaluate(()=>{ __game.S.tut={off:true,done:{},rooms:9}; __game.S.chapter=3; __game.S.coins=900; __game.S.level=8; for(let i=0;i<8;i++){ if(!__game.S.cleared.includes(i)){ __game.S.cleared.push(i); WORLD.clearDebris(i);} } __game.save(); }); await p.evaluate(()=>window.skipDialogs()); await p.evaluate(()=>window.closeModal()); await p.waitForTimeout(500); await shot('home');
+ for(const id of ['navShop','navSpin','navStory','navProjects','navRewards']){ await p.evaluate(i=>{const e=document.getElementById(i); e&&e.click();},id); await p.waitForTimeout(1200); await shot(id); if(id==='navShop'){ const tabs=await p.evaluate(()=>[...document.querySelectorAll('#mbox [data-tab], #mbox .tabs button, #mbox .tab')].map(e=>e.textContent.trim())); for(let i=0;i<Math.min(tabs.length,6);i++){ await p.evaluate(i=>{const t=[...document.querySelectorAll('#mbox [data-tab], #mbox .tabs button, #mbox .tab')][i]; t&&t.click();},i); await p.waitForTimeout(500); await shot('shop_'+i); } } await p.evaluate(()=>window.closeModal()); await p.waitForTimeout(400); }
+ // settings / about from home
+ await p.evaluate(()=>{ const e=document.getElementById('btnSettings')||document.querySelector('[data-act=settings]'); e&&e.click(); }); await p.waitForTimeout(700); await shot('settings'); await p.evaluate(()=>window.closeModal());
+ // build screen
+ await p.evaluate(()=>document.getElementById('navBuild').click()); await p.waitForTimeout(2200); await p.evaluate(()=>window.closeModal()); await shot('build'); 
+ for(const c of ['rooms','furniture','decor']){ await p.evaluate((c)=>{ const t=[...document.querySelectorAll('#tabs .tab')].find(x=>x.textContent.toLowerCase().includes(c.slice(0,4))&&!x.classList.contains('lock')); t&&t.click(); },c); await p.waitForTimeout(600); await shot('build_'+c); }
+ await p.evaluate(()=>{ try{ __game.exitBuild(); }catch(e){} }); await p.waitForTimeout(800);
+ // puzzles
+ for(const t of ['pipe','bolt','tile','wire','brick','fuse','paint']){ await p.evaluate((t)=>{ const G=__game; G.S.hearts=5; G.S.howto={pipe:1,bolt:1,tile:1,wire:1,brick:1,fuse:1,paint:1}; G.playType(t,6); },t); await p.waitForTimeout(2800); await shot('pz_'+t);
+   for(let i=0;i<3;i++){ await p.evaluate(()=>{ const e=document.getElementById('bHint'); e&&e.click(); }); await p.waitForTimeout(700); }
+   await p.evaluate(()=>{ try{ window.PUZ&&PUZ.end(); GAME.scene.stop('Puzzle'); }catch(e){} document.getElementById('app').classList.remove('puzzle'); document.querySelectorAll('.layer').forEach(l=>l.classList.remove('on')); document.getElementById('home').classList.add('on'); try{__game.S.playing=null;}catch(e){} document.getElementById('modal').classList.add('hidden'); }); await p.waitForTimeout(500); }
+ console.log('TOTAL findings',total,'JS errors',JSON.stringify(errs)); await b.close(); })();

@@ -261,7 +261,7 @@
       if (sp) { const x = sp[0] + cv.left - ap.left, y = sp[1] + cv.top - ap.top; tut.anim = hand.animate([{ transform: `translate(${x}px,${y}px) scale(1)` }, { transform: `translate(${x}px,${y}px) scale(.7)` }, { transform: `translate(${x}px,${y}px) scale(1)` }], { duration: 1100, iterations: Infinity }); } else hand.style.opacity = 0; }
   }
   function tutEvent(ev) { if (!tut || !$('#build').classList.contains('on')) return; if (ev === 'type' && tut.step === 1) setTimeout(() => tutStep(2), 300); else if (ev === 'built' && tut.step <= 2) setTimeout(() => tutStep(3), 1200); }
-  function tutMaybe(force) { if ((!force && S.seen.buildTut) || buildMode() !== 'room' || roomEdit) return; setTimeout(() => { if ($('#build').classList.contains('on') && !roomEdit) { tut = {}; tutStep(1); } }, 700); }
+  function tutMaybe(force) { if (!force) return; if ((!force && S.seen.buildTut) || buildMode() !== 'room' || roomEdit) return; setTimeout(() => { if ($('#build').classList.contains('on') && !roomEdit) { tut = {}; tutStep(1); } }, 700); }
   $('#tutSkip').onclick = () => { sfx('click'); tutStop(true); };
   $('#tutNext').onclick = () => { sfx('click'); if (!tut) return; if (tut.step >= TUT_N) tutStop(true); else tutStep(tut.step + 1); };
   $('#bHelp').onclick = () => { sfx('click'); if (buildMode() !== 'room') { toast('The tutorial covers the story building mode'); return; } if (roomEdit) exitRoomEdit(); curCat = 'rooms'; renderTabs(); renderItems(); tutMaybe(true); };
