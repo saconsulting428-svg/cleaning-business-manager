@@ -21,7 +21,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright'); const H
     return 'timeout'; }
   async function buildRoom(idx,lvl=0){ await toRooms(); await p.evaluate((l)=>document.querySelectorAll('.sg')[l].click(),lvl); await p.waitForTimeout(500); await p.evaluate((i)=>document.querySelectorAll('#items .it')[i].click(),idx); await p.waitForTimeout(700);
     const info=(await p.textContent('#rInfo')).replace(/\s+/g,' '); await click('rbOk'); await p.waitForTimeout(1500); const r=await finishPanel(); return info+' -> '+r; }
-  async function completeFromSheet(){ const before=await p.evaluate(()=>__game.S.chapter); await p.evaluate(()=>{ const b=document.querySelector('#mbox .actions .btn.primary'); b&&b.click(); }); await p.waitForTimeout(1200); await dismiss(); await p.waitForTimeout(1500); await dismiss(); await p.waitForTimeout(500); await dismiss(); return before+' -> '+await p.evaluate(()=>__game.S.chapter); }
+  async function completeFromSheet(){ const before=await p.evaluate(()=>__game.S.chapter); await p.evaluate(()=>{ const bs=[...document.querySelectorAll('#mbox .actions .btn')]; const b=bs.find(x=>/Complete chapter/.test(x.textContent))||bs.find(x=>/Next task/.test(x.textContent))||bs[0]; b&&b.click(); }); await p.waitForTimeout(1200); await dismiss(); await p.waitForTimeout(1500); await dismiss(); await p.waitForTimeout(500); await dismiss(); return before+' -> '+await p.evaluate(()=>__game.S.chapter); }
   const quests=()=>p.evaluate(()=>__game.questProgress().map(x=>x.q.text+' '+x.have+'/'+x.q.n));
   // ch1
   log('ch1 living', await buildRoom(0)); log('  state', await S()); log('  complete', await completeFromSheet());
