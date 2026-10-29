@@ -92,7 +92,7 @@
     WORLD.frameRoom(rcells(p), p.lvl, { leftPx: panel, fracV: land ? .66 : .36, fracH: .88 }); if (land) WORLD.focus(-14, panel / 2); else WORLD.focus(-24, 0); WORLD.camBase();
   }
   window.addEventListener('resize', () => { if (bh) { clearTimeout(bh.rz); clearTimeout(bh.rz2); const again = () => { if (bh) { $('#build').classList.toggle('bhplan', bh.plan); bhFrame(); } }; bh.rz = setTimeout(again, 380); bh.rz2 = setTimeout(again, 1000); } });
-  function bhStop() { comboPay(); bh = null; WORLD.setSites(null); $('#guide').classList.add('hidden'); $('#build').classList.remove('guided', 'bhplan', 'bhland'); if (!roomEdit) $('#build').classList.remove('roomedit'); }
+  function bhStop() { comboPay(); if (typeof dzClose === 'function') dzClose(); bh = null; WORLD.setSites(null); $('#guide').classList.add('hidden'); $('#build').classList.remove('guided', 'bhplan', 'bhland'); if (!roomEdit) $('#build').classList.remove('roomedit'); }
   function guideRefresh() {
     const on = $('#build').classList.contains('on') && buildMode() === 'room';
     if (!on) { if (bh) bhStop(); return; }
@@ -110,6 +110,7 @@
   // ---- panel
   function bhRefresh() {
     if (!bh) return; const p = bh.p, st = bhCompute(); bh.sites = st.cur ? st.cur.sites : []; bh.st = st; const g = $('#guide'), cur = st.cur;
+    if (!cur && !bh.plan) { g.classList.add('hidden'); WORLD.setSites(null); dzOpen(bh.p, bh.key); return; } else if (typeof dz !== 'undefined' && dz) dzClose();
     $('.gsteps', g).innerHTML = st.stages.map(s => `<span class="gs${st.by[s].complete ? ' done' : ''}${cur && cur.stage === s ? ' cur' : ''}">${BH_CHIP[s]}</span>`).join('') + `<span class="gs${!cur ? ' done cur' : ''}">Done</span>`;
     const stage = cur ? cur.stage : null, goals = questProgress(), allDone = goals.every(q => q.have >= q.q.n), go = $('#gdGo'), un = unlockedCats(), locked = !un.includes('openings') || !(ROOM_FURN[p.t] || []).length || !un.includes(FURN_TAB[p.t] || 'furniture');
     $('#bhTitle').textContent = stage ? BH_NAME[stage] : 'ROOM COMPLETE'; const tot = cur ? (stage === 'design' ? 1 : cur.total) : 1, dn = cur ? cur.done : 1;
@@ -192,7 +193,7 @@
   function bhComplete() {
     const p = bh.p; if (p.fin) return; p.fin = true; const sc = bhScore(), key = rkey(p), nm = typeOf(p).name; comboPay();
     const reward = 15 + 8 * (sc.d + sc.c + sc.f) + Math.max(0, (p.best || 0) - 1) * 2; S.coins += reward; S.rscore[key] = { d: sc.d, c: sc.c, f: sc.f, at: Date.now() }; S.plan = null; save(); updateHud(); renderQuest(); checkQuestToast();
-    const room = detectRooms(S.layout).find(r => r.key === key), goals = questProgress(), allDone = goals.every(q => q.have >= q.q.n), sg = suggestNext(), sgn = sg && (ROOM_TYPES.find(t => t.id === sg) || {}).name, wasNight = WORLD.night, wasInt = WORLD.interior;
+    const room = detectRooms(S.layout).find(r => r.key === key), goals = questProgress(), allDone = goals.every(q => q.have >= q.q.n), sg = suggestNext(), sgn = sg && (ROOM_TYPES.find(t => t.id === sg) || {}).name, wasNight = WORLD.night, wasInt = WORLD.interior, nb = BRIEFS.find(b => b.types.includes(p.t) && !dzS().done[b.id]);
     // the big moment: panel and targets leave, camera pulls back to the whole house, lights turn on, sparks + confetti, a character walks in — then the result
     bhStop(); $('#build').classList.add('bhcine'); WORLD.setInterior(false); WORLD.camBase(); WORLD.camPull(1.45, 3600); WORLD.setNight(true); sfx('win'); vib([40, 60, 80]); confetti(70); roomSparks(p, 40, 0xffd166);
     setTimeout(() => { roomSparks(p, 30, 0xffffff); confetti(40); }, 900);
@@ -200,7 +201,7 @@
     const restore = () => { $('#build').classList.remove('bhcine'); WORLD.setNight(wasNight); WORLD.setInterior(wasInt); WORLD.camHome(); };
     setTimeout(() => {
       sfx('fix'); sheet({ ribbon: ['ROOM COMPLETE!', 'green'], close: false, html: `<p class="sub"><b>${nm}</b> is finished.</p><div class="score"><div><span>Design</span><b>${starsTxt(sc.d)}</b></div><div><span>Comfort</span><b>${starsTxt(sc.c)}</b></div><div><span>Function</span><b>${starsTxt(sc.f)}</b></div></div><div class="coinline">+${reward} ${coinI}</div>`,
-        actions: [allDone ? { text: 'Complete chapter ▶', fn: () => { restore(); completeNow(); } } : { text: `＋ Next task${sgn ? ': ' + sgn : ''}`, fn: () => { restore(); nextRoom(); } }, { text: 'Admire & decorate', cls: 'secondary', fn: () => { restore(); if (room) enterRoomEdit(room); } }] });
+        actions: [...(nb ? [{ text: `🎨 Design brief: ${nb.client}`, fn: () => { restore(); if (room) { enterRoomEdit(room); setTimeout(() => { if (dz) dzStartBrief(nb.id); }, 900); } } }] : []), allDone ? { text: 'Complete chapter ▶', cls: nb ? 'secondary' : 'primary', fn: () => { restore(); completeNow(); } } : { text: `＋ Next task${sgn ? ': ' + sgn : ''}`, cls: nb ? 'secondary' : 'primary', fn: () => { restore(); nextRoom(); } }, { text: 'Decorate freely', cls: 'secondary', fn: () => { restore(); if (room) enterRoomEdit(room); } }] });
       WORLD.floatLabel('★ ' + nm, (p.x0 + p.x1) / 2, p.lvl * H_ + 3.2, (p.z0 + p.z1) / 2, '#3E9D3A');
     }, 2600);
   }

@@ -119,7 +119,8 @@
   W3.buildPartModel = buildPartModel;
 
   // ---------------------------------------------------------------- placement of objects in the world
-  const baseY = (o) => { const P = PART[o.part]; let y = o.lvl * H; if (P.kind === 'roof') return y + H; if (P.kind === 'item' && hasFloor(o.x, o.z, o.lvl)) y += o.part === 'rug' || o.part === 'pond' ? FT : FT; return y; };
+  const baseY = (o) => { const P = PART[o.part]; let y = o.lvl * H; if (P.kind === 'roof') return y + H; if (P.kind === 'item' && hasFloor(o.x, o.z, o.lvl)) y += o.part === 'rug' || o.part === 'pond' ? FT : FT; return y + (o.elev || 0); };
+  const SURF = { coffee_table: .45, dining_table: .78, table_round: .78, counter: .92, bedside: .55, tv: .62 }, ONTOP = new Set(['vase', 'plant']); W3.SURF = SURF; W3.ONTOP = ONTOP;
   function drawObj(o) {
     const old = objs.get(o.id); if (old) objGroup.remove(old.g);
     const P = PART[o.part], g = buildPartModel(o), holder = new T.Group(); holder.add(g);
@@ -244,8 +245,10 @@
     }
     const cells = cellsOf(c); if (cells.some(([x, z]) => x < 0 || z < 0 || x >= N || z >= N)) return false;
     if (c.lvl === 0 && P.kind !== 'roof' && cells.some(([x, z]) => debrisAt(x, z))) { W3.blockedByDebris = true; return false; }
-    const layer = (p) => p.kind === 'item' ? (p.layer || 'item') : p.kind, L = layer(P);
-    return !others.some(o => { const Q = PART[o.part]; if (Q.kind === 'wall' || layer(Q) !== L) return false; return cellsOf(o).some(([a, b]) => cells.some(([x, z]) => a === x && b === z)); });
+    const layer = (p) => p.kind === 'item' ? (p.layer || 'item') : p.kind, L = layer(P), ov = (o) => cellsOf(o).some(([a, b]) => cells.some(([x, z]) => a === x && b === z));
+    c.elev = 0;
+    if (ONTOP.has(c.part)) { const hosts = others.filter(o => SURF[o.part] !== undefined && !o.elev && ov(o)), taken = others.some(o => o.elev && ov(o)); if (hosts.length === 1 && !taken) { c.elev = SURF[hosts[0].part]; return true; } }
+    return !others.some(o => { const Q = PART[o.part]; if (Q.kind === 'wall' || layer(Q) !== L || o.elev) return false; return cellsOf(o).some(([a, b]) => cells.some(([x, z]) => a === x && b === z)); });
   };
 
   // ---------------------------------------------------------------- debris to clear in chapter 1
@@ -281,6 +284,19 @@
     if (W3.ghost) { objGroup.remove(W3.ghost.g); W3.ghost = null; } const ok = W3.canPlace(c), g = buildPartModel(c), P = PART[c.part], h = new T.Group(); h.add(g);
     const [cx, cz] = centerOf(c); h.position.set(cx, baseY(c), cz); if (P.kind !== 'wall') h.rotation.y = -c.rot * Math.PI / 2; ghostify(h, ok); objGroup.add(h); W3.ghost = { g: h, ok }; W3.ghostCand = c; highlight(c, ok ? 0x7DDB6A : 0xFF5A5A); dirty = 2;
   };
+  // ghost follows a world point (used by drag-and-drop furniture placement)
+  W3.ghostAtPoint = (px, pz) => {
+    if (!W3.place) return null; const part = W3.place.part, P = PART[part]; if (P.kind !== 'item') return null; const rot = W3.place.rot, [fw, fd] = footprint(part, rot);
+    const c = { part, x: Math.round(px - fw / 2), z: Math.round(pz - fd / 2), lvl: W3.level, rot, color: W3.place.moving ? W3.place.moving.color : P.color, id: W3.place.moving ? W3.place.moving.id : null };
+    W3.showGhost(c); W3.cb.ghost && W3.cb.ghost(c, W3.ghost.ok); return c;
+  };
+  W3.spawnGhost = () => W3.ghostAtPoint(goal.tx, goal.tz);
+  // eye-level "walk in" view of a room, or back to the overview
+  W3.roomView = (cells, lvl, inside, leftPx = 0) => {
+    if (!inside) { goal.pitch = .93; const land = Wd > Hd; W3.frameRoom(cells, lvl, { leftPx, fracV: land ? .84 : .42, fracH: .92 }); W3.camBase(); return; }
+    const xs = cells.map(c => c[0]), zs = cells.map(c => c[1]), x0 = Math.min(...xs), x1 = Math.max(...xs) + 1, z0 = Math.min(...zs), z1 = Math.max(...zs) + 1;
+    goal.tx = (x0 + x1) / 2; goal.tz = (z0 + z1) / 2; goal.ty = lvl * H + 1.0; goal.pitch = .38; goal.dist = clamp(Math.max(x1 - x0, z1 - z0) * .9 + 2.6, 5, 14); W3.camBase();
+  };
   W3.cancelGhostOnly = () => { if (W3.ghost) { objGroup.remove(W3.ghost.g); W3.ghost = null; } W3.ghostCand = null; highlight(null); };
   W3.startPlace = (part, moving) => { W3.deselect(); W3.place = { part, moving: moving || null, rot: moving ? moving.rot : W3.pendingRot }; W3.cancelGhostOnly(); W3.applyAlpha(); };
   W3.cancelPlace = () => { W3.place = null; W3.cancelGhostOnly(); W3.applyAlpha(); };
@@ -291,7 +307,7 @@
   };
   W3.confirmGhost = () => {
     const c = W3.ghostCand; if (!c || !W3.canPlace(c)) { if (!W3._dragPaint) W3.cb.sfx && W3.cb.sfx('bad'); if (c && W3.blockedByDebris) { W3.blockedByDebris = false; W3.cb.blocked && W3.cb.blocked('debris'); } if (c && PART[c.part].kind !== 'item') setTimeout(() => { if (W3.ghostCand === c) W3.cancelGhostOnly(); }, 350); return false; }
-    if (W3.place.moving) { const o = W3.place.moving; Object.assign(o, { x: c.x, z: c.z, rot: c.rot, lvl: c.lvl }); o.hidden = false; W3.cancelPlace(); W3.redraw(); W3.cb.changed && W3.cb.changed(); W3.cb.moved && W3.cb.moved(o); return true; }
+    if (W3.place.moving) { const o = W3.place.moving, dx = c.x - o.x, dz = c.z - o.z; if (SURF[o.part] !== undefined && (dx || dz)) { const oc = cellsOf(o).map(q => q.join()); W3.layout.filter(a => a.elev && a !== o && a.lvl === o.lvl && cellsOf(a).some(q => oc.includes(q.join()))).forEach(a => { a.x += dx; a.z += dz; }); } Object.assign(o, { x: c.x, z: c.z, rot: c.rot, lvl: c.lvl, elev: c.elev || 0 }); o.hidden = false; W3.cancelPlace(); W3.redraw(); W3.cb.changed && W3.cb.changed(); W3.cb.moved && W3.cb.moved(o); return true; }
     const rep = c.replace; delete c.replace; const ok = W3.cb.place ? W3.cb.place(c, rep) : false; if (!ok) return false;
     if (rep) { const e = objs.get(rep.id); if (e) { objGroup.remove(e.g); objs.delete(rep.id); } }
     drawObj(c); if (PART[c.part].kind === 'roof') refreshRoofs(); W3.applyAlpha(); puff(c); W3.cancelGhostOnly(); return true;
@@ -542,7 +558,7 @@
     const rectOf = (a, b) => ({ x0: clamp(Math.min(a.cx, b.cx), 0, N - 1), z0: clamp(Math.min(a.cz, b.cz), 0, N - 1), x1: clamp(Math.max(a.cx, b.cx), 0, N - 1) + 1, z1: clamp(Math.max(a.cz, b.cz), 0, N - 1) + 1 });
     dom.addEventListener('pointerdown', (e) => {
       dom.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (ptrs.size === 1) { drag = { sx: e.clientX, sy: e.clientY, moved: false }; if (W3.mode === 'build' && W3.roomMode && W3.roomDrag) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); if (c.cx >= 0 && c.cz >= 0 && c.cx < N && c.cz < N && !(W3.cb.cellFree && !W3.cb.cellFree(c.cx, c.cz))) drag.room = c; } else if (W3.mode === 'build' && isPaintKind()) drag.paint = true; }
+      if (ptrs.size === 1) { drag = { sx: e.clientX, sy: e.clientY, moved: false, touch: e.pointerType === 'touch' }; if (W3.mode === 'build' && W3.place && PART[W3.place.part].kind === 'item') drag.item = true; else if (W3.mode === 'build' && W3.dropMode && !W3.place) { const ob = W3.pick(e.clientX, e.clientY); if (ob && PART[ob.part].kind === 'item') drag.pickObj = ob; } if (W3.mode === 'build' && W3.roomMode && W3.roomDrag) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); if (c.cx >= 0 && c.cz >= 0 && c.cx < N && c.cz < N && !(W3.cb.cellFree && !W3.cb.cellFree(c.cx, c.cz))) drag.room = c; } else if (W3.mode === 'build' && isPaintKind()) drag.paint = true; }
       else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: goal.dist, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; if (drag && drag.room) W3.setRoomPreview(null); drag = null; }
     });
     dom.addEventListener('pointermove', (e) => {
@@ -550,13 +566,17 @@
       if (pinch && ptrs.size >= 2) { const [a, b] = [...ptrs.values()], n = W3._fit || 24, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2; goal.dist = clamp(pinch.z * pinch.d / Math.hypot(a.x - b.x, a.y - b.y), n * .3, n * 1.5); panBy(mx - pinch.mx, my - pinch.my); pinch.mx = mx; pinch.my = my; return; }
       if (!drag) return; if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 9) drag.moved = true;
       if (!drag.moved) return;
+      if (drag.pickObj && !drag.item) { const ob = drag.pickObj; drag.pickObj = null; W3.select(ob); W3.moveSelected(); drag.item = !!W3.place; }
+      if (drag.item && W3.place) { const c = W3.cellAt(e.clientX, e.clientY - (drag.touch ? 38 : 0), 'item'); if (c.cx >= -1 && c.cx <= N) { W3.ghostAtPoint(c.x, c.z); drag.dropped = true; } return; }
+      if (W3.orbit && !drag.room && !drag.paint) { goal.yaw -= dx * .009; goal.pitch = clamp(goal.pitch + dy * .006, .22, 1.3); return; }
       if (drag.room) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); drag.rect = rectOf(drag.room, c); W3.cb.roomRect && W3.cb.roomRect(drag.rect, false); return; }
       if (drag.paint) { const c = W3.cellAt(e.clientX, e.clientY, PART[W3.place.part].kind); const k = c.cx + ',' + c.cz; if (k !== drag.lastKey && c.cx >= 0 && c.cz >= 0 && c.cx < N && c.cz < N) { drag.lastKey = k; W3._dragPaint = true; W3.tap(e.clientX, e.clientY); W3._dragPaint = false; } return; }
       panBy(dx, dy);
     });
     const up = (e) => {
-      const was = ptrs.has(e.pointerId); ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!was) return;
-      if (drag && e.type === 'pointerup') { if (drag.room && drag.moved && drag.rect) W3.cb.roomRect && W3.cb.roomRect(drag.rect, true); else if (!drag.moved) { let used = false; if (W3.mode === 'build' && W3.sites && W3.cb.siteTap) { const sid = W3.pickSite(e.clientX, e.clientY); if (sid) { W3.cb.siteTap(sid); used = true; } } if (!used && W3.mode === 'build' && W3.roomMode && !W3.roomDrag && W3.cb.roomTap) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); used = W3.cb.roomTap(c.cx, c.cz); } if (!used) W3.tap(e.clientX, e.clientY); } }
+      const was = ptrs.has(e.pointerId); ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!was) return; 
+      if (drag && e.type === 'pointerup' && drag.item && drag.moved && drag.dropped && W3.place) { if (W3.dropMode && W3.ghost && W3.ghost.ok) { const mv = W3.place.moving; if (W3.confirmGhost() && !mv) W3.cb.dropped && W3.cb.dropped(); } else if (W3.dropMode && W3.place.moving && W3.ghost && !W3.ghost.ok) { const mv = W3.place.moving; W3.cancelPlace(); delete mv._prev; W3.redraw(); W3.cb.sfx && W3.cb.sfx('bad'); } }
+      else if (drag && e.type === 'pointerup') { if (drag.room && drag.moved && drag.rect) W3.cb.roomRect && W3.cb.roomRect(drag.rect, true); else if (!drag.moved) { let used = false; if (W3.mode === 'build' && W3.sites && W3.cb.siteTap) { const sid = W3.pickSite(e.clientX, e.clientY); if (sid) { W3.cb.siteTap(sid); used = true; } } if (!used && W3.mode === 'build' && W3.roomMode && !W3.roomDrag && W3.cb.roomTap) { const c = W3.cellAt(e.clientX, e.clientY, 'floor'); used = W3.cb.roomTap(c.cx, c.cz); } if (!used) W3.tap(e.clientX, e.clientY); } }
       if (!ptrs.size) drag = null;
     };
     dom.addEventListener('pointerup', up); dom.addEventListener('pointercancel', up);

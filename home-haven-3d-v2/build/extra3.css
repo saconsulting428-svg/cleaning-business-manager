@@ -212,3 +212,49 @@
 }
 
 #build.bhcine .drawer,#build.bhcine .btop,#build.bhcine .mrow,#build.bhcine .bhint,#build.bhcine #roomBar,#build.bhcine .actbar,#build.bhcine .retools{opacity:0!important;pointer-events:none!important;transition:opacity .35s}
+
+/* ---- Design Studio: explore the room, drag furniture, briefs, style packs */
+.rothint{position:absolute;left:50%;top:calc(var(--safe-t) + 120px);transform:translateX(-50%);z-index:35;background:rgba(42,32,24,.9);color:#fff;font-weight:700;font-size:12.5px;padding:7px 14px;border-radius:16px;display:none;pointer-events:auto;white-space:nowrap}
+@media (orientation:portrait){#build.on.dzmode~.rothint,#build.on.bhplan~.rothint{display:block}}
+.dz{position:absolute;left:8px;top:calc(var(--safe-t) + 58px);width:min(236px,calc(100% - 80px));z-index:6;background:rgba(255,255,255,.97);border-radius:18px;box-shadow:0 4px 0 rgba(58,46,37,.18),0 8px 22px rgba(0,0,0,.2);padding:7px 10px 9px}
+.dz.hidden{display:none}.dzh{display:flex;align-items:center;gap:6px;cursor:pointer}.dzh b{flex:1;font-size:13.5px;color:var(--green-d)}.dzh span{font-size:12px}.dzh i{font-style:normal;color:#8a7a68;transition:transform .2s}.dz.min .dzb{display:none}.dz.min .dzh i{transform:rotate(-90deg)}
+.dzb p{margin:4px 0 5px;font-size:11.5px;line-height:1.3;color:#6b5d4d}.dzl{list-style:none;margin:0 0 5px;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:2px 6px;font-size:11px;font-weight:700}
+.dzl li{color:#a89a88;padding-left:15px;position:relative;line-height:1.25}.dzl li::before{content:"○";position:absolute;left:0}.dzl li.ok{color:#2E7D32}.dzl li.ok::before{content:"✓";font-weight:800}.dzl li.opt{font-weight:600}
+.dzsets{font-size:11px;font-weight:700;color:#C46F12;margin-bottom:4px}.dzsets:empty{display:none}
+.dzr{display:flex;gap:6px;margin-bottom:6px}.dzr .btn{flex:1;min-height:32px;font-size:12px;padding:4px 6px}#dzSubmit{width:100%;min-height:38px;font-size:13.5px;background:#EFE8DC;color:#8a7a68;box-shadow:none}#dzSubmit.ready{background:linear-gradient(#6CCB5F,#3E9D3A);color:#fff;box-shadow:0 3px 0 #2A7027}
+.dzbar{position:absolute;left:8px;bottom:calc(var(--safe-b) + 10px);display:flex;flex-direction:column;gap:6px;z-index:6}.dzbar.hidden{display:none}
+.dzb1{width:58px;min-height:52px;border:0;border-radius:16px;background:rgba(255,255,255,.97);box-shadow:0 3px 0 rgba(58,46,37,.2);font-family:inherit;font-weight:700;font-size:10px;color:#3A2E25;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}.dzb1 b{font-size:19px;line-height:1}.dzb1.on{background:linear-gradient(#FFB04A,#F59E2B);color:#fff}
+.stgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}.stcard{border:3px solid transparent;border-radius:16px;background:#FFF7E4;padding:8px;text-align:left;font-family:inherit;display:flex;flex-direction:column;gap:4px}.stcard.on{border-color:#F59E2B}.stcard.lock{opacity:.6}.stcard b{font-size:14px}.stcard small{font-size:11px;color:#8a7a68}.sw{display:flex;gap:3px}.sw i{width:22px;height:14px;border-radius:5px;display:block}
+.brow{display:flex;align-items:center;gap:10px;width:100%;border:0;background:#FFF7E4;border-radius:16px;padding:9px 10px;margin-bottom:7px;text-align:left;font-family:inherit}.bw{width:38px;height:38px;border-radius:50%;background:linear-gradient(#FFB04A,#F59E2B);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;font-size:18px}.bt{flex:1;display:flex;flex-direction:column;gap:1px}.bt b{font-size:14px}.bt small{font-size:11px;color:#8a7a68}.brow em{font-style:normal;font-weight:800;color:#C46F12;font-size:12px}
+.ba2{position:relative;width:100%;aspect-ratio:360/220;border-radius:14px;overflow:hidden;margin-bottom:8px;background:#ddd}.ba2>img{width:100%;height:100%;object-fit:cover;display:block}.ba2b{position:absolute;left:0;top:0;bottom:0;overflow:hidden;border-right:3px solid #fff}.ba2b img{height:100%;width:auto;min-width:100%;max-width:none;display:block;object-fit:cover}
+.ba2 input{position:absolute;left:0;right:0;bottom:6px;width:100%;margin:0;accent-color:#F59E2B}.ba2 .tg{position:absolute;top:6px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:9px}.tg.l{left:6px}.tg.r{right:6px}
+.dzl.res{grid-template-columns:1fr 1fr;margin:6px 0}
+#build.dzmode .bhint,#build.dzmode .mrow,#build.dzmode .retools{display:none!important}
+@media (orientation:landscape) and (max-height:560px){
+  #build.dzmode .btop{margin-left:252px!important}
+  .dz{top:8px;width:238px}
+  .dzbar{bottom:8px}#build.dzmode.shelfopen .dzbar{bottom:138px}
+  #build.dzmode .drawer{left:0!important;right:0!important;top:auto!important;bottom:0!important;width:auto!important;height:128px;border-radius:20px 20px 0 0!important;flex-direction:column;padding:6px 10px 4px!important;transform:translateY(112%);transition:transform .25s;box-shadow:0 -6px 20px rgba(0,0,0,.2)!important}
+  #build.dzmode.shelfopen .drawer{transform:none}
+  #build.dzmode .drawer .tabs{flex:0 0 auto;display:flex!important;flex-direction:row!important;overflow-x:auto;gap:4px;margin:0 0 4px!important}
+  #build.dzmode .drawer .tab{flex:0 0 auto;min-height:30px!important;padding:3px 10px!important;font-size:11px!important;flex-direction:row;gap:4px}#build.dzmode .drawer .tab .ti{display:none}
+  #build.dzmode .drawer #items{display:flex!important;flex-direction:row;overflow-x:auto;overflow-y:hidden;gap:6px;flex:1;min-height:0}
+  #build.dzmode .drawer #items .it{flex:0 0 78px;min-height:0;padding:2px;font-size:10px}
+  #build.dzmode .actbar{left:50%!important;bottom:12px!important}#build.dzmode.shelfopen .actbar{bottom:140px!important}
+  .dzl{font-size:10.5px}
+}
+@media (orientation:portrait){.dz{top:calc(var(--safe-t) + 52px)}.dzbar{bottom:calc(var(--safe-b) + 236px);flex-direction:row}.dzb1{width:56px;min-height:44px}}
+
+.dzmini{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0 6px}.dzmini span{background:#FFF0D2;color:#9A5B0C;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px}.dzmini span.okc{background:#DFF3DB;color:#2E7D32}
+.dz:not(.min) .dzmini{display:none}
+.dz #dzSubmit{margin-top:2px}
+@media (orientation:landscape) and (max-height:560px){.dz{width:206px}#build.dzmode .btop{margin-left:224px!important}.dz #dzSubmit{min-height:32px;font-size:12px}}
+
+/* in the design studio the ghost / selection bars live under the header so they never cover the room */
+#build.dzmode .actbar{top:calc(var(--safe-t) + 56px)!important;bottom:auto!important;left:50%!important;transform:translateX(-50%)!important}
+@media (orientation:landscape) and (max-height:560px){#build.dzmode .actbar,#build.dzmode.shelfopen .actbar{top:56px!important;bottom:auto!important}}
+@media (orientation:portrait){#build.dzmode .actbar{top:calc(var(--safe-t) + 150px)!important}}
+
+@media (orientation:landscape) and (max-height:560px){.dzbar{flex-direction:row;gap:6px}.dzb1{width:58px;min-height:46px}#build.dzmode.shelfopen .dzbar{bottom:136px}}
+
+@media (orientation:portrait){#build.dzmode .actbar{top:calc(var(--safe-t) + 236px)!important}}

@@ -43,7 +43,7 @@
     roomEdit = { key: r.key, name: r.name, lvl: r.lvl, cells: r.cells, room: r }; $('#build').classList.add('roomedit'); enterBuild();
     $$('.sg').forEach(b => b.classList.toggle('on', +b.dataset.l === r.lvl)); WORLD.setLevel(r.lvl); WORLD.setInterior(true); WORLD.focusRoom(r.cells, r.lvl);
     curCat = ['furniture', 'decor', 'kitchen', 'bath', 'bedroom'].find(c => unlockedCats().includes(c)) || curCat; renderTabs(); renderItems(); $('#reName').textContent = r.name; hint(`Designing the ${r.name}`);
-    WORLD.setRoomLabel(r.cells, r.lvl, r.name); if (typeof guideRefresh === 'function') guideRefresh();
+    WORLD.setRoomLabel(r.cells, r.lvl, r.name); if (typeof guideRefresh === 'function') guideRefresh(); if (typeof dzReframe === 'function') dzReframe();
   }
   function exitRoomEdit() { roomEdit = null; if (typeof bhStop === 'function') bhStop(); $('#build').classList.remove('roomedit', 'guided'); $('#guide').classList.add('hidden'); WORLD.setRoomLabel(null); WORLD.setInterior(S.interior); WORLD.resetFocus(); }
   function roomRecolor(kind, col) {
