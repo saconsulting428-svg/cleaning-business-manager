@@ -1,5 +1,5 @@
 // Full-game smoke: visits every screen/sheet/puzzle type, records JS errors, clipped/offscreen UI and obstructed or tiny controls.
-const { chromium } = require('/opt/node-tools/node_modules/playwright'); const H=require('./helpers.js');
+const { chromium } = require('/opt/node-tools/node_modules/playwright'); const H=require('./helpers.cjs');
 (async()=>{ const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--no-sandbox']});
  const [W,Hh]=(process.argv[2]||'800x400').split('x').map(Number), tag=process.argv[3]||'sm'; const p=await b.newPage({viewport:{width:W,height:Hh}}); p.setDefaultTimeout(60000);
  const errs=[]; p.on('pageerror',e=>{errs.push(e.message);console.log('PAGEERR',e.message)}); p.on('console',m=>{ if(m.type()==='error'&&!/favicon|net::/.test(m.text())) { errs.push('console:'+m.text()); console.log('CONSOLE',m.text().slice(0,150)); } });
