@@ -1312,6 +1312,9 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       rrect(x - 12, y - 4, 24, 16, 4, c);
       g.lineStyle(3, C(c), 1); g.beginPath(); g.arc(x, y - 5, 7, Math.PI, 0); g.strokePath();
       dot(x, y + 4, 3.2, t.accent);
+    } else if (kind === 'gear') {
+      for (let i = 0; i < 8; i++) { const an = i * Math.PI / 4; line(x + Math.cos(an) * 6, y + Math.sin(an) * 6, x + Math.cos(an) * 10.5, y + Math.sin(an) * 10.5, c, 3.6); }
+      dot(x, y, 7.6, c); dot(x, y, 3.2, t.panel);
     } else if (kind === 'star') {
       g.fillStyle(C(t.accent), 1);
       const pts = [];
@@ -1356,7 +1359,20 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     txt(x + w - 48, cy, '+' + d.reward, 16, t.accent, 0);
   }
 
-  function drawMenu() {
+  let settingsOpen = false;
+  function drawSettings() {
+    const t = th();
+    buttons = [];
+    g.fillStyle(0x000000, 0.62); g.fillRect(0, 0, W, H);
+    rrect(BX + 10, 250, BW - 20, 330, 26, t.panel);
+    txt(W / 2, 286, 'Settings', 24, t.accent);
+    button(W / 2, 346, 250, 46, 'Sound: ' + (DATA.sound ? 'On' : 'Off'), toggleSound, { size: 17 });
+    button(W / 2, 404, 250, 46, 'Vibration: ' + (DATA.vibe ? 'On' : 'Off'), toggleVibe, { size: 17 });
+    button(W / 2, 462, 250, 46, 'Tap to steer: ' + (DATA.tapSteer ? 'On' : 'Off'), toggleTap, { size: 17 });
+    button(W / 2, 534, 200, 44, 'Close', () => { settingsOpen = false; }, { primary: true, size: 18 });
+  }
+  function drawMenu() { drawMenu0(); if (settingsOpen) drawSettings(); }
+  function drawMenu0() {
     const t = th();
     // top bar: best score + coins + sound
     rrect(BX, 18, 104 + String(best(DATA.mode)).length * 11, 42, 21, t.panel, 0.7);
@@ -1367,13 +1383,12 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     drawCoin(W - BX - 118 - cw + 24, 39, 11);
     txt(W - BX - 118 - cw + 42, 39, coinText(DATA.coins), 16, t.accent, 0);
     dot(W - BX - 76, 39, 22, t.panel, 0.7);
-    drawIcon('vibe', W - BX - 76, 39);
-    buttons.push({ x: W - BX - 102, y: 12, w: 52, h: 56, fn: toggleVibe });
+    drawIcon('gear', W - BX - 76, 39);
+    buttons.push({ x: W - BX - 102, y: 12, w: 52, h: 56, fn: () => { settingsOpen = true; } });
     dot(W - BX - 24, 39, 22, t.panel, 0.7);
     drawIcon('sound', W - BX - 26, 39);
     buttons.push({ x: W - BX - 54, y: 12, w: 58, h: 56, fn: toggleSound });
 
-    txt(W / 2, 9, 'v2.9', 9, t.text, 0.5, false);
     // live preview of the game
     drawDemo();
 
@@ -2380,12 +2395,75 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     }
     return L;
   }
+
+  // ---------- adaptive difficulty (internal only, never shown) ----------
+  const SK_KEY = 'snakeFruitRush.skill.v1';
+  const SK_FRESH = () => ({ v: 1, lvl: 0, h: [], mech: {}, cur: null });
+  const skClamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  function skLoad() {
+    let d = null;
+    try { d = JSON.parse(localStorage.getItem(SK_KEY)); } catch (e) { d = null; }
+    const s = SK_FRESH();
+    if (!d || d.v !== 1 || !Array.isArray(d.h)) return s;
+    s.lvl = skClamp(d.lvl | 0, -2, 2);
+    s.h = d.h.filter((r) => r && isFinite(r.sc)).slice(-10).map((r) => ({ id: r.id | 0, sc: skClamp(+r.sc, 0, 1), at: skClamp(r.at | 0, 1, 99) }));
+    if (d.mech && typeof d.mech === 'object') ['trap', 'door', 'gate'].forEach((k) => { s.mech[k] = skClamp(d.mech[k] | 0, 0, 9); });
+    return s;
+  }
+  let SK = skLoad();
+  function skSave() { try { localStorage.setItem(SK_KEY, JSON.stringify({ v: 1, lvl: SK.lvl, h: SK.h, mech: SK.mech })); } catch (e) { /* storage blocked: adaptation lasts for this session only */ } }
+  const skProfile = () => (SK.lvl <= -1 ? 'beginner' : SK.lvl >= 1 ? 'skilled' : 'intermediate');
+  const skHas = (L, k) => !!L[k] && (typeof L[k] === 'string' ? /[^0]/.test(L[k]) : L[k].length > 0);
+  function skRecord(id, fails, moves, par, ms, delay) {            // called once when a level is completed
+    const first = fails === 0 ? 1 : fails === 1 ? 0.5 : fails <= 3 ? 0.2 : 0;
+    const eff = skClamp(par / Math.max(1, moves), 0, 1), spd = skClamp(par * delay / Math.max(1, ms), 0, 1);
+    SK.h.push({ id: id, sc: 0.5 * first + 0.3 * eff + 0.2 * spd, at: fails + 1 });
+    if (SK.h.length > 10) SK.h.shift();
+    Object.keys(SK.mech).forEach((k) => { SK.mech[k] = Math.max(0, SK.mech[k] - 1); });
+    if (SK.h.length >= 4) {                                          // ~4 levels of data first, then one small step per level
+      const w = SK.h.slice(-6), avg = w.reduce((a, r) => a + r.sc, 0) / w.length;
+      const target = avg < 0.35 ? -2 : avg < 0.5 ? -1 : avg > 0.84 ? 2 : avg > 0.74 ? 1 : 0;
+      SK.lvl += Math.sign(target - SK.lvl);
+    }
+    skSave();
+  }
+  function skFail(id, reason) {
+    if (!SK.cur || SK.cur.id !== id) SK.cur = { id: id, fails: 0, ms: 0 };
+    SK.cur.fails++;
+    if (SK.mech[reason] !== undefined) SK.mech[reason] = Math.min(9, SK.mech[reason] + 1);
+    skSave();
+  }
+  // Settings for the NEXT level only (called from startLevel, never while a level runs).
+  function skAdapt(L, id) {
+    let e = SK.lvl;
+    const last2 = SK.h.slice(-2);
+    if (last2.length === 2 && last2.every((r) => r.at >= 3)) e -= 1;                       // easier breather after two hard levels
+    if (SK.cur && SK.cur.id === id && SK.cur.fails >= 2) e -= 1;                            // stuck on this very level
+    if ((skHas(L, 'B') && SK.mech.trap >= 3) || (skHas(L, 'D') && SK.mech.door >= 3) || (skHas(L, 'G') && SK.mech.gate >= 3)) e -= 1;   // weak mechanic
+    e = skClamp(e, -2, 2);
+    return { e: e, bias: e < 0 ? -1 : e > 0 ? 1 : 0, s2: -e * 1.5 | 0, s3: -e, d: e <= -2 ? 1.08 : e === -1 ? 1.04 : 1, ready: e <= -2 ? 500 : 0, hint: e <= -1 && SK.cur && SK.cur.id === id && SK.cur.fails >= 4 };
+  }
+  function adaptiveFruit(L, bias) {                                  // layouts are drawn from the validated Q mask, so every one stays solvable by the stored route
+    if (!bias) return randomFruit(L);
+    let best = null, bs = 0;
+    for (let i = 0; i < 6; i++) {
+      const cand = randomFruit(L), sc = cand.F.reduce((a, f) => a + Math.abs(f[0] - L.s[0]) + Math.abs(f[1] - L.s[1]), 0);
+      if (!best || (bias < 0 ? sc < bs : sc > bs)) { best = cand; bs = sc; }
+    }
+    return best;
+  }
   function startLevel(id, showRoute) {
     id = Math.min(LEVEL_COUNT, Math.max(1, id | 0));
     if (id > campUnlocked()) return;
-    const L = randomFruit(LV[id - 1]), el = engineLevel(L), rt = E.makeRuntime(el), st = E.newState(rt);
+    const base = LV[id - 1], ad = skAdapt(base, id);
+    if (!SK.cur || SK.cur.id !== id) SK.cur = { id: id, fails: 0, ms: 0 };
+    SK.cur.ms = 0;
+    let L = adaptiveFruit(base, ad.bias);
+    if (ad.e) L = Object.assign({}, L, { s3: Math.max(base.par, L.s3 + ad.s3), s2: Math.max(base.par + 1, L.s2 + ad.s2), d: Math.round(L.d * ad.d) });
+    if (ad.hint) showRoute = true;
+    const el = engineLevel(L), rt = E.makeRuntime(el), st = E.newState(rt);
     G = {
-      camp: { id: id, L: L, rt: rt, st: st, ready: READY_MS, over: null, won: false, endT: 0, moves: 0, route: showRoute ? L.R : null, routeIdx: null, exitOpen: false, slowT: 0, shield: false, hold: false, coinMul: 1, stars: 0, coins: 0, hint: L.h || '', flash: [], iceList: [], fr: [] },
+      camp: { id: id, L: L, ad: ad.e, rt: rt, st: st, ready: READY_MS + ad.ready, over: null, won: false, endT: 0, moves: 0, route: showRoute ? L.R : null, routeIdx: null, exitOpen: false, slowT: 0, shield: false, hold: false, coinMul: 1, stars: 0, coins: 0, hint: L.h || '', flash: [], iceList: [], fr: [] },
       snake: st.body.map((c) => [c % COLS, (c / COLS) | 0]), dir: st.dir, queue: [], score: 0, eaten: 0, fx: {}, combo: 0, combo_t: 0, bonus: null, power: null, gold: null,
       food: null, bombs: [], coins: 0, dailyCoins: 0, playMs: 0, adMsg: '', shareMsg: '', mode: 'classic', speed: DATA.speed
     };
@@ -2400,6 +2478,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     useWorld(L.w);
     setState('play');
   }
+  const PORTAL_MS = 950;                            // portal-entry animation before the result screen
   const campSliding = () => !!G.camp && E.resolveDir(G.camp.rt, G.camp.st, null).forced;
   const cellOf = (i) => cellXY(i % COLS, (i / COLS) | 0);
   const campPlaying = () => G && G.camp && !G.camp.over && !G.camp.won;
@@ -2454,7 +2533,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       }
     });
     if (!C0.exitOpen && E.exitReady(rt, st)) {
-      C0.exitOpen = true;
+      C0.exitOpen = true; C0.exitT = anim;
       const ep = cellOf(rt.exit);
       ring(ep.x, ep.y, '#4ade80'); burst(ep.x, ep.y, '#bbf7d0', 12);
       showBanner('EXIT OPEN!', 'reach the glowing exit', '#4ade80', 1100);
@@ -2467,6 +2546,8 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       C0.stars = moves <= L.s3 ? 3 : moves <= L.s2 ? 2 : 1;
       const prev = DATA.camp.stars[C0.id] | 0;
       if (C0.stars > prev) DATA.camp.stars[C0.id] = C0.stars;
+      if (SK.cur && SK.cur.id === C0.id) skRecord(C0.id, SK.cur.fails, moves, LV[C0.id - 1].par, SK.cur.ms, C0.L.d);
+      SK.cur = null;
       C0.coins = (5 + 5 * C0.stars) * C0.coinMul;
       addCoins(C0.coins); G.coins += C0.coins;
       if (C0.id < LEVEL_COUNT) { DATA.camp.cur = C0.id + 1; if (DATA.camp.unlocked < C0.id + 1) DATA.camp.unlocked = C0.id + 1; }
@@ -2476,6 +2557,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       sfx.win(); buzz(40);
     } else if (res.status === 'fail') {
       C0.over = res.reason; C0.endT = 0;
+      skFail(C0.id, res.reason);
       if (res.reason === 'trap') { G.boom = [res.cell % COLS, (res.cell / COLS) | 0]; sfx.boom(); buzz(80); }
       else {
         sfx.over(); buzz(50);
@@ -2490,11 +2572,12 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     C0.flash = C0.flash.filter((f) => f.t > 0);
     if (C0.over || C0.won) {
       C0.endT += delta;
-      if (C0.won && C0.endT > 700) setState('won');
+      if (C0.won && C0.endT > PORTAL_MS) setState('won');
       else if (C0.over && C0.endT > (C0.over === 'trap' ? 900 : 650)) setState('over');
       return;
     }
     if (C0.ready > 0) { C0.ready -= delta; acc = 0; if (C0.ready <= 0) { C0.ready = 0; sfx.click(); } return; }
+    if (SK.cur) SK.cur.ms += delta;
     acc += Math.min(delta, 50);
     let delay = stepDelay(), guardSteps = 0;
     while (state === 'play' && !C0.over && !C0.won && acc >= delay && guardSteps++ < 2) {
@@ -2777,18 +2860,34 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     }
     dot(x, y, 2, '#ffffff', 0.9);
   }
+  const PORTAL_COLS = [['#4ade80', '#bef264', '#14532d'], ['#fbbf24', '#fde68a', '#78350f'], ['#67e8f9', '#e0f2fe', '#0c4a6e'], ['#fb923c', '#fde047', '#7f1d1d'], ['#c084fc', '#f0abfc', '#3b0764']];
   function drawExitTile(x, y, open) {
-    const a = anim / 60;
-    if (open) {
-      const p = 1 + 0.1 * Math.sin(a * 0.5);
-      dot(x, y, 21 * p, '#fde047', 0.22); dot(x, y, 16.5 * p, '#fde047', 0.32);
-      for (let i = 0; i < 8; i++) { const an = i * Math.PI / 4 + a * 0.04; line(x + Math.cos(an) * 10, y + Math.sin(an) * 10, x + Math.cos(an) * 17 * p, y + Math.sin(an) * 17 * p, '#fde047', 1.6); }
-      dot(x, y, 12.5, '#14532d'); dot(x, y, 10.5, '#22c55e'); dot(x, y, 7.2, '#bbf7d0');
-      g.fillStyle(C('#14532d'), 1); g.fillTriangle(x - 3, y - 4.5, x - 3, y + 4.5, x + 4.5, y);
-    } else {
-      dot(x, y, 12.5, '#27272a'); dot(x, y, 10.5, '#52525b'); dot(x, y, 7.4, '#18181b');
-      lockIcon(x, y + 0.5, 0.6, '#a1a1aa');
+    const C0 = G.camp, pc = PORTAL_COLS[C0.L.w] || PORTAL_COLS[0], a = anim / 1000;
+    let near = 0;
+    if (open && !C0.won) { const hp = headXY(), d = Math.hypot(hp.x - x, hp.y - y) / CELL; near = d < 4 ? 1 - d / 4 : 0; }
+    const ent = C0.won ? Math.min(1, C0.endT / PORTAL_MS) : 0;
+    if (!open) {                                                  // locked: dim, slow, broken ring
+      dot(x, y, 14, '#0b0b12', 0.7);
+      g.lineStyle(2, C(pc[0]), 0.4);
+      for (let i = 0; i < 3; i++) { const s0 = a * 0.5 + i * 2.1; g.beginPath(); g.arc(x, y, 11.5, s0, s0 + 1.3); g.strokePath(); }
+      dot(x, y, 3.2, pc[0], 0.35);
+      return;
     }
+    const k = 1 + 0.07 * Math.sin(a * 4) + near * 0.18 + ent * 0.5, sp = 1 + near * 1.2 + ent * 5, wake = C0.exitT === undefined ? 1 : Math.min(1, (anim - C0.exitT) / 450);
+    const sc = (0.4 + 0.6 * wake) * k;                            // opens up smoothly right after the last fruit
+    dot(x, y, 20 * sc, pc[0], 0.16 + 0.1 * near + 0.2 * ent);
+    dot(x, y, 15.5 * sc, pc[2], 0.95);
+    for (let i = 0; i < 3; i++) {                                 // swirling arcs
+      g.lineStyle(2.6 - i * 0.5, C(i === 1 ? pc[1] : pc[0]), 0.95);
+      const s0 = a * sp * (i % 2 ? -2.2 : 2.6) + i * 2.1, r = (13.5 - i * 3.6) * sc;
+      g.beginPath(); g.arc(x, y, r, s0, s0 + 3.4 - i * 0.5); g.strokePath();
+    }
+    dot(x, y, 4.2 * sc, pc[1], 0.95); dot(x, y, 2 * sc, '#ffffff', 0.95);
+    if (!LITE) for (let i = 0; i < 4; i++) {                      // sparks pulled into the centre
+      const t2 = (a * (0.8 + near) + i / 4) % 1, an = i * 1.57 + a, r = 22 * (1 - t2);
+      dot(x + Math.cos(an) * r, y + Math.sin(an) * r, 1.5, pc[1], 0.9 * t2);
+    }
+    if (ent > 0.55) dot(x, y, 26 * (ent - 0.55) * 2.2, '#ffffff', 0.55 * (1 - ent) + 0.15);   // soft flash as the snake goes in
   }
   function drawAmbient(w) {
     const a = anim / 1000;
@@ -2959,7 +3058,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     txt(W / 2, top + 44, last ? 'You did it!' : 'Level cleared!', 32, t.accent);
     txt(W / 2, top + 80, last ? 'All ' + LEVEL_COUNT + ' levels complete' : 'Level ' + C0.id + '  -  ' + WORLDS[C0.L.w].name, 15, t.btnText);
     for (let s = 0; s < 3; s++) {
-      const k = Math.min(1, Math.max(0, (C0.endT - 700 - s * 220 + 700) / 260)), got = s < C0.stars;
+      const k = Math.min(1, Math.max(0, (C0.endT - PORTAL_MS - s * 220 + 700) / 260)), got = s < C0.stars;
       const x = W / 2 + (s - 1) * 62, y = top + 140 - (s === 1 ? 8 : 0), sc = got ? 1 + 0.35 * Math.sin(Math.min(1, k) * Math.PI) : 1;
       starShape(x, y + 3, 30 * sc, '#000000', 0.25);
       starShape(x, y, 30 * sc, got ? '#fde047' : '#00000044');
@@ -3006,8 +3105,11 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
         const s = touches.get(e.pointerId);
         if (!s || state !== 'play') return;
         const dx = e.clientX - s.x, dy = e.clientY - s.y, ax = Math.abs(dx), ay = Math.abs(dy);
-        if (Math.max(ax, ay) < SWIPE_PX * (s.axis ? 1.4 : 1)) return;      // small finger wobble is not a swipe (a 2nd turn in one touch needs a clearer move)
-        const axis = ax >= ay ? 'x' : 'y';                                  // diagonals follow the stronger axis
+        if (Math.max(ax, ay) < SWIPE_PX * (s.axis ? 1.15 : 0.85)) return;      // small finger wobble is not a swipe (a 2nd turn in one touch needs a clearer move)
+        let axis = ax >= ay ? 'x' : 'y';
+        if (Math.min(ax, ay) > Math.max(ax, ay) * 0.7 && G) {              // clear diagonal: take the axis the snake is not already moving on (the useful turn)
+          const ha = G.dir[0] ? 'x' : 'y'; axis = ha === 'x' ? 'y' : 'x';
+        }
         s.moved = true;
         if (axis === s.axis) { s.x = e.clientX; s.y = e.clientY; return; }  // a long swipe in the same direction makes no extra turns
         turn(axis === 'x' ? [Math.sign(dx), 0] : [0, Math.sign(dy)]);
@@ -3033,7 +3135,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
         Object.keys(dirs).forEach((k) => kb.on('keydown-' + k, () => turn(dirs[k])));
         kb.on('keydown-SPACE', togglePause);
         kb.on('keydown-ENTER', () => { if (state === 'menu') playSelected(); else if (state === 'levels') startLevel(Math.min(campUnlocked(), lvPage * 20 + 1)); else if (state === 'won') campNextLevel(); else if (state === 'over') { if (G.camp) campRetry(); else newGame(); } else if (state === 'paused') togglePause(); });
-        kb.on('keydown-ESC', () => { if (state === 'levels') goHome(); else if (G && G.camp && state !== 'menu') leaveToLevels(); else if (state !== 'menu') goMenu(); else closeSheet(); });
+        kb.on('keydown-ESC', () => { if (state === 'levels') goHome(); else if (G && G.camp && state !== 'menu') leaveToLevels(); else if (state !== 'menu') goMenu(); else if (settingsOpen) settingsOpen = false; else closeSheet(); });
         kb.on('keydown-T', () => setTheme(DATA.theme + 1));
         kb.on('keydown-B', () => setBackground(DATA.bg + 1));
         kb.on('keydown-C', () => { if (state === 'menu') continueGame(); });
@@ -3142,7 +3244,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   setTimeout(startGame, 1500);
 
   // test hook (not used by the game itself)
-  window.__snake = { ads: { meta: adsMeta, claimAdCoins: claimAdCoins, adHint: adHint, maybeInter: maybeInter, playAgain: playAgain, coinsLeft: adCoinsLeft, requestRewarded: requestRewarded, get kind() { return adKind; }, get job() { return adJob; } }, camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, pts: snakePoints, get renderer() { return scene && scene.sys.game.renderer.type === Phaser.WEBGL ? 'webgl' : 'canvas'; }, get fxCount() { return fxs.length; }, get popupCount() { return popups.length; }, get ZOOM() { return ZOOM; }, get textPool() { return layers.map((l) => l.texts.length); }, get G() { return G; }, get state() { return state; }, get buttons() { return buttons; }, step2: step, DATA: DATA, turn: turn, get acc() { return acc; }, get sheet() { return sheetOpen; }, placeBombs: placeBombs, step: step, newGame: newGame, POWER_KEYS: POWER_KEYS,
+  window.__snake = { ads: { meta: adsMeta, claimAdCoins: claimAdCoins, adHint: adHint, maybeInter: maybeInter, playAgain: playAgain, coinsLeft: adCoinsLeft, requestRewarded: requestRewarded, get kind() { return adKind; }, get job() { return adJob; } }, camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, sk: { get S() { return SK; }, adapt: skAdapt, record: skRecord, fail: skFail, fruit: adaptiveFruit, profile: skProfile, reload: () => { SK = skLoad(); return SK; }, reset: () => { SK = SK_FRESH(); } }, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, pts: snakePoints, get renderer() { return scene && scene.sys.game.renderer.type === Phaser.WEBGL ? 'webgl' : 'canvas'; }, get fxCount() { return fxs.length; }, get popupCount() { return popups.length; }, get ZOOM() { return ZOOM; }, get textPool() { return layers.map((l) => l.texts.length); }, get G() { return G; }, get state() { return state; }, get buttons() { return buttons; }, step2: step, DATA: DATA, turn: turn, get acc() { return acc; }, get sheet() { return sheetOpen; }, placeBombs: placeBombs, step: step, newGame: newGame, POWER_KEYS: POWER_KEYS,
     daily: { ensure: dailyEnsure, add: dailyAdd, max: dailyMax, make: makeDaily, load: loadData, addCoins: addCoins }, buySkin: buySkin, selectSkin: selectSkin, doSpin: doSpin, openEgg: openEgg, spinReady: spinReady, closeSheet: closeSheet, openSheet: openSheet, get skinPick() { return skinPick; }, set skinPick(v) { skinPick = v; }, get gift() { return gift; }, EGG_COST: EGG_COST, sfx: sfx, shareScore: shareScore, watchAd: watchAd, adAvailable: adAvailable, SKINS: SKINS, get fxs() { return fxs; }, eat: eatAtHead, gameOver: gameOver };
 })();
 </script>
