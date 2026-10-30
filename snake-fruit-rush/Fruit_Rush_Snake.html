@@ -1483,9 +1483,9 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     const pages = Math.ceil(SKINS.length / 12);
     if (skinPage >= pages) skinPage = 0;
     [[-1, BX + 22], [1, BX + BW - 22]].forEach((a) => {
-      dot(a[1], top + 96, 17, t.panel);
-      line(a[1] - a[0] * 3, top + 88, a[1] + a[0] * 4, top + 96, t.btnText, 3); line(a[1] + a[0] * 4, top + 96, a[1] - a[0] * 3, top + 104, t.btnText, 3);
-      buttons.push({ x: a[1] - 26, y: top + 74, w: 52, h: 46, fn: () => { skinPage = (skinPage + a[0] + pages) % pages; } });
+      dot(a[1], top + 90, 14, t.panel);
+      line(a[1] - a[0] * 2.5, top + 84, a[1] + a[0] * 3.5, top + 90, t.btnText, 2.6); line(a[1] + a[0] * 3.5, top + 90, a[1] - a[0] * 2.5, top + 96, t.btnText, 2.6);
+      buttons.push({ x: a[1] - 24, y: top + 72, w: 48, h: 34, fn: () => { skinPage = (skinPage + a[0] + pages) % pages; } });
     });
     txt(W / 2 + 112, top + 96, (skinPage + 1) + '/' + pages, 12, t.btnText, 0.5, false);
     SKINS.slice(skinPage * 12, skinPage * 12 + 12).forEach((sk, i) => {
@@ -2410,7 +2410,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   function randomFruit(L) {
     const q = lvLayer(L.Q), cells = [], want = L.F.length;
     for (let i = 0; i < COLS * ROWS; i++) if (q[i]) cells.push(i);
-    for (const gap of [3, 2, 1]) {
+    for (const gap of [3, 2]) {                 // a fruit never touches another fruit, not even diagonally
       const pool = cells.slice(), out = [];
       while (pool.length && out.length < want) {
         const c = pool.splice(rnd(pool.length), 1)[0], x = c % COLS, y = (c / COLS) | 0;
@@ -2500,13 +2500,27 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     }
     return best;
   }
+  // Fruit places are made once per level (first entry), saved, and reused on every retry / restart.
+  const FRUIT_KEY = 'snakeFruitRush.fruit.v1';
+  function fruitSaved(id, base) {
+    let m = {};
+    try { m = JSON.parse(localStorage.getItem(FRUIT_KEY)) || {}; } catch (e) { m = {}; }
+    const f = m[id], q = lvLayer(base.Q);
+    const ok = Array.isArray(f) && f.length === base.F.length && f.every((c) => Array.isArray(c) && c[0] >= 0 && c[0] < COLS && c[1] >= 0 && c[1] < ROWS && q[c[1] * COLS + c[0]])
+      && f.every((a, i) => f.every((b, j) => i === j || Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])) >= 2));
+    if (ok) return f;
+    const L2 = randomFruit(base);
+    m[id] = L2.F;
+    try { localStorage.setItem(FRUIT_KEY, JSON.stringify(m)); } catch (e) { /* blocked: layout lasts for this session only */ }
+    return L2.F;
+  }
   function startLevel(id, showRoute) {
     id = Math.min(LEVEL_COUNT, Math.max(1, id | 0));
     if (id > campUnlocked()) return;
     const base = LV[id - 1], ad = skAdapt(base, id);
     if (!SK.cur || SK.cur.id !== id) SK.cur = { id: id, fails: 0, ms: 0 };
     SK.cur.ms = 0;
-    let L = adaptiveFruit(base, ad.bias);
+    let L = Object.assign({}, base, { F: fruitSaved(id, base) });
     if (ad.e) L = Object.assign({}, L, { s3: Math.max(base.par, L.s3 + ad.s3), s2: Math.max(base.par + 1, L.s2 + ad.s2), d: Math.round(L.d * ad.d) });
     if (ad.hint) showRoute = true;
     const el = engineLevel(L), rt = E.makeRuntime(el), st = E.newState(rt);
@@ -2720,7 +2734,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   function worldStars(w) { let n = 0; for (let i = w * 20 + 1; i <= w * 20 + 20; i++) n += DATA.camp.stars[i] | 0; return n; }
   function worldDone(w) { let n = 0; for (let i = w * 20 + 1; i <= w * 20 + 20; i++) if (DATA.camp.stars[i]) n++; return n; }
   function drawLevels() {
-    const t = th(), cp = DATA.camp, w = lvPage, W0 = WORLDS[w], un = campUnlocked();
+    const t = th(), cp = DATA.camp, w = lvPage, W0 = WORLDS[Math.min(w, WORLDS.length - 1)], un = campUnlocked(), soon = w >= WORLDS.length;
     // header
     rrect(BX, 22, 96, 40, 20, t.panel);
     line(BX + 22, 42, BX + 32, 35, t.btnText, 3.4); line(BX + 22, 42, BX + 32, 49, t.btnText, 3.4);
@@ -2738,24 +2752,38 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     // world art strip
     const wl = W0.wall;
     for (let i = 0; i < 9; i++) { const bx = BX + 78 + i * 36, by = cy + ch - 22; rrect(bx, by + 1, 24, 18, 5, wl.edge); rrect(bx, by, 24, 14, 5, wl.base); rrect(bx + 2, by + 1.5, 20, 4, 2, wl.top, 0.9); }
-    txt(W / 2, cy + 22, 'WORLD ' + (w + 1) + ' of 5', 12, t.text, 0.5, false);
-    txt(W / 2, cy + 52, W0.name, 36, t.accent);
-    txt(W / 2, cy + 82, W0.sub, 13, t.text, 0.5, false);
+    txt(W / 2, cy + 22, 'WORLD ' + (w + 1) + ' of 6', 12, t.text, 0.5, false);
+    txt(W / 2, cy + 52, soon ? 'Coming Soon' : W0.name, soon ? 30 : 36, t.accent);
+    txt(W / 2, cy + 82, soon ? 'A brand new world is on the way' : W0.sub, 13, t.text, 0.5, false);
     // arrows
     [[-1, BX + 28], [1, BX + BW - 28]].forEach((a) => {
-      const can = w + a[0] >= 0 && w + a[0] < WORLDS.length;
+      const can = w + a[0] >= 0 && w + a[0] <= WORLDS.length;
       dot(a[1], cy + 52, 20, can ? shade(t.panel, 0.25) : shade(t.panel, -0.2), can ? 1 : 0.6);
       if (can) {
         line(a[1] - a[0] * 4, cy + 42, a[1] + a[0] * 5, cy + 52, t.btnText, 3.6);
         line(a[1] + a[0] * 5, cy + 52, a[1] - a[0] * 4, cy + 62, t.btnText, 3.6);
-        buttons.push({ x: a[1] - 26, y: cy + 26, w: 52, h: 52, fn: () => { lvPage = w + a[0]; useWorld(lvPage); sfx.click(); } });
+        buttons.push({ x: a[1] - 26, y: cy + 26, w: 52, h: 52, fn: () => { lvPage = w + a[0]; useWorld(Math.min(lvPage, WORLDS.length - 1)); sfx.click(); } });
       }
     });
     // dots
-    for (let i = 0; i < WORLDS.length; i++) {
-      const x = W / 2 + (i - 2) * 22;
+    for (let i = 0; i <= WORLDS.length; i++) {
+      const x = W / 2 + (i - 2.5) * 22;
       dot(x, cy + ch + 20, i === w ? 6 : 4, i === w ? t.accent : t.panel);
-      buttons.push({ x: x - 11, y: cy + ch + 8, w: 22, h: 24, fn: () => { lvPage = i; useWorld(i); } });
+      buttons.push({ x: x - 11, y: cy + ch + 8, w: 22, h: 24, fn: () => { lvPage = i; useWorld(Math.min(i, WORLDS.length - 1)); } });
+    }
+    if (soon) {                                      // World 6: locked, not playable
+      const a = anim / 1000, cx = W / 2, my = 440;
+      rrect(BX, 262, BW, 420, 28, shade(t.panel, -0.35)); rrect(BX, 256, BW, 420, 28, t.panel);
+      for (let i = 0; i < 18; i++) { const sx = BX + 20 + hh(i, 6, 1) * (BW - 40), sy = 272 + hh(i, 6, 2) * 390; dot(sx, sy, 1.2 + 1.3 * hh(i, 6, 3), '#ffffff', 0.25 + 0.55 * Math.abs(Math.sin(a * 1.4 + i * 2))); }
+      dot(cx, my, 78 + 4 * Math.sin(a * 2), t.accent, 0.12); dot(cx, my, 58, t.accent, 0.2);
+      g.lineStyle(3, C(t.accent), 0.8); g.beginPath(); g.arc(cx, my, 46, a, a + 4.2); g.strokePath();
+      g.lineStyle(2, C('#ffffff'), 0.6); g.beginPath(); g.arc(cx, my, 36, -a * 1.4, -a * 1.4 + 3); g.strokePath();
+      lockIcon(cx, my - 2, 1.9, t.btnText);
+      txt(cx, 548, 'WORLD 6', 34, t.accent);
+      txt(cx, 586, 'COMING SOON', 22, t.btnText);
+      txt(cx, 622, 'New puzzles, new mechanics.', 14, t.text, 0.5, false);
+      button(W / 2, 722, 320, 54, 'Locked', null, { disabled: true, size: 20 });
+      return;
     }
     // level grid
     const tile = 76, gap = 13, x0 = (W - (5 * tile + 4 * gap)) / 2, y0 = 262;
