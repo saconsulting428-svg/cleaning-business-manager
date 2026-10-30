@@ -2499,7 +2499,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     return best;
   }
   // Fruit places are made once per level (first entry), saved, and reused on every retry / restart.
-  const FRUIT_KEY = 'snakeFruitRush.fruit.v2';
+  const FRUIT_KEY = 'snakeFruitRush.fruit.v3';
   // Fruit in tight spots: of several valid random layouts (all on the stored route, never touching), keep the one whose fruit sit in the narrowest
   // gaps. More candidates on later levels, so the pull towards tight corridors grows with the level number.
   function tightness(base, F) {
@@ -2514,21 +2514,69 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     });
     return s;
   }
-  function tightFruit(base, id) {
-    let best = null, bs = -1;
-    const n = 2 + Math.ceil(id * 0.3);
-    for (let i = 0; i < n; i++) {
-      const F = randomFruit(base).F, sc = tightness(base, F);
-      if (sc > bs) { bs = sc; best = F; }
+  function fruitCount(id) {                                          // fruit per level: more and more as the campaign goes on
+    if (id <= 5) return 3;
+    if (id <= 10) return 4;
+    if (id <= 20) return id <= 15 ? 4 : 5;
+    if (id <= 30) return 5;
+    if (id <= 40) return id <= 35 ? 5 : 6;
+    if (id <= 50) return 6;
+    if (id <= 60) return id <= 55 ? 6 : 7;
+    if (id <= 70) return 7;
+    if (id <= 80) return id <= 75 ? 7 : 8;
+    return 8;
+  }
+  const D4V = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+  function routeWins(base, F) {                                      // the stored solution must still win with this layout (same replay as the validator)
+    const L2 = Object.assign({}, base, { F: F }), rt = E.makeRuntime(engineLevel(L2)), st = E.newState(rt), route = base.R;
+    let status = 'ok';
+    for (let k = 1; k < route.length; k++) {
+      const cur = route[k], head = st.body[0], d = D4V.findIndex((v) => v[0] === (cur % COLS) - (head % COLS) && v[1] === ((cur / COLS) | 0) - ((head / COLS) | 0));
+      if (d < 0) return false;
+      let q, g = 0;
+      do { q = E.step(rt, st, D4V[d]); g++; } while (q.status === 'wait' && g < 5);
+      status = q.status;
+      if (status === 'fail') return false;
+      if ((base.P || []).some((pp) => (pp[1] * COLS + pp[0]) === cur)) k++;
     }
-    return best;
+    return status === 'win';
+  }
+  function fruitPool(base) {                                         // route cells a fruit may sit on (never devices, bombs, portals, start lane, exit)
+    const bl = base.B ? lvLayer(base.B) : null, bad = new Set(), R = base.R;
+    [base.K, base.D, base.G].forEach((a) => (a || []).forEach((c) => bad.add(c[1] * COLS + c[0])));
+    (base.S || []).forEach((s) => bad.add(s[1] * COLS + s[0]));
+    (base.P || []).forEach((p) => { bad.add(p[1] * COLS + p[0]); bad.add(p[3] * COLS + p[2]); });
+    const out = [];
+    for (let k = 4; k < R.length - 2; k++) if (!bad.has(R[k]) && !(bl && bl[R[k]])) out.push(R[k]);
+    return out;
+  }
+  function tightFruit(base, id) {
+    const want = fruitCount(id), pool = fruitPool(base), tries = 4 + Math.ceil(id * 0.4), R = base.R;
+    for (let n = want; n >= 1; n--) {
+      let best = null, bs = -1, found = 0;
+      for (let i = 0; i < tries * 6 && found < tries; i++) {
+        const p = pool.slice(), F = [];
+        while (p.length && F.length < n) {
+          const c = p.splice(rnd(p.length), 1)[0], x = c % COLS, y = (c / COLS) | 0;
+          if (F.every((o) => Math.max(Math.abs(o[0] - x), Math.abs(o[1] - y)) >= 2)) F.push([x, y]);
+        }
+        if (F.length < n || !routeWins(base, F)) continue;
+        found++;
+        const last = Math.max.apply(null, F.map((f) => R.indexOf(f[1] * COLS + f[0])));
+        const sc = tightness(base, F) + Math.min(4, (R.length - 1 - last) / 8);   // tight gaps + a longer trip to the exit afterwards
+        if (sc > bs) { bs = sc; best = F; }
+      }
+      if (best) return best;
+    }
+    return base.F;
   }
   function fruitSaved(id, base) {
     let m = {};
     try { m = JSON.parse(localStorage.getItem(FRUIT_KEY)) || {}; } catch (e) { m = {}; }
     const f = m[id], q = lvLayer(base.Q);
-    const ok = Array.isArray(f) && f.length === base.F.length && f.every((c) => Array.isArray(c) && c[0] >= 0 && c[0] < COLS && c[1] >= 0 && c[1] < ROWS && q[c[1] * COLS + c[0]])
-      && f.every((a, i) => f.every((b, j) => i === j || Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])) >= 2));
+    const pool = new Set(fruitPool(base));
+    const ok = Array.isArray(f) && f.length >= 1 && f.length <= fruitCount(id) && f.every((c) => Array.isArray(c) && c[0] >= 0 && c[0] < COLS && c[1] >= 0 && c[1] < ROWS && pool.has(c[1] * COLS + c[0]))
+      && f.every((a, i) => f.every((b, j) => i === j || Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])) >= 2)) && routeWins(base, f);
     if (ok) return f;
     const F2 = tightFruit(base, id);
     m[id] = F2;
