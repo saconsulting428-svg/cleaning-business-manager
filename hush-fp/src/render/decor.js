@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { canvasTexture } from './textures.js';
 
 export const KIND_TINT = {
+  archive: [1.02, 0.96, 0.84], canteen: [1.08, 1.0, 0.9], hall: [0.96, 0.98, 1.0],
   specimen: [0.8, 1.14, 1.0], medical: [1.0, 1.1, 1.08], maintenance: [1.1, 0.98, 0.82], generator: [1.18, 0.9, 0.74],
   storage: [1.08, 0.98, 0.88], office: [0.94, 1.0, 1.06], machine: [1.14, 0.94, 0.78], vault: [0.84, 0.95, 1.1],
   pump: [0.84, 1.05, 1.14], tanks: [0.84, 1.12, 0.96], control: [0.8, 0.95, 1.24], sluice: [0.92, 1.06, 0.96],
@@ -11,12 +12,14 @@ export const KIND_TINT = {
   reception: [1.05, 1.0, 0.92], lab: [0.9, 1.08, 1.04], security: [0.88, 0.98, 1.14], observation: [1.0, 1.0, 1.1], boiler: [1.18, 0.92, 0.76], filter: [0.86, 1.08, 1.1], tunnel: [1.1, 0.9, 0.78], queen: [1.28, 0.74, 0.9]
 };
 export const KIND_LAMP = {
+  archive: 0xffe0b0, canteen: 0xfff0d0, hall: 0xe8f0ff,
   specimen: 0x8affd8, medical: 0xe8fff4, maintenance: 0xffb860, generator: 0xff8a30,
   storage: 0xffd49a, office: 0xffeacc, machine: 0xffa347, vault: 0xc4dcff, pump: 0x98e2ff, tanks: 0x9effd0, control: 0x84b4ff, sluice: 0xd0e8ff,
   hive: 0xff4634, cells: 0xffb4a4, bonepit: 0xff6e44, nursery: 0xff4a6a,
   reception: 0xffe8c8, lab: 0xd0ffe8, security: 0x9ac4ff, observation: 0xc8d8ff, boiler: 0xff9038, filter: 0x9ae8ff, tunnel: 0xff6a48, queen: 0xff3a5a
 };
 const TEXTS = {
+  archive: ['ARCHIVE', 'RECORDS', 'SILENCE'], canteen: ['CANTEEN', 'STAFF ONLY', 'CLEAN UP'], hall: ['CORRIDOR C', 'KEEP QUIET', 'MIND THE GAP'],
   specimen: ['SPECIMEN 12', 'DO NOT TAP', 'CONTAINMENT'], medical: ['MEDICAL', 'SAMPLES', 'STERILE'], maintenance: ['MAINTENANCE', 'AUTHORISED', 'WATCH YOUR HEAD'], generator: ['GENERATOR', 'HIGH VOLTAGE', 'HEARING PROTECTION'],
   storage: ['SECTOR B-07', 'STORAGE', 'NO ENTRY', 'KEEP QUIET'], office: ['OFFICE', 'STAFF ONLY', 'KEEP QUIET', 'ROOM 12'], machine: ['DANGER', 'HIGH VOLTAGE', 'GENERATOR 2', 'AUTHORISED'],
   vault: ['VAULT', 'AUTHORISED ONLY', 'NO ENTRY'], pump: ['PUMP STATION', 'FLOODING RISK', 'LEVEL -3'], tanks: ['TANK 4', 'BIOHAZARD', 'DRAIN'], control: ['CONTROL', 'DO NOT TOUCH', 'SYSTEM 3'],

@@ -67,7 +67,7 @@ const Sound = (function () {
   function buzz(p) { if (!st.vibe || !real) return; try { const H = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics; if (H && typeof p === 'number') { H.vibrate({ duration: p }); return; } if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* no haptics */ } }
 
   /* a cue fired again within a few hundredths of a second only adds loudness, so it is dropped */
-  const lastAt = {}, GAP = { cstep: 0.1, step: 0.09, glass: 0.09, heart: 0.25, ui: 0.05, genPulse: 0.2, radioPulse: 0.2, growl: 0.8, roar: 1.0, drip: 0.4, skit: 0.2, debris: 0.12, hiss: 1.5, zap: 0.4, breath: 1.5, creak: 1, groan: 2, knock: 1, thump: 1 };
+  const lastAt = {}, GAP = { cstep: 0.1, step: 0.09, glass: 0.09, heart: 0.25, ui: 0.05, genPulse: 0.2, radioPulse: 0.2, growl: 0.8, roar: 1.0, drip: 0.4, scrape: 0.5, voice: 1, clicks: 1, beep: 0.5, hum: 2, skit: 0.2, debris: 0.12, hiss: 1.5, zap: 0.4, breath: 1.5, creak: 1, groan: 2, knock: 1, thump: 1 };
   function fresh(n) { if (!ac) return true; const t = ac.currentTime, g = GAP[n] === undefined ? 0.06 : GAP[n]; if (lastAt[n] !== undefined && t - lastAt[n] < g) return false; lastAt[n] = t; return true; }
   const rr = function (k) { return 1 + (Math.random() - 0.5) * 2 * k; };
 
@@ -143,6 +143,17 @@ const Sound = (function () {
     machine: function (o) { const v = o ? o.v : 1, w = { wet: 0.6, pan: o && o.pan }; tone(55, 2.2, Object.assign({ type: 'sawtooth', vol: 0.1 * v, to: 190, lp: 500, att: 0.5 }, w)); noise(2.2, Object.assign({ ft: 'lowpass', freq: 200, fto: 700, vol: 0.12 * v, att: 0.4 }, w)); tone(46, 1.4, Object.assign({ vol: 0.2 * v, att: 0.1, delay: 1.2 }, w)); },
     surge: function () { const w = { wet: 0.6 }; tone(320, 1.1, Object.assign({ type: 'sawtooth', vol: 0.07, to: 38, lp: 900, att: 0.01 }, w)); noise(0.9, Object.assign({ ft: 'bandpass', freq: 1800, fto: 200, q: 1.2, vol: 0.1, att: 0.01 }, w)); tone(50, 0.9, Object.assign({ vol: 0.2, att: 0.02, delay: 0.5 }, w)); },
     debris: function (o) { const c = o && o.crouch, v = c ? 0.4 : 1, w = { wet: 0.2 }; for (let i = 0; i < 4; i++) noise(0.04 + Math.random() * 0.04, Object.assign({ ft: 'bandpass', freq: 1500 + Math.random() * 1800, q: 2, vol: 0.09 * v, att: 0.002, delay: i * 0.02 }, w)); tone(130, 0.08, Object.assign({ vol: 0.06 * v, to: 80 }, w)); },
+    /* v10: the fear beats */
+    phone: function () { const w = { wet: 0.6 }; for (let i = 0; i < 2; i++) { tone(1320, 0.22, Object.assign({ type: 'square', vol: 0.05, lp: 2600, delay: i * 0.42 }, w)); tone(1480, 0.22, Object.assign({ type: 'square', vol: 0.05, lp: 2600, delay: i * 0.42 + 0.02 }, w)); } },
+    scrape: function (o) { const w = { wet: 0.6, pan: o && o.pan }; noise(1.3, Object.assign({ ft: 'bandpass', freq: 1400, fto: 500, q: 4, vol: 0.08, att: 0.2 }, w)); noise(0.7, Object.assign({ ft: 'highpass', freq: 3200, vol: 0.03, att: 0.1, delay: 0.5 }, w)); },
+    voice: function (o) { const st2 = o && o.static, w = { wet: 0.7 }; [196, 233, 175, 208].forEach(function (f, i) { tone(f, 0.18, Object.assign({ type: 'sawtooth', vol: 0.06, lp: 900, att: 0.01, delay: i * 0.2 }, w)); }); noise(st2 ? 1.4 : 0.9, Object.assign({ ft: 'bandpass', freq: 1700, q: 1.4, vol: st2 ? 0.1 : 0.05, att: 0.05 }, w)); },
+    clicks: function (o) { const w = { wet: 0.8, pan: o && o.pan }; [0, 0.16, 0.32, 0.9, 1.06, 1.22].forEach(function (d) { noise(0.02, Object.assign({ ft: 'bandpass', freq: 3000, q: 5, vol: 0.1, att: 0.001, delay: d }, w)); tone(1900, 0.03, Object.assign({ vol: 0.04, delay: d }, w)); }); },
+    motor: function () { const w = { wet: 0.6 }; tone(48, 2.4, Object.assign({ type: 'sawtooth', vol: 0.12, to: 70, lp: 260, att: 0.6 }, w)); noise(2.4, Object.assign({ ft: 'lowpass', freq: 220, fto: 120, vol: 0.1, att: 0.5 }, w)); },
+    lift: function () { const w = { wet: 0.6 }; tone(120, 1.8, Object.assign({ type: 'triangle', vol: 0.06, to: 80, lp: 500, att: 0.3 }, w)); noise(1.8, Object.assign({ ft: 'bandpass', freq: 400, fto: 300, q: 2, vol: 0.06, att: 0.4 }, w)); tone(880, 0.5, Object.assign({ type: 'sine', vol: 0.05, delay: 1.9 }, w)); },
+    beep: function () { tone(1040, 0.12, { type: 'square', vol: 0.05, lp: 2400, wet: 0.3 }); },
+    hum: function (o) { const w = { wet: 0.7, pan: o && o.pan }; tone(92, 3.2, Object.assign({ vol: 0.07, att: 1.0, vib: [5, 3] }, w)); tone(97, 3.2, Object.assign({ vol: 0.05, att: 1.0 }, w)); },
+    faintPing: function () { const w = { wet: 0.95 }; tone(1640, 2.2, Object.assign({ vol: 0.03, att: 0.01 }, w)); tone(820, 1.6, Object.assign({ vol: 0.012, att: 0.01 }, w)); },
+    crack2: function () { const w = { wet: 0.4 }; noise(0.09, Object.assign({ ft: 'highpass', freq: 2400, vol: 0.14, att: 0.001 }, w)); tone(160, 0.25, Object.assign({ vol: 0.1, to: 60 }, w)); noise(0.3, Object.assign({ ft: 'bandpass', freq: 500, q: 1.4, vol: 0.06, att: 0.04, delay: 0.1 }, w)); },
     drip: function (o) { tone(1400 + (o ? o.f : 0) * 800, 0.12, { vol: 0.06, to: 620, dest: mus, pan: o ? o.pan : 0, wet: 0.85, att: 0.003 }); },
     creak: function (o) { noise(1.1, { ft: 'bandpass', freq: 200 + (o ? o.f : 0) * 220, fto: 160, q: 7, vol: 0.1, att: 0.3, dest: mus, pan: o ? o.pan : 0, wet: 0.6 }); },
     groan: function (o) { tone(78, 2.2, { vol: 0.07, to: 58, att: 0.8, dest: mus, pan: o ? o.pan : 0, wet: 0.8, vib: [0.4, 2] }); noise(2.2, { ft: 'bandpass', freq: 150, q: 3, vol: 0.05, att: 0.8, dest: mus, wet: 0.6 }); },
@@ -208,6 +219,8 @@ const Sound = (function () {
     unlock: function () { if (ctx()) startLoops(); },
     scene, tick: ambientTick, buzz,
     /* the ping briefly pulls the ambience down so the information it carries is heard */
+    /* a few seconds in which the whole soundscape drops away */
+    silence: function (sec) { if (!ac || !mus) return; const g = mus.gain, t = ac.currentTime, v = st.music ? st.mvol * 0.55 : 0; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0.003, t + 0.25); g.linearRampToValueAtTime(v, t + (sec || 4)); },
     duck: function () { if (!ac) return; const g = mus.gain, t = ac.currentTime, v = st.music ? st.mvol * 0.55 : 0; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(v * 0.45, t + 0.04); g.linearRampToValueAtTime(v, t + 1.1); },
     suspend: function () { if (ac && real && ac.state === 'running') ac.suspend(); }, resume: function () { if (ac && real && ac.state !== 'running') { try { ac.resume(); } catch (e) { /* ok */ } } },
     useContext: function (a, lightMode) { real = false; ac = null; voices = 0; started = false; loops = null; for (const k in lastAt) delete lastAt[k]; for (const k in ambT) delete ambT[k]; build(a, !!lightMode); },

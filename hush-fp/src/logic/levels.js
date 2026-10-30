@@ -1,62 +1,71 @@
-/* HUSH: Echoes in the Dark - 40 level specs. The generator turns each spec into a deterministic facility layout (rooms, corridors, gates, items, creatures).
-   gates: the locks between you and the exit, in the order they appear along the route. key/card = an item somewhere behind you; power = find fuses and run the generator;
-   code = read a note, type the code; valve = turn a bulkhead valve; secret = a hidden door that only a sonar pulse reveals. */
+/* HUSH: Echoes in the Dark - the 50 levels of the campaign (chapter 1: levels 1-17, chapter 2: 18-34, chapter 3: 35-50), authored from the 50-Level Campaign & Map Design document.
+   Each level has its own name, its ROUTE (the rooms in the order the player travels them: the generator builds exactly these rooms, with the shape, props and lighting of their kind),
+   objective chain (gates), creatures, hazards and one fear beat. The generator keeps coordinates procedural but preserves the route, the dependencies and the fairness guarantees.
+   gates: the locks between you and the exit, in order. key/card = an item somewhere behind you; power = find fuses and run the generator; code = read a note, type the code;
+   valve = turn a bulkhead valve; breaker = flip every breaker; secret = a hidden door that only a sonar pulse reveals. */
 export const CHAPTERS = [
   { name: 'Abandoned Facility', line: 'Find a way out of the facility.', theme: 'concrete' },
   { name: 'The Flooded Section', line: 'The machines still run. So does it.', theme: 'flood' },
   { name: 'The Nest', line: 'It was never the only one.', theme: 'nest' }
 ];
-const S = (name, hint, ch, seed, rooms, o) => Object.assign({ name, hint, ch, seed, rooms, gates: [], creatures: [], pulses: 3, glass: 0, lockers: 3, vents: 0, radio: false, water: false, dark: false, fuses: 1, lightsOut: false, par: 0 }, o || {});
+const L = (name, hint, ch, seed, route, o) => Object.assign({ name, hint, ch, seed, rooms: Math.max(4, route.length), route, gates: [], creatures: [], pulses: 3, glass: 0, lockers: 3, vents: 0, radio: false, water: false, dark: false, fuses: 1, lightsOut: false, par: 0 }, o || {});
 export const LEVELS = [
-  /* chapter 1 */
-  S('First Contact', 'Walk with the left stick, look with the right. Open doors with USE. Reach the exit.', 0, 11, 4, { tutorial: 'move', lockers: 1 }),
-  S('Echo', 'A dead end? Use a sonar PULSE to see what the dark is hiding.', 0, 12, 5, { gates: ['secret'], tutorial: 'pulse', lockers: 1 }),
-  S('Reception', 'Keys are kept on desks, not on doors. Check the side rooms.', 0, 41, 5, { gates: ['key'], tutorial: 'key', lockers: 1 }),
-  S('Stay Low', 'It is watching this place. CROUCH: it sees a crouching survivor only from close up.', 0, 13, 5, { creatures: ['sentinel'], gates: ['card'], tutorial: 'crouch', lockers: 2 }),
-  S('Broken Glass', 'Debris is loud. Crouch over it, or something will come.', 0, 14, 5, { creatures: ['stalker'], gates: ['key'], glass: 7, lockers: 2 }),
-  S('Hold Your Breath', 'Hide in a locker and let it walk past. Never run in front of it.', 0, 15, 6, { creatures: ['stalker'], gates: ['card'], lockers: 4, tutorial: 'hide' }),
-  S('Keycard', 'The exit is locked. The keycard is somewhere behind you.', 0, 16, 6, { creatures: ['sentinel'], gates: ['card'], alarm: true }),
-  S('Security Office', 'The code is on a note. A guard stands in the corridor: wait for it to leave.', 0, 42, 6, { creatures: ['sentinel'], gates: ['code'], lockers: 2 }),
-  S('The Long Way Round', 'Vents are too small for it. Pulses find the hidden ones.', 0, 17, 7, { creatures: ['stalker', 'sentinel'], gates: ['breaker', 'card'], breakers: 2, vents: 1 }),
-  S('Bait', 'It goes to where the sound was made. Use the radio, then slip past.', 0, 18, 6, { creatures: ['stalker'], gates: ['key'], radio: true, alarm: true, tutorial: 'radio' }),
-  S('Observation Deck', 'Two locks, one of them hidden. Pulse near the glass.', 0, 43, 7, { creatures: ['stalker', 'sentinel'], gates: ['card', 'secret'], vents: 1 }),
-  S('Crawlspace', 'A hidden door and a vent. Pulse, listen, move.', 0, 19, 7, { creatures: ['stalker'], gates: ['secret', 'key'], vents: 1 }),
-  S('Run', 'It has seen you. RUN. Find the vent.', 0, 20, 7, { creatures: ['stalker'], gates: ['card'], vents: 1, hunted: true, pulses: 2 }),
-  /* chapter 2 */
-  S('Static', 'The radio still works. Use it to pull the guard away from the keycard.', 1, 21, 7, { creatures: ['sentinel'], gates: ['card'], radio: true, water: true }),
-  S('Power Down', 'The exit has no power. The generator is loud.', 1, 22, 7, { creatures: ['stalker'], gates: ['power'], fuses: 1, water: true }),
-  S('Pump Station', 'Turn the valve, then find the key. Water carries every step.', 1, 44, 7, { creatures: ['stalker'], gates: ['valve', 'key'], water: true }),
-  S('Thin Walls', 'This one is nearly blind. It hears everything. Crouch near it.', 1, 23, 7, { creatures: ['listener'], gates: ['key'], water: true }),
-  S('Service Tunnels', 'Doors are loud when they open. Know where it is first.', 1, 24, 8, { creatures: ['stalker'], gates: ['breaker', 'key'], breakers: 2, water: true }),
-  S('Descent', 'Open the bulkhead valve, then find the card.', 1, 25, 8, { creatures: ['stalker', 'listener'], gates: ['valve', 'card'], water: true }),
-  S('Short Circuit', 'The code is written somewhere dry. The listener hears every door.', 1, 45, 8, { creatures: ['listener'], gates: ['breaker', 'card'], breakers: 3, water: true }),
-  S('Feedback', 'It stands over the keycard. Give it a reason to leave.', 1, 26, 8, { creatures: ['sentinel'], gates: ['card'], radio: true, alarm: true, water: true }),
-  S('Generator Room', 'Two fuses, one generator. Start it, then be somewhere else.', 1, 27, 8, { creatures: ['stalker'], gates: ['power'], fuses: 2, water: true }),
-  S('Glass Garden', 'Shattered tanks everywhere. Even crouching, glass whispers.', 1, 28, 8, { creatures: ['listener'], gates: ['key'], glass: 16, alarm: true, water: true }),
-  S('Blackout', 'One sonar charge. Make it count. The lights are dead.', 1, 29, 8, { creatures: ['stalker'], gates: ['card'], pulses: 1, lightsOut: true, water: true }),
-  S('Flood Gate', 'Valve, then power. Two sounds it will not ignore.', 1, 46, 9, { creatures: ['stalker', 'listener'], gates: ['valve', 'power'], fuses: 1, water: true }),
-  S('Meltdown', 'Start the generator. Then run for the exit.', 1, 30, 9, { creatures: ['stalker', 'stalker'], gates: ['power'], fuses: 2, water: true }),
-  /* chapter 3 */
-  S('Two of Them', 'Two patrols. Count their steps.', 2, 31, 8, { creatures: ['stalker', 'stalker'], gates: ['card'], alarm: true }),
-  S('Blind Spot', 'The guard looks one way, then the other. Take the key when its back is turned.', 2, 32, 8, { creatures: ['sentinel', 'sentinel'], gates: ['key'] }),
-  S('Above and Below', 'A hunter and a listener. Sound travels.', 2, 33, 9, { creatures: ['stalker', 'listener'], gates: ['power'], fuses: 1 }),
-  S('Cell Block', 'Two locks. The cells are not all empty.', 2, 34, 9, { creatures: ['stalker', 'listener'], gates: ['breaker', 'key'], breakers: 3, alarm: true, lockers: 5 }),
-  S('Containment', 'Card, then code. The cells are not quiet.', 2, 47, 9, { creatures: ['stalker', 'sentinel'], gates: ['card', 'code'], lockers: 4 }),
-  S('Decoy', 'Two guards. One radio. One generator.', 2, 35, 9, { creatures: ['sentinel', 'sentinel'], gates: ['power'], fuses: 2, radio: true, alarm: true }),
-  S('Dead Air', 'The sonar is dead. Listen.', 2, 36, 9, { creatures: ['stalker', 'listener'], gates: ['code'], pulses: 0 }),
-  S('Egg Chamber', 'Be quiet. They hatch to sound.', 2, 48, 10, { creatures: ['listener', 'listener', 'stalker'], gates: ['breaker'], breakers: 2, lockers: 5 }),
-  S('The Shaft', 'A key at the bottom, the exit at the top.', 2, 37, 10, { creatures: ['stalker', 'stalker'], gates: ['key', 'card'], vents: 2 }),
-  S('The Hive', 'They cannot see you. They can hear your heart.', 2, 38, 10, { creatures: ['listener', 'listener', 'listener'], gates: ['code'], lockers: 5 }),
-  S('Breach', 'Valve, key, and a vent too small for them.', 2, 49, 10, { creatures: ['stalker', 'stalker', 'listener'], gates: ['valve', 'key'], vents: 2, alarm: true }),
-  S('Last Light', 'Keycard, power, and a hidden way out. Everything you know.', 2, 39, 10, { creatures: ['stalker', 'listener'], gates: ['card', 'power', 'secret'], fuses: 1, vents: 1 }),
-  S('The Source', 'No more answers to give. Everything you learned, in the dark.', 2, 50, 10, { creatures: ['stalker', 'listener', 'sentinel'], gates: ['code', 'power'], fuses: 1, pulses: 1, lightsOut: true }),
-  S('Extraction', 'They all know you are here. Do not stop.', 2, 40, 10, { creatures: ['stalker', 'stalker', 'sentinel'], gates: ['power', 'key'], fuses: 2, hunted: true, radio: true })
+  L("First Contact", "Reach the exit; learn movement, looking and basic interaction.", 0, 137, ["Reception", "Security Desk", "Open Office", "Service Corridor", "Exit Lobby"], {"gates": [], "creatures": [], "beat": "phoneRing", "tutorial": "move"}),
+  L("Echo Chamber", "Use one sonar pulse to reveal a concealed passage, then escape.", 0, 174, ["Storage", "Echo Test Room", "Acoustic Hall", "False Wall", "Exit Passage"], {"gates": ["secret"], "creatures": ["stalker"], "beat": "pulseGhost", "pulses": 2, "tutorial": "pulse"}),
+  L("Reception After Hours", "Find the brass key and unlock the lobby.", 0, 211, ["Reception", "Records Office", "Staff Room", "Key Cabinet", "Locked Lobby", "Exit"], {"gates": ["key"], "creatures": ["stalker"], "beat": "cctv", "tutorial": "key"}),
+  L("The Watching Hall", "Find the keycard while staying outside a Sentinel's sight line.", 0, 248, ["Office Wing", "Glass Hall", "Guard Post", "Keycard Office", "Exit Stair"], {"gates": ["card"], "creatures": ["sentinel"], "beat": "stare", "glass": 6, "tutorial": "crouch"}),
+  L("Broken Glass", "Retrieve the key and cross the glass hall quietly.", 0, 285, ["Supply Room", "Shattered Display Hall", "Janitor Closet", "Key Room", "Exit"], {"gates": ["key"], "creatures": ["stalker"], "beat": "glassCrack", "glass": 9}),
+  L("Hold Your Breath", "Reach the exit; use lockers to evade the Stalker.", 0, 322, ["Locker Room", "Narrow Offices", "Archive", "Patrol Corridor", "Exit"], {"gates": [], "creatures": ["stalker"], "beat": "sniff", "lockers": 3}),
+  L("Access Denied", "Find the keycard and open the access-controlled door.", 0, 359, ["Security Desk", "Camera Room", "Keycard Store", "Power Hall", "Exit"], {"gates": ["card"], "creatures": ["sentinel"], "beat": "cctvBehind", "alarm": true}),
+  L("Four Digits", "Find a note with the four-digit code and enter it at the keypad.", 0, 396, ["Office Cubicles", "Supervisor Room", "Note Archive", "Keypad Door", "Exit"], {"gates": ["code"], "creatures": ["sentinel"], "beat": "noteWrite", "small": ["crawler"]}),
+  L("The Long Way Round", "Activate two breakers and use a vent shortcut to bypass the patrol.", 0, 433, ["Maintenance Store", "Vent Junction", "Service Hall", "Breaker Room", "Exit"], {"gates": ["breaker"], "creatures": ["stalker", "sentinel"], "beat": "ductScrape", "vents": 1, "breakers": 2, "setpiece": "outage"}),
+  L("Bait", "Use the radio lure to draw the Stalker away, take the key and escape.", 0, 470, ["Radio Room", "Dispatch Hall", "Key Cabinet", "Loading Corridor", "Exit"], {"gates": ["key"], "creatures": ["stalker"], "beat": "radioVoice", "radio": true}),
+  L("Observation Deck", "Use sonar to reveal a hidden door and retrieve a keycard.", 0, 507, ["Observation Window", "Lab Prep", "Hidden Door", "Card Reader", "Exit"], {"gates": ["secret", "card"], "creatures": ["stalker", "sentinel"], "beat": "clawWindow", "glass": 4, "small": ["dropper"]}),
+  L("Crawlspace", "Find a hidden passage, crawl through the vent and unlock the storage cage.", 0, 544, ["Office Ruins", "Hidden Passage", "Vent Crawl", "Storage Cage", "Exit"], {"gates": ["secret", "key"], "creatures": ["stalker"], "beat": "lockerRock", "vents": 1, "setpiece": "sighting"}),
+  L("Run", "Escape a triggered hunt using sprint and a vent.", 0, 581, ["Emergency Stair", "Security Hall", "Medical Store", "Vent Exit", "Safe Door"], {"gates": [], "creatures": ["stalker"], "beat": "redWave", "pulses": 2, "vents": 1, "hunted": true}),
+  L("Night Shift Log", "Find the radio battery/keycard and reach the exit; recover an optional log.", 0, 618, ["Staff Canteen", "Records Room", "Radio Alcove", "Keycard Door", "Exit"], {"gates": ["card"], "creatures": ["sentinel"], "beat": "oldLog", "radio": true}),
+  L("Power Down", "Find a fuse, start the generator and reach the powered exit.", 0, 655, ["Electrical Store", "Fuse Cabinet", "Generator Bay", "Cable Corridor", "Exit"], {"gates": ["power"], "creatures": ["stalker"], "beat": "motorBelow", "fuses": 1, "small": ["crawler"]}),
+  L("The Sealed Wing", "Find a keycard and uncover the sealed east wing.", 0, 692, ["Admin Lobby", "False Wall", "Old Test Rooms", "Keycard Control", "Exit Lift"], {"gates": ["secret", "card"], "creatures": ["stalker"], "beat": "floorPlan"}),
+  L("Floodline", "Find the valve handle and open the first flood bulkhead.", 0, 729, ["Decontamination", "Wet Corridor", "Pump Office", "Dry Store", "Exit Bulkhead"], {"gates": ["valve"], "creatures": ["listener"], "beat": "waterShape", "water": true, "small": ["crawler"]}),
+  L("The Listening Tank", "Retrieve the keycard without disturbing the specimen tanks.", 1, 766, ["Specimen Prep", "Tank Gallery", "Observation Booth", "Keycard Room", "Exit"], {"gates": ["card"], "creatures": ["listener"], "beat": "handprint", "water": true, "glass": 6}),
+  L("Valve B-3", "Turn valve B-3, then reach the control booth.", 1, 803, ["Pump Gallery", "Valve Chamber", "Flooded Service Hall", "Control Booth", "Exit"], {"gates": ["valve"], "creatures": ["stalker"], "beat": "valveTwitch", "water": true, "small": ["dropper"], "setpiece": "machine"}),
+  L("Thin Walls", "Find the four-digit code in a dry room and unlock the exit.", 1, 840, ["Medical Bay", "Isolation Rooms", "Sound Test Corridor", "Code Office", "Exit"], {"gates": ["code"], "creatures": ["listener"], "beat": "breathFollow"}),
+  L("Service Tunnels", "Activate two breakers and reach the powered service door.", 1, 877, ["Drain Junction", "Pipe Gallery", "Breaker Room A", "Breaker Room B", "Exit"], {"gates": ["breaker"], "creatures": ["stalker"], "beat": "swingLamp", "breakers": 2, "water": true, "small": ["crawler"]}),
+  L("Descent", "Open the bulkhead and retrieve the keycard from the lower observation room.", 1, 914, ["Upper Lab", "Lift Control", "Bulkhead Valve", "Lower Observation", "Exit"], {"gates": ["valve", "card"], "creatures": ["stalker", "listener"], "beat": "liftUnlisted", "water": true}),
+  L("Short Circuit", "Find the code, activate breakers and unlock the control gate.", 1, 951, ["Wet Electrical Hall", "Dry Note Room", "Panel 9", "Keycard Gate", "Exit"], {"gates": ["code", "breaker"], "creatures": ["listener"], "beat": "lightsPulse", "breakers": 2, "water": true, "small": ["crawler"]}),
+  L("Feedback", "Use the radio to pull the Sentinel away from the keycard door.", 1, 988, ["Glass Garden", "Specimen Walkway", "Radio Station", "Card Reader", "Exit"], {"gates": ["card"], "creatures": ["sentinel", "listener"], "beat": "tankClicks", "radio": true, "water": true, "glass": 10}),
+  L("Generator Room", "Collect two fuses, start the generator and cross the emergency bridge.", 1, 1025, ["Fuse Store", "Pump Control", "Generator Hall", "Emergency Bridge", "Exit"], {"gates": ["power"], "creatures": ["stalker"], "beat": "genShadow", "fuses": 2, "water": true, "setpiece": "genroom"}),
+  L("Glass Garden", "Retrieve the key and cross the glass garden using the dry perimeter.", 1, 1062, ["Botanical Lab", "Broken Tank Aisle", "Sample Archive", "Key Room", "Exit"], {"gates": ["key"], "creatures": ["listener"], "beat": "tapThree", "water": true, "glass": 16, "small": ["crawler"]}),
+  L("Blackout Protocol", "Use a single sonar charge to find the keycard route in blackout.", 1, 1099, ["Dark Lab", "Emergency Locker", "Sonar Junction", "Card Door", "Exit"], {"gates": ["card"], "creatures": ["stalker"], "beat": "pulseGhost3", "pulses": 1, "lightsOut": true}),
+  L("Flood Gate", "Turn the valve, restore power and raise the flood gate.", 1, 1136, ["Lower Pump Hall", "Valve B-4", "Generator Niche", "Flood Gate", "Exit"], {"gates": ["valve", "power"], "creatures": ["stalker", "listener"], "beat": "ceilClaws", "fuses": 1, "water": true, "small": ["dropper"]}),
+  L("Meltdown", "Start the generator with two fuses and reach the lift before the core overheats.", 1, 1173, ["Reactor Access", "Fuse Cage", "Generator Core", "Cooling Walkway", "Lift Exit"], {"gates": ["power"], "creatures": ["stalker", "stalker"], "beat": "coreCountdown", "fuses": 2}),
+  L("Two of Them", "Find the key and pass two overlapping patrol routes.", 1, 1210, ["Nest Threshold", "Split Corridor", "Watch Room", "Key Alcove", "Exit"], {"gates": ["key"], "creatures": ["stalker", "stalker"], "beat": "circleSteps", "setpiece": "impact"}),
+  L("Blind Spot", "Take the key while the Sentinel looks away; use pillars to break sight.", 1, 1247, ["Observation Perch", "Pillar Hall", "Sentinel Nest", "Key Room", "Exit"], {"gates": ["key"], "creatures": ["sentinel", "sentinel"], "beat": "stare", "small": ["crawler"]}),
+  L("Above and Below", "Find a fuse and power the lift while navigating upper and lower paths.", 1, 1284, ["Vertical Shaft", "Catwalk", "Drain Room", "Fuse Bay", "Exit"], {"gates": ["power"], "creatures": ["stalker", "listener"], "beat": "ceilCrawl", "water": true}),
+  L("Cell Block", "Activate three breakers and escape through the cell block.", 1, 1321, ["Cell Corridor", "Control Booth", "Open Cells", "Breaker Room", "Exit"], {"gates": ["breaker"], "creatures": ["stalker", "listener"], "beat": "seatedShadow", "breakers": 3}),
+  L("Containment", "Find keycard and code, then unlock the containment gate.", 1, 1358, ["Decon Hall", "Specimen Cells", "Code Archive", "Keycard Gate", "Exit"], {"gates": ["card", "code"], "creatures": ["stalker", "sentinel"], "beat": "intercom", "water": true, "setpiece": "cell"}),
+  L("Decoy", "Start the generator and use the radio to split two Sentinel patrols.", 2, 1395, ["Radio Chamber", "Generator Niche", "Guard Walkway", "Lift Lobby", "Exit"], {"gates": ["power"], "creatures": ["sentinel", "sentinel"], "beat": "radioAnswer", "radio": true}),
+  L("Dead Air", "Find the code without sonar; use environmental audio clues.", 2, 1432, ["Signal Lab", "Silent Archive", "Vent Junction", "Code Door", "Exit"], {"gates": ["code"], "creatures": ["stalker", "listener"], "beat": "silenceAll", "pulses": 0, "vents": 1}),
+  L("Egg Chamber", "Disable the incubator breakers and reach the exit without waking the eggs.", 2, 1469, ["Nursery Entrance", "Egg Gallery", "Warm Incubator", "Breaker Niche", "Exit"], {"gates": ["breaker"], "creatures": ["stalker", "listener", "listener"], "beat": "eggCrack", "breakers": 2, "small": ["dropper"]}),
+  L("The Shaft", "Retrieve the key at the bottom route and climb to the upper exit.", 2, 1506, ["Shaft Base", "Maintenance Ring", "Mid-Level Platform", "Key Cage", "Upper Exit"], {"gates": ["key"], "creatures": ["stalker", "stalker"], "beat": "climbShaft", "vents": 2, "setpiece": "surge"}),
+  L("The Hive", "Find the code and pass through the hive without sonar.", 2, 1543, ["Outer Nest", "Resonance Cavern", "Heartbeat Tunnel", "Code Shrine", "Exit"], {"gates": ["code"], "creatures": ["listener", "listener", "listener"], "beat": "heartEcho", "pulses": 0}),
+  L("Breach", "Turn the valve, collect the key and escape through the narrow vent route.", 2, 1580, ["Valve Cavern", "Nest Service Tunnel", "Key Chamber", "Vent Split", "Exit"], {"gates": ["valve", "key"], "creatures": ["stalker", "stalker", "listener"], "beat": "doorOpens", "vents": 1, "alarm": true, "water": true, "small": ["crawler", "crawler"]}),
+  L("Last Light", "Find keycard, restore power and reveal the hidden way out.", 2, 1617, ["Surface Lift", "Power Room", "Hidden Passage", "Probe Store", "Exit Gate"], {"gates": ["card", "power", "secret"], "creatures": ["stalker", "listener"], "beat": "torchPull", "fuses": 1, "small": ["crawler"], "setpiece": "chase"}),
+  L("The Source", "Enter the source chamber, find the code and power route, then reach the probe.", 2, 1654, ["Core Cavern", "Resonance Bridge", "Control Shrine", "Probe Chamber", "Exit Tunnel"], {"gates": ["code", "power"], "creatures": ["stalker", "sentinel", "listener"], "beat": "hugeShape", "pulses": 1, "fuses": 1}),
+  L("The Resonance Spine", "Disable the relay that amplifies the probe and reach the exit sluice.", 2, 1691, ["Core Cavern", "Sound Bridge", "Relay Room", "Side Vent", "Exit Sluice"], {"gates": ["breaker"], "creatures": ["stalker", "listener"], "beat": "cableHum", "vents": 1, "breakers": 1, "water": true}),
+  L("The Quiet Nursery", "Find the control key and shut down the incubator without waking the remaining eggs.", 2, 1728, ["Egg Gallery", "Incubation Alcoves", "Drain Channel", "Nursery Control", "Exit"], {"gates": ["key"], "creatures": ["listener", "listener"], "beat": "eggStill", "water": true}),
+  L("The Red Corridor", "Turn the sluice wheel, collect medical supplies and reach the sealed hatch.", 2, 1765, ["Rust Passage", "Sluice Wheel", "Narrow Spine", "Medical Cache", "Exit"], {"gates": ["valve"], "creatures": ["stalker"], "beat": "footprints", "medkit": true, "water": true, "small": ["crawler"]}),
+  L("The False Exit", "Identify the fake exit, reveal the hidden vent and reach the real surface route.", 2, 1802, ["Decoy Gate", "Security Niche", "Collapsed Tunnel", "Hidden Vent", "True Exit"], {"gates": ["secret"], "creatures": ["sentinel", "listener"], "beat": "fakeExit", "vents": 1, "decoy": true}),
+  L("Halden's Office", "Recover Halden's final recording and unlock the specimen lift.", 2, 1839, ["Director's Antechamber", "Recording Room", "Specimen Lift", "Key Cabinet", "Exit"], {"gates": ["key"], "creatures": ["stalker", "sentinel"], "beat": "recording", "small": ["crawler"]}),
+  L("The Last Signal", "Reach the probe control, trigger the final signal diversion and escape through the silent passage.", 2, 1876, ["Specimen Lift", "Probe Control", "Resonance Chamber", "Silent Passage", "Surface Gate"], {"gates": ["breaker"], "creatures": ["stalker", "listener"], "beat": "rushFreeze", "breakers": 1}),
+  L("Probe Silence", "Trigger the final extraction route, then leave the probe behind and escape silently.", 2, 1913, ["Probe Chamber", "Collapsed Gallery", "Generator Spine", "Surface Gate", "Quiet Tunnel"], {"gates": ["power"], "creatures": ["stalker", "stalker", "sentinel"], "beat": "convergeSilence", "fuses": 1, "small": ["crawler", "crawler"]}),
+  L("The Gate", "Complete the final escape and reach daylight; no more objectives after the gate.", 2, 1950, ["Surface Service Lock", "Exterior Access Hall", "Emergency Stair", "Dawn Exit"], {"gates": [], "creatures": [], "beat": "faintPing"})
 ];
 
 LEVELS.forEach((l, i) => { l.story = i; });
-/* every level gets its own look (palette of fog / lamps / wall tint, see render/scene3d.js LOOKS): consecutive levels never share one */
+/* every level gets its own colour look (fog / lamps / wall tint, see render/scene3d.js LOOKS): consecutive levels never share one */
 const LOOK_SETS = [['sterile', 'rust', 'cold', 'dust', 'emergency', 'toxic', 'violet'], ['cold', 'toxic', 'rust', 'sterile', 'emergency', 'violet', 'dust'], ['hive', 'bile', 'bruise', 'ember', 'bone']];
 { const cnt = [0, 0, 0]; LEVELS.forEach((l) => { const set = LOOK_SETS[l.ch]; l.look = set[(cnt[l.ch] * 2 + l.ch) % set.length]; cnt[l.ch]++; }); }
 ['sterile', 'dust', 'cold', 'sterile'].forEach((k, i) => { LEVELS[i].look = k; });   // the four tutorial levels stay calm and readable
-/* first level index of each chapter (13 + 13 + 14 levels) */
+/* first level index of each chapter (17 + 17 + 16 levels) */
 export const CH_START = [0, 1, 2].map(c => LEVELS.findIndex(l => l.ch === c)).concat([LEVELS.length]);

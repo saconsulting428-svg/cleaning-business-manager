@@ -3,7 +3,6 @@ import { World, DT } from '../src/logic/world.js';
 import { LEVELS } from '../src/logic/levels.js';
 import { generate, solve, checkGates } from '../src/logic/gen.js';
 import { damagePlayer, healPlayer, HP_MAX } from '../src/logic/extras.js';
-import { CRAWLERS, SETPIECES } from '../src/logic/dress.js';
 let ok = 0, bad = 0; const t = (n, c, d) => { c ? ok++ : bad++; if (!c) console.log('FAIL ' + n + (d ? '  ' + d : '')); };
 const run = (w, secs, inp, fn) => { for (let i = 0; i < secs / DT; i++) { w.update(DT, inp || {}); if (fn && fn(i)) return i * DT; } return -1; };
 const tot = { spark: 0, steam: 0, leak: 0, fallen: 0, collapse: 0, debris: 0, band: 0, med: 0, crawl: 0, cab: 0, alc: 0, dmg: 0, sp: 0 };
@@ -25,10 +24,10 @@ for (let i = 0; i < LEVELS.length; i++) {
   t('L' + (i + 1) + ' hazards never within 6 tiles of the start', g.objs.filter(o => o.type === 'hazard').every(o => Math.abs(o.x - g.start.x) + Math.abs(o.y - g.start.y) >= 6));
   for (const o of g.objs) if (o.type === 'locker') { if (o.variant === 'cabinet') tot.cab++; if (o.variant === 'alcove') tot.alc++; }
   if (i < 3) t('L' + (i + 1) + ' tutorial level has no hazards or small creatures', !g.objs.some(o => o.dress) && !g.crawlers.length);
-  t('L' + (i + 1) + ' set-piece matches the plan', (g.setpiece || null) === (SETPIECES[i] || null));
+  t('L' + (i + 1) + ' set-piece matches the plan', (g.setpiece || null) === (LEVELS[i].setpiece || null));
   if (g.spec.creatures.length) { const lk = g.objs.filter(o => o.type === 'locker').length; t('L' + (i + 1) + ' has hiding places, but not one in every room', lk >= 1 && lk <= g.rooms.length, lk + '/' + g.rooms.length); }
 }
-console.log('totals over 40 levels', JSON.stringify(tot), 'set-pieces', Object.keys(SETPIECES).length, 'levels with small creatures', Object.keys(CRAWLERS).length);
+console.log('totals over 50 levels', JSON.stringify(tot), 'levels with set-pieces', LEVELS.filter(l => l.setpiece).length, 'levels with small creatures', LEVELS.filter(l => l.small && l.small.length).length);
 
 /* 2. health and healing */
 {
@@ -84,7 +83,7 @@ console.log('totals over 40 levels', JSON.stringify(tot), 'set-pieces', Object.k
 }
 
 /* 5. set pieces fire (and only once) */
-for (const [k, kind] of Object.entries(SETPIECES)) {
+for (const [k, kind] of LEVELS.map((l, i) => [i, l.setpiece]).filter(a => a[1])) {
   const i = +k, w = new World(generate(LEVELS[i]), {}), p = w.player, evs = []; w.god = true;
   const r2 = w.rooms[Math.min(2, w.rooms.length - 1)]; p.x = r2.cx + 0.5; p.y = r2.cy + 0.5; if (w.solid.has(Math.floor(p.y) * w.W + Math.floor(p.x))) { p.x += 1; }
   if (kind === 'genroom') w.gens.forEach(g => { g.on = true; g.nextNoise = 99; }); if (kind === 'chase') p.inv.key = 1;

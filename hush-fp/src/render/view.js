@@ -1,7 +1,10 @@
 /* The first-person view: WebGL renderer, camera (bob, crouch, vent crawl, death), flashlight with a visible volumetric beam, hands, dust, pooled emergency lights,
    creature models + sonar silhouettes, the sonar pulse uniforms. Reads a World; never changes it. */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { buildExtras } from './extras3d.js';
+import { newAcc, buildProp, PROP_KINDS } from './objects3d.js';
+import { buildTorch, torchById } from './torches.js';
 import { buildScene, PULSE, TS, WH, THEME, glowTex, patchPulse } from './scene3d.js';
 import { buildCreature, poseCreature, creatureMaterials, ghostMaterial } from './creature3d.js';
 import { angDiff } from '../logic/rng.js';
@@ -38,15 +41,7 @@ export class View {
   /* ---- first-person hands + flashlight model, parented to the camera ---- */
   buildHands() {
     const mc = matcap(), hands = new THREE.Group(), body = new THREE.MeshMatcapMaterial({ color: 0x48505a, matcap: mc }), glove = new THREE.MeshMatcapMaterial({ color: 0x3a2e24, matcap: mc }), sleeve = new THREE.MeshMatcapMaterial({ color: 0x4a4d40, matcap: mc }), lens = new THREE.MeshBasicMaterial({ color: 0xfff6dd });
-    /* a proper torch: ribbed aluminium barrel, a flared head with a bezel, a glowing lens, a rubber switch */
-    const alu = new THREE.MeshMatcapMaterial({ color: 0xd0d8e2, matcap: mc }), rub = new THREE.MeshMatcapMaterial({ color: 0x1c1f23, matcap: mc }), bez = new THREE.MeshMatcapMaterial({ color: 0xb4bcc6, matcap: mc });
-    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.2, 16), alu); tube.rotation.x = Math.PI / 2; tube.position.z = 0.01; hands.add(tube);
-    const ribs = []; for (let i = 0; i < 4; i++) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.0325, 0.0325, 0.012, 16), rub); r.rotation.x = Math.PI / 2; r.position.z = 0.06 - i * 0.03; hands.add(r); ribs.push(r); }
-    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.056, 0.036, 0.075, 18), alu); head.rotation.x = Math.PI / 2; head.position.z = -0.135; hands.add(head);
-    const bezel = new THREE.Mesh(new THREE.TorusGeometry(0.054, 0.007, 8, 22), bez); bezel.position.z = -0.173; hands.add(bezel);
-    const lensM = new THREE.Mesh(new THREE.CircleGeometry(0.05, 20), lens); lensM.position.z = -0.1735; lensM.rotation.y = Math.PI; hands.add(lensM); this.lens = lensM;
-    const sw = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.012, 0.03), rub); sw.position.set(0, 0.034, -0.02); hands.add(sw);
-    const lglow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xfff1d0, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, depthTest: false, opacity: 0.55 })); lglow.scale.setScalar(0.22); lglow.position.z = -0.185; lglow.renderOrder = 6; hands.add(lglow); this.lensGlow = lglow;
+    this.torchSlot = new THREE.Group(); hands.add(this.torchSlot); this.torchModels = {}; this.mcap = mc;
     for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0125, 0.045, 3, 6), glove); f.rotation.z = Math.PI / 2; f.position.set(0, -0.028 + i * 0.0, 0.0 + 0.02 - i * 0.026); f.rotation.x = 0; f.position.set(0.0, -0.01, 0.06 - i * 0.027); f.scale.set(1, 1.2, 1); f.rotation.z = Math.PI / 2; hands.add(f); }
     const palm = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.05, 0.12), glove); palm.position.set(0.005, -0.03, 0.05); hands.add(palm);
     const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.014, 0.05, 3, 6), glove); thumb.position.set(-0.04, 0.0, 0.03); thumb.rotation.set(0.2, 0, 0.5); hands.add(thumb);
@@ -55,7 +50,7 @@ export class View {
     const free = new THREE.Group(); const fp = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.03, 0.1), glove); free.add(fp); for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0115, 0.055, 3, 6), glove); f.rotation.x = Math.PI / 2; f.position.set(-0.026 + i * 0.0175, 0, -0.075); free.add(f); }
     const fa = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.05, 0.45, 10), sleeve); fa.rotation.x = Math.PI / 2; fa.position.z = 0.28; free.add(fa);
     this.free = free; free.visible = false; this.hands = hands; this.handRoot = new THREE.Group(); this.handRoot.add(hands); this.handRoot.add(free); this.camera.add(this.handRoot); hands.position.set(0.17, -0.2, -0.32); hands.rotation.set(0.06, 0.12, 0); free.position.set(-0.16, -0.24, -0.34);
-    for (const m of [tube, head, lensM, bezel, sw, ...ribs]) m.renderOrder = 5; this.camera.layers.enableAll();
+    this.camera.layers.enableAll();
     /* flashlight */
     this.flash = new THREE.SpotLight(0xfff4e0, 300, 36, 0.66, 1.0, 1.25); this.flash.castShadow = !!this.Q.shadow; this.flash.shadow.mapSize.set(this.Q.shadow || 512, this.Q.shadow || 512); this.flash.shadow.bias = -0.0006; this.flash.shadow.radius = 2; this.flash.shadow.camera.near = 0.3; this.flash.shadow.camera.far = 24;
     this.flashTarget = new THREE.Object3D(); this.flashRig = new THREE.Object3D(); this.flashRig.add(this.flash); this.flashRig.add(this.flashTarget); this.flashTarget.position.set(0, 0, -6); this.flash.target = this.flashTarget; this.flash.position.set(0.15, -0.12, -0.1);
@@ -64,6 +59,7 @@ export class View {
       vertexShader: 'varying vec3 vN; varying vec3 vV; varying float vA; void main(){ vN = normalMatrix * normal; vec4 mv = modelViewMatrix * vec4(position,1.0); vV = mv.xyz; vA = clamp(-position.z / 11.0, 0.0, 1.0); gl_Position = projectionMatrix * mv; }',
       fragmentShader: 'uniform float uInt; uniform vec3 uCol; varying vec3 vN; varying vec3 vV; varying float vA; void main(){ float e = pow(abs(dot(normalize(vN), normalize(-vV))), 1.6); float a = e * (1.0 - vA) * smoothstep(0.0, 0.08, vA) * uInt; gl_FragColor = vec4(uCol * a, a); }' });
     this.cone = new THREE.Mesh(coneG, this.coneMat); this.cone.frustumCulled = false; this.flashRig.add(this.cone); this.cone.position.copy(this.flash.position);
+    this.torchI = 300; this.torchCur = null; this.applyTorch(this.torchId || 'standard');
   }
   /* ---- level ---- */
   loadLevel(world) {
@@ -80,13 +76,31 @@ export class View {
       if (GLBMonster.ready) { const g = GLBMonster.build(c.t, this.Q); g.ghost.material = gm; sc.add(g.root); const blob = new THREE.Mesh(new THREE.PlaneGeometry(3.1, 3.1), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, opacity: 0.8 })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; blob.renderOrder = 1; sc.add(blob); return { c, real: g.root, ghost: g.ghost, gm, blob, glb: g.inst }; }
       const mats = creatureMaterials(c.t), real = buildCreature(c.t, mats, true), ghost = buildCreature(c.t, { skin: gm, bone: gm, eye: gm }, false); ghost.traverse(o => { o.renderOrder = 999; }); ghost.visible = false; sc.add(real); sc.add(ghost); const blob = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, opacity: 0.8 })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.03; blob.renderOrder = 1; sc.add(blob); return { c, real, ghost, gm, mats, blob };
     });
-    this.ex = buildExtras(world, sc, this.Q); this.flickT = 0; this.kickT = 0; this.fogBase = sc.fog.density;
+    this.ex = buildExtras(world, sc, this.Q); this.ex.dyn = b.dyn; this.redT0 = undefined; this.rhythm = false; this.pullPos = null; this.eggW = 0; this.ghosts = []; this.hugeM = null; this.flickT = 0; this.kickT = 0; this.fogBase = sc.fog.density;
     /* scare director props: a pair of eyes far down a corridor, and a lights-out timer */
     const eg = new THREE.Group(); for (const sx of [-0.09, 0.09]) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff2a20, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, depthTest: true, opacity: 0 })); sp.scale.set(0.5, 0.5, 1); sp.position.x = sx; eg.add(sp); } eg.visible = false; sc.add(eg); this.eyeFx = { g: eg, t: 0, dur: 1 }; this.blackoutT = 0;
     this.bobPhase = 0; this.hurtT = 0; this.deadT = 0; this.winT = 0; this.updateCamera(world, 0, 0);
   }
   flashEyes(x, z, dur, h) { this.eyeFx.g.position.set(x, h || 1.55, z); this.eyeFx.t = this.eyeFx.dur = dur || 1.6; this.eyeFx.g.visible = true; }
   blackout(sec) { this.blackoutT = sec; }
+  /* test/inspection aid: every prop kind on a plain floor under neutral light (rendered instead of the level while this.galleryScene is set) */
+  gallery(rows) { const b = this.built, acc = newAcc(), kinds = PROP_KINDS, sc = new THREE.Scene(), cols = Math.ceil(kinds.length / (rows || 3)); sc.background = new THREE.Color(0x14181c); let i = 0; const R = () => 0.37;
+    for (const k of kinds) { buildProp(k, acc, (i % cols) * 2.6, Math.floor(i / cols) * 2.8, 0, R, 3.2, i + 1); i++; }
+    for (const c of Object.keys(acc)) if (acc[c].length && b.matMap[c]) sc.add(new THREE.Mesh(mergeGeometries(acc[c]), b.matMap[c]));
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(80, 40), new THREE.MeshLambertMaterial({ color: 0x3a3e42 })); fl.rotation.x = -Math.PI / 2; fl.position.set(10, 0, 4); sc.add(fl);
+    sc.add(new THREE.HemisphereLight(0xcfd8e0, 0x30343a, 2.2)); const dl = new THREE.DirectionalLight(0xfff0dd, 2.4); dl.position.set(-6, 10, 14); sc.add(dl);
+    this.galleryScene = sc; this.galleryCam = new THREE.PerspectiveCamera(48, this.camera.aspect, 0.1, 80); this.galleryCam.position.set((cols - 1) * 1.3, 9.5, 17); this.galleryCam.lookAt((cols - 1) * 1.3, 0.9, 3.0); return kinds.length; }
+  /* torches: the model on the hand, the beam and the cone follow the selected design; changing it lowers the hand, swaps the model and raises it again */
+  setTorch(id, instant) { if (!this.torchModels) return; this.torchId = id; if (instant || !this.torchCur) { this.torchSw = null; this.applyTorch(id); return; } if (id !== this.torchCur) this.torchSw = { t: 0, to: id, done: false }; }
+  applyTorch(id) {
+    const T = torchById(id); let m = this.torchModels[T.id] || (this.torchModels[T.id] = buildTorch(T.id, this.mcap, glowTex)); if (this.torchActive) this.torchSlot.remove(this.torchActive.g); this.torchSlot.add(m.g); this.torchActive = m; this.lens = m.lens; this.lensGlow = m.glow; this.torchCur = T.id;
+    const L = T.light; this.torchI = L.I; this.flash.angle = L.angle; this.flash.penumbra = L.pen; this.flash.distance = L.dist; this.flash.color.setHex(L.color); this.coneMat.uniforms.uCol.value.setHex(L.color); const k = Math.tan(L.angle) / Math.tan(0.66); this.cone.scale.set(k, k, clamp(L.dist / 36, 0.7, 1.35));
+  }
+  /* fear-beat visuals: lamps turning red one after another, a figure that only the sonar shows, a huge shape under the floor */
+  redWave() { this.redT0 = this.t; const p = this.world.player; for (const f of this.built.fixtures) f.d = Math.hypot(f.x / TS - p.x, f.z / TS - p.y) * 0.35; }
+  ghost(x, y) { const c = document.createElement('canvas'); c.width = 64; c.height = 128; const g = c.getContext('2d'); g.strokeStyle = '#7fe4ff'; g.fillStyle = 'rgba(40,160,200,.28)'; g.lineWidth = 3; g.beginPath(); g.arc(32, 22, 11, 0, 7); g.fill(); g.stroke(); g.beginPath(); g.moveTo(20, 40); g.lineTo(44, 40); g.lineTo(48, 92); g.lineTo(40, 92); g.lineTo(38, 124); g.lineTo(26, 124); g.lineTo(24, 92); g.lineTo(16, 92); g.closePath(); g.fill(); g.stroke();
+    const t = new THREE.CanvasTexture(c), sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false, opacity: 0 })); sp.scale.set(1.2, 2.4, 1); sp.position.set(x * TS, 1.3, y * TS); sp.renderOrder = 998; this.built.scene.add(sp); (this.ghosts = this.ghosts || []).push({ sp, t0: this.t, tex: t }); }
+  huge() { const p = this.world.player, m = new THREE.Mesh(new THREE.CircleGeometry(9, 40), new THREE.MeshBasicMaterial({ color: 0x1a6a88, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); m.rotation.x = -Math.PI / 2; m.scale.set(1.5, 0.8, 1); m.position.set(p.x * TS + Math.cos(p.yaw) * 6, 0.07, p.y * TS + Math.sin(p.yaw) * 6); this.built.scene.add(m); this.hugeM = { m, t0: this.t }; }
   flicker(sec) { this.flickT = Math.max(this.flickT || 0, sec); }
   /* a hit: the view jerks away from the source, the lamp stutters */
   kick(amt, bearing) { this.kickT = 0.55; this.kickA = Math.min(1, amt / 12); this.kickB = bearing || 0; this.shake = Math.max(this.shake || 0, 0.45); }
@@ -105,9 +119,12 @@ export class View {
     const cx = this.camera.position.x, cz = this.camera.position.z; const near = [];
     if (this.blackoutT > 0) this.blackoutT -= dt; if (this.flickT > 0) this.flickT -= dt; const ef = this.eyeFx; if (ef.t > 0) { ef.t -= dt; const u = 1 - ef.t / ef.dur, o = ef.t <= 0 ? 0 : u < 0.15 ? u / 0.15 : (u > 0.55 && u < 0.62) || (u > 0.8 && u < 0.84) ? 0 : 1; ef.g.children.forEach(c => { c.material.opacity = o * 0.95; }); ef.g.visible = ef.t > 0; ef.g.lookAt(this.camera.position.x, ef.g.position.y, this.camera.position.z); }
     const awake = this._awake || (this._awake = []); awake.length = 0; for (const c of world.creatures) if (c.state === 'hunt' || c.state === 'investigate' || c.state === 'suspicious') awake.push(c);
-    for (const f of b.fixtures) { let k = f.kind === 'dead' ? 0 : f.kind === 'flicker' ? flick(f.ph, now) : 1; if (k && awake.length) for (const c of awake) if ((c.x * TS - f.x) ** 2 + (c.y * TS - f.z) ** 2 < 90) { k = Math.min(k, flick(f.ph + 3, now * 1.7)); break; } if (this.blackoutT > 0) k = 0; else if (this.flickT > 0 && Math.sin(now * 47 + f.ph * 13) < 0.25) k *= 0.04; f.k = k; const fl = f.kind === 'flicker'; if (fl) f.mat.color.setHex(f.col).multiplyScalar(0.12 + 0.88 * k); if (f.kind === 'dead') continue; const d = (f.x - cx) ** 2 + (f.z - cz) ** 2; if (d < 200) near.push([d, f]); }
+    for (const f of b.fixtures) { let k = f.kind === 'dead' ? 0 : f.kind === 'flicker' ? flick(f.ph, now) : 1; if (k && awake.length) for (const c of awake) if ((c.x * TS - f.x) ** 2 + (c.y * TS - f.z) ** 2 < 90) { k = Math.min(k, flick(f.ph + 3, now * 1.7)); break; } if (this.redT0 !== undefined && now - this.redT0 > (f.d || 0)) f.col = 0xff2a1a; if (this.rhythm && (now % 3.5) / 3.5 < 0.14) k *= 0.15; if (this.blackoutT > 0) k = 0; else if (this.flickT > 0 && Math.sin(now * 47 + f.ph * 13) < 0.25) k *= 0.04; f.k = k; const fl = f.kind === 'flicker'; if (fl) f.mat.color.setHex(f.col).multiplyScalar(0.12 + 0.88 * k); if (f.kind === 'dead') continue; const d = (f.x - cx) ** 2 + (f.z - cz) ** 2; if (d < 200) near.push([d, f]); }
     near.sort((a, c) => a[0] - c[0]);
     for (let i = 0; i < this.pool.length; i++) { const l = this.pool[i], e = near[i]; if (!e) { l.intensity = 0; continue; } l.position.set(e[1].x, WH - 0.45, e[1].z); l.color.setHex(e[1].col); l.intensity = (world.spec.lightsOut ? 7 : 36) * e[1].k * (1 - i * 0.12); }
+    if (this.ghosts) for (let i = this.ghosts.length - 1; i >= 0; i--) { const g = this.ghosts[i], a = now - g.t0; g.sp.material.opacity = Math.min(1, a / 0.2) * Math.max(0, 1 - (a - 1.2) / 0.9) * 0.85; if (a > 2.2) { this.built.scene.remove(g.sp); g.tex.dispose(); g.sp.material.dispose(); this.ghosts.splice(i, 1); } }
+    if (this.hugeM) { const a = now - this.hugeM.t0; this.hugeM.m.material.opacity = Math.sin(Math.PI * Math.min(1, a / 2.6)) * 0.55; this.hugeM.m.scale.setScalar(1.2 + a * 0.1); if (a > 2.6) { this.built.scene.remove(this.hugeM.m); this.hugeM.m.geometry.dispose(); this.hugeM.m.material.dispose(); this.hugeM = null; } }
+    { const pm = b.matMap && b.matMap.pod, bt = world.spec.beat; if (pm && bt === 'eggStill') pm.emissiveIntensity = p.moving ? 0.5 + 0.45 * Math.sin(now * 3.2) : 0.1; else if (pm && bt === 'eggCrack' && this.eggW > 0) { this.eggW -= dt; pm.emissiveIntensity = 0.9 + Math.sin(now * 40) * 0.5; } }
     /* sonar pulse */
     const ps = world.pulseState; if (ps) { const age = now - (this.pulseT0 === undefined || this.pulseSrc !== ps ? (this.pulseSrc = ps, this.pulseT0 = now) : this.pulseT0); PULSE.uPulseO.value.set(ps.x * TS, 1.2, ps.y * TS); PULSE.uPulseR.value = age * 15; PULSE.uPulseA.value = age < 1.6 ? 1 : Math.max(0, 1 - (age - 1.6) / 1.8); PULSE.uPulseMax.value = 28; if (age > 3.5) { world.pulseState = null; PULSE.uPulseA.value = 0; } } else PULSE.uPulseA.value = 0;
     PULSE.uTime.value = now;
@@ -125,6 +142,7 @@ export class View {
     const pos = this.dust.geometry.attributes.position, base = this.dustBase; for (let i = 0; i < pos.count; i++) { const x = base[i * 3] + Math.sin(now * 0.2 + i) * 0.4 + now * 0.05, y = base[i * 3 + 1] + Math.sin(now * 0.3 + i * 1.7) * 0.3, z = base[i * 3 + 2] + Math.cos(now * 0.25 + i * 0.7) * 0.4; pos.setXYZ(i, cx + ((x + 6) % 12 + 12) % 12 - 6, ((y % 3) + 3) % 3, cz + ((z + 6) % 12 + 12) % 12 - 6); } pos.needsUpdate = true;
     if (this.head) { this.head.position.copy(this.camera.position); this.head.intensity = world.spec.lightsOut ? 1.2 : 3.2 * (world.player.flash ? 1 : 0.5); }
     this.renderer.toneMappingExposure = 1.55 * this.brightness * (world.spec.lightsOut ? 1.15 : 1);
+    if (this.galleryScene) { this.renderer.render(this.galleryScene, this.galleryCam); return; }
     this.renderer.shadowMap.needsUpdate = this.frames % 3 === 0; this.renderer.render(b.scene, this.camera);
     /* dynamic resolution: when frames run long the render resolution drops a notch (never below 0.6x), with headroom it climbs back; only if still slow at the floor does the quality tier drop */
     this.frames++; if (dt > 0 && dt < 0.5) { this.ftSum = (this.ftSum || 0) + dt; this.ftN = (this.ftN || 0) + 1; }
@@ -150,10 +168,11 @@ export class View {
     /* flashlight follows with a little lag, so it feels held */
     if (!this.flashQ) { this.flashQ = new THREE.Quaternion().copy(cam.quaternion); }
     this.flashQ.slerp(cam.quaternion, 1 - Math.exp(-dt * 16)); this.flashRig.quaternion.copy(this.flashQ); this.flashRig.position.copy(cam.position);
-    const on = p.flash && p.alive && p.hidden < 0 && !p.vent; let power = on ? 1 : 0; if (on && world.threat > 0.75 && Math.sin(now * 37) > 0.93) power = 0.15; if (on && p.stagger > 0 && Math.sin(now * 55) > 0.1) power = 0.2; if (on && world.spec.lightsOut) power = 1;
-    this.flash.intensity += (power * 300 * (1 + 0.025 * Math.sin(now * 9)) - this.flash.intensity) * Math.min(1, dt * 20); this.coneMat.uniforms.uInt.value = this.flash.intensity / 300 * (this.portrait ? 0.12 : 0.1); this.cone.visible = this.Q.cone && this.flash.intensity > 3; this.lens.visible = on; this.lens.material.color.setScalar(on ? 1 : 0.05); if (this.lensGlow) { this.lensGlow.visible = on; this.lensGlow.material.opacity = 0.35 + 0.2 * (this.flash.intensity / 300); }
+    const on = p.flash && p.alive && p.hidden < 0 && !p.vent; let power = on ? 1 : 0; if (on && world.threat > 0.75 && Math.sin(now * 37) > 0.93) power = 0.15; if (on && p.stagger > 0 && Math.sin(now * 55) > 0.1) power = 0.2; if (on && this.pullPos) { const ex = Math.atan2(this.pullPos[1] - p.y, this.pullPos[0] - p.x); let d = ex - p.yaw; while (d > Math.PI) d -= 6.283; while (d < -Math.PI) d += 6.283; if (Math.abs(d) > 1.3 && Math.sin(now * 31) > 0.5) power = 0.15; } if (on && world.spec.lightsOut) power = 1;
+    this.flash.intensity += (power * this.torchI * (1 + 0.025 * Math.sin(now * 9)) - this.flash.intensity) * Math.min(1, dt * 20); this.coneMat.uniforms.uInt.value = this.flash.intensity / this.torchI * (this.portrait ? 0.12 : 0.1); this.cone.visible = this.Q.cone && this.flash.intensity > 3; this.lens.visible = on; this.lens.material.color.setHex(on ? this.torchActive.lensCol : 0x0c0c0c); if (this.lensGlow) { this.lensGlow.visible = on; this.lensGlow.material.opacity = 0.35 + 0.2 * (this.flash.intensity / this.torchI); }
     /* hands: bob, sway, reach */
     const hs = p.sprint ? 1.8 : 1; this.hands.position.set(0.17 + Math.sin(this.bobPhase) * 0.008 * hs, -0.2 + Math.abs(Math.sin(this.bobPhase)) * 0.012 * hs + (p.crouch ? 0.01 : 0), -0.32); this.hands.rotation.set(0.06 + Math.sin(this.bobPhase * 2) * 0.01, 0.12, Math.sin(this.bobPhase) * 0.02);
+    if (this.torchSw) { const w = this.torchSw; w.t += dt; const u = Math.min(1, w.t / 0.55), sn = Math.sin(Math.PI * u); if (u >= 0.5 && !w.done) { w.done = true; this.applyTorch(w.to); } this.hands.position.y -= 0.3 * sn; this.hands.position.x += 0.06 * sn; this.hands.rotation.x += 0.9 * sn; if (u >= 1) this.torchSw = null; }
     this.handRoot.visible = p.alive && p.hidden < 0 && !p.vent;
     if (this.reachT > 0) { this.reachT -= dt; const u = Math.sin(Math.PI * (1 - this.reachT / 0.45)); this.free.visible = true; this.free.position.set(-0.12 + 0.12 * u, -0.26 + 0.08 * u, -0.34 - 0.22 * u); this.free.rotation.set(0.3 * u, -0.1, 0.05); } else this.free.visible = false;
   }
@@ -161,11 +180,12 @@ export class View {
   reach() { this.reachT = 0.45; }
   updateDynamic(world, dt, now) {
     const b = this.built, dyn = b.dyn, p = world.player;
-    for (const d of dyn.doors) { const o = d.o; d.g.position.y = o.open * 2.6; const ok = !o.locked; d.lightM.color.setHex(ok ? 0x30ff70 : 0xff2a20); if (o.hidden) { d.wallSlab.visible = !o.revealed; d.g.visible = o.revealed; } if (d.pad) { d.pad.visible = true; } d.slabM.emissive.setHex(o.pingT > 0 ? 0x1a6fa8 : 0x000000); }
+    for (const d of dyn.doors) { const o = d.o; if (d.swing) d.swing(o.open); else d.g.position.y = o.open * 2.6; const ok = !o.locked; d.lightM.color.setHex(ok ? 0x30ff70 : 0xff2a20); if (o.hidden) { d.wallSlab.visible = !o.revealed; d.g.visible = o.revealed; } if (d.pad) { d.pad.visible = true; if (d.kp) { const k = world.kpShow, mine = k && k.id === o.id; d.kp(mine ? k.text : o.codeOk ? 'OPEN' : '----', mine ? k.st : o.codeOk ? 'ok' : ''); d.pad.userData.led.material.color.setHex(o.codeOk ? 0x30ff70 : 0xff2020); } } d.slabM.emissive.setHex(o.pingT > 0 ? 0x1a6fa8 : 0x000000); }
     for (const it of dyn.items) { const o = it.o; it.g.visible = !o.taken; if (o.taken) continue; it.g.position.y = 0.95 + Math.sin(now * 2 + o.bob) * 0.06; it.g.rotation.y = now * 0.9 + o.bob; it.gl.material.opacity = (0.45 + 0.15 * Math.sin(now * 3 + o.bob)) * (o.pingT > 0 ? 2.2 : 1); it.gl.scale.setScalar(o.pingT > 0 ? 2 : 1.1); }
     for (const n of dyn.notes) { n.gl.material.opacity = (0.3 + 0.1 * Math.sin(now * 2)) * (n.o.pingT > 0 ? 2.5 : 1); }
     for (const g of dyn.gens) { g.il.color.setHex(g.o.on ? 0x30ff70 : 0xff2200); if (g.o.on) { g.fan.rotation.z += dt * 18; g.g.position.y = Math.sin(now * 55) * 0.004; } }
     for (const v of dyn.valves) if (v.kind === 'breaker') { const d = v.o.done; v.led.color.setHex(d ? 0x30ff70 : 0xff2a1a); v.glow.material.color.setHex(d ? 0x40ff80 : 0xff9a2a); v.levers.forEach((l, i) => { const t = d ? 0.9 : -0.9; l.rotation.x += (t - l.rotation.x) * Math.min(1, dt * 9); }); }
+    for (const v of dyn.valves) if (v.kind === 'locker' && v.door) { const near = Math.hypot(v.o.x + 0.5 - p.x, v.o.y + 0.5 - p.y) < 1.9, tg = p.hidden === v.o.id ? 0 : near && p.alive ? 1.3 : 0; v.ang = (v.ang || 0) + (tg - (v.ang || 0)) * Math.min(1, dt * 7); v.door.rotation.y = -v.ang; }
     for (const v of dyn.valves) if (v.kind === 'valve') v.wheel.rotation.z = v.o.done ? (v.o.turn = Math.min(6.28 * 3, (v.o.turn || 0) + dt * 6)) : 0;
     if (dyn.exitGlow) dyn.exitGlow.material.opacity = 0.65 + 0.2 * Math.sin(now * 2);
     /* water slowly moves */

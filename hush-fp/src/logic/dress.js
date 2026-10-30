@@ -5,17 +5,12 @@
 import { rng32 } from './rng.js';
 
 const WALL = 0, FLOOR = 1, WATER = 2;
-/* level index (0-based) -> the small creatures on that level. Never more than two, and only on about a third of the levels. */
-export const CRAWLERS = { 6: ['crawler'], 9: ['crawler'], 11: ['dropper'], 14: ['crawler'], 16: ['crawler'], 18: ['dropper'], 20: ['crawler', 'crawler'], 23: ['crawler'], 25: ['dropper'],
-  27: ['crawler'], 29: ['crawler'], 31: ['crawler', 'dropper'], 33: ['crawler'], 35: ['dropper'], 37: ['crawler', 'crawler'], 39: ['crawler', 'crawler'] };
-/* level index -> its one memorable set-piece (about one every five levels) */
-export const SETPIECES = { 7: 'outage', 11: 'sighting', 16: 'machine', 21: 'genroom', 26: 'impact', 30: 'cell', 34: 'surge', 38: 'chase' };
-
+/* the small creatures (spec.small) and the set-piece (spec.setpiece) of a level come from its spec in levels.js */
 export function dressLevel(c) {
   const { spec, cells, W, H, objs, O, blocked, isFree, nearMouth, rooms, edges, st, connected, at } = c;
   const i = spec.story === undefined ? 0 : spec.story, ch = spec.ch, R = rng32(spec.seed * 1301 + 71), ri = (a, b) => a + Math.floor(R() * (b - a + 1)), pick = a => a[Math.floor(R() * a.length)];
-  const out = { crawlers: [], setpiece: SETPIECES[i] || null };
-  if (i < 3) return out;                                              // the tutorial levels stay clean
+  const small = spec.small || [], out = { crawlers: [], setpiece: spec.setpiece || null };
+  if (i < 3 || i === 49) return out;                                    // the tutorial levels and the last gate stay clean                                              // the tutorial levels stay clean
   const far = (x, y, d) => Math.abs(x - st.x) + Math.abs(y - st.y) >= d;
   const inRooms = rooms.filter(r => r.idx >= 1);
   const roomTile = (r, inset) => { for (let t = 0; t < 40; t++) { const x = ri(r.x0 + inset, r.x0 + r.w - 1 - inset), y = ri(r.y0 + inset, r.y0 + r.h - 1 - inset); if (isFree(x, y) && !nearMouth(x, y) && far(x, y, 6)) return [x, y]; } return null; };
@@ -62,14 +57,17 @@ export function dressLevel(c) {
   }
 
 
+  /* -- a decoy exit (level 46): an exit door that opens onto an empty shaft; it stands in the first room and the map says nothing about it -- */
+  if (spec.decoy) { const r = rooms[0]; for (let t = 0; t < 60; t++) { const x = ri(r.x0 + 1, r.x0 + r.w - 2), y = ri(r.y0 + 1, r.y0 + r.h - 2); if (isFree(x, y) && !nearMouth(x, y) && Math.abs(x - st.x) + Math.abs(y - st.y) >= 3) { blocked.add(y * W + x); if (!connected()) { blocked.delete(y * W + x); continue; } O({ type: 'fakeexit', x, y, dress: true }); break; } } }
+
   /* -- healing: uncommon, always somewhere in the facility but never near the start -- */
-  const hurtLevel = nSpark > 0 || !!CRAWLERS[i];
-  const nBand = i >= 4 && (i % 3 === 1 || hurtLevel) ? 1 : 0, nMed = (i >= 9 && i % 4 === 1) || (CRAWLERS[i] && CRAWLERS[i].length > 1) ? 1 : 0;
+  const hurtLevel = nSpark > 0 || small.length > 0;
+  const nBand = i >= 4 && (i % 3 === 1 || hurtLevel) ? 1 : 0, nMed = (i >= 12 && i % 5 === 1) || (small.length > 1) || !!spec.medkit ? 1 : 0;
   const heal = (kind) => { for (let t = 0; t < 30 && inRooms.length; t++) { const p = roomTile(pick(inRooms), 1); if (p) { O({ type: 'pickup', kind, x: p[0], y: p[1], dress: true }); return; } } };
   for (let k = 0; k < nBand; k++) heal('bandage'); for (let k = 0; k < nMed; k++) heal('medkit');
 
   /* -- small creatures: their start tiles (rooms away from the start, floor that is free) -- */
-  for (const kind of CRAWLERS[i] || []) {
+  for (const kind of small) {
     const pool = inRooms.filter(r => r.idx >= 2); let p = null;
     for (let t = 0; t < 30 && pool.length && !p; t++) { const q = roomTile(pick(pool), 1); if (q && far(q[0], q[1], 10) && cells[at(q[0], q[1])] !== WATER) p = q; }
     if (p) out.crawlers.push({ kind, x: p[0] + 0.5, y: p[1] + 0.5 });

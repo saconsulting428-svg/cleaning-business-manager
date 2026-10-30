@@ -7,7 +7,7 @@ import { initExtras, updateExtras } from './extras.js';
 
 export const DT = 1 / 30;
 /* one difficulty for everybody: the creatures simply get a little sharper level by level (level 1 is gentle, level 40 is firm but always beatable: sprint 2.7 tiles/s outruns the hunt speed) */
-export const levelDiff = (i) => { const t = Math.max(0, Math.min(1, (i || 0) / 39)); return { sight: 0.8 + 0.3 * t, alert: 0.78 + 0.34 * t, speed: 0.94 + 0.08 * t }; };
+export const levelDiff = (i) => { const t = Math.max(0, Math.min(1, (i || 0) / 49)); return { sight: 0.8 + 0.3 * t, alert: 0.78 + 0.34 * t, speed: 0.94 + 0.08 * t }; };
 export const DIFF = { normal: levelDiff(20) };
 export const SPEED = { walk: 1.55, sprint: 2.7, crouch: 0.8 };
 const PR = 0.3;                                                    // player radius in tiles
@@ -123,6 +123,7 @@ export class World {
       case 'valve': return { obj: o, text: o.done ? 'Valve open' : 'Turn valve', kind: 'valve' };
       case 'breaker': return { obj: o, text: o.done ? 'Breaker on' : 'Flip breaker', kind: 'breaker' };
       case 'exit': return { obj: o, text: 'Escape', kind: 'exit' };
+      case 'fakeexit': return { obj: o, text: 'Exit', kind: 'fakeexit' };
     }
     return null;
   }
@@ -153,6 +154,7 @@ export class World {
       case 'breaker': if (!o.done) { o.done = true; this.refreshLocks(); const all = this.objs.filter(b => b.type === 'breaker' && b.gate === o.gate); this.events.push({ type: 'breaker', x: o.x + 0.5, y: o.y + 0.5, n: all.filter(b => b.done).length, total: all.length }); emitNoise(this, o.x + 0.5, o.y + 0.5, 8, 'breaker'); } break;
       case 'valve': if (!o.done) { o.done = true; for (const d of this.doors) if (d.id === o.opens) { d.valveOk = true; } this.refreshLocks(); this.events.push({ type: 'valve', x: o.x + 0.5, y: o.y + 0.5 }); emitNoise(this, o.x + 0.5, o.y + 0.5, 9, 'valve'); } break;
       case 'exit': this.over = 'win'; this.events.push({ type: 'win' }); break;
+      case 'fakeexit': this.events.push({ type: 'beat', what: 'fakeexit' }); break;
     }
   }
   enterCode(doorId, code) { const d = this.objById.get(doorId); if (!d || !this.keypad) return false; if (String(code) === d.code) { d.codeOk = true; this.keypad = null; this.refreshLocks(); this.openDoor(d, true); this.events.push({ type: 'unlock', x: d.x + 0.5, y: d.y + 0.5 }); return true; } this.events.push({ type: 'denied', text: 'Wrong code' }); emitNoise(this, d.x + 0.5, d.y + 0.5, 4, 'keypad'); return false; }

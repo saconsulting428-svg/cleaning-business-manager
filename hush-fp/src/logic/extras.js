@@ -3,6 +3,7 @@
    a bite is noise, so the main creature comes to investigate; a hazard that hurts you is also a sound. The main creature still kills in one catch (World.catchPlayer),
    health only covers the small stuff. */
 import { emitNoise, findPath, lineOfSight, startHunt } from './ai.js';
+import { initBeat, updateBeat } from './beats.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export const HP_MAX = 100;
@@ -25,14 +26,14 @@ export function initExtras(w) {
   w.hazards = w.objs.filter(o => o.type === 'hazard'); w.debrisAt = new Set(w.objs.filter(o => o.type === 'debris').map(o => o.y * w.W + o.x));
   w.inSteam = false; w.pickups = w.objs.filter(o => o.type === 'pickup'); for (const o of w.pickups) { o.taken = false; o.warnT = 0; }
   w.crawlers = (g.crawlers || []).map((c, i) => ({ id: i, kind: c.kind, x: c.x, y: c.y, px: c.x, py: c.y, yaw: w.rnd() * 6.28, state: 'lurk', t: 0.3, bites: 0, cd: 0, path: null, pi: 0, repath: 0, home: { x: c.x, y: c.y }, ceil: c.kind === 'dropper', moving: false, speed: 0, chaseT: 0, fleeT: 0, skitT: 0, drop: 0, wakeT: 0 }));
-  w.sp = g.setpiece ? { kind: g.setpiece, done: false, t: 0, tries: 0 } : null;
+  initBeat(w); w.sp = g.setpiece ? { kind: g.setpiece, done: false, t: 0, tries: 0 } : null;
 }
 
 /* ---------- per tick ---------- */
 export function updateExtras(w, dt) {
   const p = w.player;
   p.stagger = Math.max(0, p.stagger - dt);
-  hazards(w, dt); pickups(w, dt); for (const c of w.crawlers) crawler(w, c, dt); setpiece(w, dt);
+  hazards(w, dt); pickups(w, dt); for (const c of w.crawlers) crawler(w, c, dt); setpiece(w, dt); updateBeat(w, dt);
 }
 
 function hazards(w, dt) {
@@ -134,7 +135,7 @@ function setpiece(w, dt) {
       for (let d = 15; d >= 8 && !spot; d -= 1) for (const da of [0, 0.12, -0.12, 0.25, -0.25]) { const x = p.x + Math.cos(yaw + da) * d, y = p.y + Math.sin(yaw + da) * d, k = Math.floor(y) * w.W + Math.floor(x); if (w.cells[k] !== 0 && !w.solid.has(k) && lineOfSight(w, p.x, p.y, x, y)) { spot = { x, y }; break; } }
       if (spot) { w.events.push({ type: 'sighting', x: spot.x, y: spot.y }); w.events.push({ type: 'sp', what: 'flicker', dur: 1.4 }); done(); } else if (s.tries > 400) done();
     } break;
-    case 'cell': { const kind = room >= 0 ? w.rooms[room].kind : null; if (room >= 2 && (kind === 'cells' || kind === 'hive' || room === w.rooms.length - 2) && calm) { w.events.push({ type: 'sp', what: 'outage', dur: 3.2 }); w.events.push({ type: 'impact', x: p.x, y: p.y }); for (const c of w.crawlers) if (c.state === 'lurk') { c.t = 0; c.ceil = false; c.state = 'chase'; c.chaseT = 0; c.wakeT = 0.5; w.events.push({ type: 'cwake', x: c.x, y: c.y, ceil: false }); } done(); } break; }
+    case 'cell': { const kind = room >= 0 ? w.rooms[room].kind : null; if (room >= 1 && (kind === 'cells' || kind === 'hive' || room === w.rooms.length - 2) && calm) { w.events.push({ type: 'sp', what: 'outage', dur: 3.2 }); w.events.push({ type: 'impact', x: p.x, y: p.y }); for (const c of w.crawlers) if (c.state === 'lurk') { c.t = 0; c.ceil = false; c.state = 'chase'; c.chaseT = 0; c.wakeT = 0.5; w.events.push({ type: 'cwake', x: c.x, y: c.y, ceil: false }); } done(); } break; }
     case 'genroom': if (w.gens.some(g => g.on)) { const g = w.gens.find(q => q.on); w.events.push({ type: 'sp', what: 'outage', dur: 4.5 }); w.events.push({ type: 'sp', what: 'surge' }); emitNoise(w, g.x + 0.5, g.y + 0.5, 24, 'generator'); done(); } break;
     case 'chase': if (s.t > 30 && room >= 2 && w.player.inv.card + w.player.inv.key + w.player.inv.fuse > 0 && calm) { const c = w.creatures[0]; if (c && c.state !== 'hunt') { c.state = 'roam'; startHunt(w, c); c.lostT = 2.6; w.events.push({ type: 'sp', what: 'chase' }); } done(); } break;
   }

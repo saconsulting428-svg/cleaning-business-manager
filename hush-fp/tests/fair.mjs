@@ -9,7 +9,7 @@ let minGap = 99, minHide = 0, worstHide = 0;
 for (let i = 0; i < LEVELS.length; i++) {
   const g = generate(LEVELS[i]), w = new World(g, {}), L = 'L' + (i + 1) + ' ' + LEVELS[i].name, req = g.objs.filter(REQ);
   for (const c of w.creatures) {
-    const need = c.t === 'sentinel' ? (LEVELS[i].radio ? 3.4 : 5.0) : 3.6; let near = 99; for (const o of req) near = Math.min(near, Math.hypot(o.x + 0.5 - c.x, o.y + 0.5 - c.y));
+    const need = c.t === 'sentinel' ? (LEVELS[i].radio ? 3.4 : LEVELS[i].alarm ? 6.0 : 5.0) : 3.6; let near = 99; for (const o of req) near = Math.min(near, Math.hypot(o.x + 0.5 - c.x, o.y + 0.5 - c.y));
     t(L + ': ' + c.t + ' starts ' + need + '+ tiles from every required object', near >= need, near.toFixed(1)); minGap = Math.min(minGap, near);
     const sd = Math.hypot(g.start.x - c.x, g.start.y - c.y); t(L + ': ' + c.t + ' cannot see the start tile', sd >= 7 && (sd >= 14 || !lineOfSight(w, c.x, c.y, g.start.x, g.start.y)), sd.toFixed(1));
   }

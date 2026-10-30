@@ -6,6 +6,8 @@ import { buildTextures, canvasTexture } from './textures.js';
 import { KIND_TINT, KIND_LAMP, extraProp, buildDecor } from './decor.js';
 import { T } from '../logic/gen.js';
 import { rng32 } from '../logic/rng.js';
+import { newAcc, buildProp, wallFixtures, mkMats } from './objects3d.js';
+import { buildDynamic } from './dynamic3d.js';
 
 export const TS = 2, WH = 3.2;
 export const PULSE = { uPulseO: { value: new THREE.Vector3(0, -99, 0) }, uPulseR: { value: 0 }, uPulseA: { value: 0 }, uPulseMax: { value: 14 }, uTime: { value: 0 } };
@@ -117,19 +119,12 @@ export function buildScene(world, Q) {
   const glassMat = lm({ color: 0xbfe0ee, roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.28, depthWrite: false }), hazMat = lm({ color: 0xc99a14, roughness: 0.7 });
   disposables.push(scrMat, liqMat, bl1Mat, bl2Mat);
   const P = (arr, g, x, z, ry) => { g.applyMatrix4(new THREE.Matrix4().makeRotationY(ry || 0)); g.translate(x, 0, z); arr.push(g); };
-  for (const o of world.objs) {
-    if (o.type !== 'prop') continue; const cx = o.x * TS + TS / 2, cz = o.y * TS + TS / 2, r = Math.round(o.rot / (Math.PI / 2)) * (Math.PI / 2) + (R() - 0.5) * 0.2;
-    switch (o.kind) {
-      case 'crate': { const s = 1.5 + R() * 0.2; P(stat.crate, box(s, s, s, 0, s / 2, 0), cx, cz, r); if (R() < 0.5) P(stat.crate, box(s * 0.7, s * 0.7, s * 0.7, 0.1, s + s * 0.35, 0), cx, cz, r + 0.4); break; }
-      case 'barrel': for (let i = 0; i < 3; i++) { const a = i * 2.1 + r; const g = cyl(0.36, 0.36, 1.0, 0, 0.5, 0, 12); const g2 = cyl(0.375, 0.375, 0.05, 0, 0.7, 0, 12), g3 = cyl(0.375, 0.375, 0.05, 0, 0.3, 0, 12); const gg = mergeGeometries([g, g2, g3]); gg.translate(Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5); P(stat.metal, gg, cx, cz, 0); } break;
-      case 'shelf': { const w = 1.8, d = 0.55; const parts = [box(0.06, 2.1, 0.06, -w / 2, 1.05, -d / 2), box(0.06, 2.1, 0.06, w / 2, 1.05, -d / 2), box(0.06, 2.1, 0.06, -w / 2, 1.05, d / 2), box(0.06, 2.1, 0.06, w / 2, 1.05, d / 2)]; for (let i = 0; i < 4; i++) parts.push(box(w, 0.05, d, 0, 0.3 + i * 0.55, 0)); P(stat.metal, mergeGeometries(parts), cx, cz, r); for (let i = 0; i < 6; i++) P(stat.crate, box(0.3 + R() * 0.3, 0.3, 0.3, (R() - 0.5) * 1.4, 0.48 + Math.floor(R() * 4) * 0.55, (R() - 0.5) * 0.3), cx, cz, r); break; }
-      case 'table': { const parts = [box(1.7, 0.07, 0.85, 0, 0.82, 0)]; for (const sx of [-0.78, 0.78]) for (const sz of [-0.36, 0.36]) parts.push(box(0.07, 0.8, 0.07, sx, 0.4, sz)); P(stat.metal, mergeGeometries(parts), cx, cz, r); if (R() < 0.6) P(stat.dark, box(0.4, 0.28, 0.3, (R() - 0.5), 0.99, 0), cx, cz, r); break; }
-      case 'pipe': { const parts = [cyl(0.17, 0.17, WH, 0, WH / 2, 0), cyl(0.2, 0.2, 0.15, 0, 0.5, 0), cyl(0.2, 0.2, 0.15, 0, 2.2, 0), cyl(0.12, 0.12, 1.4, 0.45, 1.5, 0)]; P(stat.metal, mergeGeometries(parts), cx, cz, r); break; }
-      case 'pod': { const g = ell(0.75, 1.05, 0.75, 0, 1.0, 0); P(pods, g, cx, cz, 0); P(stat.flesh, cyl(0.9, 1.1, 0.3, 0, 0.15, 0, 12), cx, cz, 0); break; }
-      case 'console': case 'tank': case 'machine': case 'column': case 'cage': case 'cocoon': extraProp(o.kind, { metal: stat.metal, dark: stat.dark, flesh: stat.flesh, pod: pods, bone: bones, scr: XM.scr, glass: XM.glass, liq: XM.liq, bl1: XM.bl1, bl2: XM.bl2, hazard: XM.hazard }, cx, cz, r, R, WH); break;
-      case 'bones': { for (let i = 0; i < 9; i++) { const g = cyl(0.04, 0.06, 0.6 + R() * 0.6, 0, 0.1 + R() * 0.2, 0, 6); g.rotateZ(R() * 3); g.rotateY(R() * 6); g.translate((R() - 0.5) * 1.4, 0, (R() - 0.5) * 1.4); P(bones, g, cx, cz, 0); } P(bones, ell(0.2, 0.17, 0.25, 0.1, 0.17, 0.2), cx, cz, 0); P(stat.flesh, cyl(0.95, 1.05, 0.12, 0, 0.06, 0, 12), cx, cz, 0); break; }
-    }
-  }
+  const libAcc = newAcc(), libM = mkMats(lit, patchPulse, tex, disposables);
+  for (const o of world.objs) { if (o.type !== 'prop') continue; const cx = o.x * TS + TS / 2, cz = o.y * TS + TS / 2, r = Math.round(o.rot / (Math.PI / 2)) * (Math.PI / 2) + (R() - 0.5) * 0.2; buildProp(o.kind, libAcc, cx, cz, r, R, WH, o.id * 3 + 1); }
+  wallFixtures(libAcc, wallFaces, roomAt, R, WH, TS);
+  const mm = { steel: libM.steel, dark: libM.dark, wood: libM.wood, white: libM.white, cloth: libM.cloth, rust: libM.rust, glass: glassMat, liq: liqMat, scr: scrMat, bl1: bl1Mat, bl2: bl2Mat, hazard: hazMat, flesh: fleshMat, pod: podMat, bone: boneMat };
+  { const _unused = { steel: libM.steel, dark: libM.dark, wood: libM.wood, white: libM.white, cloth: libM.cloth, rust: libM.rust, glass: glassMat, liq: liqMat, scr: scrMat, bl1: bl1Mat, bl2: bl2Mat, hazard: hazMat, flesh: fleshMat, pod: podMat, bone: boneMat };
+    for (const c of Object.keys(libAcc)) if (libAcc[c].length) { addMesh(mergeGeometries(libAcc[c]), mm[c], c === 'steel' || c === 'wood', true); libAcc[c].forEach(g => g.dispose()); } }
   const pushStat = (arr, mat, cast) => { if (arr.length) addMesh(mergeGeometries(arr), mat, cast, true); };
   pushStat(stat.crate, crateMat, true); pushStat(stat.metal, metalMat, true); pushStat(stat.dark, darkMat, true); pushStat(stat.flesh, fleshMat, false); pushStat(pods, podMat, false); pushStat(bones, boneMat, false); pushStat(XM.scr, scrMat, false); pushStat(XM.liq, liqMat, false); pushStat(XM.bl1, bl1Mat, false); pushStat(XM.bl2, bl2Mat, false); pushStat(XM.hazard, hazMat, false); pushStat(XM.glass, glassMat, false);
   const decor = buildDecor({ world, scene, R, TH, theme, lit, patchPulse, TS, WH, roomAt, wallFaces });
@@ -145,62 +140,19 @@ export function buildScene(world, Q) {
   const stripe = (c1, c2) => canvasTexture(64, 64, (x, w, h) => { x.fillStyle = c1; x.fillRect(0, 0, w, h); x.fillStyle = c2; for (let i = -h; i < w; i += 16) { x.beginPath(); x.moveTo(i, h); x.lineTo(i + 8, h); x.lineTo(i + 8 + h, 0); x.lineTo(i + h, 0); x.fill(); } });
   const lockCol = { key: 0xc9a14a, card: 0x3ca0ff, power: 0xffcc22, code: 0x66ff88, valve: 0xff5533, secret: 0x44aaff, breaker: 0xff9a2a };
   const lockTex = {};
+  const E = { TS, WH, R, group, dyn, mats: libM, glowTex, patchPulse, lit, dis: disposables, canvasTexture, glassMat, liqMat, scrMat, bl1Mat, bl2Mat, hazMat, lockCol, wallMat };
   for (const o of world.objs) {
     const cx = o.x * TS + TS / 2, cz = o.y * TS + TS / 2;
-    if (o.type === 'door') {
-      const g = new THREE.Group(), alongX = o.dir === 'x';           // corridor direction: the slab spans across it
-      const slabM = metalMat.clone(); patchPulse(slabM); slabM.color = new THREE.Color(o.lock ? 0xb0b0b0 : 0x9a9a98); slabM.emissive = new THREE.Color(0x000000); slabM.emissiveIntensity = 1;
-      const slab = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 0.14 : TS, 2.7, alongX ? TS : 0.14), slabM); slab.position.y = 1.35; slab.castShadow = true; g.add(slab);
-      if (o.lock) { const bandM = new THREE.MeshBasicMaterial({ color: lockCol[o.lock] || 0xffffff }); const band = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 0.17 : TS * 0.8, 0.12, alongX ? TS * 0.8 : 0.17), bandM); band.position.y = 1.15; slab.add(band); band.position.set(0, -0.2, 0); }
-      const lightM = new THREE.MeshBasicMaterial({ color: 0xff2020 }); const lamp = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 0.2 : 0.25, 0.12, alongX ? 0.25 : 0.2), lightM); lamp.position.set(0, 2.3, 0); slab.add(lamp); lamp.position.y = 0.95;
-      g.position.set(cx, 0, cz); group.add(g);
-      const frame = [box(alongX ? 0.3 : 0.25, WH, alongX ? 0.25 : 0.3, 0, WH / 2, 0)]; const fp = [];                    // frame posts + lintel
-      const sx = alongX ? 0 : 1, sz = alongX ? 1 : 0; fp.push(box(alongX ? 0.3 : 0.25, 2.8, alongX ? 0.25 : 0.3, sx * (TS / 2 - 0.12), 1.4, sz * (TS / 2 - 0.12)), box(alongX ? 0.3 : 0.25, 2.8, alongX ? 0.25 : 0.3, -sx * (TS / 2 - 0.12), 1.4, -sz * (TS / 2 - 0.12)), box(alongX ? 0.32 : TS, WH - 2.7, alongX ? TS : 0.32, 0, 2.7 + (WH - 2.7) / 2, 0)); void frame;
-      for (const q of fp) { q.translate(cx, 0, cz); } addMesh(mergeGeometries(fp), darkMat, true, true);
-      let pad = null; if (o.lock === 'code') { const ptex = canvasTexture(64, 96, (x, w, h) => { x.fillStyle = '#0c1410'; x.fillRect(0, 0, w, h); x.fillStyle = '#3cff80'; x.font = 'bold 14px monospace'; x.fillText('----', 12, 18); x.fillStyle = '#1b3a28'; for (let i = 0; i < 12; i++) x.fillRect(8 + (i % 3) * 17, 30 + Math.floor(i / 3) * 15, 13, 11); }); pad = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.42), new THREE.MeshBasicMaterial({ map: ptex })); pad.position.set(cx + (alongX ? -0.25 : 0.0), 1.35, cz + (alongX ? 0.0 : -0.25)); pad.position.x = cx + (alongX ? 0 : (TS / 2 - 0.1)); pad.position.z = cz + (alongX ? (TS / 2 - 0.1) : 0); pad.rotation.y = alongX ? Math.PI : -Math.PI / 2; group.add(pad); }
-      let wallSlab = null; if (o.hidden) { wallSlab = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 0.3 : TS, WH, alongX ? TS : 0.3), wallMat); wallSlab.position.set(cx, WH / 2, cz); group.add(wallSlab); g.visible = false; }
-      dyn.doors.push({ o, g, slab, slabM, lightM, wallSlab, pad });
-    } else if (o.type === 'locker') {
-      const dx = Math.cos(o.face), dz = Math.sin(o.face), ltex = canvasTexture(64, 128, (x, w, h) => { x.fillStyle = '#26302c'; x.fillRect(0, 0, w, h); x.fillStyle = '#0b100e'; for (let i = 0; i < 9; i++) x.fillRect(12, 14 + i * 5, 40, 2); x.fillRect(12, 80, 40, 2); for (let i = 0; i < 6; i++) x.fillRect(12, 86 + i * 5, 40, 2); x.fillStyle = '#9aa'; x.fillRect(48, 64, 4, 12); });
-      const lm = lit({ map: ltex, roughness: 0.55, metalness: 0.5 }); patchPulse(lm); const lk = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.05, 0.7), [lm, lm, lm, lm, lm, lm]); lk.castShadow = true; lk.receiveShadow = true;
-      const lg = new THREE.Group(); lg.add(lk); lk.position.y = 1.03;
-      if (o.variant === 'cabinet') { lk.scale.set(1.3, 0.82, 0.88); lk.position.y = 0.85; lm.color.setHex(0xb59a72); }          // a wide storage cabinet
-      else if (o.variant === 'alcove') {                                                       // a dark recess behind an open shelf frame
-        lm.color.setHex(0x060708); const fm = new THREE.MeshStandardMaterial({ color: 0x30343a, roughness: 0.7, metalness: 0.4 }); patchPulse(fm); disposables.push(fm);
-        for (const sx of [-0.47, 0.47]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.1, 0.06), fm); post.position.set(sx, 1.05, 0.42); lg.add(post); }
-        for (const yy of [0.35, 0.95, 1.55, 2.05]) { const pl = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.5), fm); pl.position.set(0, yy, 0.2); lg.add(pl); }
-        const bx = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 0.3), crateMat); bx.position.set(-0.28, 1.1, 0.2); lg.add(bx);
-      } lg.position.set(cx - dx * (TS / 2 - 0.37), 0, cz - dz * (TS / 2 - 0.37)); lg.rotation.y = Math.PI / 2 - o.face; group.add(lg); dyn.valves.push({ o, g: lg, kind: 'locker', mat: lm });
-    } else if (o.type === 'vent') {
-      const dx = Math.cos(o.face), dz = Math.sin(o.face), gm = lit({ color: 0x0b0c0e, roughness: 0.6, metalness: 0.6 }); patchPulse(gm); const vg = new THREE.Group();
-      vg.add(new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.8, 0.05), gm)); for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.03, 0.07), metalMat); b.position.set(0, -0.3 + i * 0.12, 0.03); vg.add(b); }
-      const fr = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.88, 0.04), metalMat); fr.position.z = -0.02; vg.add(fr);
-      vg.position.set(cx - dx * (TS / 2 - 0.03), 0.55, cz - dz * (TS / 2 - 0.03)); vg.rotation.y = Math.PI / 2 - o.face; group.add(vg); dyn.valves.push({ o, g: vg, kind: 'vent', mat: gm });
-    } else if (o.type === 'generator') {
-      const gm = lit({ color: 0x3a4036, roughness: 0.6, metalness: 0.5, map: tex.metal.map }); patchPulse(gm); const gg = new THREE.Group();
-      gg.add(new THREE.Mesh(mergeGeometries([box(1.5, 0.9, 1.0, 0, 0.55, 0), cyl(0.38, 0.38, 1.3, 0.3, 1.3, 0, 14).rotateZ(Math.PI / 2 * 0)]), gm)); const tank = new THREE.Mesh(cyl(0.34, 0.34, 1.3, 0, 0, 0, 14), gm); tank.rotation.z = Math.PI / 2; tank.position.set(0, 1.35, 0); gg.add(tank);
-      const il = new THREE.MeshBasicMaterial({ color: 0xff2200 }); const ind = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.06), il); ind.position.set(-0.45, 0.95, 0.52); gg.add(ind);
-      const fan = new THREE.Mesh(cyl(0.3, 0.3, 0.05, 0, 0, 0, 12), darkMat); fan.rotation.x = Math.PI / 2; fan.position.set(0.5, 0.55, 0.52); gg.add(fan);
-      gg.position.set(cx, 0, cz); gg.rotation.y = R() < 0.5 ? 0 : Math.PI / 2; group.add(gg); dyn.gens.push({ o, g: gg, il, fan });
-    } else if (o.type === 'breaker') {
-      const bg = new THREE.Group(), led = new THREE.MeshBasicMaterial({ color: 0xff2a1a }); bg.add(new THREE.Mesh(mergeGeometries([box(0.9, 1.9, 0.36, 0, 0.95, 0), box(0.78, 0.9, 0.04, 0, 1.15, 0.2)]), metalMat)); const levers = [];
-      for (let i = 0; i < 3; i++) { const lv = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.34, 0.07), darkMat); lv.position.set(-0.24 + i * 0.24, 1.15, 0.26); lv.geometry.translate(0, 0.17, 0); lv.rotation.x = -0.9; bg.add(lv); levers.push(lv); }
-      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.1, 0.05), led); lamp.position.set(0, 1.72, 0.2); bg.add(lamp);
-      const glb = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff9a2a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.45 })); glb.scale.set(1.5, 1.5, 1); glb.position.set(0, 1.4, 0.4); bg.add(glb);
-      bg.position.set(cx, 0, cz); bg.rotation.y = Math.floor(R() * 4) * Math.PI / 2; group.add(bg); dyn.valves.push({ o, g: bg, kind: 'breaker', led, levers, glow: glb });
-    } else if (o.type === 'valve') {
-      const vg = new THREE.Group(); vg.add(new THREE.Mesh(mergeGeometries([cyl(0.12, 0.14, 1.1, 0, 0.55, 0, 10), box(0.5, 0.15, 0.5, 0, 0.08, 0)]), metalMat)); const wm = lit({ color: 0xaa2218, roughness: 0.4, metalness: 0.6 }); patchPulse(wm);
-      const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.035, 8, 20), wm); wheel.position.set(0, 1.18, 0); wheel.rotation.x = Math.PI / 2; vg.add(wheel); for (let i = 0; i < 3; i++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.03, 0.03), wm); sp.position.y = 1.18; sp.rotation.y = i * Math.PI / 3; vg.add(sp); }
-      vg.position.set(cx, 0, cz); group.add(vg); dyn.valves.push({ o, g: vg, kind: 'valve', wheel });
-    } else if (o.type === 'exit') {
-      const eg = new THREE.Group(), etex = canvasTexture(256, 128, (x, w, h) => { x.fillStyle = '#04140b'; x.fillRect(0, 0, w, h); x.fillStyle = '#3dff8a'; x.font = 'bold 64px sans-serif'; x.textAlign = 'center'; x.fillText('EXIT', w / 2, 82); x.strokeStyle = '#3dff8a'; x.lineWidth = 4; x.strokeRect(6, 6, w - 12, h - 12); });
-      eg.add(new THREE.Mesh(mergeGeometries([box(1.9, 2.7, 0.35, 0, 1.35, 0), box(0.2, 2.9, 0.5, -1.0, 1.45, 0), box(0.2, 2.9, 0.5, 1.0, 1.45, 0), box(2.2, 0.2, 0.5, 0, 2.95, 0)]), metalMat)); const door = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 2.4), new THREE.MeshBasicMaterial({ color: 0x0f3a24 })); door.position.set(0, 1.25, 0.19); eg.add(door); const door2 = door.clone(); door2.position.z = -0.19; door2.rotation.y = Math.PI; eg.add(door2);
+    if (buildDynamic(o, E)) { /* door, locker, vent, generator, breaker, valve: see dynamic3d.js */
+    } else if (o.type === 'exit' || o.type === 'fakeexit') {
+      const fake = o.type === 'fakeexit', eg = new THREE.Group(), etex = canvasTexture(256, 128, (x, w, h) => { x.fillStyle = '#04140b'; x.fillRect(0, 0, w, h); x.fillStyle = '#3dff8a'; x.font = 'bold 64px sans-serif'; x.textAlign = 'center'; x.fillText('EXIT', w / 2, 82); x.strokeStyle = '#3dff8a'; x.lineWidth = 4; x.strokeRect(6, 6, w - 12, h - 12); });
+      eg.add(new THREE.Mesh(mergeGeometries([box(1.9, 2.7, 0.35, 0, 1.35, 0), box(0.2, 2.9, 0.5, -1.0, 1.45, 0), box(0.2, 2.9, 0.5, 1.0, 1.45, 0), box(2.2, 0.2, 0.5, 0, 2.95, 0)]), metalMat)); const door = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 2.4), new THREE.MeshBasicMaterial({ color: fake ? 0x010201 : 0x0f3a24 })); door.position.set(0, 1.25, 0.19); eg.add(door); const door2 = door.clone(); door2.position.z = -0.19; door2.rotation.y = Math.PI; eg.add(door2);
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.47), new THREE.MeshBasicMaterial({ map: etex })); sign.position.set(0, 2.5, 0.2); eg.add(sign); const s2 = sign.clone(); s2.position.z = -0.2; s2.rotation.y = Math.PI; eg.add(s2);
       /* the exit hums with green light so it is always findable */
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0x30ff80, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.8 })); sp.scale.set(3.5, 3.5, 1); sp.position.y = 1.5; eg.add(sp); dyn.exitGlow = sp;
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0x30ff80, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.8 })); sp.scale.set(3.5, 3.5, 1); sp.position.y = 1.5; eg.add(sp); if (!fake) dyn.exitGlow = sp; else sp.material.opacity = 0.3;
       const near = world.exitDir || [0, 1]; void near; eg.position.set(cx, 0, cz);
       /* face the open side */
-      const openDir = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([ax, az]) => !solid(o.x + ax, o.y + az) && !world.solid.has((o.y + az) * W + (o.x + ax))) || [0, 1]; eg.rotation.y = Math.atan2(openDir[0], openDir[1]); group.add(eg); dyn.exit = eg;
+      const openDir = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([ax, az]) => !solid(o.x + ax, o.y + az) && !world.solid.has((o.y + az) * W + (o.x + ax))) || [0, 1]; eg.rotation.y = Math.atan2(openDir[0], openDir[1]); group.add(eg); if (!fake) dyn.exit = eg;
     } else if (o.type === 'item') {
       const ig = new THREE.Group(), m = new THREE.MeshStandardMaterial({ color: o.kind === 'key' ? 0xd8b24a : o.kind === 'card' ? 0x3ca0ff : o.kind === 'fuse' ? 0xffcc44 : 0x6a7078, roughness: 0.35, metalness: 0.8, emissive: o.kind === 'key' ? 0x6a4a10 : o.kind === 'card' ? 0x0a3a77 : o.kind === 'fuse' ? 0x774400 : 0x222a30, emissiveIntensity: 0.9 });
       patchPulse(m);
@@ -234,7 +186,7 @@ export function buildScene(world, Q) {
   if (housing.length) addMesh(mergeGeometries(housing), darkMat, false, false);
   const sceneAmb = new THREE.HemisphereLight(TH.amb, 0x050507, TH.ambI * (spec.lightsOut ? 0.6 : 1) * (Q.mats === 'std' ? 4.4 : 3.7)); scene.add(sceneAmb);
   /* nest: an organic glow in every wall pocket and floor veins */
-  return { scene, group, dyn, decor, fixtures, lampMats, theme, TH, tex, waterMesh, disposables, wallMat, floorMat, amb: sceneAmb };
+  return { scene, group, dyn, decor, fixtures, lampMats, theme, TH, tex, waterMesh, disposables, wallMat, floorMat, amb: sceneAmb, matMap: mm };
 }
 let _glow = null;
 export function glowTex() { if (_glow) return _glow; const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,0.4)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); _glow = new THREE.CanvasTexture(c); return _glow; }

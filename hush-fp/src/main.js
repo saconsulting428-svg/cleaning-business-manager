@@ -12,6 +12,7 @@ import * as AI from './logic/ai.js';
 import { GLBMonster } from './render/monster_glb.js';
 import { CrawlerGLB } from './render/crawler_glb.js';
 import { drawFacilityMap, mapDir } from './ui/mapview.js';
+import { TORCHES, TORCH_IDS, torchById, torchUnlocked, drawTorchIcon } from './render/torches.js';
 import { stuckHint } from './ui/stuck.js';
 import { HEAL, HP_MAX } from './logic/extras.js';
 import { runBot } from './test/bot.js';
@@ -26,10 +27,10 @@ $('app').classList.toggle('touch', coarse);
 
 /* ---------------- save ---------------- */
 const KEY = 'hush.fp.v1';
-const save = { v: 1, stars: [], best: [], logs: {}, tips: {}, set: { gfx: 'high', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, last: 0 };
+const save = { v: 1, stars: [], best: [], logs: {}, tips: {}, set: { gfx: 'high', torch: 'standard', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, last: 0 };
 try { const s = migrateSave(JSON.parse(localStorage.getItem(KEY) || 'null'), LEVELS); if (s && s.v === 1) { Object.assign(save, s); save.logs = (s.logs && typeof s.logs === 'object') ? s.logs : {}; save.tips = (s.tips && typeof s.tips === 'object' && !Array.isArray(s.tips)) ? s.tips : {}; save.stars = Array.isArray(s.stars) ? s.stars : []; save.best = Array.isArray(s.best) ? s.best : []; save.last = Math.max(0, Math.min(LEVELS.length - 1, +s.last || 0)); save.set = Object.assign({ gfx: 'auto', bright: 100, vibe: true, hints: true, vol: 80, mvol: 60, sound: true, music: true, aq: 'auto', sens: 100, inv: false, diff: 'normal', marks: true }, s.set || {}); } } catch (e) { /* private mode or a corrupted save: start fresh */ }
 { const S = save.set, num = (v, lo, hi, d) => (typeof v === 'number' && isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d), one = (v, list, d) => (list.includes(v) ? v : d);
-  save.set = { gfx: 'high', aq: one(S.aq, ['auto', 'full', 'light'], 'auto'), diff: one(S.diff, ['easy', 'normal', 'hard'], 'normal'), bright: num(S.bright, 70, 160, 100), vol: num(S.vol, 0, 100, 80), mvol: num(S.mvol, 0, 100, 60), sens: num(S.sens, 30, 200, 100),
+  save.set = { gfx: 'high', torch: one(S.torch, TORCH_IDS, 'standard'), aq: one(S.aq, ['auto', 'full', 'light'], 'auto'), diff: one(S.diff, ['easy', 'normal', 'hard'], 'normal'), bright: num(S.bright, 70, 160, 100), vol: num(S.vol, 0, 100, 80), mvol: num(S.mvol, 0, 100, 60), sens: num(S.sens, 30, 200, 100),
     vibe: S.vibe !== false, hints: S.hints !== false, sound: S.sound !== false, music: S.music !== false, inv: S.inv === true, marks: S.marks !== false }; }
 save.lv = LEVELS.length; save.stars = save.stars.map(v => (v >= 0 && v <= 3 ? v | 0 : 0));
 const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } };
@@ -66,18 +67,47 @@ function buildChapters() {
   CHAPTERS.forEach((c, ci) => {
     const lock = !unlocked(CH_START[ci]), el = document.createElement('button'); el.className = 'chap' + (G.chapterView === ci ? ' on' : '') + (lock ? ' lock' : '');
     el.style.backgroundImage = ['radial-gradient(ellipse at 50% 38%, #4a3a22 0%, #1a130b 55%, #050403 100%)', 'radial-gradient(ellipse at 50% 38%, #1d4a66 0%, #0a1a26 55%, #03070a 100%)', 'radial-gradient(ellipse at 50% 38%, #8a1a22 0%, #2a0709 55%, #060102 100%)'][ci];
-    el.innerHTML = '<i class="art"></i>' + (lock ? '<svg class="lk"><use href="#i-lock"/></svg>' : '') + '<small>Chapter ' + (ci + 1) + '</small><b>' + c.name + '</b><em><svg><use href="#i-star"/></svg>' + chapterStars(ci) + ' / ' + (CH_START[ci + 1] - CH_START[ci]) * 3 + ' &nbsp;&middot;&nbsp; logs ' + chapterLogs(ci) + ' / ' + (CH_START[ci + 1] - CH_START[ci]) + '</em>';
+    el.innerHTML = '<i class="art"></i>' + (lock ? '<svg class="lk"><use href="#i-lock"/></svg>' : '') + '<small>Chapter ' + (ci + 1) + ' &middot; levels ' + (CH_START[ci] + 1) + '-' + CH_START[ci + 1] + '</small><b>' + c.name + '</b><p class="syn">' + CH_SYN[ci] + '</p><em><svg><use href="#i-star"/></svg>' + chapterStars(ci) + ' / ' + (CH_START[ci + 1] - CH_START[ci]) * 3 + ' &nbsp;&middot;&nbsp; logs ' + chapterLogs(ci) + ' / ' + (CH_START[ci + 1] - CH_START[ci]) + '</em>';
     el.onclick = () => { if (lock) return Sound.play('denied'); Sound.play('ui'); G.chapterView = ci; buildLevels(); show('levels'); }; list.appendChild(el);
   });
 }
+/* campaign map: all 50 levels on one winding facility route (connectors, chapter bands, node shapes by what the level asks of you), then a non-playable COMING SOON node */
+const MH = 300, NW = 104, CG = 176;
+const nodePos = (i) => ({ x: 96 + i * NW + LEVELS[i].ch * CG, y: MH * 0.56 + Math.sin(i * 0.66 + LEVELS[i].ch * 1.3) * MH * 0.2 });
+const nodeShape = (l, i, r) => {
+  const hexp = (k) => Array.from({ length: k }, (_, j) => { const a = -Math.PI / 2 + j * 2 * Math.PI / k; return (r * Math.cos(a)).toFixed(1) + ',' + (r * Math.sin(a)).toFixed(1); }).join(' ');
+  if (i === LEVELS.length - 1) return '<polygon points="' + Array.from({ length: 10 }, (_, j) => { const a = -Math.PI / 2 + j * Math.PI / 5, rr = j % 2 ? r * 0.55 : r * 1.2; return (rr * Math.cos(a)).toFixed(1) + ',' + (rr * Math.sin(a)).toFixed(1); }).join(' ') + '"/>';
+  if (l.hunted || l.setpiece === 'chase') return '<polygon points="' + hexp(3) + '"/>';
+  if (l.gates.includes('secret')) return '<rect x="' + (-r * 0.85) + '" y="' + (-r * 0.85) + '" width="' + r * 1.7 + '" height="' + r * 1.7 + '" rx="5"/>';
+  if (l.gates.some(g => g === 'power' || g === 'breaker' || g === 'valve')) return '<polygon points="' + hexp(6) + '"/>';
+  if (l.gates.length) return '<polygon points="' + hexp(4) + '" transform="scale(1.08)"/>';
+  return '<circle r="' + r + '"/>';
+};
+const CH_SYN = ['Dusty offices, reception, security rooms and the sealed east wing. The evacuation was staged.', 'Cold teal light, red emergency lamps, flooded labs, tanks and pumps. The flooding was deliberate.', 'Rust, black growth and red light: tunnels, shafts, cells and the heart of the colony.'];
 function buildLevels() {
-  const tabs = $('level-tabs'), grid = $('level-grid'); tabs.innerHTML = ''; grid.innerHTML = '';
-  CHAPTERS.forEach((c, ci) => { const b = document.createElement('button'), lock = !unlocked(CH_START[ci]); b.className = 'tab' + (ci === G.chapterView ? ' on' : '') + (lock ? ' lock' : ''); b.innerHTML = (lock ? '<svg><use href="#i-lock"/></svg>' : '') + 'Chapter ' + (ci + 1); b.onclick = () => { if (lock) return; G.chapterView = ci; buildLevels(); }; tabs.appendChild(b); });
-  for (let i = CH_START[G.chapterView]; i < CH_START[G.chapterView + 1]; i++) {
-    const lock = !unlocked(i), g = gen(i), b = document.createElement('button'); b.className = 'lv' + (lock ? ' lock' : '') + (i === save.last && !lock ? ' on' : ''); b.appendChild(thumb(g, lock));
-    const st = save.stars[i] || 0; b.insertAdjacentHTML('beforeend', '<b>' + (i - CH_START[G.chapterView] + 1) + '</b><span class="nm">' + LEVELS[i].name + '</span>' + (lock ? '<svg class="lk"><use href="#i-lock"/></svg>' : '<span class="st">' + [0, 1, 2].map(k => '<svg class="' + (k < st ? 'f' : '') + '"><use href="#i-star"/></svg>').join('') + '</span>'));
-    b.onclick = () => { if (lock) return Sound.play('denied'); Sound.play('ui'); startLevel(i); }; grid.appendChild(b);
+  const tabs = $('level-tabs'), svg = $('route-svg'), route = $('route'); tabs.innerHTML = '';
+  const last = nodePos(LEVELS.length - 1), W = Math.round(last.x + 330), curL = (save.last | 0), sel = G.selLevel !== undefined && unlocked(G.selLevel) ? G.selLevel : (unlocked(curL) ? curL : 0);
+  CHAPTERS.forEach((c, ci) => { const b = document.createElement('button'), lock = !unlocked(CH_START[ci]); b.className = 'tab' + (ci === G.chapterView ? ' on' : '') + (lock ? ' lock' : ''); b.innerHTML = (lock ? '<svg><use href="#i-lock"/></svg>' : '') + 'Chapter ' + (ci + 1); b.onclick = () => { if (lock) return; G.chapterView = ci; Sound.play('ui'); qa('.tab', tabs).forEach((t, k) => t.classList.toggle('on', k === ci)); route.scrollTo({ left: Math.max(0, nodePos(CH_START[ci]).x - 180), behavior: 'smooth' }); }; tabs.appendChild(b); });
+  const BAND = ['#6a5636', '#2a6a82', '#82242c'], COL = ['#d9b36a', '#5ec8e6', '#ff5c66'];
+  let h = '<defs>' + BAND.map((c, k) => '<linearGradient id="bg' + k + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + c + '" stop-opacity=".30"/><stop offset="1" stop-color="' + c + '" stop-opacity=".04"/></linearGradient>').join('') + '<pattern id="rgrid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M26 0H0V26" fill="none" stroke="#7aa6c0" stroke-opacity=".07"/></pattern></defs><rect width="' + W + '" height="' + MH + '" fill="url(#rgrid)"/>';
+  CHAPTERS.forEach((c, ci) => { const x0 = nodePos(CH_START[ci]).x - 70, x1 = nodePos(CH_START[ci + 1] - 1).x + 70; h += '<rect x="' + x0 + '" y="6" width="' + (x1 - x0) + '" height="' + (MH - 12) + '" rx="8" fill="url(#bg' + ci + ')" stroke="' + COL[ci] + '" stroke-opacity=".35"/><text x="' + (x0 + 14) + '" y="26" class="rt" fill="' + COL[ci] + '">CHAPTER ' + (ci + 1) + '  //  ' + c.name.toUpperCase() + '</text><text x="' + (x0 + 14) + '" y="42" class="rs">LEVELS ' + (CH_START[ci] + 1) + '-' + CH_START[ci + 1] + '</text>'; });
+  for (let i = 0; i < LEVELS.length; i++) { const a = nodePos(i), nx = i + 1 < LEVELS.length ? nodePos(i + 1) : { x: last.x + 190, y: MH * 0.5 }, st = save.stars[i] || 0, cls = i + 1 >= LEVELS.length ? 'soon' : st ? 'done' : unlocked(i + 1) ? 'open' : 'lock', mx = (a.x + nx.x) / 2; h += '<path class="seg ' + cls + '" d="M' + a.x + ' ' + a.y + ' C' + mx + ' ' + a.y + ' ' + mx + ' ' + nx.y + ' ' + nx.x + ' ' + nx.y + '"/>'; }
+  for (let i = 0; i < LEVELS.length; i++) {
+    const l = LEVELS[i], p = nodePos(i), lock = !unlocked(i), st = save.stars[i] || 0, r = i === LEVELS.length - 1 ? 22 : 20, cur = i === curL && !lock, up = i % 2 === 0;
+    h += '<g class="nd ' + (lock ? 'lock' : st ? 'done' : 'open') + (cur ? ' cur' : '') + (i === sel ? ' sel' : '') + '" data-i="' + i + '" transform="translate(' + p.x.toFixed(1) + ',' + p.y.toFixed(1) + ')"><circle class="hit" r="30"/><g class="sh">' + nodeShape(l, i, r) + '</g><text class="num" y="5">' + (i + 1) + '</text>';
+    if (lock) h += '<text class="lk" y="' + (up ? -30 : 40) + '">&#128274;</text>'; else h += '<text class="nm" y="' + (up ? -28 : 42) + '">' + l.name + '</text>' + (st ? '<text class="stz" y="' + (up ? 34 : -22) + '">' + '&#9733;'.repeat(st) + '<tspan class="e">' + '&#9733;'.repeat(3 - st) + '</tspan></text>' : '');
+    h += '</g>';
   }
+  const sx = last.x + 190, sy = MH * 0.5;
+  h += '<g class="nd soonnode" data-soon="1" transform="translate(' + sx + ',' + sy + ')"><circle class="hit" r="44"/><polygon class="sh" points="' + Array.from({ length: 6 }, (_, j) => (34 * Math.cos(-Math.PI / 2 + j * Math.PI / 3)).toFixed(1) + ',' + (34 * Math.sin(-Math.PI / 2 + j * Math.PI / 3)).toFixed(1)).join(' ') + '"/><text class="soont" y="-3">COMING</text><text class="soont" y="12">SOON</text></g>';
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + MH); svg.setAttribute('width', W); svg.setAttribute('height', MH); svg.innerHTML = h;
+  const info = (i) => {
+    G.selLevel = i; qa('.nd', svg).forEach(n => n.classList.toggle('sel', +n.getAttribute('data-i') === i)); const l = LEVELS[i], g = gen(i), st = save.stars[i] || 0, el = $('lv-info'); el.innerHTML = '';
+    el.appendChild(thumb(g, false)); const t = document.createElement('div'); t.className = 'lvt'; t.innerHTML = '<small>CHAPTER ' + (l.ch + 1) + ' &middot; LEVEL ' + (i + 1) + '</small><b>' + l.name + '</b><span class="rt2">' + l.route.join(' &rsaquo; ') + '</span><span class="ob">' + l.hint + '</span>'; el.appendChild(t);
+    const r = document.createElement('div'); r.className = 'lvr'; r.innerHTML = '<span class="stz2">' + [0, 1, 2].map(k => '<svg class="' + (k < st ? 'f' : '') + '"><use href="#i-star"/></svg>').join('') + '</span>' + (save.best[i] ? '<small>BEST ' + Math.floor(save.best[i] / 60) + ':' + String(save.best[i] % 60).padStart(2, '0') + '</small>' : '') + '<button class="btn red" id="lv-play"><svg><use href="#i-play"/></svg>Play</button>'; el.appendChild(r); $('lv-play').onclick = () => { Sound.play('ui'); startLevel(i); };
+  };
+  qa('.nd', svg).forEach(n => { n.addEventListener('click', () => { if (n.getAttribute('data-soon')) { const el = $('lv-info'); el.innerHTML = '<div class="lvt"><small>AFTER LEVEL ' + LEVELS.length + '</small><b>COMING SOON</b><span class="ob">More of Halden Station is coming. Your progress is saved.</span></div>'; Sound.play('ui'); return; } const i = +n.getAttribute('data-i'); if (!unlocked(i)) { Sound.play('denied'); return; } Sound.play('ui'); if (G.selLevel === i && n.classList.contains('sel') && G.tapOnce === i) { startLevel(i); return; } G.tapOnce = i; info(i); }); });
+  info(sel); setTimeout(() => route.scrollTo({ left: Math.max(0, nodePos(sel).x - route.clientWidth / 2), behavior: 'auto' }), 30);
 }
 
 /* ---------------- level flow ---------------- */
@@ -88,9 +118,9 @@ let starting = false;
 async function startLevel(i) { if (starting) return; starting = true; try { await startLevelNow(i); } finally { starting = false; } }   // a double tap on Retry / Next must not start two loads
 async function startLevelNow(i) {
   setLoading(true, 'Entering ' + LEVELS[i].name, 20); ['pause', 'win', 'dead', 'note', 'log', 'keypad', 'settings', 'how', 'credits', 'inv', 'obj', 'map', 'tip'].forEach(o => overlay(o, false)); await nextFrame();
-  G.run = (G.run || 0) + 1; G.level = i; save.last = i; persist(); G.chapterView = LEVELS[i].ch; const w = new World(gen(i), { assist: (G.deaths && G.deaths[i]) || 0 }); G.world = w; setLoading(true, null, 55); await nextFrame(); G.view.loadLevel(w); setLoading(true, null, 95); await nextFrame();
+  G.run = (G.run || 0) + 1; G.level = i; save.last = i; persist(); G.chapterView = LEVELS[i].ch; const w = new World(gen(i), { assist: (G.deaths && G.deaths[i]) || 0 }); G.world = w; setLoading(true, null, 55); await nextFrame(); G.view.loadLevel(w); applyTorch(true); setLoading(true, null, 95); await nextFrame();
   G.mode = 'game'; show('game'); G.paused = false; G.modal = false; G.over = false; G.ended = 0; G.timeSpent = 0; G.acc = 0; G.hintT = 8; G.shownHint = -1; G.lastInv = ''; G.menu = false; inp.edge = {}; inp.dyaw = 0; inp.dpitch = 0; inp.pyaw = 0; inp.ppitch = 0; inp.sprintBtn = false; $('b-sprint').classList.remove('on');
-  G.prog = null; G.tut = { dist: 0, yaw: 0, flash: 0, doors: 0, pulses: 0, firstPulse: 0, crouched: false, crouchNear: 0, hid: 0, picked: {}, bag: 0, map: 0, last: null, skip: false }; G.seq = tipsOn() && SEQ[i] && !save.tips['seq' + i] ? SEQ[i] : null; G.seqI = 0; G.seqOkT = 0; G.coachOn = false; $('hint').classList.remove('coach', 'ok');
+  G.prog = null; G.heartEcho = false; G.tut = { dist: 0, yaw: 0, flash: 0, doors: 0, pulses: 0, firstPulse: 0, crouched: false, crouchNear: 0, hid: 0, picked: {}, bag: 0, map: 0, last: null, skip: false }; G.seq = tipsOn() && SEQ[i] && !save.tips['seq' + i] ? SEQ[i] : null; G.seqI = 0; G.seqOkT = 0; G.coachOn = false; $('hint').classList.remove('coach', 'ok');
   $('hint').textContent = save.set.hints && !G.seq ? LEVELS[i].hint : ''; $('hint').classList.toggle('show', !!save.set.hints && !G.seq); G.chapterAudio = LEVELS[i].ch; applyAudio(); Sound.unlock(); buildHotbar(true);
   setLoading(false, null, 100); G.last = performance.now(); $('fx-hurt').style.opacity = 0; if (!coarse) lockPointer();
 }
@@ -117,7 +147,7 @@ async function startMenuScene() {
 const hotSlots = ['flash', 'card', 'key', 'fuse', 'radio'], ICON = { flash: 'i-flash', card: 'i-card', key: 'i-key', fuse: 'i-fuse', radio: 'i-radio' };
 function buildHotbar(force) {
   const w = G.world; if (!w) return; const inv = w.player.inv, sig = [inv.card, inv.key, inv.fuse, inv.radio, w.player.flash].join(); if (!force && sig === G.lastInv) return; G.lastInv = sig; const bar = $('hotbar'); bar.innerHTML = '';
-  hotSlots.forEach((k, n) => { const cnt = k === 'flash' ? 1 : inv[k], el = document.createElement('button'); el.className = 'slot' + (k === 'flash' ? (w.player.flash ? ' sel' : ' off') : cnt ? '' : ' empty'); el.innerHTML = '<svg><use href="#' + ICON[k] + '"/></svg>' + (k !== 'flash' && cnt > 1 ? '<i>' + cnt + '</i>' : ''); el.onpointerdown = (e) => { e.stopPropagation(); e.preventDefault(); if (k === 'flash') inp.edge.flash = true; else if (k === 'radio') inp.edge.radio = true; }; bar.appendChild(el); });
+  hotSlots.forEach((k, n) => { const cnt = k === 'flash' ? 1 : inv[k], el = document.createElement('button'); el.className = 'slot' + (k === 'flash' ? (w.player.flash ? ' sel' : ' off') : cnt ? '' : ' empty'); if (k === 'flash') { const T = torchById(save.set.torch); el.title = T.name; if (w.player.flash) el.style.boxShadow = '0 0 9px ' + T.pal[2], el.style.borderColor = T.pal[2]; } el.innerHTML = '<svg><use href="#' + ICON[k] + '"/></svg>' + (k !== 'flash' && cnt > 1 ? '<i>' + cnt + '</i>' : ''); el.onpointerdown = (e) => { e.stopPropagation(); e.preventDefault(); if (k === 'flash') inp.edge.flash = true; else if (k === 'radio') inp.edge.radio = true; }; bar.appendChild(el); });
 }
 let noiseHist = new Array(44).fill(0);
 function drawNoise(w, dt) {
@@ -140,6 +170,7 @@ function hud(w, dt) {
   const pr = w.prompt, show = !!(pr && !G.modal); setC('prompt', 'show', show); if (show) { setC('prompt', 'no', /^Locked|needs/.test(pr.text)); setT('prompt-text', pr.text); }
   const st = $('stam'); setC('stam', 'show', p.stamina < 0.98); setC('stam', 'tired', p.tired); const sw = Math.round(p.stamina * 50) * 2 + '%'; if (HC.stw !== sw) { HC.stw = sw; st.firstChild.style.width = sw; } setC('b-crouch', 'on', p.crouch);
   if (G.hpShowT > 0) G.hpShowT -= dtH; const hpv = Math.ceil(p.hp); setT('hp-n', hpv); setC('hp', 'show', hpv < HP_MAX || G.hpShowT > 0); setC('hp', 'low', hpv <= 35); const hw = hpv + '%'; if (HC.hpw !== hw) { HC.hpw = hw; $('hp').lastChild.style.width = hw; }
+  w.kpShow = $('ov-keypad').classList.contains('show') ? { id: kpDoor, text: (kpCode + '----').slice(0, 4), st: '' } : null;
   drawNoise(w, dtH); setO('fx-locker', p.hidden >= 0 ? 1 : 0); const th = w.threat; setO('fx-hurt', (w.over === 'dead') ? 0.9 : Math.max(0, th - 0.55) * 0.9);
 }
 
@@ -167,8 +198,23 @@ const INVINFO = { flash: ['Flashlight', 'A narrow beam. Switch it off to be hard
 let invSel = 'flash';
 function panel(id, on) {
   const open = $('ov-' + id).classList.contains('show');
-  if (on) { if (G.mode !== 'game' || G.over || G.modal || anyOverlay() || !G.world) return; G.paused = true; if (document.pointerLockElement) document.exitPointerLock(); id === 'inv' ? drawInv() : id === 'obj' ? drawObj() : drawMap(); if (id === 'inv') G.tut.bag++; if (id === 'map') { G.tut.map++; G.mapTimer = setInterval(() => { if (G.world) drawMap(); }, 180); } overlay(id, true); Sound.play('ui'); }
+  if (on) { if (G.mode !== 'game' || G.over || G.modal || anyOverlay() || !G.world) return; G.paused = true; if (document.pointerLockElement) document.exitPointerLock(); id === 'inv' ? (drawInv(), drawTorches()) : id === 'obj' ? drawObj() : drawMap(); if (id === 'inv') G.tut.bag++; if (id === 'map') { G.tut.map++; G.mapTimer = setInterval(() => { if (G.world) drawMap(); }, 180); } overlay(id, true); Sound.play('ui'); }
   else if (open) { overlay(id, false); if (id === 'map') { clearInterval(G.mapTimer); G.mapTimer = 0; } G.paused = false; if (!coarse) lockPointer(); }
+}
+/* torch selection: the model in the hand, the beam and how easily creatures notice the light follow the choice; a torch that is not unlocked yet cannot be selected */
+function applyTorch(instant) {
+  if (!torchUnlocked(torchById(save.set.torch), save.stars)) save.set.torch = 'standard'; const T = torchById(save.set.torch);
+  if (G.view) G.view.setTorch(T.id, instant); if (G.world) G.world.player.torchSight = T.sight;
+}
+function drawTorches() {
+  const row = $('inv-torch'); if (!row) return; row.innerHTML = '';
+  const bars = (v) => '<span class="pips">' + [1, 2, 3, 4, 5].map(k => '<i class="' + (k <= v ? 'on' : '') + '"></i>').join('') + '</span>';
+  TORCHES.forEach(t => {
+    const un = torchUnlocked(t, save.stars), b = document.createElement('button'); b.className = 'tc' + (t.id === save.set.torch ? ' sel' : '') + (un ? '' : ' lock');
+    b.innerHTML = '<canvas width="96" height="56"></canvas><b>' + t.name + '</b><em>Range ' + bars(t.bars[0]) + '</em><em>Spread ' + bars(t.bars[1]) + '</em><em>Stealth ' + bars(t.bars[2]) + '</em><small>' + (un ? (t.id === save.set.torch ? 'EQUIPPED' : 'TAP TO EQUIP') : 'LOCKED: ' + t.unlock.text) + '</small>'; drawTorchIcon(b.firstChild, t.id);
+    b.onclick = () => { $('inv-desc').textContent = t.name + ' - ' + t.desc; if (!un) { Sound.play('denied'); return; } if (t.id !== save.set.torch) { save.set.torch = t.id; persist(); applyTorch(false); Sound.play('ui'); buildHotbar(true); } drawTorches(); };
+    row.appendChild(b);
+  });
 }
 function drawInv() {
   const w = G.world, inv = w.player.inv, cnt = { flash: w.player.flash ? 1 : 0, card: inv.card, key: inv.key, fuse: inv.fuse, radio: inv.radio, pulse: w.player.pulses }, g = $('inv-grid'); g.innerHTML = '';
@@ -196,6 +242,43 @@ function drawMap() {
 function track(e) {
   const T = G.tut; if (!T) return;
   if (e.type === 'flash') T.flash++; else if (e.type === 'door' && e.by !== 'creature') T.doors++; else if (e.type === 'pulse') { T.pulses++; if (!T.firstPulse) T.firstPulse = performance.now() / 1000; } else if (e.type === 'hide' && !e.out) T.hid++; else if (e.type === 'pickup') T.picked[e.kind] = 1;
+}
+/* fear beats: what the player sees and hears (the timing lives in logic/beats.js) */
+function playBeat(e, w, p) {
+  const sp = (x, y) => spatial(x, y), V = G.view;
+  switch (e.what) {
+    case 'phone': Sound.play('phone'); break;
+    case 'crack': Sound.play('glass'); Sound.play('crack2'); V.shake = Math.max(V.shake || 0, 0.25); V.flicker(0.8); break;
+    case 'scrape': Sound.play('scrape', { pan: Math.random() * 2 - 1 }); break;
+    case 'silence': Sound.silence(e.dur || 4); break;
+    case 'voice': Sound.play('voice', { static: e.static }); banner(e.text, 'sus', 3200); break;
+    case 'clicks': Sound.play('clicks', { pan: Math.random() * 2 - 1 }); break;
+    case 'radio2': { const s = sp(e.x, e.y); Sound.play('radioPulse', { v: Math.max(0.4, s.v), pan: s.pan }); break; }
+    case 'knock': { const s = sp(e.x, e.y); if (s.d < 14) Sound.play('knock', { pan: s.pan }); break; }
+    case 'redwave': V.redWave(); Sound.play('surge'); break;
+    case 'motor': Sound.play('motor'); V.shake = Math.max(V.shake || 0, 0.4); break;
+    case 'lift': Sound.play('lift'); banner('THE LIFT HAS STOPPED AT AN UNLISTED LEVEL', 'sus', 3000); break;
+    case 'lightsPulse': V.rhythm = true; break;
+    case 'tap3': { const s = sp(e.x, e.y); for (let i = 0; i < 3; i++) later(() => Sound.play('knock', { pan: s.pan }), 450 + i * 520); break; }
+    case 'count': banner('CORE OVERHEAT 0:0' + e.n, 'seen', 1100); Sound.play('beep'); break;
+    case 'impact2': Sound.play('impact', { v: 1, pan: 0 }); V.shake = Math.max(V.shake || 0, 0.6); break;
+    case 'circle': for (let i = 0; i < 10; i++) later(() => Sound.play('cstep', { v: 0.7, pan: i % 2 ? -0.9 : 0.9, kind: 'stalker' }), 300 + i * 420); break;
+    case 'ceilEyes': V.flashEyes(e.x * 2, e.y * 2, 1.6, 3.0); break;
+    case 'eyesBehind': V.flashEyes((p.x - Math.cos(p.yaw) * 6) * 2, (p.y - Math.sin(p.yaw) * 6) * 2, 1.8, 1.7); break;
+    case 'ghost': V.ghost(e.x, e.y); break;
+    case 'huge': V.huge(); Sound.play('groan', { pan: 0, f: 0 }); break;
+    case 'cctv': { const el = $('fx-cctv'); $('cctv-t').textContent = 'CAM 03'; $('cctv-s').textContent = e.mode === 'you' ? 'SUBJECT: UNKNOWN' : 'ROOM EMPTY'; el.classList.add('show'); Sound.play('beep'); setTimeout(() => el.classList.remove('show'), e.dur * 1000); break; }
+    case 'stare': Sound.play('notice'); break;
+    case 'eggcrack': Sound.play('crack2'); V.eggW = 1.4; break;
+    case 'climb': Sound.play('scrape', { pan: 0.8 }); break;
+    case 'heartEcho': G.heartEcho = true; break;
+    case 'creak': { const s = sp(e.x, e.y); Sound.play('creak', { pan: s.pan, f: 0.5 }); break; }
+    case 'torchPull': { const ex = w.gen.exit; V.pullPos = [ex.x + 0.5, ex.y + 0.5]; break; }
+    case 'hum': Sound.play('hum', { pan: 0 }); break;
+    case 'freeze': banner('THE SIGNAL CUTS OUT', 'heard', 2600); break;
+    case 'faintPing': Sound.play('faintPing'); break;
+    case 'fakeexit': banner('THIS IS NOT THE EXIT: THE SHAFT BEHIND IT IS EMPTY', 'sus', 3200); Sound.play('denied'); break;
+  }
 }
 /* presence warning: a creature that has not noticed you is close (even behind a wall): say so once in a while, so a walking player is never surprised by what hears footsteps */
 function presenceTick(w, dt) {
@@ -267,7 +350,7 @@ function handleEvents(w, dt) {
       case 'radioburst': { const s = spatial(e.x, e.y); if (s.d < 22) Sound.play('radio'); break; }
       case 'reveal': Sound.play('unlock'); break;
       case 'log': { const st = STORY[e.level] || ['Log', '...']; $('log-title').textContent = st[0]; $('log-text').textContent = st[1]; if (!save.logs[e.level]) { save.logs[e.level] = 1; persist(); } G.modal = true; overlay('log', true); Sound.play('ui'); if (document.pointerLockElement) document.exitPointerLock(); break; }
-      case 'note': $('note-code').textContent = e.code; G.modal = true; overlay('note', true); if (document.pointerLockElement) document.exitPointerLock(); break;
+      case 'note': $('note-extra').textContent = w.spec.beat === 'noteWrite' ? 'Written over an older message: "DON\'T ANSWER THE PULSE."' : ''; $('note-code').textContent = e.code; G.modal = true; overlay('note', true); if (document.pointerLockElement) document.exitPointerLock(); break;
       case 'keypad': openKeypad(e.id); break;
       case 'heard': { const s = spatial(e.x, e.y); if (s.d < 20) { Sound.play('heard'); banner('IT HEARD THAT', 'heard', 1500); } break; }
       case 'sniff': { const sp = spatial(e.x, e.y); Sound.play('breath', { v: Math.max(0.5, sp.v), pan: sp.pan }); later(() => Sound.play('growl', { v: 0.4, pan: sp.pan, kind: 'stalker' }), 900); break; }
@@ -276,6 +359,7 @@ function handleEvents(w, dt) {
       case 'lost': Sound.play('lost'); banner('IT LOST YOU', 'heard', 1500); break;
       case 'cstep': { const s = spatial(e.x, e.y); const v = Math.max(0, 1 - s.d / 14); if (v > 0.03) Sound.play('cstep', { v: v * (e.hunt ? 1 : 0.8), pan: s.pan, kind: w.creatures[e.id].t }); break; }
       case 'lunge': { const s = spatial(e.x, e.y); Sound.play('roar', { v: Math.max(0.5, s.v), pan: s.pan, kind: w.creatures[e.id].t }); G.view.shake = Math.max(G.view.shake || 0, 0.3); vibe(40); break; }
+      case 'beat': playBeat(e, w, p); break;
       case 'hurt': { const bearing = angDiffUI(Math.atan2(e.y - p.y, e.x - p.x), p.yaw); Sound.play('hurt'); G.view.kick(e.amt, bearing); vibe([40, 30, 90]); const d = $('fx-dmg'); d.classList.remove('hit'); void d.offsetWidth; d.classList.add('hit'); G.hpShowT = 5; break; }
       case 'heal': Sound.play('heal'); banner('+' + HEAL[e.kind] + ' HP', 'heard', 1400); G.hpShowT = 4; break;
       case 'hpfull': banner('HEALTH IS FULL: SAVE IT FOR LATER', 'sus', 1300); break;
@@ -303,7 +387,7 @@ function handleEvents(w, dt) {
     else if (r < 0.6) { Sound.play('thump', { pan }); later(() => Sound.play('creak', { pan }), 700 + Math.random() * 900); }
     else { const yaw = p.yaw; let spot = null; for (let d = 16; d >= 9 && !spot; d -= 1) for (const da of [0, 0.12, -0.12, 0.25, -0.25]) { const x = p.x + Math.cos(yaw + da) * d, y = p.y + Math.sin(yaw + da) * d, k = Math.floor(y) * w.W + Math.floor(x); if (w.cells[k] !== 0 && !w.solid.has(k) && AI.lineOfSight(w, p.x, p.y, x, y)) { spot = [x, y]; break; } } if (spot) { G.view.flashEyes(spot[0] * 2, spot[1] * 2, 1.7); Sound.play('growl', { v: 0.25, pan: 0, kind: 'stalker' }); } else G.dirT = 6; }
   }
-  hbTimer -= dt; const th2 = Math.max(w.threat, p.hp < 35 ? 0.6 : 0); if (th2 > 0.35 && hbTimer <= 0 && p.alive) { hbTimer = 1.05 - 0.55 * th2; Sound.play('heart', { v: Math.min(1, th2 * 1.2) }); if (th2 > 0.8 && Math.random() < 0.3) vibe(25); }
+  hbTimer -= dt; const th2 = Math.max(w.threat, p.hp < 35 ? 0.6 : 0); if (th2 > 0.35 && hbTimer <= 0 && p.alive) { hbTimer = 1.05 - 0.55 * th2; Sound.play('heart', { v: Math.min(1, th2 * 1.2) }); if (G.heartEcho) later(() => Sound.play('heart', { v: Math.min(1, th2 * 0.8) }), 380); if (th2 > 0.8 && Math.random() < 0.3) vibe(25); }
   const nearGen = w.gens.find(g => g.on); Sound.scene({ chapter: LEVELS[G.level].ch, threat: w.threat, hunted: w.creatures.some(c => c.state === 'hunt'), gen: nearGen ? clamp(1 - Math.hypot(nearGen.x - p.x, nearGen.y - p.y) / 22, 0, 1) : 0, genPan: nearGen ? spatial(nearGen.x + 0.5, nearGen.y + 0.5).pan : 0, paused: G.paused });
   Sound.tick(dt, LEVELS[G.level].ch, w.threat > 0.5);
 }
@@ -413,4 +497,4 @@ async function boot() {
   if (!(__TEST__ && TEST && /[?&]noglb=1\b/.test(location.search))) await GLBMonster.load(); await CrawlerGLB.load(); await startMenuScene(); G.mode = 'home'; show('home'); syncSettings(); setLoading(false, null, 100); overlay('gate', !TEST); requestAnimationFrame(frame); Sound.setQuality(save.set.aq);
 }
 boot();
-if (__TEST__ && TEST) { window.HUSH = { G, save, inp, ai: AI, glb: GLBMonster, tapAt, proj: (o) => { const v = G.view, r = $('view').getBoundingClientRect(), t = v.camera.position.clone(); v.camera.updateMatrixWorld(true); t.set((o.x + 0.5) * 2, REACH_H[o.type] || 1, (o.y + 0.5) * 2).project(v.camera); return [(t.x * 0.5 + 0.5) * r.width + r.left, (-t.y * 0.5 + 0.5) * r.height + r.top]; }, startLevel, toMenu, pause, view: () => G.view, world: () => G.world, LEVELS, runBot: (n) => runBot(G.world, n || 600), gen, step: (n, i) => { for (let k = 0; k < (n || 1); k++) { G.world.update(DT, i || {}); G.timeSpent += DT; handleEvents(G.world, DT); } }, unlockAll: () => { save.stars = LEVELS.map(() => 1); persist(); }, buildLevels, buildChapters, show }; }
+if (__TEST__ && TEST) { window.HUSH = { gallery: () => G.view.gallery(), G, save, inp, ai: AI, glb: GLBMonster, tapAt, proj: (o) => { const v = G.view, r = $('view').getBoundingClientRect(), t = v.camera.position.clone(); v.camera.updateMatrixWorld(true); t.set((o.x + 0.5) * 2, REACH_H[o.type] || 1, (o.y + 0.5) * 2).project(v.camera); return [(t.x * 0.5 + 0.5) * r.width + r.left, (-t.y * 0.5 + 0.5) * r.height + r.top]; }, startLevel, toMenu, pause, view: () => G.view, world: () => G.world, LEVELS, runBot: (n) => runBot(G.world, n || 600), gen, step: (n, i) => { for (let k = 0; k < (n || 1); k++) { G.world.update(DT, i || {}); G.timeSpent += DT; handleEvents(G.world, DT); } }, unlockAll: () => { save.stars = LEVELS.map(() => 1); persist(); }, buildLevels, buildChapters, show }; }

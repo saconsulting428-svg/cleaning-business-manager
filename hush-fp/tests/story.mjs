@@ -4,9 +4,9 @@ import { STORY } from '../src/logic/story.js';
 import { generate } from '../src/logic/gen.js';
 import { World, DT } from '../src/logic/world.js';
 let ok = 0, bad = 0; const t = (n, c, d) => { c ? ok++ : bad++; console.log((c ? 'PASS ' : 'FAIL ') + n + (c ? '' : '  ' + (d || ''))); };
-t('40 levels in 3 chapters (13/13/14)', LEVELS.length === 40 && CH_START.join() === '0,13,26,40', CH_START.join());
-t('40 story documents', STORY.length === 40 && STORY.every(s => s[0] && s[1].length > 40));
-let missing = []; for (let i = 0; i < 40; i++) { const g = generate(LEVELS[i]); if (!g.objs.some(o => o.type === 'log')) missing.push(i + 1); } t('every level has a recovered log to find', missing.length === 0, missing.join());
+t('50 levels in 3 chapters (17/17/16)', LEVELS.length === 50 && CH_START.join() === '0,17,34,50', CH_START.join());
+t('50 story documents', STORY.length === 50 && STORY.every(s => s[0] && s[1].length > 50));
+let missing = []; for (let i = 0; i < 50; i++) { const g = generate(LEVELS[i]); if (!g.objs.some(o => o.type === 'log')) missing.push(i + 1); } t('every level has a recovered log to find', missing.length === 0, missing.join());
 { const w = new World(generate(LEVELS[0]), {}); const lg = w.objs.find(o => o.type === 'log'); const p = w.player; p.x = lg.x + 0.5; p.y = lg.y + 1.2; p.yaw = -Math.PI / 2; w.update(DT, {}); const tg = w.interactTarget(); t('the log can be targeted and read', tg && tg.kind === 'log', JSON.stringify(tg)); w.interact(); t('reading emits a log event for the right level', w.drainEvents().some(e => e.type === 'log' && e.level === 0) && lg.done); }
 { // hiding: creature walks up, sniffs, does not catch an unseen player
   const w = new World(generate(LEVELS[5]), {}); const L = w.objs.find(o => o.type === 'locker'); const c = w.creatures[0], p = w.player;

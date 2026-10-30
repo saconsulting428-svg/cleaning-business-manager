@@ -79,7 +79,7 @@ export function drawFacilityMap(w, cv, now) {
   x.strokeStyle = 'rgba(0,0,0,.75)'; x.lineWidth = Math.max(3.2 * u, sc * 0.34); x.stroke(); x.strokeStyle = '#bcd6e8'; x.lineWidth = Math.max(1.5 * u, sc * 0.17); x.stroke();
   const lab = (txt, px, py, col, size) => { x.font = '600 ' + Math.max(10 * u, Math.round(size || sc * 1.4)) + 'px ' + FONT; x.textAlign = 'center'; x.textBaseline = 'alphabetic'; x.lineWidth = 3 * u; x.strokeStyle = 'rgba(0,0,0,.88)'; x.lineJoin = 'round'; x.strokeText(txt, px, py); x.fillStyle = col; x.fillText(txt, px, py); };
   /* room names for rooms you have been in */
-  w.rooms.forEach((rm, i) => { if (seenRoom[i] && rm.kind) lab(String(rm.kind).toUpperCase(), X(rm.x0 + rm.w / 2), Y(rm.y0 + rm.h / 2) + sc * .45, 'rgba(205,224,238,.7)', Math.min(sc * 1.2, 15 * u)); });
+  w.rooms.forEach((rm, i) => { if (seenRoom[i] && (rm.name || rm.kind)) lab(String(rm.name || rm.kind).toUpperCase(), X(rm.x0 + rm.w / 2), Y(rm.y0 + rm.h / 2) + sc * .45, 'rgba(205,224,238,.7)', Math.max(8 * u, Math.min(sc * 1.2, 15 * u, (rm.w * sc * 1.05) / (String(rm.name || rm.kind).length * 0.5)))); });
   /* what is known: collapsed passages, hiding places, tools (only where the tile has been explored) */
   const rr = Math.max(5 * u, sc * 0.62);
   for (const o of w.objs) {
