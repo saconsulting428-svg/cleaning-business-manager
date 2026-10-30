@@ -1483,9 +1483,9 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     const pages = Math.ceil(SKINS.length / 12);
     if (skinPage >= pages) skinPage = 0;
     [[-1, BX + 22], [1, BX + BW - 22]].forEach((a) => {
-      dot(a[1], top + 90, 14, t.panel);
-      line(a[1] - a[0] * 2.5, top + 84, a[1] + a[0] * 3.5, top + 90, t.btnText, 2.6); line(a[1] + a[0] * 3.5, top + 90, a[1] - a[0] * 2.5, top + 96, t.btnText, 2.6);
-      buttons.push({ x: a[1] - 24, y: top + 72, w: 48, h: 34, fn: () => { skinPage = (skinPage + a[0] + pages) % pages; } });
+      dot(a[1], top + 95, 10, t.panel);
+      line(a[1] - a[0] * 2, top + 91, a[1] + a[0] * 2.5, top + 95, t.btnText, 2.2); line(a[1] + a[0] * 2.5, top + 95, a[1] - a[0] * 2, top + 99, t.btnText, 2.2);
+      buttons.push({ x: a[1] - 22, y: top + 80, w: 44, h: 30, fn: () => { skinPage = (skinPage + a[0] + pages) % pages; } });
     });
     txt(W / 2 + 112, top + 96, (skinPage + 1) + '/' + pages, 12, t.btnText, 0.5, false);
     SKINS.slice(skinPage * 12, skinPage * 12 + 12).forEach((sk, i) => {
@@ -2485,11 +2485,9 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   function skAdapt(L, id) {
     let e = SK.lvl;
     const last2 = SK.h.slice(-2);
-    if (last2.length === 2 && last2.every((r) => r.at >= 3)) e -= 1;                       // easier breather after two hard levels
-    if (SK.cur && SK.cur.id === id && SK.cur.fails >= 2) e -= 1;                            // stuck on this very level
-    if ((skHas(L, 'B') && SK.mech.trap >= 3) || (skHas(L, 'D') && SK.mech.door >= 3) || (skHas(L, 'G') && SK.mech.gate >= 3)) e -= 1;   // weak mechanic
+    if (last2.length === 2 && last2.every((r) => r.at >= 3)) e -= 1;                       // easier breather after two hard levels (based on finished levels only: retrying never eases a level)
     e = skClamp(e, -2, 2);
-    return { e: e, bias: e < 0 ? -1 : e > 0 ? 1 : 0, s2: -e * 1.5 | 0, s3: -e, d: e <= -2 ? 1.08 : e === -1 ? 1.04 : 1, ready: e <= -2 ? 500 : 0, hint: e <= -1 && SK.cur && SK.cur.id === id && SK.cur.fails >= 4 };
+    return { e: e, bias: e < 0 ? -1 : e > 0 ? 1 : 0, s2: -e * 1.5 | 0, s3: -e, d: e <= -2 ? 1.08 : e === -1 ? 1.04 : 1, ready: e <= -2 ? 500 : 0, hint: false };
   }
   function adaptiveFruit(L, bias) {                                  // layouts are drawn from the validated Q mask, so every one stays solvable by the stored route
     if (!bias) return randomFruit(L);
@@ -2501,7 +2499,30 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     return best;
   }
   // Fruit places are made once per level (first entry), saved, and reused on every retry / restart.
-  const FRUIT_KEY = 'snakeFruitRush.fruit.v1';
+  const FRUIT_KEY = 'snakeFruitRush.fruit.v2';
+  // Fruit in tight spots: of several valid random layouts (all on the stored route, never touching), keep the one whose fruit sit in the narrowest
+  // gaps. More candidates on later levels, so the pull towards tight corridors grows with the level number.
+  function tightness(base, F) {
+    const wl = lvLayer(base.W), bl = base.B ? lvLayer(base.B) : null;
+    let s = 0;
+    F.forEach((f) => {
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const x = f[0] + dx, y = f[1] + dy;
+        if (x < 0 || y < 0 || x >= COLS || y >= ROWS || wl[y * COLS + x] || (bl && bl[y * COLS + x])) s++;
+      }
+    });
+    return s;
+  }
+  function tightFruit(base, id) {
+    let best = null, bs = -1;
+    const n = 2 + Math.ceil(id * 0.3);
+    for (let i = 0; i < n; i++) {
+      const F = randomFruit(base).F, sc = tightness(base, F);
+      if (sc > bs) { bs = sc; best = F; }
+    }
+    return best;
+  }
   function fruitSaved(id, base) {
     let m = {};
     try { m = JSON.parse(localStorage.getItem(FRUIT_KEY)) || {}; } catch (e) { m = {}; }
@@ -2509,10 +2530,10 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     const ok = Array.isArray(f) && f.length === base.F.length && f.every((c) => Array.isArray(c) && c[0] >= 0 && c[0] < COLS && c[1] >= 0 && c[1] < ROWS && q[c[1] * COLS + c[0]])
       && f.every((a, i) => f.every((b, j) => i === j || Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])) >= 2));
     if (ok) return f;
-    const L2 = randomFruit(base);
-    m[id] = L2.F;
+    const F2 = tightFruit(base, id);
+    m[id] = F2;
     try { localStorage.setItem(FRUIT_KEY, JSON.stringify(m)); } catch (e) { /* blocked: layout lasts for this session only */ }
-    return L2.F;
+    return F2;
   }
   function startLevel(id, showRoute) {
     id = Math.min(LEVEL_COUNT, Math.max(1, id | 0));
