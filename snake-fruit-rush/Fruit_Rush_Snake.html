@@ -3071,15 +3071,15 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     txt(BX + BW, 22, 'Moves', 12, t.text, 1, false);
     txt(BX + BW, 50, String(C0.moves), 28, C0.moves > C0.L.s2 ? '#ff5a5f' : t.text, 1);
     // tracker: fruit, keys, exit
-    const items = rt.fruits.length + rt.keys.length + 1, x0 = W / 2 - (items - 1) * 12;
+    const items = rt.fruits.length + rt.keys.length + 1, pit = Math.min(24, 240 / items), x0 = 284 - (items - 1) * pit / 2;   // sits between the level title and the moves counter
     let k = 0;
     rt.fruits.forEach((f, i) => {
-      const x = x0 + k * 24, eaten = (st.fruitMask >> i) & 1;
+      const x = x0 + k * pit, eaten = (st.fruitMask >> i) & 1;
       dot(x, 40, 10.5, t.panel); if (eaten) { dot(x, 40, 10.5, '#4ade80', 0.35); drawFruit(C0.fr[i].kind, x, 42, 0.62); } else { dot(x, 40, 7, t.bg, 0.55); }
       k++;
     });
-    rt.keys.forEach((kk, i) => { const x = x0 + k * 24, has = (st.keyMask >> i) & 1; dot(x, 40, 10.5, t.panel); if (has) drawKey(x, 40, 0.62); else dot(x, 40, 5, '#facc15', 0.3); k++; });
-    { const x = x0 + k * 24, open = C0.exitOpen; dot(x, 40, 10.5, open ? '#22c55e' : t.panel); g.fillStyle(C(open ? '#14532d' : t.text), open ? 1 : 0.5); g.fillTriangle(x - 3, 34, x - 3, 46, x + 5, 40); }
+    rt.keys.forEach((kk, i) => { const x = x0 + k * pit, has = (st.keyMask >> i) & 1; dot(x, 40, 10.5, t.panel); if (has) drawKey(x, 40, 0.62); else dot(x, 40, 5, '#facc15', 0.3); k++; });
+    { const x = x0 + k * pit, open = C0.exitOpen; dot(x, 40, 10.5, open ? '#22c55e' : t.panel); g.fillStyle(C(open ? '#14532d' : t.text), open ? 1 : 0.5); g.fillTriangle(x - 3, 34, x - 3, 46, x + 5, 40); }
     txt(W / 2, 80, objective(C0), 12.5, t.text, 0.5, false);
   }
   function drawPwIcon(k, x, y, on) {
