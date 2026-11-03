@@ -140,7 +140,7 @@ export function buildScene(world, Q) {
   const stripe = (c1, c2) => canvasTexture(64, 64, (x, w, h) => { x.fillStyle = c1; x.fillRect(0, 0, w, h); x.fillStyle = c2; for (let i = -h; i < w; i += 16) { x.beginPath(); x.moveTo(i, h); x.lineTo(i + 8, h); x.lineTo(i + 8 + h, 0); x.lineTo(i + h, 0); x.fill(); } });
   const lockCol = { key: 0xc9a14a, card: 0x3ca0ff, power: 0xffcc22, code: 0x66ff88, valve: 0xff5533, secret: 0x44aaff, breaker: 0xff9a2a };
   const lockTex = {};
-  const E = { TS, WH, R, group, dyn, mats: libM, glowTex, patchPulse, lit, dis: disposables, canvasTexture, glassMat, liqMat, scrMat, bl1Mat, bl2Mat, hazMat, lockCol, wallMat };
+  const E = { Q, TS, WH, R, group, dyn, mats: libM, glowTex, patchPulse, lit, dis: disposables, canvasTexture, glassMat, liqMat, scrMat, bl1Mat, bl2Mat, hazMat, lockCol, wallMat };
   for (const o of world.objs) {
     const cx = o.x * TS + TS / 2, cz = o.y * TS + TS / 2;
     if (buildDynamic(o, E)) { /* door, locker, vent, generator, breaker, valve: see dynamic3d.js */

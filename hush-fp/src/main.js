@@ -11,6 +11,8 @@ import { Sound } from './audio.js';
 import * as AI from './logic/ai.js';
 import { GLBMonster } from './render/monster_glb.js';
 import { CrawlerGLB } from './render/crawler_glb.js';
+import { LockerGLB } from './render/locker_glb.js';
+import { applySkin } from './ui/skin.js';
 import { drawFacilityMap, mapDir } from './ui/mapview.js';
 import { TORCHES, TORCH_IDS, torchById, torchUnlocked, drawTorchIcon } from './render/torches.js';
 import { stuckHint } from './ui/stuck.js';
@@ -494,7 +496,7 @@ function frame(ts) {
 async function boot() {
   const v = G.view = new View($('view'), 'high', { aa: false }); v.onQuality = (q) => { save.set.gfx = save.set.gfx === 'auto' ? 'auto' : save.set.gfx; }; if (isMobile) v.resScale = 0.85; applyGfx(); applyAudio(); window.addEventListener('resize', () => v.resize());
   setLoading(true, 'Preparing the facility', 30); await nextFrame(); for (let i = 0; i < LEVELS.length; i++) { gen(i); if (i % 8 === 0) { setLoading(true, null, 30 + i); await nextFrame(); } }
-  if (!(__TEST__ && TEST && /[?&]noglb=1\b/.test(location.search))) await GLBMonster.load(); await CrawlerGLB.load(); await startMenuScene(); G.mode = 'home'; show('home'); syncSettings(); setLoading(false, null, 100); overlay('gate', !TEST); requestAnimationFrame(frame); Sound.setQuality(save.set.aq);
+  if (!(__TEST__ && TEST && /[?&]noglb=1\b/.test(location.search))) await GLBMonster.load(); await CrawlerGLB.load(); await LockerGLB.load(); applySkin(); await startMenuScene(); G.mode = 'home'; show('home'); syncSettings(); setLoading(false, null, 100); overlay('gate', !TEST); requestAnimationFrame(frame); Sound.setQuality(save.set.aq);
 }
 boot();
 if (__TEST__ && TEST) { window.HUSH = { gallery: () => G.view.gallery(), G, save, inp, ai: AI, glb: GLBMonster, tapAt, proj: (o) => { const v = G.view, r = $('view').getBoundingClientRect(), t = v.camera.position.clone(); v.camera.updateMatrixWorld(true); t.set((o.x + 0.5) * 2, REACH_H[o.type] || 1, (o.y + 0.5) * 2).project(v.camera); return [(t.x * 0.5 + 0.5) * r.width + r.left, (-t.y * 0.5 + 0.5) * r.height + r.top]; }, startLevel, toMenu, pause, view: () => G.view, world: () => G.world, LEVELS, runBot: (n) => runBot(G.world, n || 600), gen, step: (n, i) => { for (let k = 0; k < (n || 1); k++) { G.world.update(DT, i || {}); G.timeSpent += DT; handleEvents(G.world, DT); } }, unlockAll: () => { save.stars = LEVELS.map(() => 1); persist(); }, buildLevels, buildChapters, show }; }

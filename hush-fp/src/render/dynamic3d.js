@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ctx, newAcc, paint } from './objects3d.js';
+import { LockerGLB } from './locker_glb.js';
 
 const M = (g, mat, x, y, z) => { const m = new THREE.Mesh(g, mat); if (x !== undefined) m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; return m; };
 const bx = (w, h, d, c, wear, seed) => paint(new THREE.BoxGeometry(w, h, d), c, wear === undefined ? 0.6 : wear, seed || 3);
@@ -53,7 +54,9 @@ export function buildDynamic(o, E) {
     const dx = Math.cos(o.face), dz = Math.sin(o.face), v = o.variant || 'locker', g = new THREE.Group(), K = ctx(acc, 0, 0, 0, 0.8, o.id * 5), { B, C } = K;
     const tone = v === 'cabinet' ? pk3(R, [0x8a6a46, 0x75573a, 0x6a5a48]) : pk3(R, [0x3d4a45, 0x4a5560, 0x56604f, 0x5a4f46]), cat = v === 'cabinet' ? 'wood' : 'steel', w = v === 'cabinet' ? 1.15 : 0.9, h = v === 'cabinet' ? 1.55 : 2.0, d = 0.62;
     let door = null;
-    if (v === 'alcove') {                                                       // a dark recess behind an open shelf frame
+    if (v === 'locker' && LockerGLB.ready) {                                    // the painted metal locker model
+      g.add(LockerGLB.build(E.Q, o.id % 3 === 0 ? 0x586660 : o.id % 3 === 1 ? 0x625e54 : 0x566068));
+    } else if (v === 'alcove') {                                                       // a dark recess behind an open shelf frame
       B('dark', 0.95, 2.05, 0.5, 0, 1.03, -0.05, 0x060708); for (const sx of [-0.47, 0.47]) B('steel', 0.06, 2.1, 0.06, sx, 1.05, 0.34, 0x30343a); for (const yy of [0.12, 0.7, 1.3, 1.9]) B('steel', 1.0, 0.04, 0.5, 0, yy, 0.12, 0x30343a);
       B('wood', 0.34, 0.26, 0.3, -0.28, 0.85, 0.12, 0x6b4a2e); B('cloth', 0.4, 0.04, 0.3, 0.2, 1.34, 0.12, 0x4a4a3a); B('steel', 0.9, 0.04, 0.04, 0, 2.07, 0.36, 0x30343a);
     } else {

@@ -2,6 +2,25 @@
    one draw call), hazard bands, floor stains, lamp reflections on wet floors. Everything is merged into a handful of meshes so phones keep their frame rate. */
 import * as THREE from 'three';
 import { canvasTexture } from './textures.js';
+import d_b3 from '../assets/decals/b3.webp';
+import d_biohazard from '../assets/decals/biohazard.webp';
+import d_crack from '../assets/decals/crack.webp';
+import d_danger from '../assets/decals/danger.webp';
+import d_electric from '../assets/decals/electric.webp';
+import d_exit from '../assets/decals/exit.webp';
+import d_hazard from '../assets/decals/hazard.webp';
+import d_mould from '../assets/decals/mould.webp';
+import d_paper from '../assets/decals/paper.webp';
+import d_peel from '../assets/decals/peel.webp';
+import d_plate from '../assets/decals/plate.webp';
+import d_puddle from '../assets/decals/puddle.webp';
+import d_scrape from '../assets/decals/scrape.webp';
+import d_smudge from '../assets/decals/smudge.webp';
+import d_stain from '../assets/decals/stain.webp';
+import d_web from '../assets/decals/web.webp';
+/* painted decals (GPT art, keyed from magenta) drawn into atlas cells; the procedural cell shows until the image has loaded */
+const PAINT = { 0: d_b3, 1: d_danger, 3: d_electric, 4: d_hazard, 5: d_exit, 6: d_biohazard, 7: d_scrape, 8: d_mould, 9: d_smudge, 10: d_paper, 11: d_stain, 12: d_crack, 13: d_peel, 14: d_puddle, 15: d_web, 16: d_plate };
+function paintAtlas(tex) { const cv = tex.image, x = cv.getContext('2d'); for (const k of Object.keys(PAINT)) { const i = +k, im = new Image(); im.onload = () => { const cx = (i % 8) * 128, cy = Math.floor(i / 8) * 128, sc = Math.min(124 / im.width, 124 / im.height); x.clearRect(cx, cy, 128, 128); x.drawImage(im, cx + 64 - im.width * sc / 2, cy + 64 - im.height * sc / 2, im.width * sc, im.height * sc); tex.needsUpdate = true; }; im.src = PAINT[k]; } }
 
 export const KIND_TINT = {
   archive: [1.02, 0.96, 0.84], canteen: [1.08, 1.0, 0.9], hall: [0.96, 0.98, 1.0],
@@ -45,6 +64,7 @@ function atlas(theme) {
     /* weathering over everything */ x.globalCompositeOperation = 'destination-out'; for (let i = 0; i < 900; i++) { x.fillStyle = 'rgba(0,0,0,' + (0.1 + Math.random() * 0.5) + ')'; x.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 3, 1 + Math.random() * 2); } x.globalCompositeOperation = 'source-over';
   });
   /* text signs per kind are drawn as extra atlas cells (12..31) so each kind has its own wording */
+  paintAtlas(tex);
   ATLAS = { theme, tex, uv: (i) => { const cx = (i % 8) / 8, cy = 1 - (Math.floor(i / 8) + 1) / 4; return [cx, cy, 1 / 8, 1 / 4]; } }; return ATLAS;
 }
 function kindSigns(theme, used) {
@@ -103,12 +123,12 @@ export function buildDecor(C) {
   const wallQuad = (f, w, h, y, u) => { const o = 0.012, [nx, nz] = f.n, tx = -nz, tz = nx, cx = f.x + nx * o, cz = f.z + nz * o; const hw = w / 2;
     return { p: [[cx - tx * hw, y - h / 2, cz - tz * hw], [cx + tx * hw, y - h / 2, cz + tz * hw], [cx + tx * hw, y + h / 2, cz + tz * hw], [cx - tx * hw, y + h / 2, cz - tz * hw]], n: [nx, 0, nz], u: [u[0], u[1], u[0] + u[2], u[1], u[0] + u[2], u[1] + u[3], u[0], u[1] + u[3]] }; };
   const signs = [], decals = [], floors = [], bands = [];
-  const density = theme === 'nest' ? 0.16 : 0.12;
+  const density = theme === 'nest' ? 0.24 : 0.18;
   for (const f of wallFaces) {
     const room = roomAt(f.tx, f.ty); const kind = room ? room.kind : null; if (R() > density) continue;
     const jitter = (R() - 0.5) * 0.7, face = { x: f.x + (f.n[1] ? jitter : 0), z: f.z + (f.n[0] ? jitter : 0), n: f.n };
-    if (kind && TEXTS[kind] && R() < 0.55) { const ti = Math.floor(R() * 3), txt = TEXTS[kind][ti]; if (txt) { signs.push(wallQuad(face, 1.1, 0.23, 1.55 + R() * 0.6, S.rect(kind, ti))); continue; } }
-    const r = R(); const cell = theme === 'nest' ? (r < 0.4 ? 7 : r < 0.7 ? 6 : 8) : (r < 0.3 ? 9 : r < 0.5 ? 10 : r < 0.7 ? 7 : 6); const uvr = A.uv(cell); const sz = cell === 10 ? 0.5 : cell === 8 ? 1.1 : 0.9;
+    if (kind && TEXTS[kind] && R() < 0.25) { const ti = Math.floor(R() * 3), txt = TEXTS[kind][ti]; if (txt) { signs.push(wallQuad(face, 1.1, 0.23, 1.55 + R() * 0.6, S.rect(kind, ti))); continue; } }
+    const r = R(); const cell = theme === 'nest' ? (r < 0.22 ? 8 : r < 0.42 ? 12 : r < 0.6 ? 7 : r < 0.76 ? 13 : r < 0.9 ? 15 : 9) : (r < 0.2 ? 12 : r < 0.34 ? 11 : r < 0.48 ? 7 : r < 0.58 ? 13 : r < 0.68 ? 10 : r < 0.76 ? 15 : r < 0.83 ? 6 : r < 0.89 ? 3 : r < 0.94 ? 5 : r < 0.97 ? 1 : 0); const uvr = A.uv(cell); const sz = { 10: 0.55, 8: 1.2, 12: 1.5, 13: 1.1, 15: 1.0, 11: 1.3, 7: 1.1, 6: 0.7, 3: 0.55, 5: 0.7, 1: 0.7, 0: 0.7 }[cell] || 0.9;
     decals.push(wallQuad(face, sz, sz, 0.9 + R() * 0.9, uvr));
   }
   /* hazard band along walls of machine / sluice / vault rooms */
@@ -118,7 +138,7 @@ export function buildDecor(C) {
   addQuads(signs, S.tex); addQuads(decals, A.tex);
   /* floor storytelling: stains, papers, hand prints near lockers */
   const fq = (x, z, s, cell, rot) => { const u = A.uv(cell), c = Math.cos(rot), sn = Math.sin(rot), h = s / 2, P = (dx, dz) => [x + dx * c - dz * sn, 0.012, z + dx * sn + dz * c]; return { p: [P(-h, h), P(h, h), P(h, -h), P(-h, -h)], n: [0, 1, 0], u: [u[0], u[1], u[0] + u[2], u[1], u[0] + u[2], u[1] + u[3], u[0], u[1] + u[3]] }; };
-  for (const r of world.rooms) { const n = 1 + Math.floor(R() * 3); for (let i = 0; i < n; i++) { const x = (r.x0 + 0.6 + R() * (r.w - 1.2)) * TS, z = (r.y0 + 0.6 + R() * (r.h - 1.2)) * TS; const cell = theme === 'nest' ? (R() < 0.6 ? 8 : 9) : (R() < 0.45 ? 9 : R() < 0.7 ? 10 : 11); floors.push(fq(x, z, cell === 10 ? 0.5 : 1.0 + R() * 0.8, cell, R() * 6.28)); } }
+  for (const r of world.rooms) { const n = 1 + Math.floor(R() * 3); for (let i = 0; i < n; i++) { const x = (r.x0 + 0.6 + R() * (r.w - 1.2)) * TS, z = (r.y0 + 0.6 + R() * (r.h - 1.2)) * TS; const cell = theme === 'nest' ? (R() < 0.6 ? 8 : 9) : (R() < 0.4 ? 9 : R() < 0.6 ? 14 : R() < 0.8 ? 10 : 11); floors.push(fq(x, z, cell === 10 ? 0.5 : 1.0 + R() * 0.8, cell, R() * 6.28)); } }
   for (const o of world.objs) if (o.type === 'locker') { const cx = (o.x + 0.5) * TS + Math.cos(o.face) * 0.9, cz = (o.y + 0.5) * TS + Math.sin(o.face) * 0.9; floors.push(fq(cx, cz, 1.1, 9, R() * 6)); }
   addQuads(floors, A.tex);
   /* lamp reflections: soft vertical streaks on wet floors (flooded chapter, pump rooms) */
