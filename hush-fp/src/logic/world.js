@@ -7,7 +7,7 @@ import { initExtras, updateExtras } from './extras.js';
 
 export const DT = 1 / 30;
 /* one difficulty for everybody: the creatures simply get a little sharper level by level (level 1 is gentle, level 40 is firm but always beatable: sprint 2.7 tiles/s outruns the hunt speed) */
-export const levelDiff = (i) => { const t = Math.max(0, Math.min(1, (i || 0) / 49)); return { sight: 0.8 + 0.3 * t, alert: 0.78 + 0.34 * t, speed: 0.94 + 0.08 * t }; };
+export const levelDiff = (i) => { const t = Math.max(0, Math.min(1, (i || 0) / 49)); return { sight: 0.72 + 0.34 * t, alert: 0.62 + 0.5 * t, speed: 0.9 + 0.12 * t }; };
 export const DIFF = { normal: levelDiff(20) };
 export const SPEED = { walk: 1.55, sprint: 2.7, crouch: 0.8 };
 const PR = 0.3;                                                    // player radius in tiles
@@ -17,7 +17,7 @@ const TALL = { crate: 1, shelf: 1, pod: 1, barrel: 1, machine: 1, tank: 1, colum
 export class World {
   constructor(gen, opts) {
     opts = opts || {}; this.gen = gen; this.lights = gen.lights; this.spec = gen.spec; this.W = gen.W; this.H = gen.H; this.cells = gen.cells; this.rooms = gen.rooms; this.rnd = rng32(gen.seed * 3 + 1);
-    this.god = !!opts.god; this.assist = Math.max(0, Math.min(3, (opts && opts.assist) | 0)); { const d = levelDiff(gen.spec.story === undefined ? 20 : gen.spec.story), a = this.assist; this.diff = { sight: d.sight * (1 - 0.1 * a), alert: d.alert * (1 - 0.12 * a), speed: d.speed * (1 - 0.03 * a) }; } /* quiet safety net: every death on a level makes its creatures a little duller (resets on the next level) */ this.time = 0; this.events = []; this.noiseLevel = 0; this.huntCount = 0; this.over = null; this.threat = 0; this.pulseState = null; this.pulseCd = 0; this.radioLures = [];
+    this.god = !!opts.god; this.assist = Math.max(0, Math.min(3, (opts && opts.assist) | 0)); { const d = levelDiff(gen.spec.story === undefined ? 20 : gen.spec.story), a = this.assist; this.diff = { sight: d.sight * (1 - 0.12 * a), alert: d.alert * (1 - 0.18 * a), speed: d.speed * (1 - 0.04 * a) }; } /* quiet safety net: every death on a level makes its creatures a little duller (resets on the next level) */ this.time = 0; this.events = []; this.noiseLevel = 0; this.huntCount = 0; this.over = null; this.threat = 0; this.pulseState = null; this.pulseCd = 0; this.radioLures = [];
     this.solid = new Set(gen.blocked); this.tall = new Set(); this.doorAt = new Map(); this.objById = new Map(); this.doors = [];
     this.objs = gen.objs.map(o => Object.assign({}, o)); for (const o of this.objs) { this.objById.set(o.id, o); if (o.type === 'prop' && TALL[o.kind]) this.tall.add(o.y * this.W + o.x); }
     for (const o of this.objs) if (o.type === 'door') { o.open = 0; o.want = 0; o.locked = !!o.lock; o.revealed = !o.hidden; o.codeOk = false; this.doorAt.set(o.y * this.W + o.x, o); this.doors.push(o); this.solid.add(o.y * this.W + o.x); }
@@ -182,7 +182,15 @@ export class World {
     this.radioLures.push({ x: p.x + f[0] * 0.8, y: p.y + f[1] * 0.8, t: 1.2, n: 4, every: 2.2 }); this.events.push({ type: 'radio', x: p.x, y: p.y }); return true;
   }
   toggleFlash() { this.player.flash = !this.player.flash; this.events.push({ type: 'flash', on: this.player.flash }); }
-  catchPlayer(c) { if (this.god || !this.player.alive) { if (this.god) { c.state = 'search'; c.searchT = 3; c.target = null; } return; } this.player.alive = false; this.over = 'dead'; this.caughtBy = c; this.events.push({ type: 'caught', id: c.id }); }
+  catchPlayer(c) { if (this.god || !this.player.alive) { if (this.god) { c.state = 'search'; c.searchT = 3; c.target = null; } return; } const p = this.player;
+    /* the first mauling of a run is survivable (55 damage, you are thrown clear and it reels for a moment): a fair chance to run or hide; a second one (or any when hurt) is fatal */
+    if (p.hp > 55 && (this.time - (c.maulT === undefined ? -99 : c.maulT)) > 8) {
+      p.hp -= 55; p.hurtAt = this.time; p.stagger = 1.4; p.vx = 0; p.vy = 0; c.maulT = this.time; this.events.push({ type: 'hurt', amt: 55, src: 'monster', hp: p.hp, x: c.x, y: c.y });
+      c.state = 'search'; c.searchT = 5; c.target = null; c.path = null; c.atk = 0; c.alert = 0.2; c.frozenT = 2.4; c.checkLocker = null; c.checking = 0; c.lockerDone = true;
+      if (p.hidden < 0 && !p.vent) { const ax = Math.atan2(p.y - c.y, p.x - c.x); for (const d of [1.8, 1.4, 1.0, 0.6]) for (const da of [0, 0.5, -0.5, 1.0, -1.0]) { const nx = p.x + Math.cos(ax + da) * d, ny = p.y + Math.sin(ax + da) * d, k = Math.floor(ny) * this.W + Math.floor(nx); if (this.cells[k] !== 0 && !this.solid.has(k) && !(this.doorAt.get(k) && this.doorAt.get(k).open < 0.5)) { p.x = nx; p.y = ny; p.px = nx; p.py = ny; return; } } }
+      return;
+    }
+    p.alive = false; this.over = 'dead'; this.caughtBy = c; this.events.push({ type: 'caught', id: c.id }); }
   /* ---------- the tick ---------- */
   update(dt, inp) {
     inp = inp || {}; const p = this.player; p.px = p.x; p.py = p.y; for (const c of this.creatures) { c.px = c.x; c.py = c.y; c.pyaw = c.yaw; } this.time += dt; this.pulseCd = Math.max(0, this.pulseCd - dt); this.noiseLevel = Math.max(0, this.noiseLevel - dt * 0.9);

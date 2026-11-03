@@ -123,11 +123,11 @@ export function updateCreature(world, c, dt) {
   if (seen && c.state !== 'attack') {
     c.lastSeen = { x: p.x, y: p.y };
     if (c.state === 'hunt') c.alert = 1;
-    else if (dist < 3.4 || (p.moving && p.sprint)) { c.alert = 1; startHunt(world, c); }          // right in its face, or running: it charges at once
+    else if (dist < 3.0 || (p.moving && p.sprint && dist < 5.5)) { c.alert = 1; startHunt(world, c); }          // right in its face, or running close by: it charges at once
     else {
       /* seen from a distance it first NOTICES you (it stops, turns, the warning shows): the farther away, the longer that takes. Crouch, break the line of sight or hide before it ends and it
          forgets you; when the notice completes it charges at full speed. */
-      c.alert += dt / (clamp(0.7 + 0.28 * (dist - 3.4), 0.7, 2.4) / Math.max(0.5, world.diff.alert));
+      c.alert += dt * (p.moving && p.sprint ? 2 : 1) / (clamp(0.9 + 0.3 * (dist - 3.0), 0.9, 2.8) / Math.max(0.4, world.diff.alert));
       if (c.alert >= 1) startHunt(world, c);
       else if (c.alert > 0.2 && c.state !== 'suspicious') { if (c.state !== 'investigate' || c.alert > 0.4) { c.state = 'suspicious'; c.wait = 0; world.events.push({ type: 'suspicious', id: c.id }); } }
     }

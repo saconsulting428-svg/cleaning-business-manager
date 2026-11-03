@@ -18,8 +18,8 @@ android {
         applicationId 'com.hushgame.echoes'   // change it before your FIRST upload if you want a different package name; it can never change afterwards
         minSdk 24
         targetSdk 36
-        versionCode 9
-        versionName '1.4.1'
+        versionCode 10
+        versionName '1.4.2'
     }
 
     signingConfigs {

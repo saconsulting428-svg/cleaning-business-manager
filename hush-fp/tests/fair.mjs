@@ -29,10 +29,10 @@ for (let i = 0; i < LEVELS.length; i++) {
 /* detection leaves time to react */
 const lvl = (i) => generate(LEVELS[i]);
 function straight(w, len) { for (let y = 1; y < w.H - 1; y++) for (let x = 1; x < w.W - len - 2; x++) { let o = true; for (let k = 0; k <= len; k++) { const kk = y * w.W + x + k; if (w.cells[kk] !== 1 || w.solid.has(kk)) { o = false; break; } } if (o) return [x, y]; } return null; }
-for (const d of [3, 6, 7.5]) {
+for (const d of [2.8, 6, 7.5]) {
   const w = new World(lvl(4), {}), c = w.creatures[0], p = w.player; w.sp = null; w.crawlers.length = 0; const sp = straight(w, 11); c.x = sp[0] + 0.5; c.y = sp[1] + 0.5; c.yaw = 0; c.state = 'roam'; c.wait = 99; p.x = sp[0] + 0.5 + d; p.y = sp[1] + 0.5; p.crouch = false; p.flash = true;
   let sus = -1, hunt = -1; for (let n = 0; n < 6 / DT; n++) { w.update(DT, {}); for (const e of w.drainEvents()) { if (e.type === 'suspicious' && sus < 0) sus = n * DT; if (e.type === 'hunt' && hunt < 0) hunt = n * DT; } if (hunt >= 0) break; }
-  if (d < 3.4) t('seen from ' + d + ' tiles it charges at once', hunt >= 0 && hunt < 0.2, hunt); else t('seen from ' + d + ' tiles it notices first (' + (sus >= 0 ? sus.toFixed(2) : '-') + 's), then charges (' + hunt.toFixed(2) + 's)', sus >= 0 && hunt > 0.6 && hunt < 3.5, sus + ' ' + hunt);
+  if (d < 3.0) t('seen from ' + d + ' tiles it charges at once', hunt >= 0 && hunt < 0.2, hunt); else t('seen from ' + d + ' tiles it notices first (' + (sus >= 0 ? sus.toFixed(2) : '-') + 's), then charges (' + hunt.toFixed(2) + 's)', (sus < 0 && hunt < 0) || (sus >= 0 && hunt > 0.6 && hunt < 4.5), sus + ' ' + hunt);
 }
 { const w = new World(lvl(4), {}), c = w.creatures[0], p = w.player; w.sp = null; w.crawlers.length = 0; const sp = straight(w, 11); c.x = sp[0] + 0.5; c.y = sp[1] + 0.5; c.yaw = 0; c.state = 'roam'; c.wait = 99; p.x = sp[0] + 8.5; p.y = sp[1] + 0.5; p.flash = true;
   let hunted = false; for (let n = 0; n < 0.9 / DT; n++) { w.update(DT, {}); if (c.state === 'hunt') hunted = true; } p.x = sp[0] + 20; p.y = sp[1] + 30; for (let n = 0; n < 8 / DT; n++) { w.update(DT, {}); if (c.state === 'hunt') hunted = true; }

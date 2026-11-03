@@ -40,7 +40,7 @@ console.log('totals over 50 levels', JSON.stringify(tot), 'levels with set-piece
   p.hp = 5; w.time += 1; damagePlayer(w, 8, 'crawler', p.x, p.y); t('0 HP is death by hazard', !p.alive && w.over === 'dead' && w.drainEvents().some(e => e.type === 'dead'));
 }
 {
-  const w = new World(generate(LEVELS[10]), {}), c = w.creatures[0]; t('the main creature still kills at full HP', (w.catchPlayer(c), w.over === 'dead' && !w.player.alive && w.player.hp === 100));
+  const w = new World(generate(LEVELS[10]), {}), c = w.creatures[0]; w.catchPlayer(c); t('the first catch is survivable (55 damage, thrown clear)', !w.over && w.player.alive && w.player.hp === 45); w.catchPlayer(c); t('a second catch (within seconds) is fatal', w.over === 'dead' && !w.player.alive);
 }
 { // pickups: only taken when it helps
   const g = generate(LEVELS[16]), w = new World(g, {}), pk = w.pickups[0]; t('level 17 has a healing pickup', !!pk);
@@ -95,7 +95,7 @@ for (const [k, kind] of LEVELS.map((l, i) => [i, l.setpiece]).filter(a => a[1]))
 /* 6. the strike: lunge, then claws; a sprinter who is not already inside reach gets away */
 {
   const mk = () => { const w = new World(generate(LEVELS[4]), {}), c = w.creatures[0], p = w.player; w.sp = null; w.crawlers.length = 0; let spot = null; for (let y = 1; y < w.H - 1 && !spot; y++) for (let x = 1; x < w.W - 12 && !spot; x++) { let o = true; for (let i = 0; i <= 11; i++) { const k = y * w.W + x + i; if (w.cells[k] !== 1 || w.solid.has(k)) { o = false; break; } } if (o) spot = [x, y]; } return { w, c, p, spot }; };
-  { const { w, c, p, spot } = mk(); c.x = spot[0] + 0.5; c.y = spot[1] + 0.5; p.x = spot[0] + 5.5; p.y = spot[1] + 0.5; c.state = 'hunt'; c.alert = 1; c.lastSeen = { x: p.x, y: p.y }; let lunge = -1, dead = -1; for (let i = 0; i < 12 / DT; i++) { w.update(DT, {}); for (const e of w.drainEvents()) if (e.type === 'lunge' && lunge < 0) lunge = i * DT; if (w.over === 'dead') { dead = i * DT; break; } } t('a standing player is lunged at, then caught', lunge >= 0 && dead > lunge + 0.25 && dead < lunge + 0.8, lunge + ' ' + dead); }
+  { const { w, c, p, spot } = mk(); c.x = spot[0] + 0.5; c.y = spot[1] + 0.5; p.x = spot[0] + 5.5; p.y = spot[1] + 0.5; p.hp = 50; c.state = 'hunt'; c.alert = 1; c.lastSeen = { x: p.x, y: p.y }; let lunge = -1, dead = -1; for (let i = 0; i < 12 / DT; i++) { w.update(DT, {}); for (const e of w.drainEvents()) if (e.type === 'lunge' && lunge < 0) lunge = i * DT; if (w.over === 'dead') { dead = i * DT; break; } } t('a standing player is lunged at, then caught', lunge >= 0 && dead > lunge + 0.25 && dead < lunge + 0.8, lunge + ' ' + dead); }
   { const { w, c, p, spot } = mk(); c.x = spot[0] + 0.5; c.y = spot[1] + 0.5; p.x = spot[0] + 6.5; p.y = spot[1] + 0.5; p.yaw = 0; c.state = 'hunt'; c.alert = 1; c.lastSeen = { x: p.x, y: p.y }; w.god = false; let caught = false; for (let i = 0; i < 4 / DT; i++) { w.update(DT, { fwd: 1, sprint: true }); if (w.over === 'dead') { caught = true; break; } } t('a sprinting player with a head start is not caught in 4 s', !caught); }
 }
 console.log(ok + ' passed, ' + bad + ' failed'); process.exit(bad ? 1 : 0);

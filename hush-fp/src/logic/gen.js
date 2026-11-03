@@ -155,7 +155,7 @@ function tryGenerate(spec, seed) {
   const spawnOk = (t, x, y) => {
     const cx = x + 0.5, cy = y + 0.5, minReq = t === 'sentinel' ? (spec.radio ? 3.4 : spec.alarm ? 6.0 : 5.0) : (spec.alarm && !spec.radio ? 5.0 : 3.6);
     for (const o of required) if (Math.hypot(o.x + 0.5 - cx, o.y + 0.5 - cy) < minReq) return false;
-    const sd = Math.hypot(st.x + 0.5 - cx, st.y + 0.5 - cy); if (sd < 7 || (sd < 14 && clearRay(cx, cy, st.x + 0.5, st.y + 0.5))) return false;
+    const sd = Math.hypot(st.x + 0.5 - cx, st.y + 0.5 - cy); if (sd < 11 || (sd < 20 && clearRay(cx, cy, st.x + 0.5, st.y + 0.5))) return false;
     return true;
   };
   /* a sentinel never leaves its post, so there must be a way to every required object and to the exit that keeps out of reach of it (and of any other sentinel): crouched, with the torch off, it sees about 2.7 tiles and hears 1.7 */
