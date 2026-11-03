@@ -411,8 +411,9 @@ window.SFR_LEVELS=[{"w":0,"d":179,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
 
   // ---------- Settings ----------
   const W = 480, H = 800;            // logical screen (portrait)
+  const lowEndDevice = () => { try { const m = navigator.deviceMemory, n = navigator.hardwareConcurrency; return (m > 0 && m <= 2) || (n > 0 && n <= 4); } catch (e) { return false; } };   // 3 GB phones report 2 here
   const ZOOM_KEY = 'snakeFruitRush.zoom';
-  const ZOOM = (() => { const m = /[?&]zoom=([0-9.]+)/.exec(location.search); if (m) return Math.min(3, Math.max(1, +m[1])); try { const z = parseFloat(localStorage.getItem(ZOOM_KEY)); if (z >= 1 && z <= 2) return z; } catch (e) { /* no storage */ } return 2; })();   // 2x = sharp; lower only after a slow session
+  const ZOOM = (() => { const m = /[?&]zoom=([0-9.]+)/.exec(location.search); if (m) return Math.min(3, Math.max(1, +m[1])); try { const z = parseFloat(localStorage.getItem(ZOOM_KEY)); if (z >= 1 && z <= 2) return z; } catch (e) { /* no storage */ } return lowEndDevice() ? 1.5 : 2; })();   // 2x = sharp; lower only after a slow session
   const CELL = 22, COLS = 20, ROWS = 26;
   const BX = 20, BY = 104;           // board top-left
   const BW = COLS * CELL, BH = ROWS * CELL;
@@ -662,6 +663,17 @@ window.SFR_LEVELS=[{"w":0,"d":179,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
     return r;
   }
 
+  // Frame-time smoothing for the snake's step clock: a long frame never lets the snake jump more than ~50 ms ahead, and the time
+  // it did not get is paid back slowly (at most +25% for a few frames), so the average speed is exactly the same as before.
+  let owed = 0;
+  function stepClock(delta) {
+    const inc = Math.min(delta, 50);
+    owed = Math.min(400, owed + delta - inc);
+    const pay = Math.min(owed, inc * 0.25);
+    owed -= pay;
+    return inc + pay;
+  }
+
   function loadData() {
     const d = { high: 0, highs: {}, mode: 'classic', speed: 5, tab: 0, theme: 0, bg: 0, sound: true, save: null,
       coins: 0, skin: 'default', skins: ['default'], daily: null, cdaily: null, claimedDates: [], streak: 0, lastClaim: '', spinDates: [], camp: null, adCoins: null, menuMode: 'levels', vibe: true, tapSteer: false, pw: null };
@@ -721,12 +733,21 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   const colCache = {};                              // colour strings -> numbers (parsing them every draw call is wasted work)
   let colCount = 0;
   const C = (hex) => { const v = colCache[hex]; if (v !== undefined) return v; if (colCount > 600) { for (const k in colCache) delete colCache[k]; colCount = 0; } colCount++; return (colCache[hex] = parseInt(hex.slice(1), 16)); };
-  const cellXY = (c, r) => ({ x: BX + c * CELL + CELL / 2, y: BY + r * CELL + CELL / 2 });
+  const cellPool = []; for (let i = 0; i < 32; i++) cellPool.push({ x: 0, y: 0 }); let cellPi = 0;   // results are used straight away, so a small ring of objects avoids per-frame garbage
+  const cellXY = (c, r) => { const o = cellPool[cellPi++ & 31]; o.x = BX + c * CELL + CELL / 2; o.y = BY + r * CELL + CELL / 2; return o; };
   const rnd = (n) => Math.floor(Math.random() * n);
   const modeOf = () => MODES[(G && G.mode) || 'classic'];
   const has = (k) => !!(G.fx[k] || modeOf()[k]);          // ability from a power-up or from the game mode
   const best = (m) => DATA.highs[m] | 0;
+  const shadeMemo = {}; let shadeN = 0;
   function shade(hex, f) {                          // f < 0 darker, f > 0 lighter
+    const mk = hex + '|' + f, mv = shadeMemo[mk];
+    if (mv !== undefined) return mv;
+    if (shadeN > 500) { for (const k in shadeMemo) delete shadeMemo[k]; shadeN = 0; }
+    shadeN++;
+    return (shadeMemo[mk] = shade0(hex, f));
+  }
+  function shade0(hex, f) {
     const n = C(hex), m = f < 0 ? 0 : 255, a = Math.abs(f);
     const ch = (v) => Math.round(v + (m - v) * a);
     return '#' + ((1 << 24) | (ch(n >> 16) << 16) | (ch((n >> 8) & 255) << 8) | ch(n & 255)).toString(16).slice(1);
@@ -884,8 +905,12 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     const c = audio();
     if (!c) return;
     try {
-      const n = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
-      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      const nk = dur + '|' + c.sampleRate, nc = noise.cache || (noise.cache = {});
+      let buf = nc[nk];
+      if (!buf) {                                  // the noise burst is made once per length and reused
+        const n = Math.floor(c.sampleRate * dur), d = (buf = nc[nk] = c.createBuffer(1, n, c.sampleRate)).getChannelData(0);
+        for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      }
       const src = c.createBufferSource(), gn = c.createGain();
       src.buffer = buf; gn.gain.value = vol;
       src.connect(gn); gn.connect(master);
@@ -1940,6 +1965,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   }
 
   function setState(s) {
+    owed = 0;
     state = s;
     if (s === 'menu') CT = menuPal();
     if (window.SFRAds) window.SFRAds.screen(s);            // the banner only lives on menu screens
@@ -2710,7 +2736,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     }
     if (C0.ready > 0) { C0.ready -= delta; acc = 0; if (C0.ready <= 0) { C0.ready = 0; sfx.click(); } return; }
     if (SK.cur) SK.cur.ms += delta;
-    acc += Math.min(delta, 50);
+    acc += stepClock(delta);
     let delay = stepDelay(), guardSteps = 0;
     while (state === 'play' && !C0.over && !C0.won && acc >= delay && guardSteps++ < 2) {
       acc -= delay;
@@ -2927,6 +2953,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   }
   // The board (floor, walls, ice) never changes during a level, so it is drawn once into a texture instead of being redrawn every frame.
   let boardRT = null;
+  let boardKeyBaked = '';
   function bakeBoard() {
     try {
       if (!boardRT) { boardRT = scene.add.renderTexture(0, 0, W * ZOOM, H * ZOOM); boardRT.setOrigin(0, 0); boardRT.setScale(1 / ZOOM); boardRT.setDepth(boardG.depth); }
@@ -2934,10 +2961,13 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       boardG.setScale(ZOOM); boardG.setVisible(true);
       boardRT.draw(boardG, 0, 0);
       boardG.setScale(1); boardG.setVisible(false);
+      return true;
     } catch (e) { boardG.setScale(1); boardG.setVisible(true); if (boardRT) boardRT.setVisible(false); }
   }
-  function drawCampBoard() {
+  function drawCampBoardFull() {
     const C0 = G.camp, rt = C0.rt, w = C0.L.w, t = th();
+    const bkey = C0.id + '|' + w + '|' + JSON.stringify(t);
+    if (boardRT && boardKeyBaked === bkey) { boardRT.setVisible(true); boardG.setVisible(false); return; }   // retry / restart: the baked board is reused
     boardG.clear();
     boardG.setVisible(true);
     boardG.fillStyle(C(shade(t.panel, -0.25)), 1);
@@ -2953,7 +2983,53 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       if (rt.ice[i]) iceTile(boardG, c, r, C0.id); else floorDecor(boardG, w, c, r, C0.id);
     }
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (rt.wall[r * COLS + c]) wallTile(boardG, w, c, r, C0.id);
-    bakeBoard();
+    if (bakeBoard()) { boardKeyBaked = bkey; boardG.clear(); } else boardKeyBaked = '';   // clear frees the ~46k recorded commands
+  }
+
+  // The board is recorded and baked in six small steps (one per frame) so a level start never freezes the game for one long frame.
+  let boardJob = null;
+  function drawCampBoard() {
+    const C0 = G.camp, rt = C0.rt, w = C0.L.w, t = th();
+    const bkey = C0.id + '|' + w + '|' + JSON.stringify(t);
+    if (boardRT && boardKeyBaked === bkey) { boardRT.setVisible(true); boardG.setVisible(false); return; }   // retry / restart: the baked board is reused
+    if (boardJob && boardJob.key === bkey && boardJob.C0 === C0) return;
+    boardKeyBaked = '';
+    try {
+      if (!boardRT) { boardRT = scene.add.renderTexture(0, 0, W * ZOOM, H * ZOOM); boardRT.setOrigin(0, 0); boardRT.setScale(1 / ZOOM); boardRT.setDepth(boardG.depth); }
+      boardRT.clear(); boardRT.setVisible(true);
+    } catch (e) { boardJob = null; drawCampBoardFull(); return; }
+    boardJob = { key: bkey, C0: C0, rt: rt, w: w, t: t, stage: 0 };
+    boardStep();
+  }
+  function boardStep() {
+    const J = boardJob;
+    if (!J) return;
+    if (!(G && G.camp && G.camp === J.C0 && state !== 'menu' && state !== 'levels')) { boardJob = null; return; }   // left the level: start over next time
+    const rt = J.rt, w = J.w, t = J.t, C0 = J.C0, s = J.stage++;
+    boardG.clear();
+    if (s === 0) {
+      boardG.fillStyle(C(shade(t.panel, -0.25)), 1);
+      boardG.fillRoundedRect(BX - 8, BY - 5, BW + 16, BH + 17, 14);
+      boardG.fillStyle(C(t.panel), 1);
+      boardG.fillRoundedRect(BX - 8, BY - 8, BW + 16, BH + 16, 14);
+      boardG.fillStyle(C(t.board1), 1);
+      boardG.fillRect(BX, BY, BW, BH);
+      drawPattern(boardG, WORLDS[w].pattern, BX, BY, COLS, ROWS, CELL);
+    } else if (s <= 3) {
+      for (let r = (s - 1) * 9; r < Math.min(ROWS, s * 9); r++) for (let c = 0; c < COLS; c++) {
+        const i = r * COLS + c;
+        if (rt.wall[i]) continue;
+        if (rt.ice[i]) iceTile(boardG, c, r, C0.id); else floorDecor(boardG, w, c, r, C0.id);
+      }
+    } else {
+      for (let r = (s - 4) * 13; r < Math.min(ROWS, (s - 3) * 13); r++) for (let c = 0; c < COLS; c++) if (rt.wall[r * COLS + c]) wallTile(boardG, w, c, r, C0.id);
+    }
+    try {
+      boardG.setScale(ZOOM); boardG.setVisible(true);
+      boardRT.draw(boardG, 0, 0);
+    } catch (e) { boardG.setScale(1); boardJob = null; drawCampBoardFull(); return; }
+    boardG.setScale(1); boardG.setVisible(false); boardG.clear();
+    if (s >= 5) { boardKeyBaked = J.key; boardJob = null; }
   }
 
   // ----- dynamic items -----
@@ -3103,11 +3179,11 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     PW_KEYS.forEach((k, i) => {
       const x = BX + i * 58, y = 694, n = DATA.pw[k] | 0;
       const on = (k === 'slow' && C0.slowT > 0) || (k === 'shield' && C0.shield) || (k === 'coin2' && C0.coinMul > 1);
-      rrect(x, y + 3, 52, 52, 13, shade(t.panel, -0.3));
-      rrect(x, y, 52, 52, 13, on ? '#0ea5e9' : t.panel);
-      drawPwIcon(k, x + 26, y + 23, on);
+      blit('pw', stamp('st_pw_' + k + (on ? 1 : 0) + '_' + C0.L.w, () => { rrect(6, 9, 52, 52, 13, shade(t.panel, -0.3)); rrect(6, 6, 52, 52, 13, on ? '#0ea5e9' : t.panel); drawPwIcon(k, 32, 29, on); }, 64), x + 26, y + 26, 1, 5);
+      useLayer(2);
       if (n > 0) { dot(x + 44, y + 8, 9.5, t.accent); txt(x + 44, y + 8, String(n), 12, '#1b1b1b'); }
       else { drawCoin(x + 14, y + 43, 5.5); txt(x + 22, y + 43, String(PW[k].cost), 11, DATA.coins >= PW[k].cost ? t.accent : t.btnText, 0); }
+      useLayer(0);
       buttons.push({ x: x - 3, y: y - 3, w: 58, h: 58, fn: () => usePower(k) });
     });
     txt(BX + 244, 706, '3 stars: ' + C0.L.s3 + ' moves', 12.5, t.text, 0, false);
@@ -3117,6 +3193,63 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     line(px + 19, py + 15, px + 19, py + 37, t.btnText, 6);
     line(px + 33, py + 15, px + 33, py + 37, t.btnText, 6);
     buttons.push({ x: px - 6, y: py - 6, w: 64, h: 64, fn: togglePause });
+  }
+
+  // ---------- Pre-drawn stamps: fruit, bombs, keys, gates, doors and power-up buttons are drawn once into small textures and then only
+  // positioned as images, instead of re-recording hundreds of Graphics commands every frame. Same pictures, far less work per frame. ----------
+  const stampKeep = [], pools = {};
+  function stamp(key, fn, size) {
+    if (!scene.textures.exists(key)) {
+      const S = size || 44, rt = scene.make.renderTexture({ width: S * ZOOM, height: S * ZOOM }, false), tg = scene.make.graphics({ add: false }), pg = g;
+      g = tg;
+      try { fn(S / 2, S / 2); } finally { g = pg; }
+      tg.setScale(ZOOM); rt.draw(tg, 0, 0); rt.saveTexture(key); tg.destroy(); stampKeep.push(rt);
+    }
+    return key;
+  }
+  function blit(pool, key, x, y, alpha, depth) {
+    const P = pools[pool] || (pools[pool] = { a: [], n: 0 });
+    let im = P.a[P.n];
+    if (!im) { im = scene.add.image(0, 0, key).setScale(1 / ZOOM).setDepth(depth); im._k = key; P.a.push(im); }
+    P.n++;
+    if (im._k !== key) { im.setTexture(key); im._k = key; }
+    im.setPosition(x, y); im.setAlpha(alpha === undefined ? 1 : alpha); im.setVisible(true);
+  }
+  function poolsBegin() { for (const k in pools) pools[k].n = 0; }
+  function poolsEnd() { for (const k in pools) { const P = pools[k]; for (let i = P.n; i < P.a.length; i++) if (P.a[i]._vis !== false) { P.a[i].setVisible(false); } } }
+  function withStillClock(fn) { const a0 = anim; anim = 0; try { fn(); } finally { anim = a0; } }
+  const bombSt = (flick) => ['st_bomb_' + (flick ? 1 : 0), (cx, cy) => {
+    line(cx + 4, cy - 6, cx + 8, cy - 11, '#a16207', 2.2);
+    dot(cx, cy + 1, 8.5, '#1f2937'); dot(cx - 2.8, cy - 1.8, 2.4, '#6b7280'); rrect(cx + 1.5, cy - 8.5, 5, 4, 1, '#374151');
+    dot(cx + 8.5, cy - 11.5, flick ? 3.2 : 2.4, flick ? '#fbbf24' : '#f97316');
+  }];
+  function stampBomb(x, y) {
+    const a = anim / 60, flick = Math.sin(a * 1.7) > 0;
+    blit('bombGlow', stamp('st_bomb_glow', (cx, cy) => dot(cx, cy + 1, 13, '#ef4444', 1)), x, y, 0.18 + 0.12 * Math.sin(a * 0.35), 4);
+    blit('bomb', stamp(...bombSt(flick)), x, y, 1, 5);
+  }
+  const fruitSt = (kind) => ['st_fr_' + kind, (cx, cy) => drawFruit(kind, cx, cy, 1.1)];
+  const keySt = () => ['st_key', (cx, cy) => withStillClock(() => drawKey(cx, cy, 1))];
+  const doorSt = (open, flash) => ['st_door_' + (open ? 1 : 0) + (flash ? 1 : 0), (cx, cy) => drawDoor(cx, cy, open, flash)];
+  const gateSt = (open, col, flash) => ['st_gate_' + col + (open ? 1 : 0) + (flash ? 1 : 0), (cx, cy) => drawGate(cx, cy, open, col, flash)];
+  const stampFruit = (kind, x, y) => blit('fruit', stamp(...fruitSt(kind)), x, y, 1, 5);
+  const stampKey = (x, y) => blit('key', stamp(...keySt()), x, y + Math.sin(anim / 220) * 1.5, 1, 5);
+  const stampDoor = (x, y, open, flash) => blit('door', stamp(...doorSt(open, flash)), x, y, 1, 5);
+  const stampGate = (x, y, open, col, flash) => blit('gate', stamp(...gateSt(open, col, flash)), x, y, 1, 5);
+  // The stamps are made one per frame while the menu / level map is on screen, so starting a level does not have to build them.
+  let warmQ = null;
+  function warmStep() {
+    if (state !== 'menu' && state !== 'levels') return;
+    if (!warmQ) {
+      warmQ = [];
+      FRUITS.forEach((k) => warmQ.push(() => stamp(...fruitSt(k))));
+      [true, false].forEach((f) => warmQ.push(() => stamp(...bombSt(f))));
+      warmQ.push(() => stamp('st_bomb_glow', (cx, cy) => dot(cx, cy + 1, 13, '#ef4444', 1)));
+      warmQ.push(() => stamp(...keySt()));
+      [[0, 0], [1, 0], [0, 1], [1, 1]].forEach((v) => warmQ.push(() => stamp(...doorSt(!!v[0], !!v[1]))));
+      GATE_COLS.forEach((col) => [[0, 0], [1, 0], [0, 1], [1, 1]].forEach((v) => warmQ.push(() => stamp(...gateSt(!!v[0], col, !!v[1])))));
+    }
+    if (warmQ.length) warmQ.shift()();
   }
   function drawCampGame() {
     const C0 = G.camp, rt = C0.rt, st = C0.st, a = anim / 60, w = C0.L.w;
@@ -3136,11 +3269,12 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     drawExitTile(cellOf(rt.exit).x, cellOf(rt.exit).y, C0.exitOpen);
     rt.portalTo.forEach((to, i) => { if (to >= 0) { const p = cellOf(i), cols = ['#c084fc', '#38bdf8']; drawPortal(p.x, p.y, cols[(i < to) ? 0 : 1], i < to); } });
     rt.switches.forEach((s) => { const p = cellOf(s.cell); drawSwitch(p.x, p.y, GATE_COLS[s.gateIdx % GATE_COLS.length], E.gateOpen(rt, st, s.gateIdx)); });
-    rt.gates.forEach((gt, gi) => gt.cells.forEach((c) => { const p = cellOf(c); drawGate(p.x, p.y, E.gateOpen(rt, st, gi), GATE_COLS[gi % GATE_COLS.length], C0.flash.some((f) => f.cell === c)); }));
-    rt.doors.forEach((d) => { const p = cellOf(d.cell); drawDoor(p.x, p.y, E.doorOpen(rt, st, d), C0.flash.some((f) => f.cell === d.cell)); });
-    rt.keys.forEach((k, i) => { if (!((st.keyMask >> i) & 1)) { const p = cellOf(k.cell); drawKey(p.x, p.y, 1); } });
-    for (let i = 0; i < COLS * ROWS; i++) if (rt.bomb[i]) { const b = cellOf(i); drawBomb(b.x, b.y, 1); }
-    C0.fr.forEach((f, i) => { if (!((st.fruitMask >> i) & 1)) { const p = cellOf(f.cell); drawFruit(f.kind, p.x, p.y + 1.5 * Math.sin(a * 0.4 + i), 1.1); } });
+    rt.gates.forEach((gt, gi) => gt.cells.forEach((c) => { const p = cellOf(c); stampGate(p.x, p.y, E.gateOpen(rt, st, gi), GATE_COLS[gi % GATE_COLS.length], C0.flash.some((f) => f.cell === c)); }));
+    rt.doors.forEach((d) => { const p = cellOf(d.cell); stampDoor(p.x, p.y, E.doorOpen(rt, st, d), C0.flash.some((f) => f.cell === d.cell)); });
+    rt.keys.forEach((k, i) => { if (!((st.keyMask >> i) & 1)) { const p = cellOf(k.cell); stampKey(p.x, p.y); } });
+    for (let i = 0; i < COLS * ROWS; i++) if (rt.bomb[i]) { const b = cellOf(i); stampBomb(b.x, b.y); }
+    C0.fr.forEach((f, i) => { if (!((st.fruitMask >> i) & 1)) { const p = cellOf(f.cell); stampFruit(f.kind, p.x, p.y + 1.5 * Math.sin(a * 0.4 + i)); } });
+    useLayer(2);                                      // snake, effects and messages go above the stamped items
     drawSnake(snakePoints(), easedDir(), null);
     if (G.boom && C0.over === 'trap') { const b = cellXY(G.boom[0], G.boom[1]); drawBoom(b.x, b.y); }
     fxs.forEach((e) => {
@@ -3225,7 +3359,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     create() {
       scene = this;
       boardG = this.add.graphics();
-      layers = [0, 1].map((i) => ({ g: this.add.graphics().setDepth(i * 20 + 1), texts: [], n: 0, depth: i * 20 + 1 }));
+      layers = [0, 1, 2].map((i) => { const d = i === 2 ? 11 : i * 20 + 1; return { g: this.add.graphics().setDepth(d), texts: [], n: 0, depth: d }; });   // 2 = snake / effects above the stamped items
       useLayer(0);
       CT = menuPal();
       if (window.SFRAds) window.SFRAds.screen(state);
@@ -3304,7 +3438,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       this._lt = time;
       if (state === 'play' && !govDone && realDt < 500) {
         govT += realDt; govN++;
-        if (govT > 10000) {
+        if (govT > 4000) {
           govDone = true;
           if (govT / govN > 27) { LITE = true; try { localStorage.setItem(ZOOM_KEY, String(Math.max(1.25, ZOOM - 0.5))); } catch (e) { /* no storage */ } }
         }
@@ -3322,7 +3456,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       if (state === 'play' && G.camp) {
         campTick(delta);
         popups.forEach((p) => { p.life -= delta; });
-        popups = popups.filter((p) => p.life > 0);
+        for (let pi = popups.length - 1; pi >= 0; pi--) if (popups[pi].life <= 0) popups.splice(pi, 1);
       } else if (state === 'play') {
         acc += Math.min(delta, 50);
         let delay = stepDelay(), guardSteps = 0;
@@ -3334,7 +3468,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
         }
         if (acc > delay) acc = delay;
         popups.forEach((p) => { p.life -= delta; });
-        popups = popups.filter((p) => p.life > 0);
+        for (let pi = popups.length - 1; pi >= 0; pi--) if (popups[pi].life <= 0) popups.splice(pi, 1);
         if (G) {
           const before = Math.floor(G.playMs / 1000);
           G.playMs += delta;
@@ -3354,7 +3488,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
         if (adLeft <= 0) endAd(adToken, true);
       }
       musicTick();
-      draw();
+      poolsBegin(); draw(); poolsEnd(); boardStep(); warmStep();
     }
   }
 
@@ -3390,7 +3524,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   setTimeout(startGame, 1500);
 
   // test hook (not used by the game itself)
-  window.__snake = { ads: { meta: adsMeta, claimAdCoins: claimAdCoins, adHint: adHint, maybeInter: maybeInter, playAgain: playAgain, coinsLeft: adCoinsLeft, requestRewarded: requestRewarded, get kind() { return adKind; }, get job() { return adJob; } }, camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, cd: { ensure: cdEnsure, add: cdAdd, make: makeCD }, sk: { get S() { return SK; }, adapt: skAdapt, record: skRecord, fail: skFail, fruit: adaptiveFruit, profile: skProfile, reload: () => { SK = skLoad(); return SK; }, reset: () => { SK = SK_FRESH(); } }, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, pts: snakePoints, get renderer() { return scene && scene.sys.game.renderer.type === Phaser.WEBGL ? 'webgl' : 'canvas'; }, get fxCount() { return fxs.length; }, get popupCount() { return popups.length; }, get ZOOM() { return ZOOM; }, get textPool() { return layers.map((l) => l.texts.length); }, get G() { return G; }, get state() { return state; }, get buttons() { return buttons; }, step2: step, DATA: DATA, turn: turn, get acc() { return acc; }, get sheet() { return sheetOpen; }, placeBombs: placeBombs, step: step, newGame: newGame, POWER_KEYS: POWER_KEYS,
+  window.__snake = { ads: { meta: adsMeta, claimAdCoins: claimAdCoins, adHint: adHint, maybeInter: maybeInter, playAgain: playAgain, coinsLeft: adCoinsLeft, requestRewarded: requestRewarded, get kind() { return adKind; }, get job() { return adJob; } }, camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, stepClock: stepClock, resetOwed: () => { owed = 0; }, cd: { ensure: cdEnsure, add: cdAdd, make: makeCD }, sk: { get S() { return SK; }, adapt: skAdapt, record: skRecord, fail: skFail, fruit: adaptiveFruit, profile: skProfile, reload: () => { SK = skLoad(); return SK; }, reset: () => { SK = SK_FRESH(); } }, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, pts: snakePoints, get renderer() { return scene && scene.sys.game.renderer.type === Phaser.WEBGL ? 'webgl' : 'canvas'; }, get fxCount() { return fxs.length; }, get popupCount() { return popups.length; }, get ZOOM() { return ZOOM; }, get textPool() { return layers.map((l) => l.texts.length); }, get G() { return G; }, get state() { return state; }, get buttons() { return buttons; }, step2: step, DATA: DATA, turn: turn, get acc() { return acc; }, get sheet() { return sheetOpen; }, placeBombs: placeBombs, step: step, newGame: newGame, POWER_KEYS: POWER_KEYS,
     daily: { ensure: dailyEnsure, add: dailyAdd, max: dailyMax, make: makeDaily, load: loadData, addCoins: addCoins }, buySkin: buySkin, selectSkin: selectSkin, doSpin: doSpin, openEgg: openEgg, spinReady: spinReady, closeSheet: closeSheet, openSheet: openSheet, get skinPick() { return skinPick; }, set skinPick(v) { skinPick = v; }, get gift() { return gift; }, EGG_COST: EGG_COST, sfx: sfx, shareScore: shareScore, watchAd: watchAd, adAvailable: adAvailable, SKINS: SKINS, get fxs() { return fxs; }, eat: eatAtHead, gameOver: gameOver };
 })();
 </script>
