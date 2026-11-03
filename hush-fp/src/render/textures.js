@@ -2,6 +2,16 @@
    the normal map is derived from the height field, so the flashlight rakes across real-looking relief. */
 import * as THREE from 'three';
 import { rng32 } from '../logic/rng.js';
+import ph1w from '../../assets/tex/ch1_wall.jpg';
+import ph1f from '../../assets/tex/ch1_floor.jpg';
+import ph1c from '../../assets/tex/ch1_ceil.jpg';
+import ph2w from '../../assets/tex/ch2_wall.jpg';
+import ph2f from '../../assets/tex/ch2_floor.jpg';
+import ph2c from '../../assets/tex/ch2_ceil.jpg';
+import ph3w from '../../assets/tex/ch3_wall.jpg';
+import ph3f from '../../assets/tex/ch3_floor.jpg';
+import ph3c from '../../assets/tex/ch3_ceil.jpg';
+const PHOTO = { concrete: { wall: ph1w, floor: ph1f, ceil: ph1c }, flood: { wall: ph2w, floor: ph2f, ceil: ph2c }, nest: { wall: ph3w, floor: ph3f, ceil: ph3c } };
 
 function fbmField(n, oct, seed, f0) {
   const R = rng32(seed), out = new Float32Array(n * n); let amp = 1, tot = 0;
@@ -17,7 +27,7 @@ function fbmField(n, oct, seed, f0) {
 const mix = (a, b, t) => a + (b - a) * t, cl = (v, a, b) => (v < a ? a : v > b ? b : v), ss = (a, b, v) => { const t = cl((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
 /* paint: (x, y, nx, ny) -> fills r,g,b and h into the buffers. Returns { map, normal } textures */
-function make(n, seed, painter, normalStrength) {
+function make(n, seed, painter, normalStrength, photo) {
   const col = new Uint8ClampedArray(n * n * 4), h = new Float32Array(n * n), R = rng32(seed + 99);
   painter({ n, col, h, R, set(x, y, r, g, b, hh) { const i = (y * n + x); col[i * 4] = r; col[i * 4 + 1] = g; col[i * 4 + 2] = b; col[i * 4 + 3] = 255; h[i] = hh; } });
   const nrm = new Uint8ClampedArray(n * n * 4), s = normalStrength || 2.2;
@@ -27,7 +37,15 @@ function make(n, seed, painter, normalStrength) {
     nrm[i] = (nx * 0.5 + 0.5) * 255; nrm[i + 1] = (ny * 0.5 + 0.5) * 255; nrm[i + 2] = (nz * 0.5 + 0.5) * 255; nrm[i + 3] = 255;
   }
   const mk = (data, srgb) => { const cv = document.createElement('canvas'); cv.width = cv.height = n; cv.getContext('2d').putImageData(new ImageData(data, n, n), 0, 0); const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
-  return { map: mk(col, true), normal: mk(nrm, false) };
+  const out = { map: mk(col, true), normal: mk(nrm, false) };
+  /* a painted photo texture replaces the procedural one when it has loaded (the generated one shows meanwhile); its relief comes from the picture's luminance */
+  if (photo) { const img = new Image(); img.onload = () => {
+    const cv = out.map.image, g = cv.getContext('2d'); g.drawImage(img, 0, 0, n, n); const px = g.getImageData(0, 0, n, n).data, lum = new Float32Array(n * n);
+    for (let i = 0; i < n * n; i++) lum[i] = (px[i * 4] * 0.3 + px[i * 4 + 1] * 0.59 + px[i * 4 + 2] * 0.11) / 255;
+    const nd = new Uint8ClampedArray(n * n * 4), st = 2.2;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const l = lum[y * n + (x + n - 1) % n], r = lum[y * n + (x + 1) % n], u = lum[((y + n - 1) % n) * n + x], d = lum[((y + 1) % n) * n + x]; let nx = (l - r) * st, ny = (u - d) * st, nz = 1; const len = Math.hypot(nx, ny, nz), i = (y * n + x) * 4; nd[i] = (nx / len * 0.5 + 0.5) * 255; nd[i + 1] = (ny / len * 0.5 + 0.5) * 255; nd[i + 2] = (nz / len * 0.5 + 0.5) * 255; nd[i + 3] = 255; }
+    out.normal.image.getContext('2d').putImageData(new ImageData(nd, n, n), 0, 0); out.map.needsUpdate = true; out.normal.needsUpdate = true; }; img.src = photo; }
+  return out;
 }
 function cracks(n, h, col, R, count, darken) {
   for (let c = 0; c < count; c++) { let x = R() * n, y = R() * n, a = R() * 6.28; const len = 40 + R() * 120; for (let i = 0; i < len; i++) { a += (R() - 0.5) * 0.7; x += Math.cos(a); y += Math.sin(a); const ix = ((x % n) + n) % n | 0, iy = ((y % n) + n) % n | 0, k = iy * n + ix; h[k] -= 0.35; col[k * 4] *= darken; col[k * 4 + 1] *= darken; col[k * 4 + 2] *= darken; if (R() < 0.15) { const k2 = (((iy + 1) % n) * n + ix); h[k2] -= 0.15; } } }
@@ -53,7 +71,7 @@ export function buildTextures(theme, size) {
     }
     cracks(n, h, col, R, theme === 'nest' ? 4 : 9, 0.5);
     if (theme !== 'nest') for (let k = 0; k < 6; k++) { const bx = Math.floor(R() * n), by = Math.floor(R() * n); for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) if (xx * xx + yy * yy <= 9) { const j = (((by + yy + n) % n) * n + ((bx + xx + n) % n)); h[j] += 0.5; col[j * 4] *= 1.2; col[j * 4 + 1] *= 1.2; col[j * 4 + 2] *= 1.2; } }
-  }, 2.6);
+  }, 2.6, PHOTO[theme] && PHOTO[theme].wall);
   /* FLOOR */
   T.floor = make(n, 12, ({ col, h, R, set }) => {
     const f1 = fbmField(n, 5, 41, 4), f2 = fbmField(n, 3, 42, 2);
@@ -65,9 +83,9 @@ export function buildTextures(theme, size) {
       set(x, y, r + (R() - 0.5) * 8, g + (R() - 0.5) * 8, b + (R() - 0.5) * 8, hh);
     }
     cracks(n, h, col, R, 6, 0.55);
-  }, 2.2);
+  }, 2.2, PHOTO[theme] && PHOTO[theme].floor);
   /* CEILING */
-  T.ceil = make(n, 13, ({ col, h, R, set }) => { const f1 = fbmField(n, 4, 51, 4); for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * n + x, v = f1[i]; const panel = (x % (n / 2) < 4 || y % (n / 2) < 4); let k = panel ? 0.35 : 1; set(x, y, mix(C.lo[0], C.hi[0], v) * 0.55 * k, mix(C.lo[1], C.hi[1], v) * 0.55 * k, mix(C.lo[2], C.hi[2], v) * 0.55 * k, (panel ? -0.5 : 0) + v * 0.4); } }, 2);
+  T.ceil = make(n, 13, ({ col, h, R, set }) => { const f1 = fbmField(n, 4, 51, 4); for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * n + x, v = f1[i]; const panel = (x % (n / 2) < 4 || y % (n / 2) < 4); let k = panel ? 0.35 : 1; set(x, y, mix(C.lo[0], C.hi[0], v) * 0.55 * k, mix(C.lo[1], C.hi[1], v) * 0.55 * k, mix(C.lo[2], C.hi[2], v) * 0.55 * k, (panel ? -0.5 : 0) + v * 0.4); } }, 2, PHOTO[theme] && PHOTO[theme].ceil);
   /* METAL: doors, lockers, generator */
   T.metal = make(n, 14, ({ col, h, R, set }) => { const f1 = fbmField(n, 5, 61, 3), f2 = fbmField(n, 4, 62, 8); for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * n + x, rust = ss(0.5, 0.75, f1[i]); const scratch = fbmField === null ? 0 : Math.sin(y * 1.7 + f2[i] * 20) * 0.5 + 0.5; let r = mix(88, 140, f2[i]) * (1 - rust * 0.15) + rust * 70, g = mix(92, 130, f2[i]) * (1 - rust * 0.4) + rust * 30, b = mix(96, 125, f2[i]) * (1 - rust * 0.65) + rust * 10; r *= 0.65 + scratch * 0.1; g *= 0.65 + scratch * 0.1; b *= 0.65 + scratch * 0.1; set(x, y, r, g, b, f2[i] * 0.4 + scratch * 0.1 - rust * 0.2); }
     for (let k = 0; k < 14; k++) { const bx = Math.floor(R() * n), by = Math.floor(R() * n); for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) if (xx * xx + yy * yy <= 9) { const j = (((by + yy + n) % n) * n + ((bx + xx + n) % n)); h[j] += 0.6; col[j * 4] *= 1.3; col[j * 4 + 1] *= 1.3; col[j * 4 + 2] *= 1.3; } } }, 2.4);
