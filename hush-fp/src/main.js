@@ -120,7 +120,7 @@ let starting = false;
 async function startLevel(i) { if (starting) return; starting = true; try { await startLevelNow(i); } finally { starting = false; } }   // a double tap on Retry / Next must not start two loads
 async function startLevelNow(i) {
   setLoading(true, 'Entering ' + LEVELS[i].name, 20); ['pause', 'win', 'dead', 'note', 'log', 'keypad', 'settings', 'how', 'credits', 'inv', 'obj', 'map', 'tip'].forEach(o => overlay(o, false)); await nextFrame();
-  G.run = (G.run || 0) + 1; G.level = i; save.last = i; persist(); G.chapterView = LEVELS[i].ch; const w = new World(gen(i), { assist: (G.deaths && G.deaths[i]) || 0 }); G.world = w; setLoading(true, null, 55); await nextFrame(); G.view.loadLevel(w); applyTorch(true); setLoading(true, null, 95); await nextFrame();
+  G.run = (G.run || 0) + 1; G.level = i; save.last = i; persist(); G.chapterView = LEVELS[i].ch; const w = new World(gen(i), { assist: (G.deaths && G.deaths[i]) || 0, ventDrop: true }); G.world = w; setLoading(true, null, 55); await nextFrame(); G.view.loadLevel(w); applyTorch(true); setLoading(true, null, 95); await nextFrame();
   G.mode = 'game'; show('game'); G.paused = false; G.modal = false; G.over = false; G.ended = 0; G.timeSpent = 0; G.acc = 0; G.hintT = 8; G.shownHint = -1; G.lastInv = ''; G.menu = false; inp.edge = {}; inp.dyaw = 0; inp.dpitch = 0; inp.pyaw = 0; inp.ppitch = 0; inp.sprintBtn = false; $('b-sprint').classList.remove('on');
   G.prog = null; G.heartEcho = false; G.tut = { dist: 0, yaw: 0, flash: 0, doors: 0, pulses: 0, firstPulse: 0, crouched: false, crouchNear: 0, hid: 0, picked: {}, bag: 0, map: 0, last: null, skip: false }; G.seq = tipsOn() && SEQ[i] && !save.tips['seq' + i] ? SEQ[i] : null; G.seqI = 0; G.seqOkT = 0; G.coachOn = false; $('hint').classList.remove('coach', 'ok');
   $('hint').textContent = save.set.hints && !G.seq ? LEVELS[i].hint : ''; $('hint').classList.toggle('show', !!save.set.hints && !G.seq); G.chapterAudio = LEVELS[i].ch; applyAudio(); Sound.unlock(); buildHotbar(true);
@@ -182,7 +182,7 @@ const MARKC = { item: '#ffd070', exit: '#3dff8a', door: '#ff8a5a', generator: '#
 let marksOn = false;
 function drawMarks(w) {
   const cv = $('marks'), v = G.view, p = w.player; if (!cv || !v) return; const r = cv.getBoundingClientRect(), W = Math.round(r.width), H = Math.round(r.height); if (!W) return;
-  const threats = w.creatures.filter(c => ((c.state === 'hunt' || c.state === 'investigate' || c.state === 'suspicious') && Math.hypot(c.x - p.x, c.y - p.y) < 16 || (c.state === 'roam' || c.state === 'search') && Math.hypot(c.x - p.x, c.y - p.y) < 8.5) && p.alive);
+  const threats = w.creatures.filter(c => !c.dormant && ((c.state === 'hunt' || c.state === 'investigate' || c.state === 'suspicious') && Math.hypot(c.x - p.x, c.y - p.y) < 16 || (c.state === 'roam' || c.state === 'search') && Math.hypot(c.x - p.x, c.y - p.y) < 8.5) && p.alive);
   const pinged = save.set.marks && (w.pulseState || w.objs.some(o => o.pingT > 0)), reveal = w.creatures.some(c => c.revealT > 0);
   if (!pinged && !reveal && !threats.length) { if (marksOn) { cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); marksOn = false; } return; }
   if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; } const x = cv.getContext('2d'); x.clearRect(0, 0, W, H); marksOn = true; v.camera.updateMatrixWorld(true);
@@ -243,7 +243,7 @@ function drawMap() {
 /* ---------------- tutorial coach (first levels) + one-time "new mechanic" cards ---------------- */
 function track(e) {
   const T = G.tut; if (!T) return;
-  if (e.type === 'flash') T.flash++; else if (e.type === 'door' && e.by !== 'creature') T.doors++; else if (e.type === 'pulse') { T.pulses++; if (!T.firstPulse) T.firstPulse = performance.now() / 1000; } else if (e.type === 'hide' && !e.out) T.hid++; else if (e.type === 'pickup') T.picked[e.kind] = 1;
+  if (e.type === 'flash') T.flash++; else if (e.type === 'door' && e.by !== 'creature') T.doors++; else if (e.type === 'pulse') { T.pulses++; if (!T.firstPulse) T.firstPulse = performance.now() / 1000; } else if (e.type === 'hide' && !e.out) T.hid++; else if (e.type === 'throw') T.threw = (T.threw || 0) + 1; else if (e.type === 'pickup') T.picked[e.kind] = 1;
 }
 /* fear beats: what the player sees and hears (the timing lives in logic/beats.js) */
 function playBeat(e, w, p) {
@@ -285,7 +285,7 @@ function playBeat(e, w, p) {
 /* presence warning: a creature that has not noticed you is close (even behind a wall): say so once in a while, so a walking player is never surprised by what hears footsteps */
 function presenceTick(w, dt) {
   const p = w.player; G.presT = (G.presT || 0) - dt; if (G.presT > 0 || !p.alive || p.hidden >= 0 || p.vent || G.paused || G.modal || G.over || !tipsOn()) return;
-  let near = 1e9; for (const c of w.creatures) { if (c.dead || c.state === 'hunt') continue; near = Math.min(near, Math.hypot(c.x - p.x, c.y - p.y)); }
+  let near = 1e9; for (const c of w.creatures) { if (c.dead || c.dormant || c.state === 'hunt') continue; near = Math.min(near, Math.hypot(c.x - p.x, c.y - p.y)); }
   if (near < 8.5 && p.moving && !p.crouch) { banner('SOMETHING IS CLOSE: CROUCH TO STAY QUIET', 'sus', 2400); Sound.play('notice'); G.presT = 16; }
 }
 /* stuck hints: no progress for a while -> a hint that gets plainer (50 s, 105 s, 165 s, then every 70 s) */
@@ -364,6 +364,9 @@ function handleEvents(w, dt) {
       case 'beat': playBeat(e, w, p); break;
       case 'hurt': { const bearing = angDiffUI(Math.atan2(e.y - p.y, e.x - p.x), p.yaw); Sound.play('hurt'); G.view.kick(e.amt, bearing); vibe([40, 30, 90]); const d = $('fx-dmg'); d.classList.remove('hit'); void d.offsetWidth; d.classList.add('hit'); G.hpShowT = 5; break; }
       case 'throw': Sound.play('whoosh', {}); break;
+      case 'ventShake': { const s = spatial(e.x, e.y); Sound.play('creak', { pan: s.pan, pos: s.pos, occl: s.occl, f: 0.3 }); Sound.play('scrape', { pan: s.pan, pos: s.pos, occl: s.occl }); break; }
+      case 'ventFall': { const s = spatial(e.x, e.y); Sound.play('impact', { v: Math.max(0.5, s.v), pan: s.pan, pos: s.pos, occl: s.occl }); if (s.d < 16) G.view.shake = Math.max(G.view.shake || 0, 0.35); banner('SOMETHING DROPPED FROM THE CEILING', 'sus', 2600); break; }
+      case 'ventLand': { const s = spatial(e.x, e.y); Sound.play('growl', { v: Math.max(0.5, s.v), pan: s.pan, pos: s.pos, occl: s.occl, kind: 'stalker' }); break; }
       case 'bottle': { const s = spatial(e.x, e.y); Sound.play('bottleBreak', { v: Math.max(0.6, s.v), pan: s.pan, pos: s.pos, occl: s.occl }); break; }
       case 'heal': Sound.play('heal'); banner('+' + HEAL[e.kind] + ' HP', 'heard', 1400); G.hpShowT = 4; break;
       case 'hpfull': banner('HEALTH IS FULL: SAVE IT FOR LATER', 'sus', 1300); break;

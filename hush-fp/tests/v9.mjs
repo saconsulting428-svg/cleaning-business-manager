@@ -23,7 +23,7 @@ for (let i = 0; i < LEVELS.length; i++) {
   t('L' + (i + 1) + ' at most two small creatures', g.crawlers.length <= 2);
   t('L' + (i + 1) + ' hazards never within 6 tiles of the start', g.objs.filter(o => o.type === 'hazard').every(o => Math.abs(o.x - g.start.x) + Math.abs(o.y - g.start.y) >= 6));
   for (const o of g.objs) if (o.type === 'locker') { if (o.variant === 'cabinet') tot.cab++; if (o.variant === 'alcove') tot.alc++; }
-  if (i < 3) t('L' + (i + 1) + ' tutorial level has no hazards or small creatures', !g.objs.some(o => o.dress) && !g.crawlers.length);
+  if (i < 3) t('L' + (i + 1) + ' tutorial level has no hazards or small creatures', !g.objs.some(o => o.dress && o.kind !== 'bottle') && g.objs.filter(o => o.kind === 'bottle').length === 1 && !g.crawlers.length);
   t('L' + (i + 1) + ' set-piece matches the plan', (g.setpiece || null) === (LEVELS[i].setpiece || null));
   if (g.spec.creatures.length) { const lk = g.objs.filter(o => o.type === 'locker').length; t('L' + (i + 1) + ' has hiding places, but not one in every room', lk >= 1 && lk <= g.rooms.length, lk + '/' + g.rooms.length); }
 }

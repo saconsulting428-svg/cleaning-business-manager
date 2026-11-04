@@ -82,6 +82,14 @@ export function buildScene(world, Q) {
   const roomAt = (x, y) => (x < 0 || y < 0 || x >= W || y >= H || roomOf[y * W + x] < 0) ? null : world.rooms[roomOf[y * W + x]];
   const CHT = [[1.1, 1.03, 0.88], [0.84, 1.07, 1.14], [1.14, 0.9, 0.8]][spec.ch] || [1, 1, 1];   // chapter 1 dusty beige offices, chapter 2 cold clinical teal, chapter 3 rusted industrial
   const tintAt = (x, y) => { const r = roomAt(x, y), t0 = r && KIND_TINT[r.kind] ? KIND_TINT[r.kind] : [1, 1, 1], t = [t0[0] * (1 + (CHT[0] - 1) * 0.25), t0[1] * (1 + (CHT[1] - 1) * 0.25), t0[2] * (1 + (CHT[2] - 1) * 0.25)]; return LK ? [t[0] * LK.tint[0], t[1] * LK.tint[1], t[2] * LK.tint[2]] : t; };
+  /* per-tile ceiling height (2.6 / 3.2 / 4.2 m): halls (big rooms) are tall, corridors and rooms vary per segment; doors tiles take the lowest neighbour; rooms holding tall things stay at least 3.2 */
+  const hMap = new Float32Array(W * H).fill(3.2), hh = (n) => { let q = (n ^ 2166136261) >>> 0; q = Math.imul(q ^ (q >>> 15), 2246822519) >>> 0; q = Math.imul(q ^ (q >>> 13), 3266489917) >>> 0; return ((q ^ (q >>> 16)) >>> 0) / 4294967296; };
+  const isHall = (r) => r.idx >= 1 && r.w * r.h >= 40, TALL = { exit: 1, fakeexit: 1, generator: 1, breaker: 1, valve: 1, log: 1 }, TALLP = { column: 1, shelf: 1, server: 1, pipe: 1, tank: 1, machine: 1, specimen: 1, cabinet: 0 };
+  { const tallIn = new Set(); for (const o of world.objs) if (TALL[o.type] || (o.type === 'prop' && TALLP[o.kind])) { const rr = roomAt(o.x, o.y); if (rr) tallIn.add(rr.idx); }
+    (world.gen.edges || []).forEach((e, ei) => { const r = hh(spec.seed * 131 + ei * 17 + 5), v = r < 0.42 ? 2.6 : r < 0.9 ? 3.2 : 4.2; for (const [cx_, cy_] of e.cells) hMap[cy_ * W + cx_] = v; });
+    world.rooms.forEach((r, ri) => { const q = hh(spec.seed * 977 + ri * 31 + 9); let v = isHall(r) ? 4.2 : q < 0.3 ? 2.6 : q < 0.82 ? 3.2 : 4.2; if (v < 3.2 && (tallIn.has(r.idx) || r.idx === 0)) v = 3.2; r.ceilH = v; for (let yy = r.y0; yy < r.y0 + r.h; yy++) for (let xx = r.x0; xx < r.x0 + r.w; xx++) hMap[yy * W + xx] = v; });
+    for (const o of world.objs) if (o.type === 'door') { let mn = 9; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = o.x + dx, y = o.y + dy; if (x >= 0 && y >= 0 && x < W && y < H && cells[y * W + x] !== T.WALL && !(dx === 0 && dy === 0)) mn = Math.min(mn, hMap[y * W + x]); } hMap[o.y * W + o.x] = mn > 8 ? 3.2 : mn; } }
+  const hAt = (x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? 3.2 : hMap[y * W + x];
   const wallFaces = [];
   const shade = (k) => [[k * 0.5, k * 0.5, k * 0.5], [k * 0.5, k * 0.5, k * 0.5], [k, k, k], [k, k, k]];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -89,22 +97,26 @@ export function buildScene(world, Q) {
     if (t === T.WALL) {
       const x0 = x * TS, z0 = y * TS, x1 = x0 + TS, z1 = z0 + TS, tint = 0.8 + R() * 0.3, top = tint * 0.95, bot = tint * 0.5;
       const vv = WH / TS, mc = (nx, ny) => { const t = tintAt(nx, ny); return [[bot * t[0], bot * t[1], bot * t[2]], [bot * t[0], bot * t[1], bot * t[2]], [top * t[0], top * t[1], top * t[2]], [top * t[0], top * t[1], top * t[2]]]; }, UV = [0, 0, 1, 0, 1, vv, 0, vv];
-      const wq = (a, b, c, d, nrm, col) => {                          // a,b bottom (left,right), c,d top: three bands so the foot and the head of the wall fall into shadow (fake ambient occlusion)
-        const ys = [0, 0.55, WH - 0.65, WH], kk = [0.42, 0.95, 1.0, 0.45], lp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t], cm = (cc, f) => [cc[0] * f, cc[1] * f, cc[2] * f];
-        for (let sI = 0; sI < 3; sI++) { const t0 = ys[sI] / WH, t1 = ys[sI + 1] / WH, v0 = ys[sI] / TS, v1 = ys[sI + 1] / TS; wall.quad(lp(a, d, t0), lp(b, c, t0), lp(b, c, t1), lp(a, d, t1), nrm, [0, v0, 1, v0, 1, v1, 0, v1], [cm(col, kk[sI]), cm(col, kk[sI]), cm(col, kk[sI + 1]), cm(col, kk[sI + 1])]); } };
+      const wq = (a, b, c, d, nrm, col, Hh) => {                          // a,b bottom (left,right), c,d top: three bands so the foot and the head of the wall fall into shadow (fake ambient occlusion)
+        const ys = [0, 0.55, Hh - 0.65, Hh], kk = [0.42, 0.95, 1.0, 0.45], lp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t], cm = (cc, f) => [cc[0] * f, cc[1] * f, cc[2] * f];
+        for (let sI = 0; sI < 3; sI++) { const t0 = ys[sI] / Hh, t1 = ys[sI + 1] / Hh, v0 = ys[sI] / TS, v1 = ys[sI + 1] / TS; wall.quad(lp(a, d, t0), lp(b, c, t0), lp(b, c, t1), lp(a, d, t1), nrm, [0, v0, 1, v0, 1, v1, 0, v1], [cm(col, kk[sI]), cm(col, kk[sI]), cm(col, kk[sI + 1]), cm(col, kk[sI + 1])]); } };
       const wc = (nx, ny) => { const t = tintAt(nx, ny), f = tint * 0.9; return [f * t[0], f * t[1], f * t[2]]; };
-      if (!solid(x, y + 1)) { wq([x0, 0, z1], [x1, 0, z1], [x1, WH, z1], [x0, WH, z1], [0, 0, 1], wc(x, y + 1)); wallFaces.push({ tx: x, ty: y + 1, x: x0 + TS / 2, z: z1, n: [0, 1] }); }
-      if (!solid(x, y - 1)) { wq([x1, 0, z0], [x0, 0, z0], [x0, WH, z0], [x1, WH, z0], [0, 0, -1], wc(x, y - 1)); wallFaces.push({ tx: x, ty: y - 1, x: x0 + TS / 2, z: z0, n: [0, -1] }); }
-      if (!solid(x + 1, y)) { wq([x1, 0, z1], [x1, 0, z0], [x1, WH, z0], [x1, WH, z1], [1, 0, 0], wc(x + 1, y)); wallFaces.push({ tx: x + 1, ty: y, x: x1, z: z0 + TS / 2, n: [1, 0] }); }
-      if (!solid(x - 1, y)) { wq([x0, 0, z0], [x0, 0, z1], [x0, WH, z1], [x0, WH, z0], [-1, 0, 0], wc(x - 1, y)); wallFaces.push({ tx: x - 1, ty: y, x: x0, z: z0 + TS / 2, n: [-1, 0] }); }
+      if (!solid(x, y + 1)) { wq([x0, 0, z1], [x1, 0, z1], [x1, hAt(x, y + 1), z1], [x0, hAt(x, y + 1), z1], [0, 0, 1], wc(x, y + 1), hAt(x, y + 1)); wallFaces.push({ h: hAt(x, y + 1), tx: x, ty: y + 1, x: x0 + TS / 2, z: z1, n: [0, 1] }); }
+      if (!solid(x, y - 1)) { wq([x1, 0, z0], [x0, 0, z0], [x0, hAt(x, y - 1), z0], [x1, hAt(x, y - 1), z0], [0, 0, -1], wc(x, y - 1), hAt(x, y - 1)); wallFaces.push({ h: hAt(x, y - 1), tx: x, ty: y - 1, x: x0 + TS / 2, z: z0, n: [0, -1] }); }
+      if (!solid(x + 1, y)) { wq([x1, 0, z1], [x1, 0, z0], [x1, hAt(x + 1, y), z0], [x1, hAt(x + 1, y), z1], [1, 0, 0], wc(x + 1, y), hAt(x + 1, y)); wallFaces.push({ h: hAt(x + 1, y), tx: x + 1, ty: y, x: x1, z: z0 + TS / 2, n: [1, 0] }); }
+      if (!solid(x - 1, y)) { wq([x0, 0, z0], [x0, 0, z1], [x0, hAt(x - 1, y), z1], [x0, hAt(x - 1, y), z0], [-1, 0, 0], wc(x - 1, y), hAt(x - 1, y)); wallFaces.push({ h: hAt(x - 1, y), tx: x - 1, ty: y, x: x0, z: z0 + TS / 2, n: [-1, 0] }); }
     } else {
       const x0 = x * TS, z0 = y * TS, x1 = x0 + TS, z1 = z0 + TS, k = 0.78 + R() * 0.3;
       const ft = tintAt(x, y), fc = [k * ft[0], k * ft[1], k * ft[2]];
       const ao = (i, j) => { const di = i ? 1 : -1, dj = j ? 1 : -1, a1 = solid(x + di, y) ? 1 : 0, a2 = solid(x, y + dj) ? 1 : 0, a3 = solid(x + di, y + dj) ? 1 : 0; return Math.max(0.3, 1 - 0.36 * (a1 + a2) - (a1 && a2 ? 0 : 0.14 * a3)); };
       const cA = (f) => [fc[0] * f, fc[1] * f, fc[2] * f]; floor.quad([x0, 0, z1], [x1, 0, z1], [x1, 0, z0], [x0, 0, z0], [0, 1, 0], [0, 1, 1, 1, 1, 0, 0, 0], [cA(ao(0, 1)), cA(ao(1, 1)), cA(ao(1, 0)), cA(ao(0, 0))]);
-      { const cb = 0.68 * (0.85 + R() * 0.15); ceil.quad([x0, WH, z0], [x1, WH, z0], [x1, WH, z1], [x0, WH, z1], [0, -1, 0], [0, 0, 1, 0, 1, 1, 0, 1], [cA(cb * ao(0, 0)), cA(cb * ao(1, 0)), cA(cb * ao(1, 1)), cA(cb * ao(0, 1))]); }
+      { const cb = 0.68 * (0.85 + R() * 0.15), CH = hAt(x, y); ceil.quad([x0, CH, z0], [x1, CH, z0], [x1, CH, z1], [x0, CH, z1], [0, -1, 0], [0, 0, 1, 0, 1, 1, 0, 1], [cA(cb * ao(0, 0)), cA(cb * ao(1, 0)), cA(cb * ao(1, 1)), cA(cb * ao(0, 1))]); }
     }
   }
+  /* a step in the ceiling: where two open tiles differ in height a wall band closes the gap, facing the taller side */
+  for (let y = 0; y < H - 1; y++) for (let x = 0; x < W - 1; x++) { if (cells[y * W + x] === T.WALL) continue; const hA = hAt(x, y), x1 = (x + 1) * TS, z1 = (y + 1) * TS, vv0 = 0.2;
+    if (x + 1 < W && cells[y * W + x + 1] !== T.WALL && hAt(x + 1, y) !== hA) { const hB = hAt(x + 1, y), lo = Math.min(hA, hB), hi = Math.max(hA, hB), z0 = y * TS, c0 = [0.5, 0.5, 0.5]; if (hA > hB) wall.quad([x1, lo, z0], [x1, lo, z1], [x1, hi, z1], [x1, hi, z0], [-1, 0, 0], [0, lo / TS, 1, lo / TS, 1, hi / TS, 0, hi / TS], [c0, c0, c0, c0]); else wall.quad([x1, lo, z1], [x1, lo, z0], [x1, hi, z0], [x1, hi, z1], [1, 0, 0], [0, lo / TS, 1, lo / TS, 1, hi / TS, 0, hi / TS], [c0, c0, c0, c0]); }
+    if (y + 1 < H && cells[(y + 1) * W + x] !== T.WALL && hAt(x, y + 1) !== hA) { const hB = hAt(x, y + 1), lo = Math.min(hA, hB), hi = Math.max(hA, hB), x0 = x * TS, xe = (x + 1) * TS, c0 = [0.5, 0.5, 0.5]; if (hA > hB) wall.quad([xe, lo, z1], [x0, lo, z1], [x0, hi, z1], [xe, hi, z1], [0, 0, -1], [0, lo / TS, 1, lo / TS, 1, hi / TS, 0, hi / TS], [c0, c0, c0, c0]); else wall.quad([x0, lo, z1], [xe, lo, z1], [xe, hi, z1], [x0, hi, z1], [0, 0, 1], [0, lo / TS, 1, lo / TS, 1, hi / TS, 0, hi / TS], [c0, c0, c0, c0]); } }
   const addMesh = (g, m, cast, recv) => { const o = new THREE.Mesh(g.isBufferGeometry ? g : g.build(), m); o.castShadow = !!cast; o.receiveShadow = recv !== false; scene.add(o); return o; };
   addMesh(wall, wallMat, false, true); addMesh(floor, floorMat, false, true); addMesh(ceil, ceilMat, false, false);
   /* water and glass */
@@ -128,11 +140,11 @@ export function buildScene(world, Q) {
   const P = (arr, g, x, z, ry) => { g.applyMatrix4(new THREE.Matrix4().makeRotationY(ry || 0)); g.translate(x, 0, z); arr.push(g); };
   const libAcc = newAcc(), libM = mkMats(lit, patchPulse, tex, disposables);
   /* the Blender prop pack: kind -> [asset, scale]; those props are baked into per-material merged meshes (the others stay procedural) */
-  const GLBPROP = { desk: ['desk_office', 1.15], chair: ['chair_office', 1.2], cabinet: ['filing_cabinet', 1.25], shelf: ['shelf_metal', 1.4], bed: ['hospital_bed', 1.15], server: ['server_rack', 1.15], console: ['console_terminal', 1.25], specimen: ['specimen_tank', 1.3], pump: ['pump_unit', 1.35], pipe: ['pipe_cluster', 1.2], crate: ['crate_wood', 1.15], barrel: ['barrel', 1.2] };
+  const GLBPROP = { desk: ['desk_office', 1.15], chair: ['chair_office', 1.2], cabinet: ['filing_cabinet', 1.25], shelf: ['shelf_metal', 1.3], bed: ['hospital_bed', 1.15], server: ['server_rack', 1.15], console: ['console_terminal', 1.25], specimen: ['specimen_tank', 1.3], pump: ['pump_unit', 1.35], pipe: ['pipe_cluster', 1.05], crate: ['crate_wood', 1.15], barrel: ['barrel', 1.2] };
   const glbBuckets = new Map();
   for (const o of world.objs) { if (o.type !== 'prop') continue; const cx = o.x * TS + TS / 2, cz = o.y * TS + TS / 2, r = Math.round(o.rot / (Math.PI / 2)) * (Math.PI / 2) + (R() - 0.5) * 0.2;
     const gp = GLBPROP[o.kind]; if (gp && PropsGLB.has(gp[0])) { PropsGLB.bake(gp[0], [gp[1], gp[1], gp[1]], r, cx, 0, cz, glbBuckets); R(); continue; }
-    buildProp(o.kind, libAcc, cx, cz, r, R, WH, o.id * 3 + 1); }
+    buildProp(o.kind, libAcc, cx, cz, r, R, hAt(o.x, o.y), o.id * 3 + 1); }
   for (const [gm, arr] of glbBuckets) { const mg = mergeGeometries(arr); arr.forEach(g => g.dispose()); const mesh = new THREE.Mesh(mg, gm); scene.add(mesh); mesh.userData.glbProp = true; }
   wallFixtures(libAcc, wallFaces, roomAt, R, WH, TS);
   const mm = { steel: libM.steel, dark: libM.dark, wood: libM.wood, white: libM.white, cloth: libM.cloth, rust: libM.rust, glass: glassMat, liq: liqMat, scr: scrMat, bl1: bl1Mat, bl2: bl2Mat, hazard: hazMat, flesh: fleshMat, pod: podMat, bone: boneMat };
@@ -146,11 +158,21 @@ export function buildScene(world, Q) {
     const ribs = [], flanges = [], beams = [], bars = [], plates = [];
     for (const f of wallFaces) { if ((f.tx + f.ty) % 2 || nearDoor(f.tx, f.ty) || objT.has(f.ty * W + f.tx)) continue; const nx = f.n[0], nz = f.n[1], tx = -nz, tz = nx, ry = nx ? Math.PI / 2 : 0, ox = f.x - nx * 0.11 + tx * (TS / 2 - 0.12), oz = f.z - nz * 0.11 + tz * (TS / 2 - 0.12);
       if (solid(f.tx + Math.round(tx), f.ty + Math.round(tz))) continue;                       // not into a corner
-      ribs.push(box(0.2, WH, 0.2, ox, WH / 2, oz, ry)); flanges.push(box(0.34, 0.1, 0.26, ox, 0.05, oz, ry), box(0.34, 0.1, 0.26, ox, WH - 0.05, oz, ry), box(0.1, 0.12, 0.3, ox, 1.1, oz, ry)); }
+      ribs.push(box(0.2, f.h, 0.2, ox, f.h / 2, oz, ry)); flanges.push(box(0.34, 0.1, 0.26, ox, 0.05, oz, ry), box(0.34, 0.1, 0.26, ox, f.h - 0.05, oz, ry), box(0.1, 0.12, 0.3, ox, 1.1, oz, ry)); }
     for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { if (cells[y * W + x] !== T.FLOOR || roomAt(x, y) || objT.has(y * W + x)) continue;
       const alongZ = solid(x - 1, y) && solid(x + 1, y), alongX = solid(x, y - 1) && solid(x, y + 1); if (!alongZ && !alongX) continue;
-      if (x % 2 === 0 && y % 2 === 0 || (x + y) % 3 === 0 && R() < 0.5) { const cxx = x * TS + (alongZ ? TS / 2 : 0), czz = y * TS + (alongX ? TS / 2 : 0); beams.push(alongZ ? box(TS, 0.34, 0.26, cxx, WH - 0.17, czz + TS / 2 - TS / 2 + 0.0) : box(0.26, 0.34, TS, cxx, WH - 0.17, czz)); }
+      if (x % 2 === 0 && y % 2 === 0 || (x + y) % 3 === 0 && R() < 0.5) { const cxx = x * TS + (alongZ ? TS / 2 : 0), czz = y * TS + (alongX ? TS / 2 : 0); beams.push(alongZ ? box(TS, 0.34, 0.26, cxx, hAt(x, y) - 0.17, czz) : box(0.26, 0.34, TS, cxx, hAt(x, y) - 0.17, czz)); }
       if ((x * 7 + y * 13) % 5 === 0 && !doorT.has(y * W + x)) { const cxx = x * TS + TS / 2, czz = y * TS + TS / 2; plates.push(box(1.3, 0.02, 1.3, cxx, 0.012, czz)); for (let k = -3; k <= 3; k++) bars.push(alongZ ? box(1.3, 0.03, 0.04, cxx, 0.03, czz + k * 0.19) : box(0.04, 0.03, 1.3, cxx + k * 0.19, 0.03, czz)); } }
+    /* the tall parts (4.2 m): cross beams, pipe runs and, in halls, a catwalk with railings; decoration only, nothing up there can be walked on */
+    const hb = [], hp = [], hc = [], hr = [], hcyl = (r, len, x, y, z, alongX) => { const g = new THREE.CylinderGeometry(r, r, len, 10); g.rotateZ(Math.PI / 2); if (!alongX) g.rotateY(Math.PI / 2); g.translate(x, y, z); return g; };
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { if (cells[y * W + x] === T.WALL) continue; const Hh = hAt(x, y); if (Hh < 4) continue;
+      if (x % 2 === 0) hb.push(box(0.26, 0.42, TS, x * TS + TS / 2, Hh - 0.21, y * TS + TS / 2)); if ((x + y) % 3 === 0) hc.push(hcyl(0.1, TS, x * TS + TS / 2, Hh - 0.62, y * TS + 0.5, true), hcyl(0.07, TS, x * TS + TS / 2, Hh - 0.55, y * TS + TS - 0.5, true)); }
+    for (const r of world.rooms) { if (!(r.ceilH >= 4) || r.w * r.h < 40) continue; const x0 = r.x0 * TS, z0 = r.y0 * TS, w = r.w * TS, d = r.h * TS, alongX = w >= d, len = (alongX ? w : d) - 1.2, cxm = x0 + w / 2, czm = z0 + d / 2, yc = 3.35;
+      hr.push(alongX ? box(len, 0.06, 0.95, cxm, yc, czm) : box(0.95, 0.06, len, cxm, yc, czm));
+      for (const sd of [-1, 1]) { hr.push(alongX ? box(len, 0.05, 0.05, cxm, yc + 1.0, czm + sd * 0.47) : box(0.05, 0.05, len, cxm + sd * 0.47, yc + 1.0, czm)); hr.push(alongX ? box(len, 0.04, 0.04, cxm, yc + 0.5, czm + sd * 0.47) : box(0.04, 0.04, len, cxm + sd * 0.47, yc + 0.5, czm));
+        for (let k = 0; k <= Math.floor(len / 1.4); k++) { const o = -len / 2 + k * 1.4; hr.push(alongX ? box(0.05, 1.0, 0.05, cxm + o, yc + 0.5, czm + sd * 0.47) : box(0.05, 1.0, 0.05, cxm + sd * 0.47, yc + 0.5, czm + o)); } }
+      for (const e of [-1, 1]) hr.push(alongX ? box(0.14, r.ceilH - yc, 0.14, cxm + e * (len / 2), yc + (r.ceilH - yc) / 2, czm) : box(0.14, r.ceilH - yc, 0.14, cxm, yc + (r.ceilH - yc) / 2, czm + e * (len / 2))); }
+    pushStat(hb, metalMat, false); pushStat(hp, metalMat, false); pushStat(hc, metalMat, false); pushStat(hr, metalMat, false);
     pushStat(ribs, metalMat, false); pushStat(flanges, darkMat, false); pushStat(beams, metalMat, false); pushStat(bars, metalMat, false); pushStat(plates, darkMat, false); }
   const decor = buildDecor({ world, scene, R, TH, theme, lit, patchPulse, TS, WH, roomAt, wallFaces });
   /* pipes and conduits along corridor walls: breaks up the flat walls */
@@ -165,7 +187,7 @@ export function buildScene(world, Q) {
   const stripe = (c1, c2) => canvasTexture(64, 64, (x, w, h) => { x.fillStyle = c1; x.fillRect(0, 0, w, h); x.fillStyle = c2; for (let i = -h; i < w; i += 16) { x.beginPath(); x.moveTo(i, h); x.lineTo(i + 8, h); x.lineTo(i + 8 + h, 0); x.lineTo(i + h, 0); x.fill(); } });
   const lockCol = { key: 0xc9a14a, card: 0x3ca0ff, power: 0xffcc22, code: 0x66ff88, valve: 0xff5533, secret: 0x44aaff, breaker: 0xff9a2a };
   const lockTex = {};
-  const E = { Q, ch: spec.ch, TS, WH, R, group, dyn, mats: libM, glowTex, patchPulse, lit, dis: disposables, canvasTexture, glassMat, liqMat, scrMat, bl1Mat, bl2Mat, hazMat, lockCol, wallMat };
+  const E = { hAt, Q, ch: spec.ch, TS, WH, R, group, dyn, mats: libM, glowTex, patchPulse, lit, dis: disposables, canvasTexture, glassMat, liqMat, scrMat, bl1Mat, bl2Mat, hazMat, lockCol, wallMat };
   for (const o of world.objs) {
     const cx = o.x * TS + TS / 2, cz = o.y * TS + TS / 2;
     if (buildDynamic(o, E)) { /* door, locker, vent, generator, breaker, valve: see dynamic3d.js */
@@ -199,6 +221,14 @@ export function buildScene(world, Q) {
       const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xffeeaa, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.35 })); gl.scale.set(1.2, 1.2, 1); gl.position.set(cx, 0.4, cz); group.add(gl); dyn.notes.push({ o, g: pg, gl });
     }
   }
+  /* the ceiling vent a creature can drop from (only when the world has one): a frame in the ceiling, a hole, and a grille that rattles and falls */
+  let ventDrop = null;
+  if (world.vdrop) { const v = world.vdrop, Hh = hAt(v.tx, v.ty), vm = lit({ color: 0x3a3f44, roughness: 0.55, metalness: 0.6 }); patchPulse(vm); disposables.push(vm);
+    const holeM = new THREE.MeshBasicMaterial({ color: 0x000000 }); disposables.push(holeM); const hole = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1).rotateX(Math.PI / 2), holeM); hole.position.set((v.tx + 0.5) * TS, Hh - 0.015, (v.ty + 0.5) * TS); scene.add(hole);
+    const fr = [box(1.36, 0.1, 0.13, 0, 0, 0.62), box(1.36, 0.1, 0.13, 0, 0, -0.62), box(0.13, 0.1, 1.36, 0.62, 0, 0), box(0.13, 0.1, 1.36, -0.62, 0, 0)]; const fm = new THREE.Mesh(mergeGeometries(fr), vm); fm.position.set((v.tx + 0.5) * TS, Hh - 0.05, (v.ty + 0.5) * TS); scene.add(fm);
+    const gg = [box(1.1, 0.04, 0.06, 0, 0, 0.5), box(1.1, 0.04, 0.06, 0, 0, -0.5), box(0.06, 0.04, 1.1, 0.5, 0, 0), box(0.06, 0.04, 1.1, -0.5, 0, 0)]; for (let k = -3; k <= 3; k++) gg.push(box(1.0, 0.03, 0.05, 0, 0, k * 0.15)); gg.push(box(0.05, 0.03, 1.0, 0, 0.0, 0.0));
+    const gm = new THREE.Mesh(mergeGeometries(gg), vm), grille = new THREE.Group(); grille.add(gm); grille.position.set((v.tx + 0.5) * TS, Hh - 0.07, (v.ty + 0.5) * TS); scene.add(grille); ventDrop = { g: grille, y: Hh };
+  }
   /* ---------------- light fixtures ---------------- */
   const lampMats = { ok: new THREE.MeshBasicMaterial({ color: TH.lamp }), dead: new THREE.MeshBasicMaterial({ color: 0x151515 }), fl: [] };
   const lampGeo = new THREE.BoxGeometry(0.9, 0.08, 0.28), fixtures = [], lampCache = {};
@@ -207,12 +237,16 @@ export function buildScene(world, Q) {
   for (const l of world.lights) { let kind = spec.lightsOut ? (R() < 0.8 ? 'dead' : l.kind) : l.kind; if (LK && kind === 'ok' && R() < LK.flick * 0.4) kind = 'flicker'; const rm = roomAt(Math.floor(l.x), Math.floor(l.y)); let col = rm && KIND_LAMP[rm.kind] ? (LK ? mixHex(KIND_LAMP[rm.kind], LK.lamp, 0.78) : KIND_LAMP[rm.kind]) : TH.lamp;
     if (spec.ch === 0 && kind === 'ok' && R() < 0.14) kind = 'flicker'; if (spec.ch === 1 && kind !== 'dead' && R() < 0.12) col = mixHex(col, 0xff3a2a, 0.85);   // chapter 1: failing fluorescent tubes; chapter 2: red emergency lighting
     const m = kind === 'dead' ? lampMats.dead : lampMat(col, kind === 'ok' ? 'ok' : 'f' + Math.floor(R() * 3));
-    const mesh = new THREE.Mesh(lampGeo, m); mesh.position.set(l.x * TS, WH - 0.06, l.y * TS); mesh.rotation.y = R() < 0.5 ? 0 : Math.PI / 2; scene.add(mesh); housing.push(box(1.0, 0.04, 0.34, l.x * TS, WH - 0.02, l.y * TS, mesh.rotation.y)); fixtures.push({ x: l.x * TS, z: l.y * TS, kind, mat: m, ph: l.ph, col }); }
+    const mesh = new THREE.Mesh(lampGeo, m); const LH = hAt(Math.floor(l.x), Math.floor(l.y)); mesh.position.set(l.x * TS, LH - 0.06, l.y * TS); mesh.rotation.y = R() < 0.5 ? 0 : Math.PI / 2; scene.add(mesh); housing.push(box(1.0, 0.04, 0.34, l.x * TS, LH - 0.02, l.y * TS, mesh.rotation.y)); fixtures.push({ y: LH, x: l.x * TS, z: l.y * TS, kind, mat: m, ph: l.ph, col }); }
+  /* every hall hangs one round overhead light in the middle; it flickers (a pooled light follows it like the ceiling fixtures) */
+  { const hallD = [], rods = []; world.rooms.forEach((r, ri) => { if (!(r.ceilH >= 4) || r.w * r.h < 40) return; const cx_ = (r.x0 + r.w / 2) * TS, cz_ = (r.y0 + r.h / 2) * TS, yL = r.ceilH - 0.9, hm = new THREE.MeshBasicMaterial({ color: TH.lamp }); disposables.push(hm);
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.7, 0.14, 24), hm); disc.position.set(cx_, yL, cz_); scene.add(disc); hallD.push(cyl(0.78, 0.78, 0.06, cx_, yL + 0.1, cz_, 24), cyl(0.04, 0.04, r.ceilH - yL, cx_ + 0.5, yL + (r.ceilH - yL) / 2, cz_, 6), cyl(0.04, 0.04, r.ceilH - yL, cx_ - 0.5, yL + (r.ceilH - yL) / 2, cz_, 6));
+      fixtures.push({ y: yL + 0.3, x: cx_, z: cz_, kind: 'flicker', mat: hm, ph: ri * 1.7 + 0.4, col: TH.lamp, big: true }); }); if (hallD.length) addMesh(mergeGeometries(hallD), darkMat, false, false); }
   disposables.push(...Object.values(lampCache), lampMats.ok, lampMats.dead);
   if (housing.length) addMesh(mergeGeometries(housing), darkMat, false, false);
   const sceneAmb = new THREE.HemisphereLight(TH.amb, 0x050507, TH.ambI * (spec.lightsOut ? 0.6 : 1) * (Q.mats === 'std' ? 4.4 : 3.7) * 0.1); scene.add(sceneAmb);
   /* nest: an organic glow in every wall pocket and floor veins */
-  return { scene, group, dyn, decor, fixtures, lampMats, theme, TH, tex, waterMesh, disposables, wallMat, floorMat, amb: sceneAmb, matMap: mm };
+  return { ventDrop, hAt, hMap, scene, group, dyn, decor, fixtures, lampMats, theme, TH, tex, waterMesh, disposables, wallMat, floorMat, amb: sceneAmb, matMap: mm };
 }
 let _glow = null;
 export function glowTex() { if (_glow) return _glow; const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,0.4)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); _glow = new THREE.CanvasTexture(c); return _glow; }

@@ -12,6 +12,7 @@ export const SEQ = {
     { id: 'flash', t: 'FLASHLIGHT', x: 'Tap the flashlight icon in the bottom bar to switch it off, then on again.', ok: (T) => T.flash >= 2 },
     { id: 'map', t: 'MAP', x: 'Tap the MAP button (top right). It shows the rooms, your position and where to go next. Close it with the back arrow.', ok: (T) => T.map >= 1 },
     { id: 'door', t: 'DOORS', x: 'Walk into a door, or tap it, to open it. Doors make a little noise.', ok: (T) => T.doors >= 1 },
+    { id: 'throw', t: 'THROW A BOTTLE', x: 'A glass bottle lies in one of the rooms (it glows). Walk over it, then tap THROW (T on a keyboard). Where it breaks, creatures run to the noise: use it to lure them away.', ok: (T) => (T.threw || 0) >= 1 },
     { id: 'exit', t: 'ESCAPE', x: 'Follow the map to the glowing green EXIT sign and walk up to it.', ok: () => false }
   ],
   1: [

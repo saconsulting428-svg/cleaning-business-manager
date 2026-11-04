@@ -10,7 +10,10 @@ export function dressLevel(c) {
   const { spec, cells, W, H, objs, O, blocked, isFree, nearMouth, rooms, edges, st, connected, at } = c;
   const i = spec.story === undefined ? 0 : spec.story, ch = spec.ch, R = rng32(spec.seed * 1301 + 71), ri = (a, b) => a + Math.floor(R() * (b - a + 1)), pick = a => a[Math.floor(R() * a.length)];
   const small = spec.small || [], out = { crawlers: [], setpiece: spec.setpiece || null };
-  if (i < 3 || i === 49) return out;                                    // the tutorial levels and the last gate stay clean                                              // the tutorial levels stay clean
+  if (i < 3 || i === 49) {                                                  // the clean levels: the first three still get one bottle, so the throw can be taught
+    if (i < 3) { const cand = rooms.filter(r => r.idx >= 1), sx = st.x, sy = st.y; for (let t = 0; t < 120 && cand.length; t++) { const r = pick(cand), x = ri(r.x0 + 1, r.x0 + r.w - 2), y = ri(r.y0 + 1, r.y0 + r.h - 2); if (isFree(x, y) && !nearMouth(x, y) && Math.abs(x - sx) + Math.abs(y - sy) >= 4) { O({ type: 'pickup', kind: 'bottle', x, y, dress: true }); break; } } }
+    return out;
+  }                                    // the tutorial levels and the last gate stay clean                                              // the tutorial levels stay clean
   const far = (x, y, d) => Math.abs(x - st.x) + Math.abs(y - st.y) >= d;
   const inRooms = rooms.filter(r => r.idx >= 1);
   const roomTile = (r, inset) => { for (let t = 0; t < 40; t++) { const x = ri(r.x0 + inset, r.x0 + r.w - 1 - inset), y = ri(r.y0 + inset, r.y0 + r.h - 1 - inset); if (isFree(x, y) && !nearMouth(x, y) && far(x, y, 6)) return [x, y]; } return null; };
@@ -74,6 +77,13 @@ export function dressLevel(c) {
   }
   /* throwable bottles: one or two lie around from level 3 on (added last, so nothing that was placed before moves) */
   for (let k = 0; k < (i >= 6 && i % 2 ? 2 : 1); k++) heal('bottle');
+  const flood = () => { const seen = new Uint8Array(W * H), q = [at(st.x, st.y)]; seen[q[0]] = 1; for (let qi = 0; qi < q.length; qi++) { const k = q[qi], x = k % W, y = (k / W) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const n2 = ny * W + nx; if (seen[n2] || cells[n2] === WALL || blocked.has(n2)) continue; seen[n2] = 1; q.push(n2); } } for (let k = 0; k < W * H; k++) if (cells[k] !== WALL && !blocked.has(k) && !seen[k]) return false; return true; };
+  const hallOk = (x, y) => isFree(x, y) && !nearMouth(x, y) && far(x, y, 5) && !objs.some(o => (o.type === 'locker' || o.type === 'vent' || o.type === 'door' || o.type === 'exit' || o.type === 'fakeexit') && Math.abs(o.x - x) <= 1 && Math.abs(o.y - y) <= 1) && !out.crawlers.some(q => Math.floor(q.x) === x && Math.floor(q.y) === y);
+  /* halls (big open rooms): solid columns and prop clusters, only where the floor stays one connected piece (the solver re-checks the finished level) */
+  for (const r of rooms) { if (r.idx < 1 || r.w * r.h < 40) continue;
+    const spots = [[1 / 3, 1 / 3], [2 / 3, 2 / 3], [2 / 3, 1 / 3], [1 / 3, 2 / 3]].slice(0, r.w * r.h >= 56 ? 4 : 2);
+    for (const [fx, fy] of spots) { const x = r.x0 + Math.round(r.w * fx - 0.5), y = r.y0 + Math.round(r.h * fy - 0.5); if (!hallOk(x, y)) continue; blocked.add(y * W + x); if (!connected() || !flood()) { blocked.delete(y * W + x); continue; } O({ type: 'prop', kind: 'column', x, y, rot: 0, solid: true, room: r.idx, dress: true }); }
+    for (let k = 0; k < 2; k++) { const kind = pick(['crate', 'shelf', 'desk', 'barrel', 'crate']); for (let t = 0; t < 30; t++) { const x = ri(r.x0 + 1, r.x0 + r.w - 2), y = ri(r.y0 + 1, r.y0 + r.h - 2); if (!hallOk(x, y)) continue; blocked.add(y * W + x); if (!connected() || !flood()) { blocked.delete(y * W + x); continue; } O({ type: 'prop', kind, x, y, rot: ri(0, 3) * Math.PI / 2, solid: true, room: r.idx, dress: true }); break; } } }
   return out;
 }
 

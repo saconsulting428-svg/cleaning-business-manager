@@ -78,7 +78,7 @@ export function emitNoise(world, x, y, radius, kind, except) {
   world.noiseLevel = Math.max(world.noiseLevel, clamp(radius / 14, 0, 1)); world.events.push({ type: 'noise', x, y, radius, kind });
   if (!world.creatures.length) return;
   const field = distField(world, x, y, radius * 1.8);
-  for (const c of world.creatures) { if (c.dead || c === except) continue; const d = field.get(Math.floor(c.y) * world.W + Math.floor(c.x)); if (d === undefined) continue; if (d <= radius * c.k.hear) hear(world, c, x, y, d, radius, kind); }
+  for (const c of world.creatures) { if (c.dead || c.dormant || c === except) continue; const d = field.get(Math.floor(c.y) * world.W + Math.floor(c.x)); if (d === undefined) continue; if (d <= radius * c.k.hear) hear(world, c, x, y, d, radius, kind); }
 }
 function hear(world, c, x, y, d, radius, kind) {
   if (c.state === 'hunt') { c.lastSeen = { x, y }; return; }
@@ -115,7 +115,7 @@ function goTo(world, c, tx, ty, dt, speed, repathEvery) {
 }
 
 export function updateCreature(world, c, dt) {
-  if (c.dead) return; if (c.frozenT > 0) { c.frozenT -= dt; c.moving = false; c.px = c.x; c.py = c.y; return; } const p = world.player, k = c.k, rnd = world.rnd;
+  if (c.dead || c.dormant) return; if (c.frozenT > 0) { c.frozenT -= dt; c.moving = false; c.px = c.x; c.py = c.y; return; } const p = world.player, k = c.k, rnd = world.rnd;
   const seen = canSee(world, c), dxp = p.x - c.x, dyp = p.y - c.y, dist = Math.hypot(dxp, dyp);
   c.seen = seen; c.revealT = Math.max(0, c.revealT - dt); c.roar = Math.max(0, c.roar - dt);
   const prevX = c.x, prevY = c.y;

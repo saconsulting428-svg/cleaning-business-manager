@@ -200,6 +200,7 @@ function tryGenerate(spec, seed) {
   { const LR = rng32(spec.seed * 977 + 13); const idxs = order.map((_, i) => i).filter(i => i > 0); for (let k = idxs.length - 1; k > 0; k--) { const j = Math.floor(LR() * (k + 1)); [idxs[k], idxs[j]] = [idxs[j], idxs[k]]; }
     for (const ri_ of idxs) { const r = order[ri_]; let done = false; for (let t = 0; t < 40 && !done; t++) { const x = r.x0 + 1 + Math.floor(LR() * (r.w - 2)), y = r.y0 + 1 + Math.floor(LR() * (r.h - 2)); if (isFree(x, y) && !nearMouth(x, y) && cells[at(x, y)] === T.FLOOR) { O({ type: 'log', x, y, room: ri_, rot: Math.floor(LR() * 4) * Math.PI / 2 }); done = true; } } if (done) break; }
     if (!objs.some(o => o.type === 'log')) for (let t = 0; t < 400; t++) { const r = order[Math.floor(LR() * order.length)], x = r.x0 + Math.floor(LR() * r.w), y = r.y0 + Math.floor(LR() * r.h); if (isFree(x, y) && cells[at(x, y)] === T.FLOOR) { O({ type: 'log', x, y, room: r.idx, rot: 0 }); break; } } }
+  if (!connected()) return null;                                  // nothing placed after the dressing (lockers, vents) may close a pocket of floor
   const world = { spec, W, H, cells, rooms: order, edges, gates, gateEdge, objs, start: { x: st.x + 0.5, y: st.y + 0.5, yaw: 0 }, exit, lights, creatures, blocked: [...blocked], seed, crawlers: dressed.crawlers, setpiece: dressed.setpiece };
   /* start facing the first corridor */
   { const e0 = edges[0].cells[0]; world.start.yaw = Math.atan2(e0[1] - st.y, e0[0] - st.x); }

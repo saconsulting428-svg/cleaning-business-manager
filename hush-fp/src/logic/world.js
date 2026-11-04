@@ -29,6 +29,8 @@ export class World {
     this.steps = this.buildObjective(); this.refreshLocks();
     this.prompt = null; this.lastDenied = -9; this.keypad = null;
     initExtras(this);
+    /* ceiling vent drop (chapter 2+, once per level, only when the page asks for it): the first stalker/listener waits unseen above a ceiling grille and drops in once the player is 6+ tiles away */
+    this.vdrop = null; if (opts && opts.ventDrop && this.spec.ch >= 1) { const c = this.creatures.find(q => q.t === 'stalker') || this.creatures.find(q => q.t === 'listener'); if (c) { c.dormant = true; this.vdrop = { id: c.id, cx: c.x, cy: c.y, tx: Math.floor(c.x), ty: Math.floor(c.y), state: 'wait', t: 0 }; } }
   }
   /* ---------- helpers ---------- */
   tileAt(x, y) { x = Math.floor(x); y = Math.floor(y); if (x < 0 || y < 0 || x >= this.W || y >= this.H) return T.WALL; return this.cells[y * this.W + x]; }
@@ -173,7 +175,7 @@ export class World {
   pulse() {
     const p = this.player; if (!p.alive || p.vent || this.over || p.pulses <= 0 || p.hidden >= 0) return false; if (this.pulseCd > 0) { this.events.push({ type: 'pulsecd' }); return false; } this.pulseCd = PULSE_CD; p.pulses--; this.stats.pulses++;
     this.pulseState = { x: p.x, y: p.y, t0: this.time }; this.events.push({ type: 'pulse', x: p.x, y: p.y });
-    const R = 13; for (const c of this.creatures) if (Math.hypot(c.x - p.x, c.y - p.y) < R) c.revealT = 3.2;
+    const R = 13; for (const c of this.creatures) if (!c.dormant && Math.hypot(c.x - p.x, c.y - p.y) < R) c.revealT = 3.2;
     for (const o of this.objs) { if (Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y) < R) { o.pingT = 4; if (o.type === 'door' && o.hidden && !o.revealed && Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y) < 9) { o.revealed = true; this.refreshLocks(); this.events.push({ type: 'reveal', x: o.x + 0.5, y: o.y + 0.5 }); } } }
     emitNoise(this, p.x, p.y, 14, 'pulse'); return true;
   }
@@ -210,10 +212,11 @@ export class World {
     if (p.alive && p.hidden < 0 && !p.vent) for (const o of this.objs) if (o.type === 'item' && !o.taken && Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y) < 0.85) this.pickup(o);
     p.pulses = Math.min(this.spec.pulses, p.pulses);
     if (this.alarmT > 0) { this.alarmT -= dt; if (this.alarmT <= 0) emitNoise(this, this.alarmPos.x, this.alarmPos.y, 26, 'alarm'); }
+    this.updateVentDrop(dt);
     for (const c of this.creatures) updateCreature(this, c, dt);
     updateExtras(this, dt);
     /* threat for the sound design: how close and how awake the nearest creature is */
-    let th = 0; for (const c of this.creatures) { const d = Math.hypot(c.x - p.x, c.y - p.y), w = c.state === 'hunt' ? 1 : c.state === 'investigate' || c.state === 'suspicious' ? 0.6 : c.state === 'search' ? 0.45 : 0.25; th = Math.max(th, w * clamp(1 - d / 14, 0, 1)); } this.threat += (th - this.threat) * Math.min(1, dt * 2);
+    let th = 0; for (const c of this.creatures) { if (c.dormant) continue; const d = Math.hypot(c.x - p.x, c.y - p.y), w = c.state === 'hunt' ? 1 : c.state === 'investigate' || c.state === 'suspicious' ? 0.6 : c.state === 'search' ? 0.45 : 0.25; th = Math.max(th, w * clamp(1 - d / 14, 0, 1)); } this.threat += (th - this.threat) * Math.min(1, dt * 2);
     this.prompt = this.interactTarget();
   }
   updatePlayer(dt, inp) {
@@ -242,6 +245,14 @@ export class World {
       if (tile === T.GLASS) { r = p.crouch ? 4 : 11; kind = 'glass'; } else if (tile === T.WATER) { r = p.sprint ? 11 : p.crouch ? 2.2 : 6; kind = 'water'; }
       this.stats.steps++; this.events.push({ type: 'step', kind, crouch: p.crouch, sprint: p.sprint, x: p.x, y: p.y }); emitNoise(this, p.x, p.y, r, kind);
     }
+  }
+  /* wait (hidden) -> shake (metal creak, 1.4 s) -> fall (grille drops, the creature descends in 0.8 s) -> done. The drop never happens while the player is within 6 tiles. */
+  updateVentDrop(dt) {
+    const v = this.vdrop; if (!v || v.state === 'done') return; const p = this.player, c = this.creatures.find(q => q.id === v.id); if (!c) { v.state = 'done'; return; }
+    const d = Math.hypot(p.x - v.cx, p.y - v.cy); v.t += dt;
+    if (v.state === 'wait') { if (v.t > 12 && d >= 6 && (d <= 13 || v.t > 70) && p.alive && !this.over) { v.state = 'shake'; v.t = 0; this.events.push({ type: 'ventShake', x: v.cx, y: v.cy }); } }
+    else if (v.state === 'shake') { if (v.t > 0.7 && v.t < 0.75) this.events.push({ type: 'ventShake', x: v.cx, y: v.cy }); if (v.t >= 1.4 && d >= 6) { v.state = 'fall'; v.t = 0; c.dormant = false; c.dropT = 0.8; c.frozenT = 0.8; c.state = 'roam'; c.alert = 0; c.wait = 0.3; c.target = null; c.path = null; this.events.push({ type: 'ventFall', x: v.cx, y: v.cy }); } else if (v.t > 1.4) v.t = 1.4; }
+    else if (v.state === 'fall') { c.dropT = Math.max(0, 0.8 - v.t); if (v.t >= 0.8) { v.state = 'done'; c.dropT = 0; this.events.push({ type: 'ventLand', x: v.cx, y: v.cy }); } }
   }
   /* a bottle is thrown in an arc (gravity 9.8 m/s2, one tile = 2 m); where it lands it shatters: a loud noise that pulls the creatures to that spot */
   throwBottle() {

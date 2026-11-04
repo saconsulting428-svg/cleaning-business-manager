@@ -35,13 +35,13 @@ export function buildDynamic(o, E) {
     else P.B('hazard', lw - 0.5, 0.06, 0.02, lw / 2 * hs, 0.6, 0.07, 0xd8d0b8);
     flush(piv, acc, Object.assign({}, mm, { steel: slabM }));
     if (PropsGLB.has('door_plain')) {                                                                              // the Blender door: frame fixed, leaf swinging on the hinge pivot
-      const dn = o.lock === 'card' ? 'door_keycard' : o.lock ? 'door_steel' : 'door_plain', sx = 1.9, sy = 1.27, sz = 2.0, root = PropsGLB.inst(dn, [hs * sx, sy, sz]), leaf = PropsGLB.node(root, 'door');
-      g.clear(); const hdr = new THREE.Mesh(new THREE.BoxGeometry(TS, WH - 2.8, 0.34), mats.dark); hdr.position.set(0, 2.8 + (WH - 2.8) / 2, 0); g.add(hdr);
+      const dn = o.lock === 'card' ? 'door_keycard' : o.lock ? 'door_steel' : 'door_plain', sx = 1.9, sy = 0.97, sz = 2.0, root = PropsGLB.inst(dn, [hs * sx, sy, sz]), leaf = PropsGLB.node(root, 'door');
+      g.clear(); const DH = E.hAt ? E.hAt(o.x, o.y) : WH, hdr = new THREE.Mesh(new THREE.BoxGeometry(TS, DH - 2.2, 0.34), mats.dark); hdr.position.set(0, 2.2 + (DH - 2.2) / 2, 0); g.add(hdr);
       if (leaf) { root.remove(leaf); piv.clear(); const lm = []; leaf.traverse(mm2 => { if (mm2.isMesh) { mm2.material = mm2.material.clone(); mm2.material.userData.shared = false; lm.push(mm2.material); } }); E.dis.push(...lm); leaf.position.set(0, 0, 0); leaf.scale.set(hs * sx, sy, sz); piv.add(leaf); slabM = { emissive: { setHex: (h) => lm.forEach(q => q.emissive.setHex(h)) } }; }
       g.add(root);
     }
     if (o.lock) { const bandM = new THREE.MeshBasicMaterial({ color: E.lockCol[o.lock] || 0xffffff }); const band = new THREE.Mesh(new THREE.BoxGeometry(lw * 0.8, 0.1, 0.12), bandM); band.position.set(lw / 2 * hs, 0.95, 0); piv.add(band); E.dis.push(bandM); }
-    const lightM = new THREE.MeshBasicMaterial({ color: 0xff2020 }); const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.08), lightM); lamp.position.set(hs * (TS / 2 - 0.1) * -1, 2.65, 0.19); g.add(lamp); E.dis.push(lightM);
+    const lightM = new THREE.MeshBasicMaterial({ color: 0xff2020 }); const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.08), lightM); lamp.position.set(hs * (TS / 2 - 0.1) * -1, PropsGLB.has('door_plain') ? 2.12 : 2.65, 0.19); g.add(lamp); E.dis.push(lightM);
     piv.position.set(-hs * (TS / 2 - 0.05), 0, 0); g.add(piv);
     let pad = null;
     if (o.lock === 'code') {
