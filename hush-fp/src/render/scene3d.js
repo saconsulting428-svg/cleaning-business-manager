@@ -67,7 +67,7 @@ export const LOOKS = {
 const mixHex = (a, b, t) => { const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255, br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255; return (Math.round(ar + (br - ar) * t) << 16) | (Math.round(ag + (bg - ag) * t) << 8) | Math.round(ab + (bb - ab) * t); };
 export function buildScene(world, Q) {
   const spec = world.spec, LK = LOOKS[spec.look] || null, theme = ['concrete', 'flood', 'nest'][spec.ch], TH = LK ? Object.assign({}, THEME[theme], { fog: LK.fog, fogD: THEME[theme].fogD * LK.fogK, lamp: LK.lamp, amb: LK.amb, ambI: THEME[theme].ambI * LK.ambK }) : THEME[theme], R = rng32(spec.seed * 31 + 7), W = world.W, H = world.H, cells = world.cells;
-  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x000000); scene.fog = new THREE.FogExp2(TH.fog, TH.fogD * (spec.lightsOut ? 1.15 : 1));
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x000000); scene.fog = new THREE.FogExp2(mixHex(TH.fog, 0x02040a, 0.7), 0.09 * (spec.lightsOut ? 1.12 : 1) * (LK ? Math.min(1.12, Math.max(0.92, LK.fogK)) : 1));
   const tex = buildTextures(theme, Q.texSize), disposables = [];
   const cheap = Q.mats !== 'std', useNormal = Q.mats !== 'lambert';
   const lit = (o) => { if (cheap) { delete o.roughness; delete o.metalness; return new THREE.MeshLambertMaterial(o); } return new THREE.MeshStandardMaterial(o); };
@@ -89,14 +89,20 @@ export function buildScene(world, Q) {
     if (t === T.WALL) {
       const x0 = x * TS, z0 = y * TS, x1 = x0 + TS, z1 = z0 + TS, tint = 0.8 + R() * 0.3, top = tint * 0.95, bot = tint * 0.5;
       const vv = WH / TS, mc = (nx, ny) => { const t = tintAt(nx, ny); return [[bot * t[0], bot * t[1], bot * t[2]], [bot * t[0], bot * t[1], bot * t[2]], [top * t[0], top * t[1], top * t[2]], [top * t[0], top * t[1], top * t[2]]]; }, UV = [0, 0, 1, 0, 1, vv, 0, vv];
-      if (!solid(x, y + 1)) { wall.quad([x0, 0, z1], [x1, 0, z1], [x1, WH, z1], [x0, WH, z1], [0, 0, 1], UV, mc(x, y + 1)); wallFaces.push({ tx: x, ty: y + 1, x: x0 + TS / 2, z: z1, n: [0, 1] }); }
-      if (!solid(x, y - 1)) { wall.quad([x1, 0, z0], [x0, 0, z0], [x0, WH, z0], [x1, WH, z0], [0, 0, -1], UV, mc(x, y - 1)); wallFaces.push({ tx: x, ty: y - 1, x: x0 + TS / 2, z: z0, n: [0, -1] }); }
-      if (!solid(x + 1, y)) { wall.quad([x1, 0, z1], [x1, 0, z0], [x1, WH, z0], [x1, WH, z1], [1, 0, 0], UV, mc(x + 1, y)); wallFaces.push({ tx: x + 1, ty: y, x: x1, z: z0 + TS / 2, n: [1, 0] }); }
-      if (!solid(x - 1, y)) { wall.quad([x0, 0, z0], [x0, 0, z1], [x0, WH, z1], [x0, WH, z0], [-1, 0, 0], UV, mc(x - 1, y)); wallFaces.push({ tx: x - 1, ty: y, x: x0, z: z0 + TS / 2, n: [-1, 0] }); }
+      const wq = (a, b, c, d, nrm, col) => {                          // a,b bottom (left,right), c,d top: three bands so the foot and the head of the wall fall into shadow (fake ambient occlusion)
+        const ys = [0, 0.55, WH - 0.65, WH], kk = [0.42, 0.95, 1.0, 0.45], lp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t], cm = (cc, f) => [cc[0] * f, cc[1] * f, cc[2] * f];
+        for (let sI = 0; sI < 3; sI++) { const t0 = ys[sI] / WH, t1 = ys[sI + 1] / WH, v0 = ys[sI] / TS, v1 = ys[sI + 1] / TS; wall.quad(lp(a, d, t0), lp(b, c, t0), lp(b, c, t1), lp(a, d, t1), nrm, [0, v0, 1, v0, 1, v1, 0, v1], [cm(col, kk[sI]), cm(col, kk[sI]), cm(col, kk[sI + 1]), cm(col, kk[sI + 1])]); } };
+      const wc = (nx, ny) => { const t = tintAt(nx, ny), f = tint * 0.9; return [f * t[0], f * t[1], f * t[2]]; };
+      if (!solid(x, y + 1)) { wq([x0, 0, z1], [x1, 0, z1], [x1, WH, z1], [x0, WH, z1], [0, 0, 1], wc(x, y + 1)); wallFaces.push({ tx: x, ty: y + 1, x: x0 + TS / 2, z: z1, n: [0, 1] }); }
+      if (!solid(x, y - 1)) { wq([x1, 0, z0], [x0, 0, z0], [x0, WH, z0], [x1, WH, z0], [0, 0, -1], wc(x, y - 1)); wallFaces.push({ tx: x, ty: y - 1, x: x0 + TS / 2, z: z0, n: [0, -1] }); }
+      if (!solid(x + 1, y)) { wq([x1, 0, z1], [x1, 0, z0], [x1, WH, z0], [x1, WH, z1], [1, 0, 0], wc(x + 1, y)); wallFaces.push({ tx: x + 1, ty: y, x: x1, z: z0 + TS / 2, n: [1, 0] }); }
+      if (!solid(x - 1, y)) { wq([x0, 0, z0], [x0, 0, z1], [x0, WH, z1], [x0, WH, z0], [-1, 0, 0], wc(x - 1, y)); wallFaces.push({ tx: x - 1, ty: y, x: x0, z: z0 + TS / 2, n: [-1, 0] }); }
     } else {
       const x0 = x * TS, z0 = y * TS, x1 = x0 + TS, z1 = z0 + TS, k = 0.78 + R() * 0.3;
-      const ft = tintAt(x, y), fc = [k * ft[0], k * ft[1], k * ft[2]]; floor.quad([x0, 0, z1], [x1, 0, z1], [x1, 0, z0], [x0, 0, z0], [0, 1, 0], [0, 1, 1, 1, 1, 0, 0, 0], [fc, fc, fc, fc]);
-      ceil.quad([x0, WH, z0], [x1, WH, z0], [x1, WH, z1], [x0, WH, z1], [0, -1, 0], [0, 0, 1, 0, 1, 1, 0, 1], shade(0.85 + R() * 0.15).map(c => c.map(v => v * 0.8)));
+      const ft = tintAt(x, y), fc = [k * ft[0], k * ft[1], k * ft[2]];
+      const ao = (i, j) => { const di = i ? 1 : -1, dj = j ? 1 : -1, a1 = solid(x + di, y) ? 1 : 0, a2 = solid(x, y + dj) ? 1 : 0, a3 = solid(x + di, y + dj) ? 1 : 0; return Math.max(0.3, 1 - 0.36 * (a1 + a2) - (a1 && a2 ? 0 : 0.14 * a3)); };
+      const cA = (f) => [fc[0] * f, fc[1] * f, fc[2] * f]; floor.quad([x0, 0, z1], [x1, 0, z1], [x1, 0, z0], [x0, 0, z0], [0, 1, 0], [0, 1, 1, 1, 1, 0, 0, 0], [cA(ao(0, 1)), cA(ao(1, 1)), cA(ao(1, 0)), cA(ao(0, 0))]);
+      { const cb = 0.68 * (0.85 + R() * 0.15); ceil.quad([x0, WH, z0], [x1, WH, z0], [x1, WH, z1], [x0, WH, z1], [0, -1, 0], [0, 0, 1, 0, 1, 1, 0, 1], [cA(cb * ao(0, 0)), cA(cb * ao(1, 0)), cA(cb * ao(1, 1)), cA(cb * ao(0, 1))]); }
     }
   }
   const addMesh = (g, m, cast, recv) => { const o = new THREE.Mesh(g.isBufferGeometry ? g : g.build(), m); o.castShadow = !!cast; o.receiveShadow = recv !== false; scene.add(o); return o; };
@@ -134,6 +140,18 @@ export function buildScene(world, Q) {
     for (const c of Object.keys(libAcc)) if (libAcc[c].length) { addMesh(mergeGeometries(libAcc[c]), mm[c], c === 'steel' || c === 'wood', true); libAcc[c].forEach(g => g.dispose()); } }
   const pushStat = (arr, mat, cast) => { if (arr.length) addMesh(mergeGeometries(arr), mat, cast, true); };
   pushStat(stat.crate, crateMat, true); pushStat(stat.metal, metalMat, true); pushStat(stat.dark, darkMat, true); pushStat(stat.flesh, fleshMat, false); pushStat(pods, podMat, false); pushStat(bones, boneMat, false); pushStat(XM.scr, scrMat, false); pushStat(XM.liq, liqMat, false); pushStat(XM.bl1, bl1Mat, false); pushStat(XM.bl2, bl2Mat, false); pushStat(XM.hazard, hazMat, false); pushStat(XM.glass, glassMat, false);
+  /* modular 3D wall/ceiling/floor pieces: structural ribs every two tiles along the walls, cross beams in corridors, drain grates in the floor */
+  { const doorT = new Set(), objT = new Set(); for (const o of world.objs) { objT.add(o.y * W + o.x); if (o.type === 'door') doorT.add(o.y * W + o.x); }
+    const nearDoor = (tx, ty) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (doorT.has((ty + dy) * W + tx + dx)) return true; return false; };
+    const ribs = [], flanges = [], beams = [], bars = [], plates = [];
+    for (const f of wallFaces) { if ((f.tx + f.ty) % 2 || nearDoor(f.tx, f.ty) || objT.has(f.ty * W + f.tx)) continue; const nx = f.n[0], nz = f.n[1], tx = -nz, tz = nx, ry = nx ? Math.PI / 2 : 0, ox = f.x - nx * 0.11 + tx * (TS / 2 - 0.12), oz = f.z - nz * 0.11 + tz * (TS / 2 - 0.12);
+      if (solid(f.tx + Math.round(tx), f.ty + Math.round(tz))) continue;                       // not into a corner
+      ribs.push(box(0.2, WH, 0.2, ox, WH / 2, oz, ry)); flanges.push(box(0.34, 0.1, 0.26, ox, 0.05, oz, ry), box(0.34, 0.1, 0.26, ox, WH - 0.05, oz, ry), box(0.1, 0.12, 0.3, ox, 1.1, oz, ry)); }
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { if (cells[y * W + x] !== T.FLOOR || roomAt(x, y) || objT.has(y * W + x)) continue;
+      const alongZ = solid(x - 1, y) && solid(x + 1, y), alongX = solid(x, y - 1) && solid(x, y + 1); if (!alongZ && !alongX) continue;
+      if (x % 2 === 0 && y % 2 === 0 || (x + y) % 3 === 0 && R() < 0.5) { const cxx = x * TS + (alongZ ? TS / 2 : 0), czz = y * TS + (alongX ? TS / 2 : 0); beams.push(alongZ ? box(TS, 0.34, 0.26, cxx, WH - 0.17, czz + TS / 2 - TS / 2 + 0.0) : box(0.26, 0.34, TS, cxx, WH - 0.17, czz)); }
+      if ((x * 7 + y * 13) % 5 === 0 && !doorT.has(y * W + x)) { const cxx = x * TS + TS / 2, czz = y * TS + TS / 2; plates.push(box(1.3, 0.02, 1.3, cxx, 0.012, czz)); for (let k = -3; k <= 3; k++) bars.push(alongZ ? box(1.3, 0.03, 0.04, cxx, 0.03, czz + k * 0.19) : box(0.04, 0.03, 1.3, cxx + k * 0.19, 0.03, czz)); } }
+    pushStat(ribs, metalMat, false); pushStat(flanges, darkMat, false); pushStat(beams, metalMat, false); pushStat(bars, metalMat, false); pushStat(plates, darkMat, false); }
   const decor = buildDecor({ world, scene, R, TH, theme, lit, patchPulse, TS, WH, roomAt, wallFaces });
   /* pipes and conduits along corridor walls: breaks up the flat walls */
   const duct = [], conduit = [];
@@ -192,7 +210,7 @@ export function buildScene(world, Q) {
     const mesh = new THREE.Mesh(lampGeo, m); mesh.position.set(l.x * TS, WH - 0.06, l.y * TS); mesh.rotation.y = R() < 0.5 ? 0 : Math.PI / 2; scene.add(mesh); housing.push(box(1.0, 0.04, 0.34, l.x * TS, WH - 0.02, l.y * TS, mesh.rotation.y)); fixtures.push({ x: l.x * TS, z: l.y * TS, kind, mat: m, ph: l.ph, col }); }
   disposables.push(...Object.values(lampCache), lampMats.ok, lampMats.dead);
   if (housing.length) addMesh(mergeGeometries(housing), darkMat, false, false);
-  const sceneAmb = new THREE.HemisphereLight(TH.amb, 0x050507, TH.ambI * (spec.lightsOut ? 0.6 : 1) * (Q.mats === 'std' ? 4.4 : 3.7)); scene.add(sceneAmb);
+  const sceneAmb = new THREE.HemisphereLight(TH.amb, 0x050507, TH.ambI * (spec.lightsOut ? 0.6 : 1) * (Q.mats === 'std' ? 4.4 : 3.7) * 0.1); scene.add(sceneAmb);
   /* nest: an organic glow in every wall pocket and floor veins */
   return { scene, group, dyn, decor, fixtures, lampMats, theme, TH, tex, waterMesh, disposables, wallMat, floorMat, amb: sceneAmb, matMap: mm };
 }

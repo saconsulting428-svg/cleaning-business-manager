@@ -56,7 +56,7 @@ def alcove_shelf():
 
 def door_frame(a, m, w=1.05, h=2.2, mat_='ds'):
     for x in (-w / 2, w / 2): a.box('frame', m[mat_], (.07, .2, h), (x, 0, 0), bevel=.006)
-    a.box('frame', m[mat_], (w + .07, .2, .08), (0, 0, h), bevel=.006); a.box('frame', m['dark'], (w - .07, .02, h - .02), (0, .06, 0))
+    a.box('frame', m[mat_], (w + .07, .2, .08), (0, 0, h), bevel=.006);
 
 def door_leaf(a, m, col, w=.98, h=2.14, thick=.05, lever=True, window=False, kick=True, hinge=-1):
     x0 = -w / 2 if hinge < 0 else w / 2; sgn = 1 if hinge < 0 else -1

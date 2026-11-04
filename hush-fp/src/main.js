@@ -47,7 +47,7 @@ const inp = { keys: {}, fwd: 0, str: 0, dyaw: 0, dpitch: 0, pyaw: 0, ppitch: 0, 
 /* ---------------- audio ---------------- */
 function applyAudio() { const s = save.set; Sound.set('vol', s.vol / 100); Sound.set('mvol', s.mvol / 100); Sound.set('sound', s.sound); Sound.set('music', s.music); Sound.set('vibe', s.vibe); }
 function spatial(x, y) {
-  const p = G.world.player, dx = x - p.x, dy = y - p.y, d = Math.hypot(dx, dy) || 1e-3, rx = -Math.sin(p.yaw), ry = Math.cos(p.yaw); return { v: clamp(1 - d / 15, 0, 1), pan: clamp((dx * rx + dy * ry) / d, -1, 1), d };
+  const p = G.world.player, dx = x - p.x, dy = y - p.y, d = Math.hypot(dx, dy) || 1e-3, rx = -Math.sin(p.yaw), ry = Math.cos(p.yaw); return { v: clamp(1 - d / 15, 0, 1), pan: clamp((dx * rx + dy * ry) / d, -1, 1), d, pos: { x, y }, occl: d > 2.5 && !AI.lineOfSight(G.world, p.x, p.y, x, y) };
 }
 const vibe = (ms) => { if (save.set.vibe && navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) { /* ignore */ } } };
 
@@ -170,7 +170,7 @@ function hud(w, dt) {
   if (G.hudT < 0.066) return; const dtH = G.hudT; G.hudT = 0;
   setT('obj-text', w.objective().current); setT('pulse-n', p.pulses); setC('b-pulse', 'dim', p.pulses <= 0); const cdf = Math.round(w.pulseCd / PULSE_CD * 40) / 40; if (HC.cdf !== cdf) { HC.cdf = cdf; $('b-pulse').style.setProperty('--cd', cdf); } setC('b-pulse', 'cd', cdf > 0); setT('pulse-l', w.pulseCd > 0 ? w.pulseCd.toFixed(1) + 's' : 'Pulse'); buildHotbar(false);
   const pr = w.prompt, show = !!(pr && !G.modal); setC('prompt', 'show', show); if (show) { setC('prompt', 'no', /^Locked|needs/.test(pr.text)); setT('prompt-text', pr.text); }
-  const st = $('stam'); setC('stam', 'show', p.stamina < 0.98); setC('stam', 'tired', p.tired); const sw = Math.round(p.stamina * 50) * 2 + '%'; if (HC.stw !== sw) { HC.stw = sw; st.firstChild.style.width = sw; } setC('b-crouch', 'on', p.crouch);
+  const st = $('stam'); setC('stam', 'show', p.stamina < 0.98); setC('stam', 'tired', p.tired); const sw = Math.round(p.stamina * 50) * 2 + '%'; if (HC.stw !== sw) { HC.stw = sw; st.firstChild.style.width = sw; } setC('b-crouch', 'on', p.crouch); { const bn = p.inv.bottle | 0; setT('bottle-n', String(bn)); setC('b-throw', 'dim', !bn); }
   if (G.hpShowT > 0) G.hpShowT -= dtH; const hpv = Math.ceil(p.hp); setT('hp-n', hpv); setC('hp', 'show', hpv < HP_MAX || G.hpShowT > 0); setC('hp', 'low', hpv <= 35); const hw = hpv + '%'; if (HC.hpw !== hw) { HC.hpw = hw; $('hp').lastChild.style.width = hw; }
   w.kpShow = $('ov-keypad').classList.contains('show') ? { id: kpDoor, text: (kpCode + '----').slice(0, 4), st: '' } : null;
   drawNoise(w, dtH); setO('fx-locker', p.hidden >= 0 ? 1 : 0); const th = w.threat; setO('fx-hurt', (w.over === 'dead') ? 0.9 : Math.max(0, th - 0.55) * 0.9);
@@ -255,13 +255,13 @@ function playBeat(e, w, p) {
     case 'silence': Sound.silence(e.dur || 4); break;
     case 'voice': Sound.play('voice', { static: e.static }); banner(e.text, 'sus', 3200); break;
     case 'clicks': Sound.play('clicks', { pan: Math.random() * 2 - 1 }); break;
-    case 'radio2': { const s = sp(e.x, e.y); Sound.play('radioPulse', { v: Math.max(0.4, s.v), pan: s.pan }); break; }
-    case 'knock': { const s = sp(e.x, e.y); if (s.d < 14) Sound.play('knock', { pan: s.pan }); break; }
+    case 'radio2': { const s = sp(e.x, e.y); Sound.play('radioPulse', { v: Math.max(0.4, s.v), pan: s.pan, pos: s.pos, occl: s.occl }); break; }
+    case 'knock': { const s = sp(e.x, e.y); if (s.d < 14) Sound.play('knock', { pan: s.pan, pos: s.pos, occl: s.occl }); break; }
     case 'redwave': V.redWave(); Sound.play('surge'); break;
     case 'motor': Sound.play('motor'); V.shake = Math.max(V.shake || 0, 0.4); break;
     case 'lift': Sound.play('lift'); banner('THE LIFT HAS STOPPED AT AN UNLISTED LEVEL', 'sus', 3000); break;
     case 'lightsPulse': V.rhythm = true; break;
-    case 'tap3': { const s = sp(e.x, e.y); for (let i = 0; i < 3; i++) later(() => Sound.play('knock', { pan: s.pan }), 450 + i * 520); break; }
+    case 'tap3': { const s = sp(e.x, e.y); for (let i = 0; i < 3; i++) later(() => Sound.play('knock', { pan: s.pan, pos: s.pos, occl: s.occl }), 450 + i * 520); break; }
     case 'count': banner('CORE OVERHEAT 0:0' + e.n, 'seen', 1100); Sound.play('beep'); break;
     case 'impact2': Sound.play('impact', { v: 1, pan: 0 }); V.shake = Math.max(V.shake || 0, 0.6); break;
     case 'circle': for (let i = 0; i < 10; i++) later(() => Sound.play('cstep', { v: 0.7, pan: i % 2 ? -0.9 : 0.9, kind: 'stalker' }), 300 + i * 420); break;
@@ -274,7 +274,7 @@ function playBeat(e, w, p) {
     case 'eggcrack': Sound.play('crack2'); V.eggW = 1.4; break;
     case 'climb': Sound.play('scrape', { pan: 0.8 }); break;
     case 'heartEcho': G.heartEcho = true; break;
-    case 'creak': { const s = sp(e.x, e.y); Sound.play('creak', { pan: s.pan, f: 0.5 }); break; }
+    case 'creak': { const s = sp(e.x, e.y); Sound.play('creak', { pan: s.pan, pos: s.pos, occl: s.occl, f: 0.5 }); break; }
     case 'torchPull': { const ex = w.gen.exit; V.pullPos = [ex.x + 0.5, ex.y + 0.5]; break; }
     case 'hum': Sound.play('hum', { pan: 0 }); break;
     case 'freeze': banner('THE SIGNAL CUTS OUT', 'heard', 2600); break;
@@ -337,7 +337,7 @@ function handleEvents(w, dt) {
     switch (e.type) {
       case 'step': if (e.kind === 'glass') Sound.play('glass', { crouch: e.crouch }); else if (e.kind === 'debris') Sound.play('debris', { crouch: e.crouch }); else Sound.play('step', { crouch: e.crouch, run: e.sprint, v: e.kind === 'water' ? 1.5 : 1 }); break;
       case 'pulse': Sound.play('ping'); Sound.duck(); $('fx-flash').style.transition = 'none'; $('fx-flash').style.opacity = 0.18; requestAnimationFrame(() => { $('fx-flash').style.transition = 'opacity .8s ease-out'; $('fx-flash').style.opacity = 0; }); vibe(30); break;
-      case 'pickup': Sound.play('key'); G.view.reach(); buildHotbar(true); break;
+      case 'pickup': if (e.kind === 'bottle') { Sound.play('key'); banner('BOTTLE: PRESS T / THROW TO LURE IT', 'heard', 2200); break; } Sound.play('key'); G.view.reach(); buildHotbar(true); break;
       case 'door': { const s = spatial(e.x, e.y); if (s.d < 16) Sound.play('door'); if (e.by !== 'creature') G.view.reach(); break; }
       case 'unlock': Sound.play('unlock'); G.view.reach(); break;
       case 'pulsecd': banner('SONAR RECHARGING', 'sus', 700); break;
@@ -355,24 +355,26 @@ function handleEvents(w, dt) {
       case 'note': $('note-extra').textContent = w.spec.beat === 'noteWrite' ? 'Written over an older message: "DON\'T ANSWER THE PULSE."' : ''; $('note-code').textContent = e.code; G.modal = true; overlay('note', true); if (document.pointerLockElement) document.exitPointerLock(); break;
       case 'keypad': openKeypad(e.id); break;
       case 'heard': { const s = spatial(e.x, e.y); if (s.d < 20) { Sound.play('heard'); banner('IT HEARD THAT', 'heard', 1500); } break; }
-      case 'sniff': { const sp = spatial(e.x, e.y); Sound.play('breath', { v: Math.max(0.5, sp.v), pan: sp.pan }); later(() => Sound.play('growl', { v: 0.4, pan: sp.pan, kind: 'stalker' }), 900); break; }
+      case 'sniff': { const sp = spatial(e.x, e.y); Sound.play('breath', { v: Math.max(0.5, sp.v), pan: sp.pan, pos: sp.pos, occl: sp.occl }); later(() => Sound.play('growl', { v: 0.4, pan: sp.pan, pos: sp.pos, occl: sp.occl, kind: 'stalker' }), 900); break; }
       case 'suspicious': Sound.play('notice'); banner('SUSPICIOUS', 'sus', 1800); break;
-      case 'hunt': { const s = spatial(e.x, e.y); Sound.play('hunt'); Sound.play('roar', { v: Math.max(0.35, s.v), pan: s.pan, kind: w.creatures[e.id].t }); banner('IT SEES YOU!', 'seen', 2400); vibe([60, 40, 60]); G.view.shake = 0.5; break; }
+      case 'hunt': { const s = spatial(e.x, e.y); Sound.play('hunt'); Sound.play('roar', { v: Math.max(0.35, s.v), pan: s.pan, pos: s.pos, occl: s.occl, kind: w.creatures[e.id].t }); banner('IT SEES YOU!', 'seen', 2400); vibe([60, 40, 60]); G.view.shake = 0.5; break; }
       case 'lost': Sound.play('lost'); banner('IT LOST YOU', 'heard', 1500); break;
-      case 'cstep': { const s = spatial(e.x, e.y); const v = Math.max(0, 1 - s.d / 14); if (v > 0.03) Sound.play('cstep', { v: v * (e.hunt ? 1 : 0.8), pan: s.pan, kind: w.creatures[e.id].t }); break; }
-      case 'lunge': { const s = spatial(e.x, e.y); Sound.play('roar', { v: Math.max(0.5, s.v), pan: s.pan, kind: w.creatures[e.id].t }); G.view.shake = Math.max(G.view.shake || 0, 0.3); vibe(40); break; }
+      case 'cstep': { const s = spatial(e.x, e.y); const v = Math.max(0, 1 - s.d / 14); if (v > 0.03) Sound.play('cstep', { v: v * (e.hunt ? 1 : 0.8), pan: s.pan, pos: s.pos, occl: s.occl, kind: w.creatures[e.id].t }); break; }
+      case 'lunge': { const s = spatial(e.x, e.y); Sound.play('roar', { v: Math.max(0.5, s.v), pan: s.pan, pos: s.pos, occl: s.occl, kind: w.creatures[e.id].t }); G.view.shake = Math.max(G.view.shake || 0, 0.3); vibe(40); break; }
       case 'beat': playBeat(e, w, p); break;
       case 'hurt': { const bearing = angDiffUI(Math.atan2(e.y - p.y, e.x - p.x), p.yaw); Sound.play('hurt'); G.view.kick(e.amt, bearing); vibe([40, 30, 90]); const d = $('fx-dmg'); d.classList.remove('hit'); void d.offsetWidth; d.classList.add('hit'); G.hpShowT = 5; break; }
+      case 'throw': Sound.play('whoosh', {}); break;
+      case 'bottle': { const s = spatial(e.x, e.y); Sound.play('bottleBreak', { v: Math.max(0.6, s.v), pan: s.pan, pos: s.pos, occl: s.occl }); break; }
       case 'heal': Sound.play('heal'); banner('+' + HEAL[e.kind] + ' HP', 'heard', 1400); G.hpShowT = 4; break;
       case 'hpfull': banner('HEALTH IS FULL: SAVE IT FOR LATER', 'sus', 1300); break;
-      case 'spark': { const s = spatial(e.x, e.y); if (s.d < 14) Sound.play('zap', { v: Math.max(0.25, s.v), pan: s.pan }); break; }
-      case 'steam': { const s = spatial(e.x, e.y); if (s.d < 16) Sound.play('hiss', { v: Math.max(0.25, s.v), pan: s.pan }); break; }
-      case 'drip': { const s = spatial(e.x, e.y); if (s.d < 12) Sound.play('drip', { f: Math.random(), pan: s.pan }); break; }
-      case 'cwake': { const s = spatial(e.x, e.y); Sound.play('cscreech', { v: Math.max(0.5, s.v), pan: s.pan }); banner(e.ceil ? 'SOMETHING DROPPED FROM ABOVE' : 'SOMETHING SMALL AND FAST', 'seen', 1900); vibe([40, 30, 40]); break; }
-      case 'cskit': { const s = spatial(e.x, e.y), v = Math.max(0, 1 - s.d / 16); if (v > 0.04) Sound.play('skit', { v, pan: s.pan }); break; }
+      case 'spark': { const s = spatial(e.x, e.y); if (s.d < 14) Sound.play('zap', { v: Math.max(0.25, s.v), pan: s.pan, pos: s.pos, occl: s.occl }); break; }
+      case 'steam': { const s = spatial(e.x, e.y); if (s.d < 16) Sound.play('hiss', { v: Math.max(0.25, s.v), pan: s.pan, pos: s.pos, occl: s.occl }); break; }
+      case 'drip': { const s = spatial(e.x, e.y); if (s.d < 12) Sound.play('drip', { f: Math.random(), pan: s.pan, pos: s.pos, occl: s.occl }); break; }
+      case 'cwake': { const s = spatial(e.x, e.y); Sound.play('cscreech', { v: Math.max(0.5, s.v), pan: s.pan, pos: s.pos, occl: s.occl }); banner(e.ceil ? 'SOMETHING DROPPED FROM ABOVE' : 'SOMETHING SMALL AND FAST', 'seen', 1900); vibe([40, 30, 40]); break; }
+      case 'cskit': { const s = spatial(e.x, e.y), v = Math.max(0, 1 - s.d / 16); if (v > 0.04) Sound.play('skit', { v, pan: s.pan, pos: s.pos, occl: s.occl }); break; }
       case 'cbite': Sound.play('cbite'); break;
-      case 'impact': { const s = spatial(e.x, e.y); Sound.play('impact', { v: Math.max(0.35, s.v), pan: s.pan }); break; }
-      case 'machine': { const s = spatial(e.x, e.y); Sound.play('machine', { v: Math.max(0.4, s.v), pan: s.pan }); banner('MACHINERY STARTING SOMEWHERE', 'sus', 2200); break; }
+      case 'impact': { const s = spatial(e.x, e.y); Sound.play('impact', { v: Math.max(0.35, s.v), pan: s.pan, pos: s.pos, occl: s.occl }); break; }
+      case 'machine': { const s = spatial(e.x, e.y); Sound.play('machine', { v: Math.max(0.4, s.v), pan: s.pan, pos: s.pos, occl: s.occl }); banner('MACHINERY STARTING SOMEWHERE', 'sus', 2200); break; }
       case 'sighting': G.view.flashEyes(e.x * 2, e.y * 2, 1.9, 2.5); break;
       case 'sp': if (e.what === 'outage') { G.view.blackout(e.dur); Sound.duck && Sound.duck(); Sound.play('surge'); banner('POWER FAILURE', 'sus', 2000); } else if (e.what === 'flicker') G.view.flicker(e.dur); else if (e.what === 'surge') Sound.play('surge'); else if (e.what === 'chase') banner('IT KNOWS WHERE YOU ARE', 'seen', 2400); break;
       case 'dead': { Sound.play('hurt'); Sound.play('caught'); G.view.shake = 0.7; G.deadCause = e.cause; $('dead-sub').textContent = e.cause === 'spark' ? 'The wiring finished what the dark started.' : 'Small things are still deadly.'; loseLevel(); break; }
@@ -390,6 +392,7 @@ function handleEvents(w, dt) {
     else { const yaw = p.yaw; let spot = null; for (let d = 16; d >= 9 && !spot; d -= 1) for (const da of [0, 0.12, -0.12, 0.25, -0.25]) { const x = p.x + Math.cos(yaw + da) * d, y = p.y + Math.sin(yaw + da) * d, k = Math.floor(y) * w.W + Math.floor(x); if (w.cells[k] !== 0 && !w.solid.has(k) && AI.lineOfSight(w, p.x, p.y, x, y)) { spot = [x, y]; break; } } if (spot) { G.view.flashEyes(spot[0] * 2, spot[1] * 2, 1.7); Sound.play('growl', { v: 0.25, pan: 0, kind: 'stalker' }); } else G.dirT = 6; }
   }
   hbTimer -= dt; const th2 = Math.max(w.threat, p.hp < 35 ? 0.6 : 0); if (th2 > 0.35 && hbTimer <= 0 && p.alive) { hbTimer = 1.05 - 0.55 * th2; Sound.play('heart', { v: Math.min(1, th2 * 1.2) }); if (G.heartEcho) later(() => Sound.play('heart', { v: Math.min(1, th2 * 0.8) }), 380); if (th2 > 0.8 && Math.random() < 0.3) vibe(25); }
+  { const rm = w.rooms.find(r => p.x >= r.x0 && p.x < r.x0 + r.w && p.y >= r.y0 && p.y < r.y0 + r.h); Sound.env({ wet: rm ? Math.min(1.9, 0.7 + rm.w * rm.h / 40) : 0.75 }); Sound.listen(p.x, p.y, p.yaw); }
   const nearGen = w.gens.find(g => g.on); Sound.scene({ chapter: LEVELS[G.level].ch, threat: w.threat, hunted: w.creatures.some(c => c.state === 'hunt'), gen: nearGen ? clamp(1 - Math.hypot(nearGen.x - p.x, nearGen.y - p.y) / 22, 0, 1) : 0, genPan: nearGen ? spatial(nearGen.x + 0.5, nearGen.y + 0.5).pan : 0, paused: G.paused });
   Sound.tick(dt, LEVELS[G.level].ch, w.threat > 0.5);
 }
@@ -406,9 +409,9 @@ $('note-ok').onclick = () => { overlay('note', false); G.modal = false; if (!coa
 const KEYMAP = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' };
 window.addEventListener('keydown', (e) => {
   if (G.mode !== 'game') return; if (e.code === 'Escape') { if (!anyOverlay() || $('ov-pause').classList.contains('show')) pause(!G.paused); return; } if (G.paused || G.modal || G.over) return; if (e.repeat) return;
-  const c = e.code; if (KEYMAP[c]) inp.keys[KEYMAP[c]] = true; else if (c === 'ShiftLeft' || c === 'ShiftRight') inp.keys.sprint = true; else if (c === 'KeyE' || c === 'Enter') inp.edge.interact = true; else if (c === 'Space' || c === 'KeyQ') { inp.edge.pulse = true; e.preventDefault(); } else if (c === 'KeyC' || c === 'ControlLeft') inp.edge.crouch = true; else if (c === 'KeyF') inp.edge.flash = true; else if (c === 'KeyR') inp.edge.radio = true;
+  const c = e.code; if (KEYMAP[c]) inp.keys[KEYMAP[c]] = true; else if (c === 'ShiftLeft' || c === 'ShiftRight') inp.keys.sprint = true; else if (c === 'KeyE') { inp.edge.interact = true; inp.leanR = true; } else if (c === 'Enter') inp.edge.interact = true; else if (c === 'KeyQ') inp.leanL = true; else if (c === 'KeyT' || c === 'KeyG') inp.edge.throw = true; else if (c === 'Space') { inp.edge.pulse = true; e.preventDefault(); } else if (c === 'KeyC' || c === 'ControlLeft') inp.edge.crouch = true; else if (c === 'KeyF') inp.edge.flash = true; else if (c === 'KeyR') inp.edge.radio = true;
 });
-window.addEventListener('keyup', (e) => { const c = e.code; if (KEYMAP[c]) inp.keys[KEYMAP[c]] = false; else if (c === 'ShiftLeft' || c === 'ShiftRight') inp.keys.sprint = false; });
+window.addEventListener('keyup', (e) => { const c = e.code; if (c === 'KeyQ') inp.leanL = false; else if (c === 'KeyE') inp.leanR = false; if (KEYMAP[c]) inp.keys[KEYMAP[c]] = false; else if (c === 'ShiftLeft' || c === 'ShiftRight') inp.keys.sprint = false; });
 window.addEventListener('blur', () => { inp.keys = {}; if (G.mode === 'game' && !G.over) pause(true); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'game' && !G.over) pause(true); });
 document.addEventListener('pointerlockchange', () => { if (G.mode === 'game' && !document.pointerLockElement && !G.paused && !G.over && !G.modal && !coarse && !anyOverlay()) pause(true); });
@@ -452,6 +455,8 @@ const endTouch = (e) => {
 };
 $('scr-game').addEventListener('pointerup', endTouch); $('scr-game').addEventListener('pointercancel', endTouch);
 const press = (id, fn) => { const el = $(id); el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (G.mode === 'game' && !G.paused && !G.modal && !G.over) fn(); }); };
+press('b-throw', () => { inp.edge.throw = true; });
+for (const [id, k] of [['b-lean-l', 'leanBtnL'], ['b-lean-r', 'leanBtnR']]) { const bn = $(id); if (!bn) continue; const on = (e) => { inp[k] = true; if (e.preventDefault) e.preventDefault(); }, off = () => { inp[k] = false; }; bn.addEventListener('pointerdown', on); bn.addEventListener('pointerup', off); bn.addEventListener('pointercancel', off); bn.addEventListener('pointerleave', off); }
 press('b-pulse', () => { inp.edge.pulse = true; }); press('b-crouch', () => { inp.edge.crouch = true; }); press('b-sprint', () => { inp.sprintBtn = !inp.sprintBtn; $('b-sprint').classList.toggle('on', inp.sprintBtn); });
 $('b-pause').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); pause(true); });
 
@@ -482,7 +487,7 @@ $('set-reset').onclick = () => { if ($('set-reset').dataset.sure) { save.stars =
 /* ---------------- the loop ---------------- */
 function tickInput() {
   const k = inp.keys; let fwd = (k.f ? 1 : 0) - (k.b ? 1 : 0) + inp.fwd, str = (k.r ? 1 : 0) - (k.l ? 1 : 0) + inp.str; const m = Math.hypot(fwd, str); if (m > 1) { fwd /= m; str /= m; }
-  const e = inp.edge, out = { fwd, str, sprint: !!k.sprint || inp.sprintBtn, dyaw: inp.dyaw, dpitch: inp.dpitch, interact: !!e.interact, pulse: !!e.pulse, crouchPress: !!e.crouch, flash: !!e.flash, radio: !!e.radio };
+  const e = inp.edge, out = { fwd, str, sprint: !!k.sprint || inp.sprintBtn, dyaw: inp.dyaw, dpitch: inp.dpitch, interact: !!e.interact, pulse: !!e.pulse, crouchPress: !!e.crouch, flash: !!e.flash, radio: !!e.radio, throw: !!e.throw, lean: ((inp.leanR || inp.leanBtnR) ? 1 : 0) - ((inp.leanL || inp.leanBtnL) ? 1 : 0) };
   inp.dyaw = 0; inp.dpitch = 0; inp.edge = {}; if (out.interact && G.world.prompt) G.view.reach(); return out;
 }
 function frame(ts) {
@@ -499,4 +504,4 @@ async function boot() {
   if (!(__TEST__ && TEST && /[?&]noglb=1\b/.test(location.search))) await GLBMonster.load(); await CrawlerGLB.load(); await PropsGLB.load(); applySkin(); await startMenuScene(); G.mode = 'home'; show('home'); syncSettings(); setLoading(false, null, 100); overlay('gate', !TEST); requestAnimationFrame(frame); Sound.setQuality(save.set.aq);
 }
 boot();
-if (__TEST__ && TEST) { window.HUSH = { gallery: () => G.view.gallery(), G, save, inp, ai: AI, glb: GLBMonster, tapAt, proj: (o) => { const v = G.view, r = $('view').getBoundingClientRect(), t = v.camera.position.clone(); v.camera.updateMatrixWorld(true); t.set((o.x + 0.5) * 2, REACH_H[o.type] || 1, (o.y + 0.5) * 2).project(v.camera); return [(t.x * 0.5 + 0.5) * r.width + r.left, (-t.y * 0.5 + 0.5) * r.height + r.top]; }, startLevel, toMenu, pause, view: () => G.view, world: () => G.world, LEVELS, runBot: (n) => runBot(G.world, n || 600), gen, step: (n, i) => { for (let k = 0; k < (n || 1); k++) { G.world.update(DT, i || {}); G.timeSpent += DT; handleEvents(G.world, DT); } }, unlockAll: () => { save.stars = LEVELS.map(() => 1); persist(); }, buildLevels, buildChapters, show }; }
+if (__TEST__ && TEST) { window.HUSH = { sound: Sound, gallery: () => G.view.gallery(), G, save, inp, ai: AI, glb: GLBMonster, tapAt, proj: (o) => { const v = G.view, r = $('view').getBoundingClientRect(), t = v.camera.position.clone(); v.camera.updateMatrixWorld(true); t.set((o.x + 0.5) * 2, REACH_H[o.type] || 1, (o.y + 0.5) * 2).project(v.camera); return [(t.x * 0.5 + 0.5) * r.width + r.left, (-t.y * 0.5 + 0.5) * r.height + r.top]; }, startLevel, toMenu, pause, view: () => G.view, world: () => G.world, LEVELS, runBot: (n) => runBot(G.world, n || 600), gen, step: (n, i) => { for (let k = 0; k < (n || 1); k++) { G.world.update(DT, i || {}); G.timeSpent += DT; handleEvents(G.world, DT); } }, unlockAll: () => { save.stars = LEVELS.map(() => 1); persist(); }, buildLevels, buildChapters, show }; }

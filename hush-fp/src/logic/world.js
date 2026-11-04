@@ -23,7 +23,7 @@ export class World {
     for (const o of this.objs) if (o.type === 'door') { o.open = 0; o.want = 0; o.locked = !!o.lock; o.revealed = !o.hidden; o.codeOk = false; this.doorAt.set(o.y * this.W + o.x, o); this.doors.push(o); this.solid.add(o.y * this.W + o.x); }
     for (const o of this.objs) { o.taken = false; o.on = false; o.done = false; o.pingT = 0; if (o.type === 'item') o.bob = this.rnd() * 6; }
     this.gens = this.objs.filter(o => o.type === 'generator');
-    const s = gen.start; this.player = { x: s.x, y: s.y, yaw: s.yaw, pitch: 0, vx: 0, vy: 0, crouch: false, sprint: false, moving: false, stamina: 1, tired: false, hidden: -1, vent: null, alive: true, flash: true, inv: { key: 0, card: 0, fuse: 0, radio: 0 }, pulses: this.spec.pulses, stepDist: 0, speed: 0, eye: 1.62, hideT: 0, noteSeen: null };
+    const s = gen.start; this.player = { x: s.x, y: s.y, yaw: s.yaw, pitch: 0, vx: 0, vy: 0, crouch: false, sprint: false, moving: false, stamina: 1, tired: false, hidden: -1, vent: null, alive: true, flash: true, inv: { key: 0, card: 0, fuse: 0, radio: 0, bottle: 0 }, lean: 0, leanS: 0, pulses: this.spec.pulses, stepDist: 0, speed: 0, eye: 1.62, hideT: 0, noteSeen: null };
     this.pulseRegen = 0; this.stats = { steps: 0, pulses: 0, hunts: 0 };
     this.creatures = gen.creatures.map((c, i) => makeCreature(this, c, i));
     this.steps = this.buildObjective(); this.refreshLocks();
@@ -197,6 +197,7 @@ export class World {
     if (this.over && this.over !== 'win') { for (const c of this.creatures) c.moving = false; return; }
     if (this.over === 'win') return;
     if (p.alive) this.updatePlayer(dt, inp);
+    this.updateProjectiles(dt);
     this.seenT = (this.seenT || 0) - dt; if (this.seenT <= 0) { this.seenT = 0.3; this.markSeen(); }
     /* walking up to the exit is enough: no extra tap needed */
     { const ex = this.gen.exit; if (ex && p.alive && p.hidden < 0 && !p.vent && !this.over && Math.hypot(ex.x + 0.5 - p.x, ex.y + 0.5 - p.y) < 1.2) { this.over = 'win'; this.events.push({ type: 'win' }); } }
@@ -219,6 +220,10 @@ export class World {
     const p = this.player;
     if (inp.flash) this.toggleFlash(); if (inp.pulse) this.pulse(); if (inp.radio) this.useRadio(); if (inp.interact) this.interact();
     p.yaw += (inp.dyaw || 0); p.pitch = clamp(p.pitch + (inp.dpitch || 0), -1.25, 1.25);
+    if (inp.throw) this.throwBottle();
+    { const lt = (p.hidden >= 0 || p.vent) ? 0 : clamp(inp.lean || 0, -1, 1), rx = -Math.sin(p.yaw), ry = Math.cos(p.yaw), side = lt === 0 ? 0 : lt > 0 ? 1 : -1;
+      const room = side === 0 ? 1 : (this.solidForPlayer(Math.floor(p.x + rx * side * 0.62), Math.floor(p.y + ry * side * 0.62)) ? 0.3 : 1);       // a wall right beside you limits the lean
+      p.lean = lt * room; p.leanS += (p.lean - p.leanS) * Math.min(1, dt * 9); }
     if (p.vent) { p.vent.t += dt; p.moving = false; if (p.vent.t >= p.vent.dur) { const v = p.vent.to; p.x = v.x + 0.5 + Math.cos(v.face) * 0.9; p.y = v.y + 0.5 + Math.sin(v.face) * 0.9; p.px = p.x; p.py = p.y; p.yaw = v.face; p.vent = null; this.events.push({ type: 'vent', x: p.x, y: p.y, out: true }); } return; }
     if (p.hidden >= 0) { p.hideT += dt; p.moving = false; p.yaw = angDiff(0, p.yaw); const L = this.objById.get(p.hidden); p.yaw = L.face + clamp(angDiff(L.face, p.yaw), -0.7, 0.7); if (inp.crouchPress) this.leaveLocker(); return; }
     if (inp.crouchPress) p.crouch = !p.crouch; if (inp.crouchSet !== undefined) p.crouch = !!inp.crouchSet;
@@ -226,7 +231,7 @@ export class World {
     p.sprint = !!inp.sprint && !p.crouch && p.moving && !p.tired && fw > 0.3;
     const hunted = this.creatures.some(c => c.state === 'hunt'); if (p.sprint) { p.stamina -= dt * (hunted ? 0.085 : 0.2);   /* adrenaline: while something hunts you the sprint lasts more than twice as long */ if (p.stamina <= 0) { p.stamina = 0; p.tired = true; p.sprint = false; } } else { p.stamina = Math.min(1, p.stamina + dt * (p.moving ? 0.1 : 0.22)); if (p.tired && p.stamina > 0.35) p.tired = false; }
     const sp = (p.crouch ? SPEED.crouch : p.sprint ? SPEED.sprint : SPEED.walk) * (p.stagger > 0 ? 0.5 : p.hp < 30 ? 0.92 : 1), c = Math.cos(p.yaw), s = Math.sin(p.yaw);
-    const tvx = ((c * fw - s * st) * sp) * (mag ? 1 : 0), tvy = ((s * fw + c * st) * sp) * (mag ? 1 : 0), k = Math.min(1, dt * 10); p.vx += (tvx - p.vx) * k; p.vy += (tvy - p.vy) * k;
+    const tvx = ((c * fw - s * st) * sp) * (mag ? 1 : 0), tvy = ((s * fw + c * st) * sp) * (mag ? 1 : 0), k = Math.min(1, dt * (mag ? 7 : 5.5)); p.vx += (tvx - p.vx) * k; p.vy += (tvy - p.vy) * k;
     if (!p.moving && Math.hypot(p.vx, p.vy) < 0.05) { p.vx = p.vy = 0; }
     const before = [p.x, p.y]; this.moveWithCollision(p.vx * dt, p.vy * dt); const moved = Math.hypot(p.x - before[0], p.y - before[1]); p.speed = moved / dt;
     /* footsteps are noise: the radius depends on how you move and what you walk on */
@@ -236,6 +241,22 @@ export class World {
       if (this.debrisAt.has(Math.floor(p.y) * this.W + Math.floor(p.x))) { r = Math.max(r, p.crouch ? 3 : 8); kind = 'debris'; }
       if (tile === T.GLASS) { r = p.crouch ? 4 : 11; kind = 'glass'; } else if (tile === T.WATER) { r = p.sprint ? 11 : p.crouch ? 2.2 : 6; kind = 'water'; }
       this.stats.steps++; this.events.push({ type: 'step', kind, crouch: p.crouch, sprint: p.sprint, x: p.x, y: p.y }); emitNoise(this, p.x, p.y, r, kind);
+    }
+  }
+  /* a bottle is thrown in an arc (gravity 9.8 m/s2, one tile = 2 m); where it lands it shatters: a loud noise that pulls the creatures to that spot */
+  throwBottle() {
+    const p = this.player; if (!p.alive || p.hidden >= 0 || p.vent || !(p.inv.bottle > 0) || this.over) return false;
+    p.inv.bottle--; const ang = p.pitch + 0.32, v = 11, hs = v * Math.cos(ang) / 2, vz = v * Math.sin(ang) + 0.8;
+    this.projectiles = this.projectiles || []; this.projectiles.push({ x: p.x + Math.cos(p.yaw) * 0.4, y: p.y + Math.sin(p.yaw) * 0.4, z: p.crouch ? 1.0 : 1.55, vx: Math.cos(p.yaw) * hs, vy: Math.sin(p.yaw) * hs, vz, t: 0 });
+    this.events.push({ type: 'throw' }); return true;
+  }
+  updateProjectiles(dt) {
+    const L = this.projectiles; if (!L || !L.length) return;
+    for (let i = L.length - 1; i >= 0; i--) {
+      const b = L[i]; b.t += dt; b.vz -= 9.8 * dt; const nx = b.x + b.vx * dt, ny = b.y + b.vy * dt, nz = b.z + b.vz * dt; let land = false;
+      if (this.solidForPlayer(Math.floor(nx), Math.floor(ny))) land = true; else { b.x = nx; b.y = ny; }
+      b.z = nz; if (b.z <= 0.05 || b.t > 6) land = true;
+      if (land) { b.z = Math.max(0.05, b.z); L.splice(i, 1); this.events.push({ type: 'bottle', x: b.x, y: b.y }); emitNoise(this, b.x, b.y, 11, 'bottle'); }
     }
   }
   moveWithCollision(dx, dy) {

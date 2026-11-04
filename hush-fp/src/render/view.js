@@ -25,7 +25,7 @@ export class View {
   constructor(canvas, qualityName, opts) {
     this.canvas = canvas; this.qName = qualityName || 'medium'; this.Q = QUALITY[this.qName]; this.t = 0; this.bob = 0; this.reachT = 0; this.shake = 0; this.world = null; this.built = null; this.cr = [];
     this.resScale = 1; this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !!(opts && opts.aa), powerPreference: 'high-performance', alpha: false, stencil: false });
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.55;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 0.85;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; this.renderer.shadowMap.autoUpdate = false;   // the flashlight shadow is refreshed every other frame (half the shadow cost, not noticeable)
      this.camera = new THREE.PerspectiveCamera(72, 1, 0.05, 60); this.camera.rotation.order = 'YXZ';
     this.menuMode = false; this.setQuality(this.qName); this.buildHands(); this.frames = 0; this.slow = 0; this.brightness = 1;
@@ -52,14 +52,14 @@ export class View {
     this.free = free; free.visible = false; this.hands = hands; this.handRoot = new THREE.Group(); this.handRoot.add(hands); this.handRoot.add(free); this.camera.add(this.handRoot); hands.position.set(0.17, -0.2, -0.32); hands.rotation.set(0.06, 0.12, 0); free.position.set(-0.16, -0.24, -0.34);
     this.camera.layers.enableAll();
     /* flashlight */
-    this.flash = new THREE.SpotLight(0xfff4e0, 300, 36, 0.66, 1.0, 1.25); this.flash.castShadow = !!this.Q.shadow; this.flash.shadow.mapSize.set(this.Q.shadow || 512, this.Q.shadow || 512); this.flash.shadow.bias = -0.0006; this.flash.shadow.radius = 2; this.flash.shadow.camera.near = 0.3; this.flash.shadow.camera.far = 24;
+    this.flash = new THREE.SpotLight(0xfff4e0, 900, 14, 0.49, 0.6, 2); this.flash.castShadow = !!this.Q.shadow; this.flash.shadow.mapSize.set(this.Q.shadow || 512, this.Q.shadow || 512); this.flash.shadow.bias = -0.0006; this.flash.shadow.radius = 2; this.flash.shadow.camera.near = 0.3; this.flash.shadow.camera.far = 24;
     this.flashTarget = new THREE.Object3D(); this.flashRig = new THREE.Object3D(); this.flashRig.add(this.flash); this.flashRig.add(this.flashTarget); this.flashTarget.position.set(0, 0, -6); this.flash.target = this.flashTarget; this.flash.position.set(0.15, -0.12, -0.1);
     const coneG = new THREE.ConeGeometry(2.6, 11, 24, 1, true); coneG.translate(0, -5.5, 0); coneG.rotateX(Math.PI / 2);
     this.coneMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uInt: { value: 0.1 }, uCol: { value: new THREE.Color(0xfff0d8) } }, fog: false,
       vertexShader: 'varying vec3 vN; varying vec3 vV; varying float vA; void main(){ vN = normalMatrix * normal; vec4 mv = modelViewMatrix * vec4(position,1.0); vV = mv.xyz; vA = clamp(-position.z / 11.0, 0.0, 1.0); gl_Position = projectionMatrix * mv; }',
       fragmentShader: 'uniform float uInt; uniform vec3 uCol; varying vec3 vN; varying vec3 vV; varying float vA; void main(){ float e = pow(abs(dot(normalize(vN), normalize(-vV))), 1.6); float a = e * (1.0 - vA) * smoothstep(0.0, 0.08, vA) * uInt; gl_FragColor = vec4(uCol * a, a); }' });
     this.cone = new THREE.Mesh(coneG, this.coneMat); this.cone.frustumCulled = false; this.flashRig.add(this.cone); this.cone.position.copy(this.flash.position);
-    this.torchI = 300; this.torchCur = null; this.applyTorch(this.torchId || 'standard');
+    this.torchI = 900; this.torchCur = null; this.applyTorch(this.torchId || 'standard');
   }
   /* ---- level ---- */
   loadLevel(world) {
@@ -69,7 +69,10 @@ export class View {
     this.head = null; if (this.Q.head) { this.head = new THREE.PointLight(0xffe2c0, 3.2, 7, 2); sc.add(this.head); } this.mlights = [0].map(() => { const l = new THREE.PointLight(0xff2a1a, 0, 9, 2); sc.add(l); return l; });
     /* dust */
     const n = this.Q.dust; const g = new THREE.BufferGeometry(); const pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) { pos[i * 3] = (Math.random() - 0.5) * 12; pos[i * 3 + 1] = Math.random() * 3; pos[i * 3 + 2] = (Math.random() - 0.5) * 12; } g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    this.dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xd8e0e8, size: 0.028, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending })); this.dust.frustumCulled = false; sc.add(this.dust); this.dustBase = pos.slice();
+    this.dustMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { uO: { value: new THREE.Vector3() }, uD: { value: new THREE.Vector3(0, 0, -1) }, uCos: { value: Math.cos(0.49) }, uI: { value: 1 }, uPx: { value: 4 } },
+      vertexShader: 'uniform vec3 uO, uD; uniform float uCos, uI, uPx; varying float vA; void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vec3 d = wp.xyz - uO; float L = max(length(d), 0.01); float c = dot(d / L, uD); float cone = smoothstep(uCos - 0.1, uCos + 0.1, c); vA = cone * (1.0 - smoothstep(1.5, 13.0, L)) * uI * 0.9 + 0.035 * (1.0 - smoothstep(0.0, 5.0, L)); gl_PointSize = uPx * (0.7 + 2.2 / (0.6 + L * 0.3)); gl_Position = projectionMatrix * viewMatrix * wp; }',
+      fragmentShader: 'varying float vA; void main() { vec2 q = gl_PointCoord - 0.5; float r = length(q); if (r > 0.5) discard; gl_FragColor = vec4(vec3(0.86, 0.9, 0.96), vA * smoothstep(0.5, 0.05, r)); }' });
+    this.dust = new THREE.Points(g, this.dustMat); this.dust.frustumCulled = false; sc.add(this.dust); this.dustBase = pos.slice();
     /* creatures: the body and its sonar silhouette */
     this.cr = world.creatures.map(c => {
       const gm = ghostMaterial();
@@ -94,7 +97,7 @@ export class View {
   setTorch(id, instant) { if (!this.torchModels) return; this.torchId = id; if (instant || !this.torchCur) { this.torchSw = null; this.applyTorch(id); return; } if (id !== this.torchCur) this.torchSw = { t: 0, to: id, done: false }; }
   applyTorch(id) {
     const T = torchById(id); let m = this.torchModels[T.id] || (this.torchModels[T.id] = buildTorch(T.id, this.mcap, glowTex)); if (this.torchActive) this.torchSlot.remove(this.torchActive.g); this.torchSlot.add(m.g); this.torchActive = m; this.lens = m.lens; this.lensGlow = m.glow; this.torchCur = T.id;
-    const L = T.light; this.torchI = L.I; this.flash.angle = L.angle; this.flash.penumbra = L.pen; this.flash.distance = L.dist; this.flash.color.setHex(L.color); this.coneMat.uniforms.uCol.value.setHex(L.color); const k = Math.tan(L.angle) / Math.tan(0.66); this.cone.scale.set(k, k, clamp(L.dist / 36, 0.7, 1.35));
+    const L = T.light; this.torchI = L.I * 2.6; this.flash.angle = L.angle * 0.75; this.flash.penumbra = Math.max(0.6, L.pen); this.flash.distance = L.dist * 0.4; this.flash.decay = 2; this.flash.color.setHex(L.color); this.coneMat.uniforms.uCol.value.setHex(L.color); const k = Math.tan(L.angle * 0.75) / Math.tan(0.49); this.cone.scale.set(k, k, clamp(L.dist / 36, 0.7, 1.35));
   }
   /* fear-beat visuals: lamps turning red one after another, a figure that only the sonar shows, a huge shape under the floor */
   redWave() { this.redT0 = this.t; const p = this.world.player; for (const f of this.built.fixtures) f.d = Math.hypot(f.x / TS - p.x, f.z / TS - p.y) * 0.35; }
@@ -105,6 +108,7 @@ export class View {
   /* a hit: the view jerks away from the source, the lamp stutters */
   kick(amt, bearing) { this.kickT = 0.55; this.kickA = Math.min(1, amt / 12); this.kickB = bearing || 0; this.shake = Math.max(this.shake || 0, 0.45); }
   disposeLevel() {
+    this.projMeshes = null;
     if (!this.built) return; const sc = this.built.scene; sc.traverse(o => { if (o.isSkinnedMesh && o.skeleton) o.skeleton.dispose(); if (o.geometry && !(o.geometry.userData && o.geometry.userData.shared)) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.userData && m.userData.shared) return; for (const k of ['map', 'normalMap', 'emissiveMap']) if (m[k] && !(m[k].userData && m[k].userData.shared)) m[k].dispose(); m.dispose(); }); });
     for (const e of this.cr || []) if (e.glb) { e.glb.mixer.stopAllAction(); e.glb.mixer.uncacheRoot(e.glb.inner); }   // release the clip bindings of this level's creatures
     this.built = null; this.cr = []; this.ex = null;
@@ -140,8 +144,10 @@ export class View {
     for (const e of nearest ? [nearest] : []) { const l = this.mlights[li++], c = e.c, d = Math.hypot(c.x * TS - cx, c.y * TS - cz); l.position.set(c.x * TS, 2.6, c.y * TS); l.color.setHex(c.t === 'sentinel' ? 0x80c8ff : 0xff2a1a); l.intensity = d < 16 ? (c.state === 'hunt' ? 5 : 1.1) * (0.8 + 0.2 * Math.sin(now * 5 + c.id)) : 0; } for (; li < 1; li++) this.mlights[li].intensity = 0;
     /* dust drifts around the camera */
     const pos = this.dust.geometry.attributes.position, base = this.dustBase; for (let i = 0; i < pos.count; i++) { const x = base[i * 3] + Math.sin(now * 0.2 + i) * 0.4 + now * 0.05, y = base[i * 3 + 1] + Math.sin(now * 0.3 + i * 1.7) * 0.3, z = base[i * 3 + 2] + Math.cos(now * 0.25 + i * 0.7) * 0.4; pos.setXYZ(i, cx + ((x + 6) % 12 + 12) % 12 - 6, ((y % 3) + 3) % 3, cz + ((z + 6) % 12 + 12) % 12 - 6); } pos.needsUpdate = true;
-    if (this.head) { this.head.position.copy(this.camera.position); this.head.intensity = world.spec.lightsOut ? 1.2 : 3.2 * (world.player.flash ? 1 : 0.5); }
-    this.renderer.toneMappingExposure = 1.55 * this.brightness * (world.spec.lightsOut ? 1.15 : 1);
+    { const du = this.dustMat.uniforms; this.camera.getWorldPosition(du.uO.value); this.camera.getWorldDirection(du.uD.value); du.uCos.value = Math.cos(this.flash.angle * 0.9); du.uI.value = Math.min(1, this.flash.intensity / Math.max(1, this.torchI)); du.uPx.value = 3.2 * (this.renderer.getPixelRatio ? this.renderer.getPixelRatio() : 1); }
+    if (this.head) { this.head.position.copy(this.camera.position); this.head.intensity = world.spec.lightsOut ? 0.5 : 0.7 * (world.player.flash ? 1 : 0.5); }
+    this.renderer.toneMappingExposure = 0.85 * this.brightness * (world.spec.lightsOut ? 1.15 : 1);
+    { const PL = world.projectiles || [], pool = this.projMeshes || (this.projMeshes = []); for (let i = 0; i < Math.max(PL.length, pool.length); i++) { let m = pool[i]; if (!m && PL[i]) { m = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.22, 8), new THREE.MeshBasicMaterial({ color: 0x9fe8b4 })); m.frustumCulled = false; b.scene.add(m); pool[i] = m; } if (m) { if (PL[i]) { m.visible = true; m.position.set(PL[i].x * TS, PL[i].z, PL[i].y * TS); m.rotation.set(PL[i].t * 9, 0, PL[i].t * 7); if (m.parent !== b.scene) b.scene.add(m); } else m.visible = false; } } }
     if (this.galleryScene) { this.renderer.render(this.galleryScene, this.galleryCam); return; }
     this.renderer.shadowMap.needsUpdate = this.frames % 3 === 0; this.renderer.render(b.scene, this.camera);
     /* dynamic resolution: when frames run long the render resolution drops a notch (never below 0.6x), with headroom it climbs back; only if still slow at the floor does the quality tier drop */
@@ -154,8 +160,8 @@ export class View {
     const p = world.player, cam = this.camera, al = this.alpha === undefined ? 1 : this.alpha; let x = (p.px === undefined ? p.x : p.px + (p.x - p.px) * al) * TS, z = (p.py === undefined ? p.y : p.py + (p.y - p.py) * al) * TS, y = p.crouch ? 1.05 : 1.62; const k = Math.min(1, dt * 10); this.eyeY = this.eyeY === undefined ? y : this.eyeY + (y - this.eyeY) * k; y = this.eyeY;
     this.bobPhase += p.speed * dt * 1.9 * TS * 0.5; const ampT = p.speed > 0.1 ? (p.sprint ? 0.07 : p.crouch ? 0.02 : 0.04) : 0.004; this.bobAmp = this.bobAmp === undefined ? ampT : this.bobAmp + (ampT - this.bobAmp) * Math.min(1, dt * 6); const amp = this.bobAmp;   // the sway fades in and out instead of snapping
     let bx = Math.sin(this.bobPhase) * amp * 0.6, by = (Math.abs(Math.sin(this.bobPhase)) * 0.85 + Math.sin(this.bobPhase * 2 + 0.6) * 0.15) * amp - amp * 0.5; if (p.speed <= 0.1) by = Math.sin(now * 1.3) * 0.004 + by * 0.5;
-    { const sy0 = this.lookOv ? this.lookOv.yaw : p.yaw, sr = -Math.sin(sy0) * (p.vx || 0) + Math.cos(sy0) * (p.vy || 0); this.leanRoll = (this.leanRoll || 0) + ((-sr * 0.016) - (this.leanRoll || 0)) * Math.min(1, dt * 7);   // lean into a sidestep
-      const fovT = (this.baseFov || 70) + (p.sprint ? 5 : 0); this.fovNow = this.fovNow === undefined ? fovT : this.fovNow + (fovT - this.fovNow) * Math.min(1, dt * 5); if (Math.abs(this.camera.fov - this.fovNow) > 0.05) { this.camera.fov = this.fovNow; this.camera.updateProjectionMatrix(); } }
+    { const sy0 = this.lookOv ? this.lookOv.yaw : p.yaw, sr = -Math.sin(sy0) * (p.vx || 0) + Math.cos(sy0) * (p.vy || 0); this.leanRoll = (this.leanRoll || 0) + ((-Math.max(-1, Math.min(1, sr / 2.6)) * 0.03) - (this.leanRoll || 0)) * Math.min(1, dt * 7);   // lean into a sidestep
+      const fovT = (this.baseFov || 72) + (p.sprint ? 8 : 0); this.fovNow = this.fovNow === undefined ? fovT : this.fovNow + (fovT - this.fovNow) * Math.min(1, dt * 5); if (Math.abs(this.camera.fov - this.fovNow) > 0.05) { this.camera.fov = this.fovNow; this.camera.updateProjectionMatrix(); } }
     let yaw = this.lookOv ? this.lookOv.yaw : p.yaw, pitch = this.lookOv ? this.lookOv.pitch : p.pitch, roll = -bx * 0.8 + (this.leanRoll || 0);
     if (p.vent) { const v = p.vent, t = Math.min(1, v.t / v.dur), a = [v.from.x + 0.5 + Math.cos(v.from.face) * 0.9, v.from.y + 0.5 + Math.sin(v.from.face) * 0.9], bb = [v.to.x + 0.5 + Math.cos(v.to.face) * 0.9, v.to.y + 0.5 + Math.sin(v.to.face) * 0.9]; x = (a[0] + (bb[0] - a[0]) * t) * TS; z = (a[1] + (bb[1] - a[1]) * t) * TS; y = 0.42 + Math.sin(now * 7) * 0.02; yaw = Math.atan2(bb[1] - a[1], bb[0] - a[0]); pitch = 0; }
     if (p.hidden >= 0) { y = 1.5; }
@@ -163,6 +169,7 @@ export class View {
     if (!p.alive && world.caughtBy) { this.deadT += dt; const c = world.caughtBy; const look = Math.atan2(c.y - p.y, c.x - p.x); yaw += angDiff(yaw, look) * Math.min(1, this.deadT * 4); y = Math.max(0.35, y - this.deadT * 1.1); pitch = 0.1 + this.deadT * 0.1; roll = Math.min(1.2, this.deadT * 1.6); sx += (Math.random() - 0.5) * 0.1 * Math.max(0, 0.8 - this.deadT); }
     else if (!p.alive) { this.deadT += dt; y = Math.max(0.35, y - this.deadT * 1.1); pitch += 0.25 * Math.min(1, this.deadT); roll = Math.min(1.2, this.deadT * 1.4); }
     if (this.kickT > 0) { this.kickT = Math.max(0, this.kickT - dt); const u = this.kickT / 0.55, e = u * u * this.kickA; pitch += 0.22 * e; roll += Math.sin(this.kickB) * 0.28 * e; yaw += Math.cos(this.kickB) * 0.07 * e; y -= 0.12 * e; }
+    const LS = p.leanS || 0; if (LS) { x += -Math.sin(yaw) * 0.5 * LS; z += Math.cos(yaw) * 0.5 * LS; roll += -LS * 0.12; }   // Q / E: peek round a corner
     cam.position.set(x - Math.sin(yaw) * 0 + sx, y + by + sy, z); cam.rotation.set(pitch, -Math.PI / 2 - yaw, roll, 'YXZ');
     cam.updateMatrixWorld(true);
     /* flashlight follows with a little lag, so it feels held */

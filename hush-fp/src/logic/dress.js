@@ -72,6 +72,8 @@ export function dressLevel(c) {
     for (let t = 0; t < 30 && pool.length && !p; t++) { const q = roomTile(pick(pool), 1); if (q && far(q[0], q[1], 10) && cells[at(q[0], q[1])] !== WATER) p = q; }
     if (p) out.crawlers.push({ kind, x: p[0] + 0.5, y: p[1] + 0.5 });
   }
+  /* throwable bottles: one or two lie around from level 3 on (added last, so nothing that was placed before moves) */
+  for (let k = 0; k < (i >= 6 && i % 2 ? 2 : 1); k++) heal('bottle');
   return out;
 }
 

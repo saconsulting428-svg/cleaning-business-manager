@@ -39,11 +39,15 @@ const Sound = (function () {
   }
   function apply() { if (!ac) return; sfx.gain.value = st.sound ? st.vol * 1.35 : 0; mus.gain.value = st.music ? st.mvol * 0.55 : 0; }
   const end = function (src) { voices++; src.onended = function () { voices--; }; };
-  function route(g, o) {                                                   // pan, dry destination, reverb send
+  let cur = null, envWet = 1;                                              // cur: the options of the sound being started (world position, occlusion)
+  function route(g, o) {                                                   // 3D position (HRTF) or stereo pan, wall muffling, dry destination, reverb send
     let out = g;
-    if (o.pan !== undefined && ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, o.pan)); g.connect(p); out = p; }
+    if (cur && cur.occl) { const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 640; lp.Q.value = 0.6; const og = ac.createGain(); og.gain.value = 0.6; out.connect(lp); lp.connect(og); out = og; }   // a wall between you and it
+    const pp = cur && cur.pos && !light && ac.createPanner ? cur.pos : null;
+    if (pp) { const pn = ac.createPanner(); pn.panningModel = 'HRTF'; pn.distanceModel = 'inverse'; pn.refDistance = 2.2; pn.maxDistance = 70; pn.rolloffFactor = 0.5; if (pn.positionX) { pn.positionX.value = pp.x; pn.positionY.value = 0; pn.positionZ.value = pp.y; } else pn.setPosition(pp.x, 0, pp.y); out.connect(pn); out = pn; }
+    else if (o.pan !== undefined && ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, o.pan)); out.connect(p); out = p; }
     out.connect(o.dest || sfx);
-    if (o.wet && revIn) { const s = ac.createGain(); s.gain.value = o.wet; out.connect(s); s.connect(revIn); }
+    if (o.wet && revIn) { const s = ac.createGain(); s.gain.value = o.wet * envWet; out.connect(s); s.connect(revIn); }
   }
 
   /* ---------- voices ---------- */
@@ -110,6 +114,8 @@ const Sound = (function () {
     vent: function () { const w = { wet: 0.5 }; noise(1.1, Object.assign({ ft: 'bandpass', freq: 500, fto: 900, q: 3, vol: 0.08, att: 0.1 }, w)); [0.15, 0.55, 0.95].forEach(function (d) { noise(0.07, Object.assign({ ft: 'bandpass', freq: 800, q: 4, vol: 0.06, delay: d }, w)); tone(190, 0.1, Object.assign({ vol: 0.06, to: 130, delay: d }, w)); }); noise(0.5, Object.assign({ ft: 'highpass', freq: 2500, vol: 0.03, delay: 0.3 }, w)); },
     /* generator start: starter whine, three sputters, then it catches */
     gen: function () { const w = { wet: 0.35 }; tone(90, 0.7, Object.assign({ type: 'sawtooth', vol: 0.06, to: 260, lp: 700, att: 0.1 }, w)); [0.55, 0.78, 0.95].forEach(function (d) { tone(70, 0.12, Object.assign({ type: 'sawtooth', vol: 0.12, to: 50, lp: 300, delay: d }, w)); noise(0.1, Object.assign({ ft: 'lowpass', freq: 400, vol: 0.12, delay: d }, w)); }); tone(38, 1.4, Object.assign({ type: 'sawtooth', vol: 0.17, to: 52, lp: 260, att: 0.2, delay: 1.0 }, w)); noise(1.2, Object.assign({ freq: 220, fto: 700, vol: 0.1, att: 0.3, delay: 1.0 }, w)); buzz([40, 30, 40]); },
+    bottleBreak: function (o) { const v = o ? o.v : 1, w = { wet: 0.55, pan: o && o.pan }; noise(0.4, Object.assign({ ft: 'highpass', freq: 3200, vol: 0.2 * v, att: 0.002 }, w)); for (let i = 0; i < 7; i++) tone(2200 + Math.random() * 2800, 0.16 + Math.random() * 0.22, Object.assign({ vol: 0.05 * v, delay: i * 0.03 + Math.random() * 0.06 }, w)); },
+    whoosh: function (o) { noise(0.28, { ft: 'bandpass', freq: 500, fto: 1500, q: 0.8, vol: 0.07, att: 0.05, wet: 0.15 }); },
     genPulse: function (o) { const v = o ? o.v : 1, w = { wet: 0.3, pan: o && o.pan }; tone(46, 0.55, Object.assign({ type: 'sawtooth', vol: 0.13 * v, lp: 240 }, w)); noise(0.45, Object.assign({ freq: 420, vol: 0.06 * v }, w)); },
     radio: function () { noise(0.03, { ft: 'highpass', freq: 2800, vol: 0.07 }); tone(660, 0.07, { type: 'square', vol: 0.04, lp: 1500, delay: 0.02 }); },
     /* intercom call: two-tone chime through static */
@@ -214,7 +220,10 @@ const Sound = (function () {
       S[k]({ f: Math.random(), pan: Math.random() * 2 - 1 }); }
   }
   return {
-    play: function (n, o) { if (S[n] && fresh(n)) S[n](o); },
+    play: function (n, o) { if (S[n] && fresh(n)) { cur = o || null; try { S[n](o); } finally { cur = null; } } },
+    /* the listener follows the camera: world x/y in tiles, yaw in radians */
+    listen: function (x, y, yaw) { if (!ac || !ac.listener) return; const L = ac.listener, cx = Math.cos(yaw), cz = Math.sin(yaw); if (L.positionX) { L.positionX.value = x; L.positionY.value = 0; L.positionZ.value = y; L.forwardX.value = cx; L.forwardY.value = 0; L.forwardZ.value = cz; L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0; } else { L.setPosition(x, 0, y); L.setOrientation(cx, 0, cz, 0, 1, 0); } },
+    env: function (o) { if (o && o.wet !== undefined) envWet = o.wet; },
     set: function (k, v) { st[k] = v; apply(); }, get: function () { return st; },
     unlock: function () { if (ctx()) startLoops(); },
     scene, tick: ambientTick, buzz,

@@ -57,6 +57,7 @@ function pickups(w, dt) {
   const p = w.player; if (!p.alive || p.hidden >= 0 || p.vent) return;
   for (const o of w.pickups) {
     if (o.taken) continue; o.warnT = Math.max(0, o.warnT - dt); if (Math.hypot(o.x + 0.5 - p.x, o.y + 0.5 - p.y) > 0.9) continue;
+    if (o.kind === 'bottle') { if (p.inv.bottle < 3) { p.inv.bottle++; o.taken = true; w.events.push({ type: 'pickup', kind: 'bottle', x: o.x + 0.5, y: o.y + 0.5 }); } continue; }
     if (healPlayer(w, o.kind)) { o.taken = true; w.events.push({ type: 'pickup', kind: o.kind, x: o.x + 0.5, y: o.y + 0.5 }); }
     else if (o.warnT <= 0) { o.warnT = 6; w.events.push({ type: 'hpfull', kind: o.kind }); }     // full health: it stays here for later
   }

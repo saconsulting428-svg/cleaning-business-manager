@@ -66,9 +66,10 @@ export function buildExtras(world, scene, Q) {
   const whiteM = new THREE.MeshStandardMaterial({ color: 0xdfe6e4, roughness: 0.5 }), redM = new THREE.MeshBasicMaterial({ color: 0xd8262c }), tapeM = new THREE.MeshStandardMaterial({ color: 0xcfc4a4, roughness: 0.8 });
   for (const o of world.objs) {
     if (o.type !== 'pickup') continue; const g = new THREE.Group();
-    if (o.kind === 'medkit') { g.add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.28, 0.3), whiteM)); const c1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.06, 0.02), redM); c1.position.z = 0.16; const c2 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.2, 0.02), redM); c2.position.z = 0.16; g.add(c1, c2); const h = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.05), whiteM); h.position.y = 0.16; g.add(h); }
+    if (o.kind === 'bottle') { const gm = new THREE.MeshStandardMaterial({ color: 0x3f7a52, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.85 }); const bo = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.26, 10), gm), ne = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.04, 0.14, 8), gm); ne.position.y = 0.2; bo.rotation.z = 0.15; ne.rotation.z = 0.15; g.add(bo, ne); }
+    else if (o.kind === 'medkit') { g.add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.28, 0.3), whiteM)); const c1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.06, 0.02), redM); c1.position.z = 0.16; const c2 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.2, 0.02), redM); c2.position.z = 0.16; g.add(c1, c2); const h = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.05), whiteM); h.position.y = 0.16; g.add(h); }
     else { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.14, 12), tapeM); r.rotation.z = Math.PI / 2; g.add(r); const s = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.012, 0.06), redM); s.position.set(0, 0.0, 0.1); g.add(s); }
-    const gl = new THREE.Sprite(spriteMat(glowTex(), 0x6dffb0, true, 0.45)); gl.scale.setScalar(1.0); g.add(gl); g.position.set((o.x + 0.5) * TS, 0.9, (o.y + 0.5) * TS); grp.add(g); ex.pickups.push({ o, g, gl });
+    const gl = new THREE.Sprite(spriteMat(glowTex(), o.kind === 'bottle' ? 0xb8ffd8 : 0x6dffb0, true, 0.45)); gl.scale.setScalar(1.0); g.add(gl); g.position.set((o.x + 0.5) * TS, 0.9, (o.y + 0.5) * TS); grp.add(g); ex.pickups.push({ o, g, gl });
   }
   /* the small creatures */
   if (CrawlerGLB.ready) for (const c of world.crawlers) {
