@@ -44,7 +44,7 @@ class Asset:
             n = f.normal; ax = max(range(3), key=lambda i: abs(n[i])); a, b = [i for i in range(3) if i != ax]
             for l in f.loops: p = l.vert.co; l[uv].uv = (p[a] * scale + o[0], p[b] * scale + o[1])
 
-    def _finish(self, bm, geom_verts, rot, pos, bevel, scale):
+    def _finish(self, bm, geom_verts, rot, pos, bevel, scale, smooth=None):
         before = set(bm.faces)
         bmesh.ops.rotate(bm, verts=geom_verts, cent=(0, 0, 0), matrix=Euler(rot).to_matrix())
         bmesh.ops.translate(bm, verts=geom_verts, vec=pos)
@@ -53,6 +53,9 @@ class Asset:
             try: bmesh.ops.bevel(bm, geom=edges, offset=bevel, segments=2, affect='EDGES', profile=0.6)
             except Exception: pass
         new = [f for f in bm.faces if f not in before]; bm.normal_update(); self._uv(bm, new, scale)
+        if smooth:
+            for f in new:
+                if smooth == 'all' or abs(f.normal.z) < 0.5: f.smooth = True
 
     def box(self, g, m, size, pos, rot=(0, 0, 0), bevel=0.008, scale=0.9, center=False):
         """size (x, y, z); pos = centre of the bottom face (or the centre of the box with center=True)."""
@@ -67,12 +70,12 @@ class Asset:
         for v in vs: v.co.z += h / 2
         R = {'z': (0, 0, 0), 'x': (0, math.pi / 2, 0), 'y': (-math.pi / 2, 0, 0)}[axis]
         e = (Euler(R).to_matrix() @ Euler(rot).to_matrix()).to_euler()
-        self._finish(bm, vs, tuple(e), pos, bevel, scale); return self
+        self._finish(bm, vs, tuple(e), pos, bevel, scale, smooth='side' if seg >= 10 else None); return self
 
     def sphere(self, g, m, r, pos, seg=12, sx=1, sy=1, sz=1):
         bm = self._bm(g, m); res = bmesh.ops.create_uvsphere(bm, u_segments=seg, v_segments=max(6, seg // 2), radius=r); vs = res['verts']
         for v in vs: v.co.x *= sx; v.co.y *= sy; v.co.z *= sz
-        self._finish(bm, vs, (0, 0, 0), pos, 0, 0.9); return self
+        self._finish(bm, vs, (0, 0, 0), pos, 0, 0.9, smooth='all'); return self
 
     def set_pivot(self, g, p, pose=None):
         self.pivot[g] = Vector(p)
@@ -85,6 +88,7 @@ class Asset:
         for i in range(n):
             a = 2 * math.pi * i / n; ln = 2 * math.pi * r / n * 1.12
             if axis == 'y': self.box(g, m, (ln, d, thick), (pos[0] + math.cos(a) * r, pos[1], pos[2] + math.sin(a) * r), rot=(0, -a + math.pi / 2, 0) if False else (0, -a - math.pi / 2, 0), center=True, bevel=0.004)
+            elif axis == 'z': self.box(g, m, (ln, thick, d), (pos[0] + math.cos(a) * r, pos[1] + math.sin(a) * r, pos[2]), rot=(0, 0, a + math.pi / 2), center=True, bevel=0.004)
             else: self.box(g, m, (d, ln, thick), (pos[0], pos[1] + math.cos(a) * r, pos[2] + math.sin(a) * r), rot=(a + math.pi / 2, 0, 0), center=True, bevel=0.004)
         return self
 
@@ -100,7 +104,6 @@ class Asset:
                 slots.append(m); tmp = bpy.data.meshes.new('t'); bm.to_mesh(tmp); big.from_mesh(tmp); bpy.data.meshes.remove(tmp)
             pv = self.pivot.get(gname)
             if pv is not None: bmesh.ops.translate(big, verts=list(big.verts), vec=-pv)
-            for f in big.faces: f.smooth = False
             big.to_mesh(me); big.free()
             for m in slots: me.materials.append(m)
             # material indices were stored per face before the merge; rebuild by from_mesh keeps them

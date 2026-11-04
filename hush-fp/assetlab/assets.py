@@ -15,7 +15,7 @@ def M():
         led_g=g('led_g', None, .3, 0, emit=(.1, 1, .35), emit_k=6, color=(.1, .6, .2)), led_r=g('led_r', None, .3, 0, emit=(1, .1, .05), emit_k=6, color=(.7, .05, .03)),
         led_a=g('led_a', None, .3, 0, emit=(1, .65, .1), emit_k=5, color=(.8, .4, .05)), scr=g('screen', 'screen', .2, 0, emit=(.2, .9, .6), emit_k=2.2),
         tube=g('tube', None, .3, 0, emit=(1, .95, .8), emit_k=9, color=(1, .95, .85)), liq=g('liq', None, .1, 0, emit=(.2, .9, .6), emit_k=1.6, alpha=.55, color=(.2, .8, .55)),
-        paper=g('paper', 'paint_cream', .95), red_flesh=g('flesh', None, .45, 0, emit=(.7, .05, .06), emit_k=1.2, color=(.45, .06, .07)))
+        paper=g('paper', 'paint_cream', .95), red_flesh=g('flesh', None, .25, 0, emit=(.5, .03, .04), emit_k=.35, color=(.16, .02, .025)))
 
 def locker():
     m = M(); a = Asset('locker'); w, d, h = .5, .5, 1.85; t = .018; col = m['pg']
@@ -24,12 +24,12 @@ def locker():
     for x in (-.2, .2):
         for y in (-.2, .2): a.cyl('body', m['ds'], .025, .08, (x, y, 0), seg=8)
     a.box('body', m['st'], (.04, .03, h), (-w / 2 + .02, -d / 2 + .01, .08)); a.box('body', m['st'], (.04, .03, h), (w / 2 - .02, -d / 2 + .01, .08)); a.box('body', m['st'], (w, .03, .04), (0, -d / 2 + .01, h + .04)); a.box('body', m['dark'], (w - .1, .012, .24), (0, d / 2 - .035, .9), bevel=0.003)
-    dw = w - .045; a.box('door', col, (dw, .028, h - .06), (dw / 2, 0, 0), bevel=.005)
-    for i in range(7): a.box('door', m['dark'], (dw * .6, .035, .014), (dw / 2, -.002, h - .34 - i * .042), bevel=.002); 
-    for i in range(5): a.box('door', m['dark'], (dw * .6, .035, .014), (dw / 2, -.002, .3 + i * .042), bevel=.002)
-    a.box('door', m['pw'], (.1, .006, .05), (dw / 2, -.017, h - .18), bevel=.001); a.box('door', m['st'], (.03, .03, .1), (dw - .06, -.03, h * .52), bevel=.004); a.box('door', m['ds'], (.012, .03, .04), (dw - .06, -.04, h * .52 + .05), bevel=.003)
-    for z in (.3, h * .5, h - .2): a.cyl('door', m['ds'], .012, .08, (-.005, -.005, z), seg=8)
-    a.set_pivot('door', (-w / 2 + .022, -d / 2 + .0, .08 + .03), pose=(0, 0, math.radians(38)))
+    dw = w - .045; fy = -d / 2 + .014; a.box('door', col, (dw, .028, h - .06), (dw / 2, fy, 0), bevel=.005)
+    for i in range(7): a.box('door', m['dark'], (dw * .6, .035, .014), (dw / 2, fy - .002, h - .34 - i * .042), bevel=.002)
+    for i in range(5): a.box('door', m['dark'], (dw * .6, .035, .014), (dw / 2, fy - .002, .3 + i * .042), bevel=.002)
+    a.box('door', m['pw'], (.1, .006, .05), (dw / 2, fy - .017, h - .18), bevel=.001); a.box('door', m['st'], (.03, .03, .1), (dw - .06, fy - .03, h * .52), bevel=.004); a.box('door', m['ds'], (.012, .03, .04), (dw - .06, fy - .04, h * .52 + .05), bevel=.003)
+    for z in (.3, h * .5, h - .2): a.cyl('door', m['ds'], .012, .08, (-.005, fy - .005, z), seg=8)
+    a.set_pivot('door', (-w / 2 + .022, fy, .08 + .03), pose=(0, 0, math.radians(38)))
     return a
 
 def cabinet_wood():
@@ -122,18 +122,14 @@ def breaker_panel():
 
 def valve_wheel():
     m = M(); a = Asset('valve_wheel')
-    a.cyl('body', m['ru'], .09, 1.3, (0, 0, .62), axis='x', seg=16, scale=.6) if False else a.cyl('body', m['st'], .09, 1.3, (-.65, 0, .6), axis='x', seg=16)
-    for x in (-.45, .45): a.cyl('body', m['ds'], .14, .05, (x, 0, .6), axis='x', seg=16); 
+    a.cyl('body', m['st'], .09, 1.3, (-.65, 0, .6), axis='x', seg=16)
+    for x in (-.45, .45): a.cyl('body', m['ds'], .14, .05, (x, 0, .6), axis='x', seg=16)
     a.box('body', m['pr'], (.26, .2, .22), (0, 0, .5), bevel=.02); a.cyl('body', m['st'], .035, .3, (0, 0, .72), seg=10); a.cyl('body', m['ds'], .06, .05, (0, 0, .7), seg=10)
-    a.cyl('body', m['ds'], .02, .5, (-.2, 0, 0), seg=6) if False else None
-    for x in (-.5, .5): a.box('body', m['ds'], (.18, .22, .1), (x, 0, 0.0), bevel=.01); a.box('body', m['st'], (.06, .06, .5), (x, 0, 0.08), bevel=.004)
-    a.ring('wheel', m['pr'], .2, .03, (0, 0, 0), axis='x' if False else 'y', n=14, depth=.04) if False else None
-    n = 14
-    for i in range(n):
-        ang = 2 * PI * i / n; ln = 2 * PI * .2 / n * 1.15; a.box('wheel', m['pr'], (ln, .04, .035), (math.cos(ang) * .2, 0, math.sin(ang) * .2), rot=(0, -ang - PI / 2 + PI, 0) if False else (0, -ang + PI / 2 * 0 - 0, 0) if False else (0, ang * -1 + PI / 2 - PI / 2 + PI / 2 - PI / 2, 0), center=True, bevel=.004)
-    for k in range(3): a.box('wheel', m['pr'], (.4, .035, .03), (0, 0, 0), rot=(0, k * PI / 3, 0), center=True, bevel=.004)
-    a.cyl('wheel', m['ds'], .045, .06, (0, 0.03, 0), axis='y', seg=10, rot=(0, 0, 0)) if False else a.cyl('wheel', m['ds'], .045, .07, (0, -.035, 0), axis='y', seg=10)
-    a.set_pivot('wheel', (0, 0, .96)); return a
+    for x in (-.5, .5): a.box('body', m['ds'], (.18, .22, .1), (x, 0, 0), bevel=.01); a.box('body', m['st'], (.06, .06, .5), (x, 0, .08), bevel=.004)
+    a.ring('wheel', m['pr'], .2, .03, (0, 0, .98), axis='z', n=14, depth=.04)
+    for k in range(3): a.box('wheel', m['pr'], (.4, .03, .035), (0, 0, .98), rot=(0, 0, k * PI / 3), center=True, bevel=.004)
+    a.cyl('wheel', m['ds'], .045, .07, (0, 0, .945), seg=10)
+    a.set_pivot('wheel', (0, 0, .98)); return a
 
 def keypad_panel():
     m = M(); a = Asset('keypad_panel'); w, h = .24, .34
@@ -161,7 +157,7 @@ def crate_wood():
     a.box('body', m['wdd'], (s - .02, s - .02, .04), (0, 0, s), bevel=.006); a.box('body', m['pc'], (.22, .005, .14), (.1, -s / 2 - .004, .45), bevel=.001); return a
 
 def barrel():
-    m = M(); a = Asset('barrel'); a.cyl('body', m['pr'], .29, .88, (0, 0, 0), seg=20, scale=.6)
+    m = M(); a = Asset('barrel'); a.cyl('body', m['pb'], .29, .88, (0, 0, 0), seg=20, scale=.6)
     for z in (.1, .44, .76): a.cyl('body', m['ds'], .305, .035, (0, 0, z), seg=20)
     a.cyl('body', m['ds'], .27, .02, (0, 0, .88), seg=20); a.cyl('body', m['st'], .045, .03, (.1, .08, .9), seg=10); a.cyl('body', m['st'], .03, .03, (-.12, -.06, .9), seg=8); a.box('body', m['py'], (.2, .005, .2), (0, -.29, .5), rot=(0, 0, 0), bevel=.001); return a
 
@@ -225,9 +221,9 @@ def lamp_fluorescent():
     m = M(); a = Asset('lamp_fluorescent'); a.box('body', m['pgr'], (1.25, .18, .06), (0, 0, .0), bevel=.008); a.box('body', m['tube'], (1.15, .05, .04), (0, 0, -.03), bevel=.01); a.box('body', m['tube'], (1.15, .05, .04), (0, .0, -.03)) if False else None
     for x in (-.5, .5): a.box('body', m['ds'], (.02, .02, .35), (x, 0, .06)); return a
 def lamp_caged():
-    m = M(); a = Asset('lamp_caged'); a.cyl('body', m['ds'], .05, .08, (0, 0, 0), seg=10); a.sphere('body', m['tube'], .06, (0, 0, -.07), seg=10)
-    for k in range(6): a.box('body', m['ds'], (.012, .012, .15), (math.cos(k * PI / 3) * .075, math.sin(k * PI / 3) * .075, -.15), bevel=.002)
-    a.cyl('body', m['ds'], .08, .015, (0, 0, -.17), seg=10); return a
+    m = M(); a = Asset('lamp_caged'); a.box('body', m['ds'], (.2, .05, .2), (0, 0, 0), bevel=.01); a.cyl('body', m['ds'], .06, .05, (0, -.05, .1), axis='y', seg=12); a.sphere('body', m['tube'], .06, (0, -.11, .1), seg=10)
+    for k in range(6): ang = k * PI / 3; a.box('body', m['ds'], (.01, .01, .14), (math.cos(ang) * .075, -.12, .1 + math.sin(ang) * .075), rot=(0, 0, 0), center=True, bevel=.002)
+    a.cyl('body', m['ds'], .085, .015, (0, -.17, .1), axis='y', seg=12); return a
 
 def egg_pod():
     m = M(); a = Asset('egg_pod'); a.sphere('body', m['red_flesh'], .4, (0, 0, .5), seg=14, sz=1.3, sx=.9, sy=.9)
@@ -235,8 +231,14 @@ def egg_pod():
     a.cyl('body', m['dark'], .5, .06, (0, 0, 0), seg=14); a.sphere('body', m['dark'], .12, (0, -.0, .6), seg=8); return a
 def bone_pile():
     m = M(); a = Asset('bone_pile')
-    for i in range(9): a.cyl('body', m['bone'], .025, .5 + (i % 3) * .1, (math.cos(i) * .18, math.sin(i * 1.7) * .15, .03 + (i % 3) * .03), seg=6, rot=(1.57 * ((i + 1) % 2), (i % 3) * .5, i * .7))
-    a.sphere('body', m['bone'], .11, (.1, -.1, .12), seg=10, sz=1.1); a.box('body', m['dark'], (.04, .04, .03), (.07, -.2, .14)); a.box('body', m['dark'], (.04, .04, .03), (.13, -.2, .14)); return a
+    for i in range(7):
+        x, y = math.cos(i * 1.1) * .22, math.sin(i * 1.9) * .18; L = .45 + (i % 3) * .1; rz = i * .8
+        a.cyl('body', m['bone'], .018, L, (x, y, .03), axis='x', seg=6, rot=(0, 0, rz)); 
+        for s in (-1, 1): a.sphere('body', m['bone'], .03, (x + math.cos(rz) * s * L / 2, y + math.sin(rz) * s * L / 2, .03), seg=6)
+    a.sphere('body', m['bone'], .12, (.05, -.05, .13), seg=10, sz=1.05); a.box('body', m['bone'], (.1, .08, .05), (.05, -.12, .06), bevel=.01); a.sphere('body', m['dark'], .035, (.0, -.15, .15), seg=6); a.sphere('body', m['dark'], .035, (.1, -.15, .15), seg=6)
+    for k in range(5): a.box('body', m['bone'], (.2, .018, .018), (-.18 + k * .035, .12 + k * .01, .06 + k * .015), rot=(0, .2 * k, .5), center=True, bevel=.004)
+    return a
+
 def rubble():
     m = M(); a = Asset('rubble')
     for i in range(10): a.box('body', m['co'], (.25 + (i % 3) * .12, .2 + (i % 4) * .07, .15 + (i % 2) * .12), (math.cos(i * 1.3) * .35, math.sin(i * 2.1) * .3, (i % 3) * .06), rot=(i * .3, i * .5, i * .8), bevel=.012)
@@ -244,12 +246,15 @@ def rubble():
 def fallen_shelf():
     a = shelf_metal(); a.name = 'fallen_shelf'; return a
 def cctv_camera():
-    m = M(); a = Asset('cctv_camera'); a.box('body', m['ds'], (.1, .1, .04), (0, .0, 0), bevel=.006); a.cyl('body', m['st'], .02, .22, (0, 0, .0), axis='y', seg=8, rot=(0, 0, 0)); a.box('body', m['pgr'], (.12, .3, .1), (0, -.15, -.1), bevel=.012); a.cyl('body', m['dark'], .045, .02, (0, -.31, -.05), axis='y', seg=10); a.box('body', m['led_r'], (.012, .01, .012), (.04, -.3, -.02)); return a
+    m = M(); a = Asset('cctv_camera'); a.box('body', m['ds'], (.1, .03, .14), (0, 0, 0), bevel=.006); a.cyl('body', m['st'], .02, .18, (0, -.01, .07), axis='y', seg=8)
+    a.box('body', m['pgr'], (.11, .3, .1), (0, -.3, .02), rot=(.1, 0, 0), bevel=.012); a.cyl('body', m['dark'], .045, .03, (0, -.46, .07), axis='y', seg=12); a.box('body', m['dark'], (.12, .12, .01), (0, -.34, .125), bevel=.002); a.box('body', m['led_r'], (.012, .012, .012), (.045, -.43, .1)); return a
+
 def pump_unit():
     m = M(); a = Asset('pump_unit'); a.box('body', m['ds'], (1.0, .6, .1), (0, 0, 0), bevel=.01); a.cyl('body', m['pb'], .22, .5, (.2, 0, .1), axis='x', seg=16); a.cyl('body', m['st'], .3, .35, (-.2, 0, .1), seg=16); a.cyl('body', m['pb'], .25, .1, (-.2, 0, .45), seg=16); a.cyl('body', m['ds'], .08, .4, (-.2, 0, .55), seg=10); a.cyl('body', m['st'], .1, .5, (-.5, 0, .2), axis='y', seg=10) ; a.box('body', m['pr'], (.1, .1, .08), (.2, 0, .46)); return a
 
 def item_key():
-    m = M(); a = Asset('item_key'); a.ring('body', m['brass'], .035, .012, (0, 0, .0), axis='y', n=10, depth=.012); a.box('body', m['brass'], (.012, .012, .12), (0, 0, -.12), bevel=.002, center=False) if False else a.box('body', m['brass'], (.012, .012, .12), (0, 0, -.155), bevel=.002); a.box('body', m['brass'], (.03, .012, .02), (.012, 0, -.15)); a.box('body', m['brass'], (.025, .012, .02), (.012, 0, -.12)); return a
+    m = M(); a = Asset('item_key'); a.ring('body', m['brass'], .035, .013, (0, 0, .03), axis='y', n=12, depth=.012); a.box('body', m['brass'], (.013, .012, .13), (0, 0, .03 - .035 - .13), bevel=.002, center=False) if False else a.box('body', m['brass'], (.013, .012, .13), (0, 0, -.13 + .03 - .0), bevel=.002, center=False) if False else a.box('body', m['brass'], (.013, .012, .12), (0, 0, .0), bevel=.002); a.box('body', m['brass'], (.032, .012, .02), (.02, 0, .01)); a.box('body', m['brass'], (.025, .012, .02), (.016, 0, .04)); a.box('body', m['brass'], (.025, .012, .02), (.016, 0, .07)); return a
+
 def item_keycard():
     m = M(); a = Asset('item_keycard'); a.box('body', m['pb'], (.085, .002, .054), (0, 0, 0), bevel=.001); a.box('body', m['dark'], (.085, .0025, .012), (0, 0, .01)); a.box('body', m['brass'], (.016, .003, .012), (-.024, 0, -.014)); return a
 def item_fuse():

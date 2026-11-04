@@ -32,8 +32,9 @@ def save(name, rgb):
 def paint(name, col, wear=0.5, seed=0, rust=(120, 62, 30)):
     c = np.array(col, np.float32); f = fbm(5, 3, seed); g = fbm(6, 8, seed + 1); s = scratches(90, seed)
     img = c * (0.82 + 0.28 * f[..., None]) * (0.94 + 0.12 * g[..., None])
-    chips = (g > 1 - 0.18 * wear * 2) & (f > 0.45); r = np.array(rust, np.float32)
-    img = np.where(chips[..., None], r * (0.6 + 0.6 * g[..., None]), img)
+    chips = (g > 1 - 0.07 * wear) & (f > 0.5); r = np.array(rust, np.float32)
+    img = np.where(chips[..., None], r * (0.45 + 0.35 * g[..., None]), img)
+    dirt = fbm(4, 2, seed + 9); img *= (0.72 + 0.2 * dirt[..., None]) * (0.8 + 0.2 * np.linspace(0, 1, N)[:, None, None])
     drip = fbm(3, 2, seed + 3); stripe = np.abs(np.sin(np.linspace(0, 60, N))[None, :] * 0.5 + 0.5) * (drip > 0.55)[...] 
     img *= (1 - 0.18 * wear * (drip[..., None] > 0.62))
     img += s[..., None] * 38 * wear
@@ -45,9 +46,11 @@ def rustmetal(name, seed=0):
     pits = fbm(5, 20, seed + 5) > 0.78; img[pits] *= 0.4; save(name, tile(img))
 
 def wood(name, col=(112, 78, 46), seed=0):
-    f = fbm(4, 2, seed); y = np.linspace(0, 1, N)[:, None]; planks = (np.floor(y * 6) % 2)[..., None] * 0.1
-    grain = 0.5 + 0.5 * np.sin((y * 2 * 90) + f * 14 + fbm(5, 12, seed + 1) * 9); img = np.array(col, np.float32) * (0.62 + 0.4 * grain[..., None] + planks) * (0.85 + 0.3 * fbm(5, 6, seed + 2)[..., None])
-    seam = (np.abs((y * 6) % 1) < 0.02); img[np.broadcast_to(seam, (N, N))] *= 0.35; img += scratches(30, seed)[..., None] * 25; save(name, tile(img))
+    f = fbm(4, 2, seed); y = np.linspace(0, 1, N)[:, None]; x = np.linspace(0, 1, N)[None, :]
+    grain = 0.5 + 0.5 * np.sin(x * 2 * np.pi * 18 + f * 5 + fbm(5, 10, seed + 1) * 3); fine = fbm(3, 40, seed + 4)
+    plank = np.floor(x * 5) % 2 * 0.08 + np.floor(x * 5) * 0.03 % 0.1
+    img = np.array(col, np.float32) * (0.55 + 0.3 * grain[..., None] + 0.2 * fine[..., None] + plank[..., None]) * (0.8 + 0.3 * fbm(5, 6, seed + 2)[..., None]) * 0.75
+    seam = (np.abs((x * 5) % 1) < 0.015); img[np.broadcast_to(seam, (N, N))] *= 0.3; img += scratches(40, seed)[..., None] * 18; save(name, tile(img))
 
 def concrete(name, col=(120, 118, 112), seed=0):
     f = fbm(6, 3, seed); p = fbm(6, 24, seed + 1); img = np.array(col, np.float32) * (0.7 + 0.5 * f[..., None]); img[p > 0.8] *= 0.55; img += (fbm(2, 30, seed + 3) - 0.5)[..., None] * 18; save(name, tile(img))
