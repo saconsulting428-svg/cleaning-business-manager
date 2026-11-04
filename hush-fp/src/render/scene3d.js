@@ -129,7 +129,7 @@ export function buildScene(world, Q) {
   const stat = { metal: [], crate: [], dark: [], flesh: [], emis: [] };
   const darkMat = (() => { const m = lit({ color: 0x15171a, roughness: 0.7, metalness: 0.3 }); patchPulse(m); return m; })();
   const fleshMat = (() => { const m = lit({ color: 0x3b1214, roughness: 0.55, emissive: 0x5a0a0c, emissiveIntensity: 0.5 }); patchPulse(m); return m; })();
-  const podMat = (() => { const m = lit({ color: 0x4a1418, roughness: 0.35, emissive: 0xaa1818, emissiveIntensity: 0.9, transparent: false }); patchPulse(m); return m; })();
+  const podMat = (() => { const m = lit({ color: 0x2c0c10, roughness: 0.3, emissive: 0x8a1414, emissiveIntensity: 0.42, transparent: false }); patchPulse(m); return m; })();
   const boneMat = (() => { const m = lit({ color: 0xb8ad98, roughness: 0.6 }); patchPulse(m); return m; })();
   const pods = [], bones = [];
   const lm = (o) => { const m = lit(o); patchPulse(m); disposables.push(m); return m; };
@@ -145,7 +145,7 @@ export function buildScene(world, Q) {
   for (const o of world.objs) { if (o.type !== 'prop') continue; const cx = o.x * TS + TS / 2, cz = o.y * TS + TS / 2, r = Math.round(o.rot / (Math.PI / 2)) * (Math.PI / 2) + (R() - 0.5) * 0.2;
     const gp = GLBPROP[o.kind]; if (gp && PropsGLB.has(gp[0])) { PropsGLB.bake(gp[0], [gp[1], gp[1], gp[1]], r, cx, 0, cz, glbBuckets); R(); continue; }
     buildProp(o.kind, libAcc, cx, cz, r, R, hAt(o.x, o.y), o.id * 3 + 1); }
-  for (const [gm, arr] of glbBuckets) { const mg = mergeGeometries(arr); arr.forEach(g => g.dispose()); const mesh = new THREE.Mesh(mg, gm); scene.add(mesh); mesh.userData.glbProp = true; }
+
   wallFixtures(libAcc, wallFaces, roomAt, R, WH, TS);
   const mm = { steel: libM.steel, dark: libM.dark, wood: libM.wood, white: libM.white, cloth: libM.cloth, rust: libM.rust, glass: glassMat, liq: liqMat, scr: scrMat, bl1: bl1Mat, bl2: bl2Mat, hazard: hazMat, flesh: fleshMat, pod: podMat, bone: boneMat };
   { const _unused = { steel: libM.steel, dark: libM.dark, wood: libM.wood, white: libM.white, cloth: libM.cloth, rust: libM.rust, glass: glassMat, liq: liqMat, scr: scrMat, bl1: bl1Mat, bl2: bl2Mat, hazard: hazMat, flesh: fleshMat, pod: podMat, bone: boneMat };
@@ -187,7 +187,7 @@ export function buildScene(world, Q) {
   const stripe = (c1, c2) => canvasTexture(64, 64, (x, w, h) => { x.fillStyle = c1; x.fillRect(0, 0, w, h); x.fillStyle = c2; for (let i = -h; i < w; i += 16) { x.beginPath(); x.moveTo(i, h); x.lineTo(i + 8, h); x.lineTo(i + 8 + h, 0); x.lineTo(i + h, 0); x.fill(); } });
   const lockCol = { key: 0xc9a14a, card: 0x3ca0ff, power: 0xffcc22, code: 0x66ff88, valve: 0xff5533, secret: 0x44aaff, breaker: 0xff9a2a };
   const lockTex = {};
-  const E = { hAt, Q, ch: spec.ch, TS, WH, R, group, dyn, mats: libM, glowTex, patchPulse, lit, dis: disposables, canvasTexture, glassMat, liqMat, scrMat, bl1Mat, bl2Mat, hazMat, lockCol, wallMat };
+  const E = { defer: [], hAt, Q, ch: spec.ch, TS, WH, R, group, dyn, mats: libM, glowTex, patchPulse, lit, dis: disposables, canvasTexture, glassMat, liqMat, scrMat, bl1Mat, bl2Mat, hazMat, lockCol, wallMat };
   for (const o of world.objs) {
     const cx = o.x * TS + TS / 2, cz = o.y * TS + TS / 2;
     if (buildDynamic(o, E)) { /* door, locker, vent, generator, breaker, valve: see dynamic3d.js */
@@ -229,6 +229,10 @@ export function buildScene(world, Q) {
     const gg = [box(1.1, 0.04, 0.06, 0, 0, 0.5), box(1.1, 0.04, 0.06, 0, 0, -0.5), box(0.06, 0.04, 1.1, 0.5, 0, 0), box(0.06, 0.04, 1.1, -0.5, 0, 0)]; for (let k = -3; k <= 3; k++) gg.push(box(1.0, 0.03, 0.05, 0, 0, k * 0.15)); gg.push(box(0.05, 0.03, 1.0, 0, 0.0, 0.0));
     const gm = new THREE.Mesh(mergeGeometries(gg), vm), grille = new THREE.Group(); grille.add(gm); grille.position.set((v.tx + 0.5) * TS, Hh - 0.07, (v.ty + 0.5) * TS); scene.add(grille); ventDrop = { g: grille, y: Hh };
   }
+  /* the still parts of the interactive models (frames, bodies, vents) are baked into the same per-material meshes as the props; only the swinging / turning nodes stay separate */
+  for (const r of E.defer) { r.updateWorldMatrix(true, true); const move = new Set(); r.traverse(o => { if (o.name === 'door' || o.name === 'lever' || o.name === 'wheel' || o.name === 'grille') o.traverse(q => move.add(q)); }); const gone = [];
+    r.traverse(o => { if (o.isMesh && !move.has(o)) { const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld); if (o.matrixWorld.determinant() < 0 && g.index) { const ix = g.index.array; for (let i = 0; i < ix.length; i += 3) { const t = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = t; } } if (!glbBuckets.has(o.material)) glbBuckets.set(o.material, []); glbBuckets.get(o.material).push(g); gone.push(o); } }); gone.forEach(o => o.parent && o.parent.remove(o)); }
+  for (const [gm, arr] of glbBuckets) { const mg = mergeGeometries(arr); arr.forEach(g => g.dispose()); const mesh = new THREE.Mesh(mg, gm); scene.add(mesh); mesh.userData.glbProp = true; }
   /* ---------------- light fixtures ---------------- */
   const lampMats = { ok: new THREE.MeshBasicMaterial({ color: TH.lamp }), dead: new THREE.MeshBasicMaterial({ color: 0x151515 }), fl: [] };
   const lampGeo = new THREE.BoxGeometry(0.9, 0.08, 0.28), fixtures = [], lampCache = {};
