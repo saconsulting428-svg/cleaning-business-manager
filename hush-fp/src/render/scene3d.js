@@ -8,6 +8,7 @@ import { T } from '../logic/gen.js';
 import { rng32 } from '../logic/rng.js';
 import { newAcc, buildProp, wallFixtures, mkMats } from './objects3d.js';
 import { buildDynamic } from './dynamic3d.js';
+import { PropsGLB } from './props_glb.js';
 
 export const TS = 2, WH = 3.2;
 export const PULSE = { uPulseO: { value: new THREE.Vector3(0, -99, 0) }, uPulseR: { value: 0 }, uPulseA: { value: 0 }, uPulseMax: { value: 14 }, uTime: { value: 0 } };
@@ -120,7 +121,13 @@ export function buildScene(world, Q) {
   disposables.push(scrMat, liqMat, bl1Mat, bl2Mat);
   const P = (arr, g, x, z, ry) => { g.applyMatrix4(new THREE.Matrix4().makeRotationY(ry || 0)); g.translate(x, 0, z); arr.push(g); };
   const libAcc = newAcc(), libM = mkMats(lit, patchPulse, tex, disposables);
-  for (const o of world.objs) { if (o.type !== 'prop') continue; const cx = o.x * TS + TS / 2, cz = o.y * TS + TS / 2, r = Math.round(o.rot / (Math.PI / 2)) * (Math.PI / 2) + (R() - 0.5) * 0.2; buildProp(o.kind, libAcc, cx, cz, r, R, WH, o.id * 3 + 1); }
+  /* the Blender prop pack: kind -> [asset, scale]; those props are baked into per-material merged meshes (the others stay procedural) */
+  const GLBPROP = { desk: ['desk_office', 1.15], chair: ['chair_office', 1.2], cabinet: ['filing_cabinet', 1.25], shelf: ['shelf_metal', 1.4], bed: ['hospital_bed', 1.15], server: ['server_rack', 1.15], console: ['console_terminal', 1.25], specimen: ['specimen_tank', 1.3], pump: ['pump_unit', 1.35], pipe: ['pipe_cluster', 1.2], crate: ['crate_wood', 1.15], barrel: ['barrel', 1.2] };
+  const glbBuckets = new Map();
+  for (const o of world.objs) { if (o.type !== 'prop') continue; const cx = o.x * TS + TS / 2, cz = o.y * TS + TS / 2, r = Math.round(o.rot / (Math.PI / 2)) * (Math.PI / 2) + (R() - 0.5) * 0.2;
+    const gp = GLBPROP[o.kind]; if (gp && PropsGLB.has(gp[0])) { PropsGLB.bake(gp[0], [gp[1], gp[1], gp[1]], r, cx, 0, cz, glbBuckets); R(); continue; }
+    buildProp(o.kind, libAcc, cx, cz, r, R, WH, o.id * 3 + 1); }
+  for (const [gm, arr] of glbBuckets) { const mg = mergeGeometries(arr); arr.forEach(g => g.dispose()); const mesh = new THREE.Mesh(mg, gm); scene.add(mesh); mesh.userData.glbProp = true; }
   wallFixtures(libAcc, wallFaces, roomAt, R, WH, TS);
   const mm = { steel: libM.steel, dark: libM.dark, wood: libM.wood, white: libM.white, cloth: libM.cloth, rust: libM.rust, glass: glassMat, liq: liqMat, scr: scrMat, bl1: bl1Mat, bl2: bl2Mat, hazard: hazMat, flesh: fleshMat, pod: podMat, bone: boneMat };
   { const _unused = { steel: libM.steel, dark: libM.dark, wood: libM.wood, white: libM.white, cloth: libM.cloth, rust: libM.rust, glass: glassMat, liq: liqMat, scr: scrMat, bl1: bl1Mat, bl2: bl2Mat, hazard: hazMat, flesh: fleshMat, pod: podMat, bone: boneMat };
@@ -140,7 +147,7 @@ export function buildScene(world, Q) {
   const stripe = (c1, c2) => canvasTexture(64, 64, (x, w, h) => { x.fillStyle = c1; x.fillRect(0, 0, w, h); x.fillStyle = c2; for (let i = -h; i < w; i += 16) { x.beginPath(); x.moveTo(i, h); x.lineTo(i + 8, h); x.lineTo(i + 8 + h, 0); x.lineTo(i + h, 0); x.fill(); } });
   const lockCol = { key: 0xc9a14a, card: 0x3ca0ff, power: 0xffcc22, code: 0x66ff88, valve: 0xff5533, secret: 0x44aaff, breaker: 0xff9a2a };
   const lockTex = {};
-  const E = { Q, TS, WH, R, group, dyn, mats: libM, glowTex, patchPulse, lit, dis: disposables, canvasTexture, glassMat, liqMat, scrMat, bl1Mat, bl2Mat, hazMat, lockCol, wallMat };
+  const E = { Q, ch: spec.ch, TS, WH, R, group, dyn, mats: libM, glowTex, patchPulse, lit, dis: disposables, canvasTexture, glassMat, liqMat, scrMat, bl1Mat, bl2Mat, hazMat, lockCol, wallMat };
   for (const o of world.objs) {
     const cx = o.x * TS + TS / 2, cz = o.y * TS + TS / 2;
     if (buildDynamic(o, E)) { /* door, locker, vent, generator, breaker, valve: see dynamic3d.js */
@@ -160,6 +167,7 @@ export function buildScene(world, Q) {
       else if (o.kind === 'card') { ig.add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.19, 0.012), m)); const st = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, 0.014), new THREE.MeshBasicMaterial({ color: 0xffffff })); st.position.y = 0.03; ig.add(st); }
       else if (o.kind === 'fuse') { ig.add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.2, 10), new THREE.MeshStandardMaterial({ color: 0xffeebb, transparent: true, opacity: 0.7, emissive: 0xaa6600, emissiveIntensity: 0.8 }))); for (const s of [-1, 1]) { const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.04, 10), m); cap.position.y = s * 0.11; ig.add(cap); } }
       else { ig.add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 0.1), m)); const an = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.25, 4), m); an.position.set(0.07, 0.25, 0); ig.add(an); const sp = new THREE.Mesh(new THREE.CircleGeometry(0.06, 12), new THREE.MeshBasicMaterial({ color: 0x223 })); sp.position.set(0, 0.03, 0.055); ig.add(sp); }
+      { const gn = o.kind === 'card' ? 'item_keycard' : 'item_' + o.kind, gs = { key: 2.4, card: 3.4, fuse: 3.2, radio: 2.4 }[o.kind] || 2.4; if (PropsGLB.has(gn)) { ig.clear(); const ir = PropsGLB.inst(gn, [gs, gs, gs]); ir.position.y = -0.1; ig.add(ir); } }
       const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: o.kind === 'key' ? 0xffd070 : o.kind === 'card' ? 0x50a8ff : o.kind === 'fuse' ? 0xffb030 : 0xaaccff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.55 })); gl.scale.set(1.1, 1.1, 1); ig.add(gl);
       ig.position.set(cx, 0.9, cz); group.add(ig); dyn.items.push({ o, g: ig, m, gl });
     } else if (o.type === 'log') {

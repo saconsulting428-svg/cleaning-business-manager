@@ -1,7 +1,7 @@
 """Procedural surface textures (numpy + PIL): painted metal, rust, wood, concrete, dark steel, rubber, glass-dirt. Tileable, 512px. Run by build.py before modelling."""
 import numpy as np
 from PIL import Image
-N = 512
+N = 256
 rs = np.random.RandomState(7)
 
 def fbm(oct=5, base=4, seed=0):

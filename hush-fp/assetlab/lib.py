@@ -18,6 +18,7 @@ def mat(name, tex=None, rough=0.7, metal=0.0, emit=None, emit_k=0, alpha=None, c
         im = bpy.data.images.get(tex) or bpy.data.images.load(TEX + tex + '.png'); im.name = tex
         t = nt.nodes.new('ShaderNodeTexImage'); t.image = im; nt.links.new(t.outputs['Color'], b.inputs['Base Color'])
     else: b.inputs['Base Color'].default_value = (*color, 1)
+    b.inputs['Emission Color'].default_value = (0, 0, 0, 1); b.inputs['Emission Strength'].default_value = 0
     if emit:
         b.inputs['Emission Color'].default_value = (*emit, 1); b.inputs['Emission Strength'].default_value = emit_k
     if alpha is not None:
@@ -50,7 +51,7 @@ class Asset:
         bmesh.ops.translate(bm, verts=geom_verts, vec=pos)
         if bevel > 0:
             edges = list({e for v in geom_verts for e in v.link_edges}); 
-            try: bmesh.ops.bevel(bm, geom=edges, offset=bevel, segments=2, affect='EDGES', profile=0.6)
+            try: bmesh.ops.bevel(bm, geom=edges, offset=bevel, segments=1, affect='EDGES', profile=0.6)
             except Exception: pass
         new = [f for f in bm.faces if f not in before]; bm.normal_update(); self._uv(bm, new, scale)
         if smooth:
@@ -117,7 +118,7 @@ def export(asset, path):
     objs = asset.build(); bpy.ops.object.select_all(action='DESELECT')
     for o in objs: o.select_set(True)
     bpy.context.view_layer.objects.active = objs[0]
-    bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=True, export_apply=True, export_yup=True, export_image_format='JPEG', export_jpeg_quality=80, export_materials='EXPORT', export_cameras=False, export_lights=False)
+    bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=True, export_apply=True, export_yup=True, export_image_format='JPEG', export_jpeg_quality=72, export_materials='EXPORT', export_cameras=False, export_lights=False)
     return objs
 
 def preview(objs, path, size=420, yaw=35, pitch=18):

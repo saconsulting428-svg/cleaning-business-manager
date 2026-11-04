@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ctx, newAcc, paint } from './objects3d.js';
-import { LockerGLB } from './locker_glb.js';
+import { PropsGLB } from './props_glb.js';
 
 const M = (g, mat, x, y, z) => { const m = new THREE.Mesh(g, mat); if (x !== undefined) m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; return m; };
 const bx = (w, h, d, c, wear, seed) => paint(new THREE.BoxGeometry(w, h, d), c, wear === undefined ? 0.6 : wear, seed || 3);
@@ -23,7 +23,7 @@ export function buildDynamic(o, E) {
     for (const s of [-1, 1]) { B('dark', 0.2, 2.8, 0.34, s * (TS / 2 - 0.1), 1.4, 0, 0x2f3338); B('steel', 0.04, 2.7, 0.38, s * (TS / 2 - 0.2), 1.35, 0, 0x4a5258); for (let i = 0; i < 4; i++) C('steel', 0.025, 0.025, 0.04, s * (TS / 2 - 0.1), 0.4 + i * 0.7, 0.18, 0x7a8087, 6, 'z'); }
     B('dark', TS, WH - 2.8, 0.34, 0, 2.8 + (WH - 2.8) / 2, 0, 0x2f3338); B('steel', TS - 0.2, 0.06, 0.3, 0, 2.77, 0, 0x4a5258); B('dark', span, 0.04, 0.3, 0, 0.02, 0, 0x2a2c30);
     flush(g, acc, mm);
-    const slabM = mats.steel.clone(); patchPulse(slabM); slabM.emissive = new THREE.Color(0x000000); slabM.emissiveIntensity = 1; E.dis.push(slabM);
+    let slabM = mats.steel.clone(); patchPulse(slabM); slabM.emissive = new THREE.Color(0x000000); slabM.emissiveIntensity = 1; E.dis.push(slabM);
     const kk = ctx(acc, 0, 0, 0, 0.8, o.id * 17), P = kk;                                                         // door leaf (local x from the hinge)
     const lw = span - 0.04, c0 = o.lock ? 0xb4b8b6 : pk3(R, [0x9a9d98, 0x8c9490, 0xa89f8a]);
     P.B('steel', lw, 2.7, 0.1, hs * 0.0 + lw / 2 * hs, 1.35, 0, c0); P.B('steel', 0.08, 2.5, 0.13, lw * 0.18 * hs, 1.35, 0, mix2(c0)); P.B('steel', 0.08, 2.5, 0.13, lw * 0.86 * hs, 1.35, 0, mix2(c0));
@@ -34,6 +34,12 @@ export function buildDynamic(o, E) {
     if (o.lock) { P.B('dark', 0.26, 0.4, 0.04, lw * 0.82 * hs, 1.45, 0.08, 0x1d2024); P.B('steel', 0.7, 0.04, 0.16, lw / 2 * hs, 2.1, 0, 0xc99a14, 0, 0, 0); P.B('hazard', lw - 0.3, 0.12, 0.02, lw / 2 * hs, 2.25, 0.07, 0xc99a14); }
     else P.B('hazard', lw - 0.5, 0.06, 0.02, lw / 2 * hs, 0.6, 0.07, 0xd8d0b8);
     flush(piv, acc, Object.assign({}, mm, { steel: slabM }));
+    if (PropsGLB.has('door_plain')) {                                                                              // the Blender door: frame fixed, leaf swinging on the hinge pivot
+      const dn = o.lock === 'card' ? 'door_keycard' : o.lock ? 'door_steel' : 'door_plain', sx = 1.9, sy = 1.27, sz = 2.0, root = PropsGLB.inst(dn, [hs * sx, sy, sz]), leaf = PropsGLB.node(root, 'door');
+      g.clear(); const hdr = new THREE.Mesh(new THREE.BoxGeometry(TS, WH - 2.8, 0.34), mats.dark); hdr.position.set(0, 2.8 + (WH - 2.8) / 2, 0); g.add(hdr);
+      if (leaf) { root.remove(leaf); piv.clear(); const lm = []; leaf.traverse(mm2 => { if (mm2.isMesh) { mm2.material = mm2.material.clone(); mm2.material.userData.shared = false; lm.push(mm2.material); } }); E.dis.push(...lm); leaf.position.set(0, 0, 0); leaf.scale.set(hs * sx, sy, sz); piv.add(leaf); slabM = { emissive: { setHex: (h) => lm.forEach(q => q.emissive.setHex(h)) } }; }
+      g.add(root);
+    }
     if (o.lock) { const bandM = new THREE.MeshBasicMaterial({ color: E.lockCol[o.lock] || 0xffffff }); const band = new THREE.Mesh(new THREE.BoxGeometry(lw * 0.8, 0.1, 0.12), bandM); band.position.set(lw / 2 * hs, 0.95, 0); piv.add(band); E.dis.push(bandM); }
     const lightM = new THREE.MeshBasicMaterial({ color: 0xff2020 }); const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.08), lightM); lamp.position.set(hs * (TS / 2 - 0.1) * -1, 2.65, 0.19); g.add(lamp); E.dis.push(lightM);
     piv.position.set(-hs * (TS / 2 - 0.05), 0, 0); g.add(piv);
@@ -43,6 +49,7 @@ export function buildDynamic(o, E) {
       const dispM = new THREE.MeshBasicMaterial({ map: kp(E, '----') }), disp = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.075), dispM); disp.position.set(0, 0.14, 0.04); pad.add(disp);
       for (let i = 0; i < 12; i++) { const b = M(bx(0.05, 0.035, 0.025, 0x5d6368, 0.2), mats.dark, -0.07 + (i % 3) * 0.07, 0.04 - Math.floor(i / 3) * 0.065, 0.045); pad.add(b); }
       const led = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.01), new THREE.MeshBasicMaterial({ color: 0xff2020 })); led.position.set(0.1, 0.19, 0.04); pad.add(led);
+      if (PropsGLB.has('keypad_panel')) { pad.children.slice().forEach(c => { if (c !== disp && c !== led) pad.remove(c); }); const pr = PropsGLB.inst('keypad_panel', [1.3, 1.3, 1.3]); pr.position.y = -0.22; pad.add(pr); disp.position.set(0, 0.105, 0.052); }
       pad.position.set(hs * (TS / 2 + 0.0), 1.35, 0.26); pad.userData = { disp: dispM, last: '----', led }; g.add(pad); E.dis.push(dispM);
     }
     group.add(g);
@@ -54,8 +61,9 @@ export function buildDynamic(o, E) {
     const dx = Math.cos(o.face), dz = Math.sin(o.face), v = o.variant || 'locker', g = new THREE.Group(), K = ctx(acc, 0, 0, 0, 0.8, o.id * 5), { B, C } = K;
     const tone = v === 'cabinet' ? pk3(R, [0x8a6a46, 0x75573a, 0x6a5a48]) : pk3(R, [0x3d4a45, 0x4a5560, 0x56604f, 0x5a4f46]), cat = v === 'cabinet' ? 'wood' : 'steel', w = v === 'cabinet' ? 1.15 : 0.9, h = v === 'cabinet' ? 1.55 : 2.0, d = 0.62;
     let door = null;
-    if (v === 'locker' && LockerGLB.ready) {                                    // the painted metal locker model
-      g.add(LockerGLB.build(E.Q, o.id % 3 === 0 ? 0x586660 : o.id % 3 === 1 ? 0x625e54 : 0x566068));
+    const GL = v === 'locker' ? 'locker' : v === 'cabinet' ? 'cabinet_wood' : 'alcove_shelf';
+    if (PropsGLB.has(GL)) {                                                       // Blender model: body fixed, 'door' node swings on its hinge pivot
+      const root = PropsGLB.inst(GL, v === 'locker' ? [1.15, 1.1, 1.2] : v === 'cabinet' ? [1.2, 1.15, 1.25] : [1.2, 1.0, 1.2]); g.add(root); door = PropsGLB.node(root, 'door') || null;
     } else if (v === 'alcove') {                                                       // a dark recess behind an open shelf frame
       B('dark', 0.95, 2.05, 0.5, 0, 1.03, -0.05, 0x060708); for (const sx of [-0.47, 0.47]) B('steel', 0.06, 2.1, 0.06, sx, 1.05, 0.34, 0x30343a); for (const yy of [0.12, 0.7, 1.3, 1.9]) B('steel', 1.0, 0.04, 0.5, 0, yy, 0.12, 0x30343a);
       B('wood', 0.34, 0.26, 0.3, -0.28, 0.85, 0.12, 0x6b4a2e); B('cloth', 0.4, 0.04, 0.3, 0.2, 1.34, 0.12, 0x4a4a3a); B('steel', 0.9, 0.04, 0.04, 0, 2.07, 0.36, 0x30343a);
@@ -78,6 +86,7 @@ export function buildDynamic(o, E) {
     B('dark', 1.0, 0.8, 0.06, 0, 0, 0, 0x070809); B('steel', 1.14, 0.06, 0.06, 0, 0.43, 0.02, 0x59636c); B('steel', 1.14, 0.06, 0.06, 0, -0.43, 0.02, 0x59636c); for (const s of [-1, 1]) B('steel', 0.06, 0.92, 0.06, s * 0.54, 0, 0.02, 0x59636c);
     for (let i = 0; i < 7; i++) B('steel', 0.98, 0.03, 0.08, 0, -0.33 + i * 0.11, 0.04, 0x6f757b, -0.5); for (const sx of [-0.54, 0.54]) for (const sy of [-0.43, 0.43]) C('dark', 0.022, 0.022, 0.03, sx, sy, 0.06, 0x16181b, 6, 'z');
     B('rust', 0.5, 0.012, 0.08, 0.2, -0.1, 0.05, 0x5a3a24); flush(g, acc, mm);
+    if (PropsGLB.has('vent_wall')) { g.clear(); const vr = PropsGLB.inst('vent_wall', [1.3, 1.35, 1.2]); vr.position.y = -0.4; g.add(vr); }
     g.position.set(cx - dx * (TS / 2 - 0.03), 0.55, cz - dz * (TS / 2 - 0.03)); g.rotation.y = Math.PI / 2 - o.face; group.add(g); dyn.valves.push({ o, g, kind: 'vent', mat: mats.dark }); return true;
   }
   if (o.type === 'generator') {
@@ -92,6 +101,7 @@ export function buildDynamic(o, E) {
     flush(g, acc, mm);
     const il = new THREE.MeshBasicMaterial({ color: 0xff2200 }); const ind = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.04), il); ind.position.set(-0.05, 0.9, 0.54); g.add(ind); E.dis.push(il);
     const fan = new THREE.Group(); for (let i = 0; i < 6; i++) { const bl = M(bx(0.26, 0.05, 0.012, 0x2a2e30, 0.2), mats.dark); bl.position.set(Math.cos(i * 1.047) * 0.13, Math.sin(i * 1.047) * 0.13, 0); bl.rotation.z = i * 1.047 + 0.3; fan.add(bl); } fan.add(M(cy(0.04, 0.04, 0.05, 0x16181b, 8), mats.dark)); fan.position.set(1.0, 0.62, 0.0); fan.rotation.y = Math.PI / 2; g.add(fan);
+    if (PropsGLB.has('generator')) { g.children.slice().forEach(c => { if (c !== ind) g.remove(c); }); fan.visible = false; g.add(fan); ind.position.set(0.0, 0.98, 0.6); g.add(PropsGLB.inst('generator', [1.45, 1.45, 1.45])); }
     g.position.set(cx, 0, cz); g.rotation.y = R() < 0.5 ? 0 : Math.PI / 2; group.add(g); dyn.gens.push({ o, g, il, fan }); return true;
   }
   if (o.type === 'breaker') {
@@ -107,6 +117,11 @@ export function buildDynamic(o, E) {
     for (let i = 0; i < 8; i++) { const col = i % 4, row = Math.floor(i / 4), hb = M(bx(0.1, 0.16, 0.06, 0x23272b, 0.2), mats.dark, -0.27 + col * 0.18, 1.5 - row * 0.3 - 0.12, 0.16); g.add(hb); const lv = new THREE.Mesh(bx(0.045, 0.1, 0.045, i === 0 ? 0xc02a22 : 0xd8d4c0, 0.1), mats.dark); lv.geometry.translate(0, 0.05, 0); lv.position.set(-0.27 + col * 0.18, 1.5 - row * 0.3 - 0.12, 0.2); lv.rotation.x = -0.9; g.add(lv); levers.push(lv); }
     const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.04), led); lamp.position.set(0.28, 1.75, 0.16); g.add(lamp);
     const glb = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xff9a2a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.45 })); glb.scale.set(1.5, 1.5, 1); glb.position.set(0, 1.4, 0.4); g.add(glb);
+    if (PropsGLB.has('breaker_panel')) {
+      g.children.slice().forEach(c => { if (c !== lamp && c !== glb) g.remove(c); }); levers.length = 0; const br = PropsGLB.inst('breaker_panel', [1.4, 1.4, 1.4]); br.position.y = 0.6; g.add(br);
+      const ln = PropsGLB.node(br, 'lever'); if (ln) levers.push(ln); lamp.position.set(0.0, 1.95, 0.12);
+      for (const sx of [-0.3, 0.3]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.62, 0.08), mats.dark); leg.position.set(sx, 0.31, 0); g.add(leg); }
+    }
     g.position.set(cx, 0, cz); g.rotation.y = Math.floor(R() * 4) * Math.PI / 2; group.add(g); dyn.valves.push({ o, g, kind: 'breaker', led, levers, glow: glb }); return true;
   }
   if (o.type === 'valve') {
@@ -118,6 +133,10 @@ export function buildDynamic(o, E) {
     const wm = E.lit({ color: 0xb02a1e, roughness: 0.4, metalness: 0.6 }); patchPulse(wm); E.dis.push(wm); const tilt = new THREE.Group(), wheel = new THREE.Group();
     wheel.add(new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.035, 8, 22), wm)); wheel.add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.09, 10).rotateX(Math.PI / 2), wm)); for (let i = 0; i < 6; i++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.028, 0.028), wm); sp.rotation.z = i * Math.PI / 3; wheel.add(sp); }
     tilt.rotation.x = Math.PI / 2; tilt.position.set(0, 1.55, 0); tilt.add(wheel); g.add(tilt);
+    if (PropsGLB.has('valve_wheel')) {
+      g.clear(); const vr = PropsGLB.inst('valve_wheel', [1.5, 1.5, 1.5]), wn = PropsGLB.node(vr, 'wheel'); if (wn) { vr.remove(wn); wheel.clear(); wn.position.set(0, 0, 0); wn.scale.set(1.5, 1.5, 1.5); wn.rotation.set(Math.PI / 2, 0, 0); wheel.add(wn); }
+      tilt.position.set(0, 1.47, 0); g.add(vr); g.add(tilt);
+    }
     g.position.set(cx, 0, cz); g.rotation.y = (o.id % 4) * Math.PI / 2; group.add(g); dyn.valves.push({ o, g, kind: 'valve', wheel }); return true;
   }
   return false;
