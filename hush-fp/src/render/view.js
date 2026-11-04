@@ -95,6 +95,7 @@ export class View {
     this.galleryScene = sc; this.galleryCam = new THREE.PerspectiveCamera(48, this.camera.aspect, 0.1, 80); this.galleryCam.position.set((cols - 1) * 1.3, 9.5, 17); this.galleryCam.lookAt((cols - 1) * 1.3, 0.9, 3.0); return kinds.length; }
   /* torches: the model on the hand, the beam and the cone follow the selected design; changing it lowers the hand, swaps the model and raises it again */
   setTorch(id, instant) { if (!this.torchModels) return; this.torchId = id; if (instant || !this.torchCur) { this.torchSw = null; this.applyTorch(id); return; } if (id !== this.torchCur) this.torchSw = { t: 0, to: id, done: false }; }
+  reloadTorch() { if (!this.torchModels) return; if (this.torchActive) this.torchSlot.remove(this.torchActive.g); this.torchModels = {}; this.torchActive = null; this.applyTorch(this.torchId || 'standard'); }
   applyTorch(id) {
     const T = torchById(id); let m = this.torchModels[T.id] || (this.torchModels[T.id] = buildTorch(T.id, this.mcap, glowTex)); if (this.torchActive) this.torchSlot.remove(this.torchActive.g); this.torchSlot.add(m.g); this.torchActive = m; this.lens = m.lens; this.lensGlow = m.glow; this.torchCur = T.id;
     const L = T.light; this.torchI = L.I * 2.6; this.flash.angle = L.angle * 0.75; this.flash.penumbra = Math.max(0.6, L.pen); this.flash.distance = L.dist * 0.4; this.flash.decay = 2; this.flash.color.setHex(L.color); this.coneMat.uniforms.uCol.value.setHex(L.color); const k = Math.tan(L.angle * 0.75) / Math.tan(0.49); this.cone.scale.set(k, k, clamp(L.dist / 36, 0.7, 1.35));

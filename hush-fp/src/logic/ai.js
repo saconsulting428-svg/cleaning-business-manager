@@ -106,6 +106,8 @@ function follow(world, c, dt, speed) {
   }
   c.moving = true; return c.pi >= c.path.length;
 }
+/* how far the creature really has to walk along its current path (the straight line can cross a column, a crate or a locked door) */
+function walkDist(c) { if (!c.path || c.pi >= c.path.length) return 0; let d = 0, px = c.x, py = c.y; for (let i = c.pi; i < c.path.length; i++) { d += Math.hypot(c.path[i][0] - px, c.path[i][1] - py); px = c.path[i][0]; py = c.path[i][1]; } return d; }
 function goTo(world, c, tx, ty, dt, speed, repathEvery) {
   c.repath -= dt; if (!c.path || c.repath <= 0 || !c.pathGoal || Math.abs(c.pathGoal[0] - tx) > 0.6 || Math.abs(c.pathGoal[1] - ty) > 0.6) {
     c.path = findPath(world, c.x, c.y, tx, ty); c.pi = 0; c.pathGoal = [tx, ty]; c.repath = repathEvery || 0.6; if (c.path && c.path.length > 1) { const [fx, fy] = c.path[0]; if (Math.hypot(fx - c.x, fy - c.y) < 0.2) c.pi = 1; }
@@ -186,9 +188,12 @@ export function updateCreature(world, c, dt) {
       /* the strike: inside 2.4 tiles it lunges (a short fast burst, the attack animation plays); when the burst ends the claws connect if you are still within reach, otherwise it recovers and chases on */
       c.atkCd = Math.max(0, (c.atkCd || 0) - dt);
       if ((c.atk || 0) > 0) { const was = c.atk; c.atk -= dt; if (was > 0 && c.atk <= 0) { c.atk = 0; if (p.alive && p.hidden < 0 && !p.vent && dist < 1.7) { world.catchPlayer(c); break; } c.atkCd = 0.9; } }
-      else if (seen && p.alive && c.atkCd <= 0 && dist < 2.4) { c.atk = 0.55; world.events.push({ type: 'lunge', id: c.id, x: c.x, y: c.y }); }
+      else if (seen && p.alive && c.atkCd <= 0 && dist < 2.4 && walkDist(c) <= dist * 1.5 + 0.6) { c.atk = 0.55; world.events.push({ type: 'lunge', id: c.id, x: c.x, y: c.y }); }
       if (seen && dist < 0.8 && p.alive) { world.catchPlayer(c); break; }
       if (near > 0.5) { goTo(world, c, gx, gy, dt, k.hunt * world.diff.speed * (c.atk > 0 ? 1.9 : 1), 0.25); c.noPathT = c.path ? 0 : (c.noPathT || 0) + dt; } else { c.moving = false; if (!seen) { c.state = c.knowsLocker >= 0 ? 'search' : 'search'; c.searchT = 7; c.searchOrigin = { x: c.x, y: c.y }; c.target = null; c.path = null; if (c.knowsLocker >= 0) { const L = world.objById.get(c.knowsLocker); if (L) { c.checkLocker = L; c.target = { x: L.x + 0.5 + Math.cos(L.face) * 0.9, y: L.y + 0.5 + Math.sin(L.face) * 0.9 }; } } } }
+      /* never stand and claw at something it cannot reach: if it has not made progress for 5 s while the player is still not in its claws, it gives up the chase and searches */
+      if (!c.stallRef || Math.hypot(c.x - c.stallRef.x, c.y - c.stallRef.y) > 0.6) { c.stallRef = { x: c.x, y: c.y }; c.stallT = 0; } else c.stallT = (c.stallT || 0) + dt;
+      if (c.stallT > 5 && dist > 1.0) { c.stallT = 0; c.stallRef = null; c.noPathT = 99; }
       if (c.lostT > 4.2 || c.noPathT > 3) { c.noPathT = 0; c.state = 'search'; c.searchT = 7; c.searchOrigin = c.lastSeen ? { x: c.lastSeen.x, y: c.lastSeen.y } : { x: c.x, y: c.y }; c.target = null; c.path = null; }
       break;
     }
