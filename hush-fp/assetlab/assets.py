@@ -306,8 +306,11 @@ def leaf2(a, m, g, col, side, window=False, bar=True, kick=True, num=None):
     if num: a.box(g, m['pw'], (0.1, 0.006, 0.05), (cx, -th / 2 - 0.016, 1.78), bevel=.001)
 
 def door_double(variant='plain'):
-    m = M(); a = Asset('door_dbl' if variant == 'plain' else 'door_dbl_' + variant); col = {'plain': 'pg', 'card': 'pgr', 'steel': 'ds'}[variant]
-    dbl_frame(a, m, 'ds' if variant != 'steel' else 'st')
+    m = M(); a = Asset('door_dbl' if variant == 'plain' else 'door_dbl_' + variant); col = {'plain': 'ds', 'card': 'ds', 'steel': 'ds'}[variant]
+    dbl_frame(a, m, 'ds')
+    a.box('frame', m['py'], (2.0, 0.27, 0.07), (0, 0, 2.17), bevel=.003)               # amber hazard band across the head of the frame
+    for sd in (-1, 1):
+        for x in (-0.99, 0.99): a.box('frame', m['py'], (0.07, 0.275, 0.5), (x, 0, 0.0), bevel=.003)
     leaf2(a, m, 'door', col, -1, window=(variant == 'plain'), bar=(variant != 'steel'), num=True); leaf2(a, m, 'door2', col, +1, window=(variant == 'plain'), bar=(variant != 'steel'))
     a.set_pivot('door', (-0.95, 0, 0), pose=(0, 0, math.radians(-32))); a.set_pivot('door2', (0.95, 0, 0), pose=(0, 0, math.radians(32)))
     # door closer (arm + body) on the left leaf, hazard stripe on the right leaf
@@ -327,8 +330,8 @@ def door_dbl_steel(): return door_double('steel')
 def exit_door():
     """the level exit: a heavy double door with push bars, hazard stripes and a lit EXIT box over it (static; the game adds the glow)"""
     m = M(); a = Asset('exit_door'); dbl_frame(a, m, 'ds', 2.0, 2.2)
-    leaf2(a, m, 'body', 'pg', -1, window=True, bar=True); leaf2(a, m, 'body', 'pg', +1, window=True, bar=True)
-    for sd in (-1, 1): a.box('body', m['py'], (1.8, 0.01, 0.1), (0, sd * 0.045, 0.45), bevel=.002)
+    leaf2(a, m, 'body', 'ds', -1, window=True, bar=True); leaf2(a, m, 'body', 'ds', +1, window=True, bar=True)
+    for sd in (-1, 1): a.box('body', m['py'], (1.8, 0.01, 0.12), (0, sd * 0.045, 0.45), bevel=.002)
     a.box('body', m['pg'], (1.0, 0.18, 0.34), (0, -0.04, 2.38), bevel=.012); a.box('body', m['led_g'], (0.86, 0.02, 0.22), (0, -0.14, 2.44), bevel=.004)
     a.box('body', m['py'], (2.2, 0.28, 0.05), (0, 0, 2.3), bevel=.004)
     return a

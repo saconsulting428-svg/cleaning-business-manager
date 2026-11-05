@@ -364,7 +364,6 @@ function handleEvents(w, dt) {
       case 'beat': playBeat(e, w, p); break;
       case 'hurt': { const bearing = angDiffUI(Math.atan2(e.y - p.y, e.x - p.x), p.yaw); Sound.play('hurt'); G.view.kick(e.amt, bearing); vibe([40, 30, 90]); const d = $('fx-dmg'); d.classList.remove('hit'); void d.offsetWidth; d.classList.add('hit'); G.hpShowT = 5; break; }
       case 'throw': Sound.play('whoosh', {}); break;
-      case 'stun': { const s = spatial(e.x, e.y); Sound.play('roar', { v: Math.max(0.5, s.v), pan: s.pan, pos: s.pos, occl: s.occl, kind: 'stalker' }); G.view.shake = Math.max(G.view.shake || 0, 0.25); banner('IT FLINCHES FROM THE LIGHT: RUN OR HIDE', 'heard', 2200); break; }
       case 'ventShake': { const s = spatial(e.x, e.y); Sound.play('creak', { pan: s.pan, pos: s.pos, occl: s.occl, f: 0.3 }); Sound.play('scrape', { pan: s.pan, pos: s.pos, occl: s.occl }); break; }
       case 'ventFall': { const s = spatial(e.x, e.y); Sound.play('impact', { v: Math.max(0.5, s.v), pan: s.pan, pos: s.pos, occl: s.occl }); if (s.d < 16) G.view.shake = Math.max(G.view.shake || 0, 0.35); banner('SOMETHING DROPPED FROM THE CEILING', 'sus', 2600); break; }
       case 'ventLand': { const s = spatial(e.x, e.y); Sound.play('growl', { v: Math.max(0.5, s.v), pan: s.pan, pos: s.pos, occl: s.occl, kind: 'stalker' }); break; }

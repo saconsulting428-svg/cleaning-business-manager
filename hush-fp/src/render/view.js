@@ -40,23 +40,25 @@ export class View {
   }
   /* ---- first-person hands + flashlight model, parented to the camera ---- */
   buildHands() {
-    const mc = matcap(), hands = new THREE.Group(), body = new THREE.MeshMatcapMaterial({ color: 0x48505a, matcap: mc }), glove = new THREE.MeshMatcapMaterial({ color: 0x3a2e24, matcap: mc }), sleeve = new THREE.MeshMatcapMaterial({ color: 0x4a4d40, matcap: mc }), lens = new THREE.MeshBasicMaterial({ color: 0xfff6dd });
+    const mc = matcap(), hands = new THREE.Group(), body = new THREE.MeshMatcapMaterial({ color: 0x48505a, matcap: mc }), glove = new THREE.MeshMatcapMaterial({ color: 0xa28b6c, matcap: mc }), sleeve = new THREE.MeshMatcapMaterial({ color: 0x4a4d40, matcap: mc }), lens = new THREE.MeshBasicMaterial({ color: 0xfff6dd });
     this.torchSlot = new THREE.Group(); hands.add(this.torchSlot); this.torchModels = {}; this.mcap = mc;
     for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0125, 0.045, 3, 6), glove); f.rotation.z = Math.PI / 2; f.position.set(0, -0.028 + i * 0.0, 0.0 + 0.02 - i * 0.026); f.rotation.x = 0; f.position.set(0.0, -0.01, 0.06 - i * 0.027); f.scale.set(1, 1.2, 1); f.rotation.z = Math.PI / 2; hands.add(f); }
     const palm = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.05, 0.12), glove); palm.position.set(0.005, -0.03, 0.05); hands.add(palm);
-    const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.014, 0.05, 3, 6), glove); thumb.position.set(0.04, 0.0, 0.03); thumb.rotation.set(0.2, 0, -0.5); hands.add(thumb);
-    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.4, 10), sleeve); forearm.rotation.x = Math.PI / 2 - 0.35; forearm.rotation.z = -0.25; forearm.position.set(-0.05, -0.08, 0.28); hands.add(forearm);
+    const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.014, 0.05, 3, 6), glove); thumb.position.set(-0.04, 0.0, 0.03); thumb.rotation.set(0.2, 0, 0.5); hands.add(thumb);
+    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.4, 10), sleeve); forearm.rotation.x = Math.PI / 2 - 0.35; forearm.position.set(0.0, -0.08, 0.28); hands.add(forearm);
     /* the free hand, used for pickups / doors */
     const free = new THREE.Group();                                           // the right hand: an open palm facing forward, fingers up (pushes a door / grabs an item)
-    free.add(new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.09, 0.024), glove).translateY(0.0));
-    for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0105, 0.05 + (i === 1 || i === 2 ? 0.01 : 0), 3, 6), glove); f.position.set(-0.03 + i * 0.02, 0.085, -0.004); f.rotation.set(-0.18, 0, (i - 1.5) * -0.07); free.add(f); }
-    const th2 = new THREE.Mesh(new THREE.CapsuleGeometry(0.0125, 0.045, 3, 6), glove); th2.position.set(-0.056, 0.012, -0.004); th2.rotation.set(-0.15, 0, 0.95); free.add(th2);
-    const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.046, 0.5, 10), sleeve); wrist.rotation.x = Math.PI / 2 - 0.5; wrist.position.set(0.02, -0.2, 0.22); free.add(wrist);
-    this.free = free; free.visible = false; this.hands = hands; this.handRoot = new THREE.Group(); this.handRoot.add(hands); this.handRoot.add(free); this.camera.add(this.handRoot); hands.position.set(-0.19, -0.2, -0.32); hands.rotation.set(0.06, -0.12, 0); free.position.set(0.24, -0.4, -0.3);
+    const palm2 = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), glove); palm2.scale.set(0.05, 0.046, 0.013); free.add(palm2);
+    const fing = (x, len, tilt) => { const g1 = new THREE.Mesh(new THREE.CapsuleGeometry(0.0105, len * 0.55, 3, 8), glove), g2 = new THREE.Mesh(new THREE.CapsuleGeometry(0.0092, len * 0.5, 3, 8), glove); g1.position.set(x, 0.058 + len * 0.28, -0.002); g1.rotation.set(-0.08, 0, tilt); g2.position.set(x + tilt * -0.55 * len * 0.5, 0.058 + len * 0.78, -0.012); g2.rotation.set(-0.38, 0, tilt * 1.2); free.add(g1, g2); };
+    fing(-0.03, 0.06, 0.06); fing(-0.01, 0.07, 0.02); fing(0.011, 0.068, -0.02); fing(0.031, 0.055, -0.07);
+    const th2 = new THREE.Mesh(new THREE.CapsuleGeometry(0.0145, 0.045, 3, 8), glove); th2.position.set(0.056, 0.0, -0.004); th2.rotation.set(-0.2, 0, -0.9); free.add(th2);
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.037, 0.04, 0.05, 12), sleeve); cuff.position.set(-0.01, -0.07, 0.01); cuff.rotation.x = Math.PI / 2 - 0.5; free.add(cuff);
+    const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.046, 0.5, 10), sleeve); wrist.rotation.x = Math.PI / 2 - 0.5; wrist.position.set(-0.03, -0.2, 0.22); wrist.rotation.z = 0.25; free.add(wrist);
+    this.free = free; free.visible = false; this.hands = hands; this.handRoot = new THREE.Group(); this.handRoot.add(hands); this.handRoot.add(free); this.camera.add(this.handRoot); hands.position.set(0.17, -0.2, -0.32); hands.rotation.set(0.06, 0.12, 0); free.position.set(-0.24, -0.4, -0.3);
     this.camera.layers.enableAll();
     /* flashlight */
     this.flash = new THREE.SpotLight(0xfff4e0, 900, 14, 0.49, 0.6, 2); this.flash.castShadow = !!this.Q.shadow; this.flash.shadow.mapSize.set(this.Q.shadow || 512, this.Q.shadow || 512); this.flash.shadow.bias = -0.0006; this.flash.shadow.radius = 2; this.flash.shadow.camera.near = 0.3; this.flash.shadow.camera.far = 24;
-    this.flashTarget = new THREE.Object3D(); this.flashRig = new THREE.Object3D(); this.flashRig.add(this.flash); this.flashRig.add(this.flashTarget); this.flashTarget.position.set(0, 0, -6); this.flash.target = this.flashTarget; this.flash.position.set(-0.15, -0.12, -0.1);
+    this.flashTarget = new THREE.Object3D(); this.flashRig = new THREE.Object3D(); this.flashRig.add(this.flash); this.flashRig.add(this.flashTarget); this.flashTarget.position.set(0, 0, -6); this.flash.target = this.flashTarget; this.flash.position.set(0.15, -0.12, -0.1);
     const coneG = new THREE.ConeGeometry(2.6, 11, 24, 1, true); coneG.translate(0, -5.5, 0); coneG.rotateX(Math.PI / 2);
     this.coneMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uInt: { value: 0.1 }, uCol: { value: new THREE.Color(0xfff0d8) } }, fog: false,
       vertexShader: 'varying vec3 vN; varying vec3 vV; varying float vA; void main(){ vN = normalMatrix * normal; vec4 mv = modelViewMatrix * vec4(position,1.0); vV = mv.xyz; vA = clamp(-position.z / 11.0, 0.0, 1.0); gl_Position = projectionMatrix * mv; }',
@@ -187,10 +189,10 @@ export class View {
     const on = p.flash && p.alive && p.hidden < 0 && !p.vent; let power = on ? 1 : 0; if (on && world.threat > 0.75 && Math.sin(now * 37) > 0.93) power = 0.15; if (on && p.stagger > 0 && Math.sin(now * 55) > 0.1) power = 0.2; if (on && this.pullPos) { const ex = Math.atan2(this.pullPos[1] - p.y, this.pullPos[0] - p.x); let d = ex - p.yaw; while (d > Math.PI) d -= 6.283; while (d < -Math.PI) d += 6.283; if (Math.abs(d) > 1.3 && Math.sin(now * 31) > 0.5) power = 0.15; } if (on && world.spec.lightsOut) power = 1;
     this.flash.intensity += (power * this.torchI * (1 + 0.025 * Math.sin(now * 9)) - this.flash.intensity) * Math.min(1, dt * 20); this.coneMat.uniforms.uInt.value = this.flash.intensity / this.torchI * (this.portrait ? 0.12 : 0.1); this.cone.visible = this.Q.cone && this.flash.intensity > 3; this.lens.visible = on; this.lens.material.color.setHex(on ? this.torchActive.lensCol : 0x0c0c0c); if (this.lensGlow) { this.lensGlow.visible = on; this.lensGlow.material.opacity = 0.35 + 0.2 * (this.flash.intensity / this.torchI); }
     /* hands: bob, sway, reach */
-    const hs = p.sprint ? 1.8 : 1; this.hands.position.set(-0.19 + Math.sin(this.bobPhase) * 0.008 * hs, -0.2 + Math.abs(Math.sin(this.bobPhase)) * 0.012 * hs + (p.crouch ? 0.01 : 0), -0.32); this.hands.rotation.set(0.06 + Math.sin(this.bobPhase * 2) * 0.01, -0.12, Math.sin(this.bobPhase) * 0.02);
-    if (this.torchSw) { const w = this.torchSw; w.t += dt; const u = Math.min(1, w.t / 0.55), sn = Math.sin(Math.PI * u); if (u >= 0.5 && !w.done) { w.done = true; this.applyTorch(w.to); } this.hands.position.y -= 0.3 * sn; this.hands.position.x -= 0.06 * sn; this.hands.rotation.x += 0.9 * sn; if (u >= 1) this.torchSw = null; }
+    const hs = p.sprint ? 1.8 : 1; this.hands.position.set(0.17 + Math.sin(this.bobPhase) * 0.008 * hs, -0.2 + Math.abs(Math.sin(this.bobPhase)) * 0.012 * hs + (p.crouch ? 0.01 : 0), -0.32); this.hands.rotation.set(0.06 + Math.sin(this.bobPhase * 2) * 0.01, 0.12, Math.sin(this.bobPhase) * 0.02);
+    if (this.torchSw) { const w = this.torchSw; w.t += dt; const u = Math.min(1, w.t / 0.55), sn = Math.sin(Math.PI * u); if (u >= 0.5 && !w.done) { w.done = true; this.applyTorch(w.to); } this.hands.position.y -= 0.3 * sn; this.hands.position.x += 0.06 * sn; this.hands.rotation.x += 0.9 * sn; if (u >= 1) this.torchSw = null; }
     this.handRoot.visible = p.alive && p.hidden < 0 && !p.vent;
-    if (this.reachT > 0) { this.reachT -= dt; const u = Math.sin(Math.PI * (1 - this.reachT / 0.45)); this.free.visible = true; this.free.position.set(0.24 - 0.15 * u, -0.4 + 0.27 * u, -0.3 - 0.26 * u); this.free.rotation.set(-0.35 * u + 0.1, -0.2 * (1 - u), -0.12 * (1 - u)); } else this.free.visible = false;
+    if (this.reachT > 0) { this.reachT -= dt; const u = Math.sin(Math.PI * (1 - this.reachT / 0.45)); this.free.visible = true; this.free.position.set(-0.24 + 0.15 * u, -0.4 + 0.27 * u, -0.3 - 0.26 * u); this.free.rotation.set(-0.35 * u + 0.1, 0.2 * (1 - u), 0.12 * (1 - u)); } else this.free.visible = false;
   }
   menuFrame(world, dt, now) { this.frame(world, dt, now, { menu: true }); }
   reach() { this.reachT = 0.45; }

@@ -153,7 +153,8 @@ export function updateCreature(world, c, dt) {
       break;
     }
     case 'suspicious': { // it has noticed something: it stops, turns toward it, and creeps closer
-      c.moving = false; if (c.lastSeen) { const want = Math.atan2(c.lastSeen.y - c.y, c.lastSeen.x - c.x); c.yaw += clamp(angDiff(c.yaw, want), -k.turn * dt, k.turn * dt); }
+      /* it keeps walking towards where it saw you while it makes up its mind (a sentinel only within its leash) */
+      if (c.lastSeen && !(k.leash && c.post && Math.hypot(c.x - c.post.x, c.y - c.post.y) > k.leash)) goTo(world, c, c.lastSeen.x, c.lastSeen.y, dt, k.invest * 1.2, 0.4); else c.moving = false;
       c.wait += dt; if (c.alert < 0.2 || c.wait > 3.5) { if (c.lastSeen && c.alert >= 0.2) { c.state = 'investigate'; c.target = { x: c.lastSeen.x, y: c.lastSeen.y }; c.path = null; } else { c.state = 'roam'; c.target = null; c.wait = 0.5; } }
       break;
     }

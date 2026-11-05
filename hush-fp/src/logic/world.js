@@ -188,7 +188,7 @@ export class World {
     /* the first mauling of a run is survivable (55 damage, you are thrown clear and it reels for a moment): a fair chance to run or hide; a second one (or any when hurt) is fatal */
     if (p.hp > 55 && (this.time - (c.maulT === undefined ? -99 : c.maulT)) > 8) {
       p.hp -= 55; p.hurtAt = this.time; p.stagger = 1.4; p.vx = 0; p.vy = 0; c.maulT = this.time; this.events.push({ type: 'hurt', amt: 55, src: 'monster', hp: p.hp, x: c.x, y: c.y });
-      c.state = 'search'; c.searchT = 5; c.target = null; c.path = null; c.atk = 0; c.alert = 0.2; c.frozenT = 2.4; c.checkLocker = null; c.checking = 0; c.lockerDone = true;
+      c.state = 'hunt'; c.alert = 1; c.lastSeen = { x: p.x, y: p.y }; c.target = null; c.path = null; c.atk = 0; c.atkCd = 1.3; c.frozenT = 0.8; c.checkLocker = null; c.checking = 0; c.lockerDone = true;
       if (p.hidden < 0 && !p.vent) { const ax = Math.atan2(p.y - c.y, p.x - c.x); for (const d of [1.8, 1.4, 1.0, 0.6]) for (const da of [0, 0.5, -0.5, 1.0, -1.0]) { const nx = p.x + Math.cos(ax + da) * d, ny = p.y + Math.sin(ax + da) * d, k = Math.floor(ny) * this.W + Math.floor(nx); if (this.cells[k] !== 0 && !this.solid.has(k) && !(this.doorAt.get(k) && this.doorAt.get(k).open < 0.5)) { p.x = nx; p.y = ny; p.px = nx; p.py = ny; return; } } }
       return;
     }
@@ -200,7 +200,6 @@ export class World {
     if (this.over === 'win') return;
     if (p.alive) this.updatePlayer(dt, inp);
     this.updateProjectiles(dt);
-    this.updateDazzle(dt);
     this.seenT = (this.seenT || 0) - dt; if (this.seenT <= 0) { this.seenT = 0.3; this.markSeen(); }
     /* walking up to the exit is enough: no extra tap needed */
     { const ex = this.gen.exit; if (ex && p.alive && p.hidden < 0 && !p.vent && !this.over && Math.hypot(ex.x + 0.5 - p.x, ex.y + 0.5 - p.y) < 1.2) { this.over = 'win'; this.events.push({ type: 'win' }); } }

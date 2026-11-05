@@ -63,7 +63,7 @@ def build():
     import os; os.makedirs('/tmp/hushtex', exist_ok=True)
     paint('paint_green', (82, 98, 88), 0.7, 1); paint('paint_grey', (110, 116, 120), 0.6, 2); paint('paint_blue', (66, 84, 106), 0.6, 3); paint('paint_red', (120, 44, 38), 0.8, 4)
     paint('paint_yellow', (170, 140, 40), 0.9, 5, rust=(100, 70, 30)); paint('paint_cream', (170, 164, 140), 0.7, 6); paint('paint_white', (196, 198, 194), 0.5, 7)
-    paint('steel', (96, 100, 106), 0.35, 8, rust=(110, 70, 44)); paint('darksteel', (44, 47, 52), 0.35, 9)
+    paint('steel', (96, 100, 106), 0.35, 8, rust=(110, 70, 44)); paint('darksteel', (52, 50, 48), 0.85, 9, rust=(122, 66, 30))
     rustmetal('rust', 11); wood('wood', (112, 78, 46), 12); wood('wood_dark', (70, 48, 30), 13); concrete('concrete', (120, 118, 112), 14); rubber('rubber', (30, 30, 32), 15)
     rubber('bone', (176, 168, 148), 16); paint('screen', (30, 70, 56), 0.1, 17)
 if __name__ == '__main__': build()

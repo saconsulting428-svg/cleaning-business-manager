@@ -39,12 +39,12 @@ export function buildTorch(id, mc, glowTex) {
   } else if (PropsGLB.has('torch_hand')) {                                   // the supplied photo torch (assetlab/torch.py): rusty body, hazard stripe, red switch on top, wrist strap
     const root = PropsGLB.inst('torch_hand', [1, 1, 1]), cache = buildTorch._mc || (buildTorch._mc = new Map());
     root.traverse(o => { if (o.isMesh) { const m0 = o.material; let m = cache.get(m0.uuid + mc.uuid); if (!m) { m = new THREE.MeshBasicMaterial({ color: m0.map ? 0xd6d0c8 : 0xffffff, map: m0.map || null, fog: false }); if (!m0.map) m.color.copy(m0.color).multiplyScalar(2.2); cache.set(m0.uuid + mc.uuid, m); } o.material = m; } });
-    root.position.z = -0.02; g.add(root); lens.geometry = new THREE.CircleGeometry(0.039, 22); lens.material.side = THREE.DoubleSide; add(lens, 0, 0, -0.1715, 0, Math.PI);
+    root.position.z = -0.02; g.add(root); lens.geometry = new THREE.CircleGeometry(0.033, 22); lens.material.side = THREE.DoubleSide; add(lens, 0, 0, -0.152, 0, Math.PI);
   } else {
     cyl(0.03, 0.03, 0.2, body, 0.01, 16); for (let i = 0; i < 4; i++) cyl(0.0325, 0.0325, 0.012, dark, 0.06 - i * 0.03, 16); cyl(0.056, 0.036, 0.075, body, -0.135, 18);
     add(new THREE.Mesh(new THREE.TorusGeometry(0.054, 0.007, 8, 22), bez), 0, 0, -0.173); add(lens, 0, 0, -0.1735, 0, Math.PI); add(new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.012, 0.03), dark), 0, 0.034, -0.02);
   }
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: lensCol, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, depthTest: false, opacity: 0.55 })); glow.scale.setScalar(0.22); glow.position.z = -0.19; glow.renderOrder = 6; g.add(glow);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: lensCol, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, depthTest: false, opacity: 0.55 })); if (id === 'standard' && PropsGLB.has('torch_hand')) { glow.scale.setScalar(0.1); glow.position.z = -0.158; glow.material.depthTest = true; glow.material.opacity = 0.5; } else { glow.scale.setScalar(0.22); glow.position.z = -0.19; } glow.renderOrder = 6; g.add(glow);
   g.traverse(o => { if (o.isMesh) o.renderOrder = 5; });
   return { g, lens, glow, lensCol };
 }
