@@ -34,15 +34,22 @@ export function buildDynamic(o, E) {
     if (o.lock) { P.B('dark', 0.26, 0.4, 0.04, lw * 0.82 * hs, 1.45, 0.08, 0x1d2024); P.B('steel', 0.7, 0.04, 0.16, lw / 2 * hs, 2.1, 0, 0xc99a14, 0, 0, 0); P.B('hazard', lw - 0.3, 0.12, 0.02, lw / 2 * hs, 2.25, 0.07, 0xc99a14); }
     else P.B('hazard', lw - 0.5, 0.06, 0.02, lw / 2 * hs, 0.6, 0.07, 0xd8d0b8);
     flush(piv, acc, Object.assign({}, mm, { steel: slabM }));
-    if (PropsGLB.has('door_plain')) {                                                                              // the Blender door: frame fixed, leaf swinging on the hinge pivot
+    let pivB = null;
+    if (PropsGLB.has('door_dbl')) {                                                                                // realistic double door: fixed frame, two leaves swinging from their own jambs
+      const dn = o.lock === 'card' ? 'door_dbl_card' : o.lock ? 'door_dbl_steel' : 'door_dbl', root = PropsGLB.inst(dn, [1, 1, 1]), lA = PropsGLB.node(root, 'door'), lB = PropsGLB.node(root, 'door2');
+      g.clear(); const DH = E.hAt ? E.hAt(o.x, o.y) : WH, hdr = new THREE.Mesh(new THREE.BoxGeometry(TS, DH - 2.2, 0.34), mats.dark); hdr.position.set(0, 2.2 + (DH - 2.2) / 2, 0); g.add(hdr);
+      if (lA && lB) { root.remove(lA); root.remove(lB); piv.clear(); const lm = []; for (const lf of [lA, lB]) lf.traverse(mm2 => { if (mm2.isMesh) { mm2.material = mm2.material.clone(); mm2.material.userData.shared = false; lm.push(mm2.material); } }); E.dis.push(...lm);
+        lA.position.set(0, 0, 0); piv.add(lA); pivB = new THREE.Group(); lB.position.set(0, 0, 0); pivB.add(lB); slabM = { emissive: { setHex: (h) => lm.forEach(q => q.emissive.setHex(h)) } }; }
+      g.add(root); E.defer.push(root);
+    } else if (PropsGLB.has('door_plain')) {                                                                              // the Blender door: frame fixed, leaf swinging on the hinge pivot
       const dn = o.lock === 'card' ? 'door_keycard' : o.lock ? 'door_steel' : 'door_plain', sx = 1.9, sy = 0.97, sz = 2.0, root = PropsGLB.inst(dn, [hs * sx, sy, sz]), leaf = PropsGLB.node(root, 'door');
       g.clear(); const DH = E.hAt ? E.hAt(o.x, o.y) : WH, hdr = new THREE.Mesh(new THREE.BoxGeometry(TS, DH - 2.2, 0.34), mats.dark); hdr.position.set(0, 2.2 + (DH - 2.2) / 2, 0); g.add(hdr);
       if (leaf) { root.remove(leaf); piv.clear(); const lm = []; leaf.traverse(mm2 => { if (mm2.isMesh) { mm2.material = mm2.material.clone(); mm2.material.userData.shared = false; lm.push(mm2.material); } }); E.dis.push(...lm); leaf.position.set(0, 0, 0); leaf.scale.set(hs * sx, sy, sz); piv.add(leaf); slabM = { emissive: { setHex: (h) => lm.forEach(q => q.emissive.setHex(h)) } }; }
       g.add(root); E.defer.push(root);
     }
-    if (o.lock) { const bandM = new THREE.MeshBasicMaterial({ color: E.lockCol[o.lock] || 0xffffff }); const band = new THREE.Mesh(new THREE.BoxGeometry(lw * 0.8, 0.1, 0.12), bandM); band.position.set(lw / 2 * hs, 0.95, 0); piv.add(band); E.dis.push(bandM); }
+    if (o.lock) { const bandM = new THREE.MeshBasicMaterial({ color: E.lockCol[o.lock] || 0xffffff }); const band = new THREE.Mesh(new THREE.BoxGeometry(pivB ? 0.7 : lw * 0.8, 0.1, 0.12), bandM); band.position.set(pivB ? 0.46 : lw / 2 * hs, 0.95, 0); piv.add(band); E.dis.push(bandM); }
     const lightM = new THREE.MeshBasicMaterial({ color: 0xff2020 }); const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.08), lightM); lamp.position.set(hs * (TS / 2 - 0.1) * -1, PropsGLB.has('door_plain') ? 2.12 : 2.65, 0.19); g.add(lamp); E.dis.push(lightM);
-    piv.position.set(-hs * (TS / 2 - 0.05), 0, 0); g.add(piv);
+    piv.position.set(-hs * (TS / 2 - 0.05), 0, 0); g.add(piv); if (pivB) { piv.position.x = -0.95; pivB.position.set(0.95, 0, 0); g.add(pivB); }
     let pad = null;
     if (o.lock === 'code') {
       pad = new THREE.Group(); pad.add(M(bx(0.26, 0.42, 0.07, 0x23272b, 0.3), mats.dark)); pad.add(M(bx(0.3, 0.46, 0.03, 0x4a5258, 0.3), mats.steel, 0, 0, -0.03));
@@ -54,7 +61,7 @@ export function buildDynamic(o, E) {
     }
     group.add(g);
     let wallSlab = null; if (o.hidden) { wallSlab = new THREE.Mesh(new THREE.BoxGeometry(alongX ? 0.3 : TS, WH, alongX ? TS : 0.3), E.wallMat); wallSlab.position.set(cx, WH / 2, cz); group.add(wallSlab); g.visible = false; }
-    dyn.doors.push({ o, g, slab: piv, slabM, lightM, wallSlab, pad, swing: (open) => { piv.rotation.y = hs * open * 1.5; }, kp: (txt, st) => { if (pad) { const u = pad.userData; if (u.last !== txt + st) { u.last = txt + st; u.disp.map.dispose(); u.disp.map = kp(E, txt, st); u.disp.needsUpdate = true; } } } });
+    dyn.doors.push({ o, g, slab: piv, slabM, lightM, wallSlab, pad, swing: (open) => { piv.rotation.y = hs * open * 1.5; if (pivB) pivB.rotation.y = -hs * open * 1.5; }, kp: (txt, st) => { if (pad) { const u = pad.userData; if (u.last !== txt + st) { u.last = txt + st; u.disp.map.dispose(); u.disp.map = kp(E, txt, st); u.disp.needsUpdate = true; } } } });
     return true;
   }
   if (o.type === 'locker') {

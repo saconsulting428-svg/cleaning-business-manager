@@ -14,11 +14,6 @@ import g_chair_office from '../assets/props/chair_office.glb';
 import g_console_terminal from '../assets/props/console_terminal.glb';
 import g_crate_wood from '../assets/props/crate_wood.glb';
 import g_desk_office from '../assets/props/desk_office.glb';
-import g_door_exit from '../assets/props/door_exit.glb';
-import g_door_keycard from '../assets/props/door_keycard.glb';
-import g_door_lab from '../assets/props/door_lab.glb';
-import g_door_plain from '../assets/props/door_plain.glb';
-import g_door_steel from '../assets/props/door_steel.glb';
 import g_egg_pod from '../assets/props/egg_pod.glb';
 import g_fallen_shelf from '../assets/props/fallen_shelf.glb';
 import g_filing_cabinet from '../assets/props/filing_cabinet.glb';
@@ -41,10 +36,14 @@ import g_rubble from '../assets/props/rubble.glb';
 import g_server_rack from '../assets/props/server_rack.glb';
 import g_shelf_metal from '../assets/props/shelf_metal.glb';
 import g_specimen_tank from '../assets/props/specimen_tank.glb';
+import g_door_dbl from '../assets/props/door_dbl.glb';
+import g_door_dbl_card from '../assets/props/door_dbl_card.glb';
+import g_door_dbl_steel from '../assets/props/door_dbl_steel.glb';
+import g_exit_door from '../assets/props/exit_door.glb';
 import g_torch_hand from '../assets/props/torch_hand.glb';
 import g_valve_wheel from '../assets/props/valve_wheel.glb';
 import g_vent_wall from '../assets/props/vent_wall.glb';
-const SRC = { torch_hand: g_torch_hand, alcove_shelf: g_alcove_shelf, barrel: g_barrel, bone_pile: g_bone_pile, breaker_panel: g_breaker_panel, cabinet_wood: g_cabinet_wood, cctv_camera: g_cctv_camera, chair_office: g_chair_office, console_terminal: g_console_terminal, crate_wood: g_crate_wood, desk_office: g_desk_office, door_exit: g_door_exit, door_keycard: g_door_keycard, door_lab: g_door_lab, door_plain: g_door_plain, door_steel: g_door_steel, egg_pod: g_egg_pod, fallen_shelf: g_fallen_shelf, filing_cabinet: g_filing_cabinet, generator: g_generator, hospital_bed: g_hospital_bed, item_bandage: g_item_bandage, item_fuse: g_item_fuse, item_key: g_item_key, item_keycard: g_item_keycard, item_medkit: g_item_medkit, item_note: g_item_note, item_radio: g_item_radio, keypad_panel: g_keypad_panel, lamp_caged: g_lamp_caged, lamp_fluorescent: g_lamp_fluorescent, locker: g_locker, pipe_cluster: g_pipe_cluster, pump_unit: g_pump_unit, rubble: g_rubble, server_rack: g_server_rack, shelf_metal: g_shelf_metal, specimen_tank: g_specimen_tank, valve_wheel: g_valve_wheel, vent_wall: g_vent_wall };
+const SRC = { door_dbl: g_door_dbl, door_dbl_card: g_door_dbl_card, door_dbl_steel: g_door_dbl_steel, exit_door: g_exit_door, torch_hand: g_torch_hand, alcove_shelf: g_alcove_shelf, barrel: g_barrel, bone_pile: g_bone_pile, breaker_panel: g_breaker_panel, cabinet_wood: g_cabinet_wood, cctv_camera: g_cctv_camera, chair_office: g_chair_office, console_terminal: g_console_terminal, crate_wood: g_crate_wood, desk_office: g_desk_office, egg_pod: g_egg_pod, fallen_shelf: g_fallen_shelf, filing_cabinet: g_filing_cabinet, generator: g_generator, hospital_bed: g_hospital_bed, item_bandage: g_item_bandage, item_fuse: g_item_fuse, item_key: g_item_key, item_keycard: g_item_keycard, item_medkit: g_item_medkit, item_note: g_item_note, item_radio: g_item_radio, keypad_panel: g_keypad_panel, lamp_caged: g_lamp_caged, lamp_fluorescent: g_lamp_fluorescent, locker: g_locker, pipe_cluster: g_pipe_cluster, pump_unit: g_pump_unit, rubble: g_rubble, server_rack: g_server_rack, shelf_metal: g_shelf_metal, specimen_tank: g_specimen_tank, valve_wheel: g_valve_wheel, vent_wall: g_vent_wall };
 const TPL = {}, CONV = new Map();
 
 function convert(m) {

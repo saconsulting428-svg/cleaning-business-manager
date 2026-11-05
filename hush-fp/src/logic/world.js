@@ -200,6 +200,7 @@ export class World {
     if (this.over === 'win') return;
     if (p.alive) this.updatePlayer(dt, inp);
     this.updateProjectiles(dt);
+    this.updateDazzle(dt);
     this.seenT = (this.seenT || 0) - dt; if (this.seenT <= 0) { this.seenT = 0.3; this.markSeen(); }
     /* walking up to the exit is enough: no extra tap needed */
     { const ex = this.gen.exit; if (ex && p.alive && p.hidden < 0 && !p.vent && !this.over && Math.hypot(ex.x + 0.5 - p.x, ex.y + 0.5 - p.y) < 1.2) { this.over = 'win'; this.events.push({ type: 'win' }); } }
@@ -253,6 +254,16 @@ export class World {
     if (v.state === 'wait') { if (v.t > 12 && d >= 6 && (d <= 13 || v.t > 70) && p.alive && !this.over) { v.state = 'shake'; v.t = 0; this.events.push({ type: 'ventShake', x: v.cx, y: v.cy }); } }
     else if (v.state === 'shake') { if (v.t > 0.7 && v.t < 0.75) this.events.push({ type: 'ventShake', x: v.cx, y: v.cy }); if (v.t >= 1.4 && d >= 6) { v.state = 'fall'; v.t = 0; c.dormant = false; c.dropT = 0.8; c.frozenT = 0.8; c.state = 'roam'; c.alert = 0; c.wait = 0.3; c.target = null; c.path = null; this.events.push({ type: 'ventFall', x: v.cx, y: v.cy }); } else if (v.t > 1.4) v.t = 1.4; }
     else if (v.state === 'fall') { c.dropT = Math.max(0, 0.8 - v.t); if (v.t >= 0.8) { v.state = 'done'; c.dropT = 0; this.events.push({ type: 'ventLand', x: v.cx, y: v.cy }); } }
+  }
+  /* the torch is a weapon of sorts: hold the beam on a creature that is after you for about a second and it flinches (1.7 s), loses you and starts searching; 12 s before it works again */
+  updateDazzle(dt) {
+    const p = this.player; p.stunCd = Math.max(0, (p.stunCd || 0) - dt);
+    for (const c of this.creatures) {
+      if (c.dead || c.dormant) continue; const dx = c.x - p.x, dy = c.y - p.y, d = Math.hypot(dx, dy); let hit = false;
+      if (p.alive && p.flash && p.hidden < 0 && !p.vent && (c.state === 'hunt' || c.state === 'investigate' || c.state === 'suspicious') && d < 8 && d > 0.5 && !(c.frozenT > 0)) { const da = Math.abs(angDiff(p.yaw, Math.atan2(dy, dx))); if (da < 0.3 && lineOfSight(this, p.x, p.y, c.x, c.y)) hit = true; }
+      c.dazzle = hit ? (c.dazzle || 0) + dt : Math.max(0, (c.dazzle || 0) - dt * 1.5);
+      if (c.dazzle >= 0.85 && p.stunCd <= 0) { c.dazzle = 0; p.stunCd = 12; c.frozenT = 1.7; c.state = 'search'; c.searchT = 7; c.searchOrigin = { x: c.x, y: c.y }; c.target = null; c.path = null; c.alert = 0; c.lastSeen = null; c.atk = 0; this.events.push({ type: 'stun', id: c.id, x: c.x, y: c.y }); }
+    }
   }
   /* a bottle is thrown in an arc (gravity 9.8 m/s2, one tile = 2 m); where it lands it shatters: a loud noise that pulls the creatures to that spot */
   throwBottle() {

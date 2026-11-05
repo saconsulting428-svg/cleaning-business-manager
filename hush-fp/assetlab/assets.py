@@ -271,3 +271,66 @@ def item_note():
     return a
 
 ALL = [locker, cabinet_wood, alcove_shelf, door_plain, door_keycard, door_steel, door_exit, door_lab, vent_wall, generator, breaker_panel, valve_wheel, keypad_panel, shelf_metal, crate_wood, barrel, desk_office, chair_office, filing_cabinet, server_rack, hospital_bed, specimen_tank, console_terminal, pipe_cluster, lamp_fluorescent, lamp_caged, egg_pod, bone_pile, rubble, fallen_shelf, cctv_camera, pump_unit, item_key, item_keycard, item_fuse, item_radio, item_bandage, item_medkit, item_note]
+
+
+# ---------- realistic double doors (built at game size: 2.2 m frame, two 0.93 m leaves, no stretching in the game) ----------
+def dbl_frame(a, m, mat_='ds', w=2.0, h=2.2):
+    for x in (-w / 2 + 0.04, w / 2 - 0.04): a.box('frame', m[mat_], (0.09, 0.26, h), (x, 0, 0), bevel=.008)
+    a.box('frame', m[mat_], (w, 0.26, 0.1), (0, 0, h), bevel=.008)
+    for sd in (-1, 1):                                                          # casing: trim proud of the wall on both faces
+        for x in (-w / 2 + 0.03, w / 2 - 0.03): a.box('frame', m['pgr'], (0.1, 0.03, h + 0.1), (x, sd * 0.145, 0), bevel=.004)
+        a.box('frame', m['pgr'], (w + 0.04, 0.03, 0.1), (0, sd * 0.145, h + 0.05), bevel=.004)
+    a.box('frame', m['st'], (w - 0.1, 0.3, 0.02), (0, 0, 0.005), bevel=.004)                      # threshold plate
+    a.box('frame', m['ds'], (0.03, 0.05, h - 0.02), (0, 0.0, 0.0), bevel=.002)                  # centre astragal (the two leaves meet here)
+
+def leaf2(a, m, g, col, side, window=False, bar=True, kick=True, num=None):
+    """one leaf, hinged at the jamb (side -1 = left jamb, +1 = right jamb); the leaf extends toward the centre"""
+    wl, h, th = 0.93, 2.13, 0.07; hx = side * 0.95; cx = hx - side * wl / 2
+    a.box(g, m[col], (wl, th, h), (cx, 0, 0.02), bevel=.007)
+    for sd in (-1, 1):
+        y = sd * (th / 2 + 0.006)
+        a.box(g, m['ds'], (0.06, 0.012, h - 0.04), (hx - side * 0.04, y, 0.03), bevel=.003); a.box(g, m['ds'], (0.06, 0.012, h - 0.04), (hx - side * (wl - 0.04), y, 0.03), bevel=.003)   # stiles
+        a.box(g, m['ds'], (wl - 0.1, 0.012, 0.07), (cx, y, 1.98), bevel=.003); a.box(g, m['ds'], (wl - 0.1, 0.012, 0.07), (cx, y, 0.9), bevel=.003); a.box(g, m['ds'], (wl - 0.1, 0.012, 0.09), (cx, y, 0.1), bevel=.003)   # rails
+        a.box(g, m[col], (wl - 0.2, 0.01, 0.62), (cx, y * 1.0 + sd * 0.002, 0.22), bevel=.004)
+        if window and sd == -1: a.box(g, m['glass'], (0.4, 0.014, 0.62), (cx, y - 0.002, 1.12), bevel=.003); a.box(g, m['ds'], (0.46, 0.02, 0.68), (cx, y + 0.003, 1.09), bevel=.004)
+        elif sd == -1: a.box(g, m[col], (wl - 0.2, 0.01, 0.82), (cx, y, 1.17), bevel=.004)
+    if window: a.box(g, m['glass'], (0.4, 0.016, 0.62), (cx, 0.0, 1.12), bevel=.003)
+    if kick:
+        for sd in (-1, 1): a.box(g, m['st'], (wl - 0.06, 0.012, 0.24), (cx, sd * (th / 2 + 0.01), 0.07), bevel=.003)
+    for z in (0.28, 1.05, 1.82): a.cyl(g, m['ds'], 0.02, 0.1, (hx + side * 0.005, 0, z), seg=10)                   # hinge knuckles
+    if bar:
+        for sd in (-1, 1):
+            xe = hx - side * (wl - 0.1)
+            a.cyl(g, m['st'], 0.016, 0.62, (xe - side * 0.3, sd * (th / 2 + 0.05), 1.02), axis='x', seg=10)
+            for dx in (-0.05, -0.55): a.box(g, m['ds'], (0.04, 0.05, 0.05), (xe + side * dx, sd * (th / 2 + 0.025), 1.02), bevel=.004)
+    if num: a.box(g, m['pw'], (0.1, 0.006, 0.05), (cx, -th / 2 - 0.016, 1.78), bevel=.001)
+
+def door_double(variant='plain'):
+    m = M(); a = Asset('door_dbl' if variant == 'plain' else 'door_dbl_' + variant); col = {'plain': 'pg', 'card': 'pgr', 'steel': 'ds'}[variant]
+    dbl_frame(a, m, 'ds' if variant != 'steel' else 'st')
+    leaf2(a, m, 'door', col, -1, window=(variant == 'plain'), bar=(variant != 'steel'), num=True); leaf2(a, m, 'door2', col, +1, window=(variant == 'plain'), bar=(variant != 'steel'))
+    a.set_pivot('door', (-0.95, 0, 0), pose=(0, 0, math.radians(-32))); a.set_pivot('door2', (0.95, 0, 0), pose=(0, 0, math.radians(32)))
+    # door closer (arm + body) on the left leaf, hazard stripe on the right leaf
+    a.box('frame', m['ds'], (0.28, 0.06, 0.07), (-0.55, -0.16, 2.12), bevel=.005); a.box('frame', m['st'], (0.34, 0.02, 0.02), (-0.4, -0.2, 2.1), rot=(0, 0, 0.0), bevel=.002)
+    if variant == 'card':
+        a.box('frame', m['ds'], (0.11, 0.06, 0.2), (1.1, -0.17, 1.12), bevel=.006); a.box('frame', m['led_r'], (0.03, 0.01, 0.03), (1.1, -0.205, 1.2)); a.box('frame', m['scr'], (0.06, 0.01, 0.035), (1.1, -0.205, 1.12)); a.box('frame', m['dark'], (0.07, 0.01, 0.02), (1.1, -0.205, 1.05))
+    if variant == 'steel':
+        for sd in (-1, 1):
+            a.box('door', m['py'], (0.7, 0.01, 0.16), (-0.47, sd * 0.042, 1.6), bevel=.002); a.box('door2', m['py'], (0.7, 0.01, 0.16), (0.47, sd * 0.042, 1.6), bevel=.002)
+            for i in range(7): a.cyl('door', m['st'], 0.014, 0.02, (-0.1 - i * 0.12, sd * 0.045, 2.0), axis='y', seg=8); a.cyl('door2', m['st'], 0.014, 0.02, (0.1 + i * 0.12, sd * 0.045, 2.0), axis='y', seg=8)
+        a.box('frame', m['ds'], (0.22, 0.06, 0.3), (1.12, -0.17, 1.15), bevel=.008); a.box('frame', m['led_r'], (0.04, 0.01, 0.04), (1.12, -0.205, 1.25))
+    return a
+def door_dbl(): return door_double('plain')
+def door_dbl_card(): return door_double('card')
+def door_dbl_steel(): return door_double('steel')
+
+def exit_door():
+    """the level exit: a heavy double door with push bars, hazard stripes and a lit EXIT box over it (static; the game adds the glow)"""
+    m = M(); a = Asset('exit_door'); dbl_frame(a, m, 'ds', 2.0, 2.2)
+    leaf2(a, m, 'body', 'pg', -1, window=True, bar=True); leaf2(a, m, 'body', 'pg', +1, window=True, bar=True)
+    for sd in (-1, 1): a.box('body', m['py'], (1.8, 0.01, 0.1), (0, sd * 0.045, 0.45), bevel=.002)
+    a.box('body', m['pg'], (1.0, 0.18, 0.34), (0, -0.04, 2.38), bevel=.012); a.box('body', m['led_g'], (0.86, 0.02, 0.22), (0, -0.14, 2.44), bevel=.004)
+    a.box('body', m['py'], (2.2, 0.28, 0.05), (0, 0, 2.3), bevel=.004)
+    return a
+
+ALL = [door_dbl, door_dbl_card, door_dbl_steel, exit_door] + ALL

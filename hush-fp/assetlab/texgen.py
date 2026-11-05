@@ -38,6 +38,7 @@ def paint(name, col, wear=0.5, seed=0, rust=(120, 62, 30)):
     drip = fbm(3, 2, seed + 3); stripe = np.abs(np.sin(np.linspace(0, 60, N))[None, :] * 0.5 + 0.5) * (drip > 0.55)[...] 
     img *= (1 - 0.18 * wear * (drip[..., None] > 0.62))
     img += s[..., None] * 38 * wear
+    cols = np.random.RandomState(seed + 21).rand(N); st = np.repeat(np.convolve(cols, np.ones(5) / 5, 'same')[None, :], N, 0) > 0.55; fall = np.linspace(0.2, 1.0, N)[:, None]; img *= (1 - 0.22 * wear * (st * fall)[..., None])   # rain streaks, heavier towards the bottom
     save(name, tile(img))
 
 def rustmetal(name, seed=0):
