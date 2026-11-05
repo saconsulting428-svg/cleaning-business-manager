@@ -63,6 +63,11 @@ export const LEVELS = [
 ];
 
 LEVELS.forEach((l, i) => { l.story = i; });
+/* balance pass: level 7 gets a roaming listener; 10, 30, 40, 44 are gentler (slower hunters, one more locker); level 50 is a real finale: key + keycard, two stalkers, a chase and an alarm */
+LEVELS[6].creatures = ['sentinel', 'listener'];
+for (const n of [10, 30, 40, 44]) { LEVELS[n - 1].slow = 0.88; LEVELS[n - 1].lockers += 1; }
+Object.assign(LEVELS[49], { gates: ['key', 'card'], creatures: ['stalker', 'stalker'], setpiece: 'chase', alarm: true, medkit: true, hint: 'The last gate: find the key, then the keycard, and run. Whatever is down here will not let you leave quietly.' });
+
 /* every level gets its own colour look (fog / lamps / wall tint, see render/scene3d.js LOOKS): consecutive levels never share one */
 const LOOK_SETS = [['sterile', 'rust', 'cold', 'dust', 'emergency', 'toxic', 'violet'], ['cold', 'toxic', 'rust', 'sterile', 'emergency', 'violet', 'dust'], ['hive', 'bile', 'bruise', 'ember', 'bone']];
 { const cnt = [0, 0, 0]; LEVELS.forEach((l) => { const set = LOOK_SETS[l.ch]; l.look = set[(cnt[l.ch] * 2 + l.ch) % set.length]; cnt[l.ch]++; }); }

@@ -7,7 +7,7 @@ import { initExtras, updateExtras } from './extras.js';
 
 export const DT = 1 / 30;
 /* one difficulty for everybody: the creatures simply get a little sharper level by level (level 1 is gentle, level 40 is firm but always beatable: sprint 2.7 tiles/s outruns the hunt speed) */
-export const levelDiff = (i) => { const t = Math.max(0, Math.min(1, (i || 0) / 49)); return { sight: 0.72 + 0.34 * t, alert: 0.62 + 0.5 * t, speed: 0.9 + 0.12 * t }; };
+export const levelDiff = (i) => { const n = Math.max(0, Math.min(49, i || 0)), c0 = n < 17 ? 0 : n < 34 ? 17 : 34, c1 = n < 17 ? 16 : n < 34 ? 33 : 49, t = Math.max(0, Math.min(1, 0.45 * (n / 49) + 0.55 * ((n - c0) / (c1 - c0)))); return { sight: 0.72 + 0.34 * t, alert: 0.62 + 0.5 * t, speed: 0.9 + 0.12 * t }; };
 export const DIFF = { normal: levelDiff(20) };
 export const SPEED = { walk: 1.55, sprint: 2.7, crouch: 0.8 };
 const PR = 0.3;                                                    // player radius in tiles
@@ -30,6 +30,7 @@ export class World {
     this.prompt = null; this.lastDenied = -9; this.keypad = null;
     initExtras(this);
     /* ceiling vent drop (chapter 2+, once per level, only when the page asks for it): the first stalker/listener waits unseen above a ceiling grille and drops in once the player is 6+ tiles away */
+    if (this.spec.slow) for (const c of this.creatures) c.k = Object.assign({}, c.k, { hunt: c.k.hunt * this.spec.slow, invest: c.k.invest * this.spec.slow });
     this.vdrop = null; if (opts && opts.ventDrop && this.spec.ch >= 1) { const c = this.creatures.find(q => q.t === 'stalker') || this.creatures.find(q => q.t === 'listener'); if (c) { c.dormant = true; this.vdrop = { id: c.id, cx: c.x, cy: c.y, tx: Math.floor(c.x), ty: Math.floor(c.y), state: 'wait', t: 0 }; } }
   }
   /* ---------- helpers ---------- */
@@ -149,7 +150,7 @@ export class World {
         break;
       case 'item': this.pickup(o); break;
       case 'log': o.done = true; this.events.push({ type: 'log', level: this.spec.story === undefined ? 0 : this.spec.story }); break;
-      case 'note': o.done = true; p.noteSeen = o.code; this.events.push({ type: 'note', code: o.code }); break;
+      case 'note': { o.done = true; const shown = o.part === 1 ? o.code.slice(0, 2) + ' _ _' : o.part === 2 ? '_ _ ' + o.code.slice(2) : o.code; p.noteSeen = shown; this.events.push({ type: 'note', code: shown, part: o.part || 0 }); break; }
       case 'locker': this.enterLocker(o); break;
       case 'vent': this.enterVent(o); break;
       case 'generator': if (!o.on && p.inv.fuse >= o.need) { p.inv.fuse -= o.need; o.on = true; this.refreshLocks(); this.events.push({ type: 'generator', x: o.x + 0.5, y: o.y + 0.5 }); emitNoise(this, o.x + 0.5, o.y + 0.5, 16, 'generator'); o.nextNoise = 3; } else if (!o.on) this.events.push({ type: 'denied', text: t.text }); break;
@@ -185,13 +186,6 @@ export class World {
   }
   toggleFlash() { this.player.flash = !this.player.flash; this.events.push({ type: 'flash', on: this.player.flash }); }
   catchPlayer(c) { if (this.god || !this.player.alive) { if (this.god) { c.state = 'search'; c.searchT = 3; c.target = null; } return; } const p = this.player;
-    /* the first mauling of a run is survivable (55 damage, you are thrown clear and it reels for a moment): a fair chance to run or hide; a second one (or any when hurt) is fatal */
-    if (p.hp > 55 && (this.time - (c.maulT === undefined ? -99 : c.maulT)) > 8) {
-      p.hp -= 55; p.hurtAt = this.time; p.stagger = 1.4; p.vx = 0; p.vy = 0; c.maulT = this.time; this.events.push({ type: 'hurt', amt: 55, src: 'monster', hp: p.hp, x: c.x, y: c.y });
-      c.state = 'hunt'; c.alert = 1; c.lastSeen = { x: p.x, y: p.y }; c.target = null; c.path = null; c.atk = 0; c.atkCd = 1.3; c.frozenT = 0.8; c.checkLocker = null; c.checking = 0; c.lockerDone = true;
-      if (p.hidden < 0 && !p.vent) { const ax = Math.atan2(p.y - c.y, p.x - c.x); for (const d of [1.8, 1.4, 1.0, 0.6]) for (const da of [0, 0.5, -0.5, 1.0, -1.0]) { const nx = p.x + Math.cos(ax + da) * d, ny = p.y + Math.sin(ax + da) * d, k = Math.floor(ny) * this.W + Math.floor(nx); if (this.cells[k] !== 0 && !this.solid.has(k) && !(this.doorAt.get(k) && this.doorAt.get(k).open < 0.5)) { p.x = nx; p.y = ny; p.px = nx; p.py = ny; return; } } }
-      return;
-    }
     p.alive = false; this.over = 'dead'; this.caughtBy = c; this.events.push({ type: 'caught', id: c.id }); }
   /* ---------- the tick ---------- */
   update(dt, inp) {

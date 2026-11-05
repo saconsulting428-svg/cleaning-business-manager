@@ -54,7 +54,9 @@ const vibe = (ms) => { if (save.set.vibe && navigator.vibrate) { try { navigator
 /* ---------------- screens ---------------- */
 const SCREENS = ['home', 'chapters', 'levels', 'game'];
 function show(name) { for (const s of SCREENS) $('scr-' + s).classList.toggle('active', s === name); G.mode = name; if (name !== 'game' && document.pointerLockElement) document.exitPointerLock(); }
-const overlay = (id, on) => $('ov-' + id).classList.toggle('show', !!on);
+const overlay = (id, on) => { const el = $('ov-' + id); el.classList.toggle('show', !!on); if (on) moreCheck(el); };
+/* long cards (settings, how to play, ...) show a fade and an arrow while there is more below */
+function moreCheck(ov) { const c = ov.querySelector('.card'); if (!c) return; const f = () => c.classList.toggle('more', c.scrollHeight - c.scrollTop - c.clientHeight > 6); if (!c._mc) { c._mc = 1; c.addEventListener('scroll', f); } requestAnimationFrame(f); setTimeout(f, 300); }
 const anyOverlay = () => qa('.overlay.show').some(o => o.id !== 'ov-load');
 
 function thumb(gen, lock) {
@@ -121,7 +123,7 @@ async function startLevel(i) { if (starting) return; starting = true; try { awai
 async function startLevelNow(i) {
   setLoading(true, 'Entering ' + LEVELS[i].name, 20); ['pause', 'win', 'dead', 'note', 'log', 'keypad', 'settings', 'how', 'credits', 'inv', 'obj', 'map', 'tip'].forEach(o => overlay(o, false)); await nextFrame();
   G.run = (G.run || 0) + 1; G.level = i; save.last = i; persist(); G.chapterView = LEVELS[i].ch; const w = new World(gen(i), { assist: (G.deaths && G.deaths[i]) || 0, ventDrop: true }); G.world = w; setLoading(true, null, 55); await nextFrame(); G.view.loadLevel(w); applyTorch(true); setLoading(true, null, 95); await nextFrame();
-  G.mode = 'game'; show('game'); G.paused = false; G.modal = false; G.over = false; G.ended = 0; G.timeSpent = 0; G.acc = 0; G.hintT = 8; G.shownHint = -1; G.lastInv = ''; G.menu = false; inp.edge = {}; inp.dyaw = 0; inp.dpitch = 0; inp.pyaw = 0; inp.ppitch = 0; inp.sprintBtn = false; $('b-sprint').classList.remove('on');
+  G.mode = 'game'; show('game'); G.paused = false; G.modal = false; G.over = false; G.ended = 0; G.timeSpent = 0; G.acc = 0; G.hintT = 4; G.tipN = 0; G.shownHint = -1; G.lastInv = ''; G.menu = false; inp.edge = {}; inp.dyaw = 0; inp.dpitch = 0; inp.pyaw = 0; inp.ppitch = 0; inp.sprintBtn = false; $('b-sprint').classList.remove('on');
   G.prog = null; G.heartEcho = false; G.tut = { dist: 0, yaw: 0, flash: 0, doors: 0, pulses: 0, firstPulse: 0, crouched: false, crouchNear: 0, hid: 0, picked: {}, bag: 0, map: 0, last: null, skip: false }; G.seq = tipsOn() && SEQ[i] && !save.tips['seq' + i] ? SEQ[i] : null; G.seqI = 0; G.seqOkT = 0; G.coachOn = false; $('hint').classList.remove('coach', 'ok');
   $('hint').textContent = save.set.hints && !G.seq ? LEVELS[i].hint : ''; $('hint').classList.toggle('show', !!save.set.hints && !G.seq); G.chapterAudio = LEVELS[i].ch; applyAudio(); Sound.unlock(); buildHotbar(true);
   setLoading(false, null, 100); G.last = performance.now(); $('fx-hurt').style.opacity = 0; if (!coarse) lockPointer();
@@ -129,7 +131,7 @@ async function startLevelNow(i) {
 function lockPointer() { const c = $('view'); if (c.requestPointerLock && !document.pointerLockElement) { try { const r = c.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* ignore */ } } }
 function pause(on) { if (G.mode !== 'game' || G.over) return; G.paused = on; overlay('pause', on); if (on && document.pointerLockElement) document.exitPointerLock(); if (!on && !coarse) lockPointer(); if (on) Sound.suspend && Sound.suspend(); else Sound.resume && Sound.resume(); }
 function winLevel() {
-  const w = G.world; G.over = true; const t = G.timeSpent, par = w.gen.par; let stars = 1; if (w.huntCount <= 1) stars++; if (w.huntCount === 0 && t <= par * 1.25) stars++;
+  const w = G.world; G.over = true; const t = w.time, par = w.gen.par; let stars = 1; if (w.huntCount <= 1) stars++; if (w.huntCount === 0 && t <= par * 1.25) stars++;
   if (G.deaths) G.deaths[G.level] = 0; const prev = save.stars[G.level] || 0; if (stars > prev) save.stars[G.level] = stars; if (!save.best[G.level] || t < save.best[G.level]) save.best[G.level] = Math.round(t); persist();
   Sound.play('win'); $('win-stars').innerHTML = [0, 1, 2].map(k => '<svg class="' + (k < stars ? 'f' : '') + '"><use href="#i-star"/></svg>').join(''); $('win-info').textContent = 'Time ' + fmt(t) + ' · par ' + fmt(par) + ' · ' + (w.huntCount ? 'hunted ' + w.huntCount + '×' : 'never seen');
   $('w-next').style.display = G.level + 1 < LEVELS.length ? '' : 'none'; setTimeout(() => { overlay('win', true); if (document.pointerLockElement) document.exitPointerLock(); }, 900); G.winStars = stars; if (G.level === LEVELS.length - 1) { $('win-info').textContent = EPILOGUE; $('win-title').textContent = 'The end'; } else $('win-title').textContent = 'Escaped';
@@ -165,13 +167,13 @@ function setT(id, v) { if (HC[id] !== v) { HC[id] = v; $(id).textContent = v; } 
 function setC(id, cls, on) { const k = id + cls; if (HC[k] !== on) { HC[k] = on; $(id).classList.toggle(cls, on); } }
 function setO(id, v) { v = Math.round(v * 20) / 20; if (HC[id + 'o'] !== v) { HC[id + 'o'] = v; $(id).style.opacity = v; } }
 function hud(w, dt) {
-  const p = w.player; G.hudT = (G.hudT || 0) + dt; if (G.bannerT > 0) { G.bannerT -= dt; if (G.bannerT <= 0) $('banner').classList.remove('show'); } if (G.hintT > 0) { G.hintT -= dt; if (G.hintT <= 0) $('hint').classList.remove('show'); }
+  const p = w.player; G.hudT = (G.hudT || 0) + dt; if (G.bannerT > 0) { G.bannerT -= dt; if (G.bannerT <= 0) $('banner').classList.remove('show'); } if (G.hintT > 0) { G.hintT -= dt; if (G.hintT <= 0) $('hint').classList.remove('show'); } { const idle = performance.now() - (G.lastIn || 0) > 3500 && !w.creatures.some(c => !c.dormant && c.state === 'hunt'); if (HC.idle !== idle) { HC.idle = idle; $('scr-game').classList.toggle('idle', idle); } }
   drawMarks(w); coachTick(w, dt); stuckTick(w, dt); presenceTick(w, dt);
   if (G.hudT < 0.066) return; const dtH = G.hudT; G.hudT = 0;
   setT('obj-text', w.objective().current); setT('pulse-n', p.pulses); setC('b-pulse', 'dim', p.pulses <= 0); const cdf = Math.round(w.pulseCd / PULSE_CD * 40) / 40; if (HC.cdf !== cdf) { HC.cdf = cdf; $('b-pulse').style.setProperty('--cd', cdf); } setC('b-pulse', 'cd', cdf > 0); setT('pulse-l', w.pulseCd > 0 ? w.pulseCd.toFixed(1) + 's' : 'Pulse'); buildHotbar(false);
   const pr = w.prompt, show = !!(pr && !G.modal); setC('prompt', 'show', show); if (show) { setC('prompt', 'no', /^Locked|needs/.test(pr.text)); setT('prompt-text', pr.text); }
   const st = $('stam'); setC('stam', 'show', p.stamina < 0.98); setC('stam', 'tired', p.tired); const sw = Math.round(p.stamina * 50) * 2 + '%'; if (HC.stw !== sw) { HC.stw = sw; st.firstChild.style.width = sw; } setC('b-crouch', 'on', p.crouch); { const bn = p.inv.bottle | 0; setT('bottle-n', String(bn)); setC('b-throw', 'dim', !bn); }
-  if (G.hpShowT > 0) G.hpShowT -= dtH; const hpv = Math.ceil(p.hp); setT('hp-n', hpv); setC('hp', 'show', hpv < HP_MAX || G.hpShowT > 0); setC('hp', 'low', hpv <= 35); const hw = hpv + '%'; if (HC.hpw !== hw) { HC.hpw = hw; $('hp').lastChild.style.width = hw; }
+  if (G.hpShowT > 0) G.hpShowT -= dtH; const hpv = Math.ceil(p.hp); setT('hp-n', hpv); setC('hp', 'show', true); { const fx = $('fx-hp'); if (fx) fx.style.opacity = String(Math.max(0, (70 - hpv) / 70) * 0.9); } setC('hp', 'low', hpv <= 35); const hw = hpv + '%'; if (HC.hpw !== hw) { HC.hpw = hw; $('hp').lastChild.style.width = hw; }
   w.kpShow = $('ov-keypad').classList.contains('show') ? { id: kpDoor, text: (kpCode + '----').slice(0, 4), st: '' } : null;
   drawNoise(w, dtH); setO('fx-locker', p.hidden >= 0 ? 1 : 0); const th = w.threat; setO('fx-hurt', (w.over === 'dead') ? 0.9 : Math.max(0, th - 0.55) * 0.9);
 }
@@ -321,10 +323,13 @@ function coachTick(w, dt) {
     }
   }
   /* one-time mechanic cards */
-  if (tipsOn() && !G.modal && !G.paused && w.time > 1 && p.alive && p.hidden < 0 && !p.vent) { for (const m of MECH) { if (save.tips[m.id]) continue; let ok = false; try { ok = m.when(w); } catch (er) { ok = false; } if (ok) { showTip(m); break; } } }
+  const hot = w.creatures.some(c => !c.dormant && (c.state === 'hunt' || c.state === 'suspicious' || c.state === 'investigate'));          // never while something is after you: the tip waits until it is safe
+  if (tipsOn() && !G.modal && !G.paused && !hot && (G.level < 4 || (G.tipN || 0) < 2) && w.time > 1 && p.alive && p.hidden < 0 && !p.vent) { for (const m of MECH) { if (save.tips[m.id]) continue; let ok = false; try { ok = m.when(w); } catch (er) { ok = false; } if (ok) { showTip(m); break; } } }
 }
 const angDiffUI = (a, b) => { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
-function showTip(m) { save.tips[m.id] = 1; persist(); $('tip-title').textContent = m.t; $('tip-text').textContent = m.x; $('tip-use').setAttribute('href', '#' + (m.icon || 'i-hand')); G.modal = true; overlay('tip', true); Sound.play('ui'); if (document.pointerLockElement) document.exitPointerLock(); }
+function showTip(m) { save.tips[m.id] = 1; persist(); G.tipN = (G.tipN || 0) + 1;
+  if (G.level >= 4) { const el = $('toast'); $('toast-t').textContent = m.t; $('toast-x').textContent = m.x; el.classList.add('show'); clearTimeout(G.toastT); G.toastT = setTimeout(() => el.classList.remove('show'), 9000); Sound.play('ui'); return; }          // after the tutorial levels tips are quiet toasts that never pause the game
+ $('tip-title').textContent = m.t; $('tip-text').textContent = m.x; $('tip-use').setAttribute('href', '#' + (m.icon || 'i-hand')); G.modal = true; overlay('tip', true); Sound.play('ui'); if (document.pointerLockElement) document.exitPointerLock(); }
 $('tip-ok').onclick = () => { overlay('tip', false); G.modal = false; Sound.play('ui'); if (!coarse) lockPointer(); };
 $('hint').addEventListener('pointerdown', (e) => { if ($('hint').classList.contains('coach') && G.tut && G.seq && G.seq[G.seqI] && G.seq[G.seqI].id !== 'exit') { e.preventDefault(); e.stopPropagation(); G.tut.skip = true; } });
 
@@ -352,7 +357,7 @@ function handleEvents(w, dt) {
       case 'radioburst': { const s = spatial(e.x, e.y); if (s.d < 22) Sound.play('radio'); break; }
       case 'reveal': Sound.play('unlock'); break;
       case 'log': { const st = STORY[e.level] || ['Log', '...']; $('log-title').textContent = st[0]; $('log-text').textContent = st[1]; if (!save.logs[e.level]) { save.logs[e.level] = 1; persist(); } G.modal = true; overlay('log', true); Sound.play('ui'); if (document.pointerLockElement) document.exitPointerLock(); break; }
-      case 'note': $('note-extra').textContent = w.spec.beat === 'noteWrite' ? 'Written over an older message: "DON\'T ANSWER THE PULSE."' : ''; $('note-code').textContent = e.code; G.modal = true; overlay('note', true); if (document.pointerLockElement) document.exitPointerLock(); break;
+      case 'note': $('note-extra').textContent = w.spec.beat === 'noteWrite' ? 'Written over an older message: "DON\'T ANSWER THE PULSE."' : e.part ? 'The other half is on a second note somewhere on this level.' : ''; $('note-text').textContent = e.part === 1 ? 'First half of the code:' : e.part === 2 ? 'Second half of the code:' : 'The code is'; $('note-code').textContent = e.code; G.modal = true; overlay('note', true); if (document.pointerLockElement) document.exitPointerLock(); break;
       case 'keypad': openKeypad(e.id); break;
       case 'heard': { const s = spatial(e.x, e.y); if (s.d < 20) { Sound.play('heard'); banner('IT HEARD THAT', 'heard', 1500); } break; }
       case 'sniff': { const sp = spatial(e.x, e.y); Sound.play('breath', { v: Math.max(0.5, sp.v), pan: sp.pan, pos: sp.pos, occl: sp.occl }); later(() => Sound.play('growl', { v: 0.4, pan: sp.pan, pos: sp.pos, occl: sp.occl, kind: 'stalker' }), 900); break; }
@@ -410,6 +415,7 @@ $('note-ok').onclick = () => { overlay('note', false); G.modal = false; if (!coa
 
 /* ---------------- input ---------------- */
 const KEYMAP = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' };
+['pointerdown', 'touchstart', 'keydown'].forEach(ev => window.addEventListener(ev, () => { G.lastIn = performance.now(); }, { passive: true }));
 window.addEventListener('keydown', (e) => {
   if (G.mode !== 'game') return; if (e.code === 'Escape') { if (!anyOverlay() || $('ov-pause').classList.contains('show')) pause(!G.paused); return; } if (G.paused || G.modal || G.over) return; if (e.repeat) return;
   const c = e.code; if (KEYMAP[c]) inp.keys[KEYMAP[c]] = true; else if (c === 'ShiftLeft' || c === 'ShiftRight') inp.keys.sprint = true; else if (c === 'KeyE') { inp.edge.interact = true; inp.leanR = true; } else if (c === 'Enter') inp.edge.interact = true; else if (c === 'KeyQ') inp.leanL = true; else if (c === 'KeyT' || c === 'KeyG') inp.edge.throw = true; else if (c === 'Space') { inp.edge.pulse = true; e.preventDefault(); } else if (c === 'KeyC' || c === 'ControlLeft') inp.edge.crouch = true; else if (c === 'KeyF') inp.edge.flash = true; else if (c === 'KeyR') inp.edge.radio = true;

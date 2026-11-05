@@ -87,7 +87,7 @@ function tryGenerate(spec, seed) {
     const cand = roomsUpTo(g.edge, g.edge >= 1);
     const place = (o) => { for (let t = 0; t < 12; t++) { const ri_ = pick(cand), p = spot(ri_, 1); if (p) { o.x = p.x; o.y = p.y; o.room = ri_; O(o); return o; } } return null; };
     if (g.type === 'key' || g.type === 'card') { if (!place({ type: 'item', kind: g.type, gate: g.k })) return null; }
-    else if (g.type === 'code') { const code = String(1000 + Math.floor(R() * 9000)); objs.find(o => o.id === g.doorId).code = code; if (!place({ type: 'note', code, gate: g.k })) return null; }
+    else if (g.type === 'code') { const code = String(1000 + Math.floor(R() * 9000)); objs.find(o => o.id === g.doorId).code = code; if (!place({ type: 'note', code, gate: g.k, part: 1 }) || !place({ type: 'note', code, gate: g.k, part: 2 })) return null; }
     else if (g.type === 'valve') { const v = place({ type: 'valve', opens: g.doorId, gate: g.k }); if (!v) return null; blocked.add(key(v.x, v.y)); }
     else if (g.type === 'breaker') { for (let b = 0; b < (spec.breakers || 2); b++) { const br = place({ type: 'breaker', gate: g.k, idx: b }); if (!br) return null; blocked.add(key(br.x, br.y)); } }
     else if (g.type === 'power') {
@@ -242,7 +242,7 @@ export function solve(w) {
   const need = (d, mask) => {
     if (!d.lock || d.lock === 'secret') return true;
     if (d.lock === 'key' || d.lock === 'card') { const it = w.objs.find(o => o.type === 'item' && o.kind === d.lock && o.gate === d.gate); return !!(mask & (1 << bits['i' + it.id])); }
-    if (d.lock === 'code') { const nt = w.objs.find(o => o.type === 'note' && o.gate === d.gate); return !!(mask & (1 << bits['n' + nt.id])); }
+    if (d.lock === 'code') { return w.objs.filter(o => o.type === 'note' && o.gate === d.gate).every(nt => !!(mask & (1 << bits['n' + nt.id]))); }
     if (d.lock === 'valve') { const v = w.objs.find(o => o.type === 'valve' && o.opens === d.id); return !!(mask & (1 << bits['v' + v.id])); }
     if (d.lock === 'breaker') return w.objs.filter(o => o.type === 'breaker' && o.gate === d.gate).every(b => mask & (1 << bits['b' + b.id]));
     if (d.lock === 'power') { const g = w.objs.find(o => o.type === 'generator' && o.gate === d.gate); return !!(mask & (1 << bits['g' + g.id])); }

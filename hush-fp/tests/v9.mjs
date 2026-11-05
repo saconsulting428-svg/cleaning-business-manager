@@ -40,7 +40,7 @@ console.log('totals over 50 levels', JSON.stringify(tot), 'levels with set-piece
   p.hp = 5; w.time += 1; damagePlayer(w, 8, 'crawler', p.x, p.y); t('0 HP is death by hazard', !p.alive && w.over === 'dead' && w.drainEvents().some(e => e.type === 'dead'));
 }
 {
-  const w = new World(generate(LEVELS[10]), {}), c = w.creatures[0]; w.catchPlayer(c); t('the first catch is survivable (55 damage, thrown clear)', !w.over && w.player.alive && w.player.hp === 45); w.catchPlayer(c); t('a second catch (within seconds) is fatal', w.over === 'dead' && !w.player.alive);
+  const w = new World(generate(LEVELS[10]), {}), c = w.creatures[0]; w.catchPlayer(c); t('the first catch kills at full health', w.over === 'dead' && !w.player.alive);
 }
 { // pickups: only taken when it helps
   const g = generate(LEVELS[16]), w = new World(g, {}), pk = w.pickups[0]; t('level 17 has a healing pickup', !!pk);
