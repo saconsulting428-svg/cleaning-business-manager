@@ -983,23 +983,36 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   const TXT_K = 1.1;                  // all text a little bigger than before
   function txt(x, y, s, size, color, originX, bold) {
     size = Math.round(size * TXT_K * 10) / 10;
-    let t = L.texts[L.n];
+    // Every different text (string + size + colour) keeps its own Text object, so a string that is shown again is never re-drawn
+    // into a texture: opening a pop-up or changing screens no longer re-renders a dozen texts in one frame.
+    const key = s + '|' + size + '|' + color + '|' + (bold === false ? 0 : 1);
+    let e = L.byKey[key];
+    if (!e) e = L.byKey[key] = { list: [], n: 0, pn: 0 };
+    let t = e.list[e.n];
     if (!t) {
-      t = scene.add.text(0, 0, '', { fontFamily: FONT });
+      t = scene.add.text(0, 0, s, { fontFamily: FONT, fontSize: (size * ZOOM) + 'px', color: color, fontStyle: bold === false ? '500' : '700' });
       t.setScale(1 / ZOOM);            // text is rendered at ZOOM x size, then scaled down, so it stays sharp
       t.setDepth(L.depth + 1);
-      L.texts.push(t);
+      e.list.push(t); L.texts.push(t);
     }
-    L.n++;
-    const key = s + '|' + size + '|' + color + '|' + (bold === false ? 0 : 1);
-    if (t._key !== key) {
-      t.setStyle({ fontFamily: FONT, fontSize: (size * ZOOM) + 'px', color: color, fontStyle: bold === false ? '500' : '700' });
-      t.setText(s);
-      t._key = key;
-    }
+    if (e.n === 0) L.active.push(e);
+    e.n++;
     t.setOrigin(originX === undefined ? 0.5 : originX, 0.5);
     t.setPosition(x, y);
     t.setVisible(true);
+  }
+  function textsBegin() {
+    layers.forEach((ly) => { ly.g.clear(); for (const e of ly.active) { e.pn = e.n; e.n = 0; } ly.prev = ly.active; ly.active = []; });
+  }
+  function textsEnd() {
+    layers.forEach((ly) => {
+      for (const e of ly.prev) for (let i = e.n; i < e.pn; i++) e.list[i].setVisible(false);
+      ly.prev = [];
+      if (ly.texts.length > 260) {                                   // keep the number of cached texts bounded: drop the ones not on screen
+        for (const k in ly.byKey) { const e = ly.byKey[k]; if (e.n === 0) { e.list.forEach((t) => t.destroy()); delete ly.byKey[k]; } }
+        ly.texts = ly.texts.filter((t) => t.scene);
+      }
+    });
   }
   function button(cx, cy, w, h, label, fn, opts) {
     const t = th(), o = opts || {};
@@ -1421,7 +1434,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     button(W / 2, 462, 250, 46, 'Tap to steer: ' + (DATA.tapSteer ? 'On' : 'Off'), toggleTap, { size: 17 });
     button(W / 2, 534, 200, 44, 'Close', () => { settingsOpen = false; }, { primary: true, size: 18 });
   }
-  function drawMenu() { drawMenu0(); if (settingsOpen) { for (let i = 0; i < L.n; i++) L.texts[i].setVisible(false); drawSettings(); } }
+  function drawMenu() { drawMenu0(); if (settingsOpen) { for (const e of L.active) for (let i = 0; i < e.n; i++) e.list[i].setVisible(false); drawSettings(); } }
   function drawMenu0() {
     const t = th();
     // top bar: best score + coins + sound
@@ -1880,7 +1893,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   }
 
   function draw() {
-    layers.forEach((ly) => { ly.g.clear(); ly.n = 0; });
+    textsBegin();
     buttons = [];
     useLayer(0);
     if (state === 'menu') {
@@ -1919,7 +1932,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
         drawAd();
       }
     }
-    layers.forEach((ly) => { for (let i = ly.n; i < ly.texts.length; i++) ly.texts[i].setVisible(false); });
+    textsEnd();
   }
 
   // ---------- Game logic ----------
@@ -3359,7 +3372,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     create() {
       scene = this;
       boardG = this.add.graphics();
-      layers = [0, 1, 2].map((i) => { const d = i === 2 ? 11 : i * 20 + 1; return { g: this.add.graphics().setDepth(d), texts: [], n: 0, depth: d }; });   // 2 = snake / effects above the stamped items
+      layers = [0, 1, 2].map((i) => { const d = i === 2 ? 11 : i * 20 + 1; return { g: this.add.graphics().setDepth(d), texts: [], n: 0, depth: d, byKey: {}, active: [], prev: [] }; });   // 2 = snake / effects above the stamped items
       useLayer(0);
       CT = menuPal();
       if (window.SFRAds) window.SFRAds.screen(state);
