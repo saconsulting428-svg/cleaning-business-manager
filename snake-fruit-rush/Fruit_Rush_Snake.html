@@ -388,7 +388,9 @@ window.SFR_LEVELS=[{"w":0,"d":179,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
       await plugin.initialize({ initializeForTesting: testing });
       addListeners();
       inited = true;
-      prepRewarded(); prepInter(); applyBanner();
+      setTimeout(applyBanner, 400);                              // start-up work is spread out so the game never stalls while it loads
+      setTimeout(prepRewarded, 2500);
+      setTimeout(prepInter, 6000);
     } catch (e) { inited = false; }
   };
   window.SFRAds = A;
@@ -397,7 +399,7 @@ window.SFR_LEVELS=[{"w":0,"d":179,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
     window.showRewardedAd = function () { return A.showRewarded(); };
     window.isRewardedAdReady = function () { return A.rewardedReady(); };
   }
-  setTimeout(() => { A.init(); }, 1200);
+  setTimeout(() => { A.init(); }, 3500);
 })();
 </script>
 <script>// =====================================================================
@@ -685,7 +687,7 @@ window.SFR_LEVELS=[{"w":0,"d":179,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
     if (d.highs.classic === undefined) d.highs.classic = d.high | 0;   // old single high score
     if (!MODES[d.mode]) d.mode = 'classic';
     d.speed = Math.min(10, Math.max(1, d.speed | 0 || 5));
-    d.tab = Math.abs(d.tab | 0) % 6;
+    d.tab = Math.abs(d.tab | 0) % 7;
     d.theme = Math.abs(d.theme | 0) % THEMES.length;
     d.bg = Math.abs(d.bg | 0) % BACKGROUNDS.length;
     // coins + skins
@@ -1491,7 +1493,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     else txt(W / 2, 604, MODES[DATA.mode].name + ' mode' + (DATA.mode === 'ultimate' ? ', speed ' + DATA.speed : '') + (hasSave ? '   -   game saved' : ''), 15, t.text, 0.5, false);
 
     drawDailyCard(654);
-    const rb = DATA.menuMode === 'endless' ? [['modes', 'Modes', 0], ['themes', 'Themes', 1], ['background', 'Pattern', 2], ['skins', 'Skins', 3], ['shop', 'Shop', 5], ['gifts', 'Gifts', 4]] : [['skins', 'Skins', 3], ['shop', 'Shop', 5], ['gifts', 'Gifts', 4]];
+    const rb = DATA.menuMode === 'endless' ? [['modes', 'Modes', 0], ['themes', 'Themes', 1], ['background', 'Pattern', 2], ['skins', 'Skins', 3], ['shop', 'Shop', 5], ['gifts', 'Gifts', 4]] : [['skins', 'Skins', 3], ['shop', 'Shop', 5], ['gifts', 'Gifts', 4], ['star', 'Album', 6]];
     rb.forEach((r, k) => roundButton(W / 2 + (k - (rb.length - 1) / 2) * (rb.length > 3 ? 76 : 110), 738, r[0], r[1], () => openSheet(r[2]), r[2] === 4 && spinReady() ? 1 : 0));
   }
 
@@ -1658,7 +1660,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     sheetAdBtn = false;
 
     // tabs
-    const tabs = DATA.menuMode === 'endless' ? [['Modes', 0], ['Themes', 1], ['Pattern', 2], ['Skins', 3], ['Shop', 5], ['Gifts', 4]] : [['Skins', 3], ['Shop', 5], ['Gifts', 4]], tw = BW / tabs.length;
+    const tabs = DATA.menuMode === 'endless' ? [['Modes', 0], ['Themes', 1], ['Pattern', 2], ['Skins', 3], ['Shop', 5], ['Gifts', 4], ['Album', 6]] : [['Skins', 3], ['Shop', 5], ['Gifts', 4], ['Album', 6]], tw = BW / tabs.length;
     rrect(BX, top + 32, BW, 46, 23, t.panel);
     tabs.forEach((tb, i) => {
       const x = BX + i * tw;
@@ -1697,10 +1699,12 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       drawSkinTab(top);
     } else if (DATA.tab === 5) {
       drawShop(top);
+    } else if (DATA.tab === 6) {
+      drawAlbum(top);
     } else {
       drawGifts(top);
     }
-    button(W / 2, top + (sheetAdBtn ? (DATA.tab === 3 ? 478 : DATA.tab === 4 ? 436 : 470) : (DATA.tab === 3 || DATA.tab === 0 || DATA.tab === 5 ? 462 : 410)), 260, 48, 'Done', closeSheet, { primary: true, size: 20 });
+    button(W / 2, top + (sheetAdBtn ? (DATA.tab === 3 ? 478 : DATA.tab === 4 ? 436 : 470) : (DATA.tab === 3 || DATA.tab === 0 || DATA.tab === 5 || DATA.tab === 6 ? 462 : 410)), 260, 48, 'Done', closeSheet, { primary: true, size: 20 });
     if (toast && anim < toast.until) { rrect(W / 2 - 160, top - 54, 320, 38, 19, toast.ok ? '#16a34a' : '#b91c1c'); txt(W / 2, top - 35, toast.s, 15, '#ffffff'); }
     buttons.push({ x: 0, y: 0, w: W, h: top, fn: closeSheet });   // tap above the sheet closes it
   }
@@ -2681,9 +2685,11 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       const p = cellOf(e.cell);
       if (e.t === 'fruit') {
         G.eaten++; G.coins += COIN_FRUIT * C0.coinMul; addCoins(COIN_FRUIT * C0.coinMul); cdAdd('cfruit', 1);
-        burst(p.x, p.y, 'rand', 8); ring(p.x, p.y, th().accent);
+        const fk = (C0.fr.find((f) => f.cell === e.cell) || {}).kind, fc = FRUIT_COL[fk] || th().accent;
+        burst(p.x, p.y, fc, 10); burst(p.x, p.y, '#ffffff', 4); ring(p.x, p.y, fc);
         popup('+1', th().accent, 30);
-        sfx.eat(0); buzz(12);
+        sfx.eat(Math.min(G.eaten - 1, 9)); buzz(12);                       // the pop gets higher with every fruit of the level
+        if (fk) albumAdd(fk);
       } else if (e.t === 'key') {
         ring(p.x, p.y, '#facc15'); burst(p.x, p.y, '#facc15', 8); popup('KEY!', '#facc15', 30);
         sfx.key(); buzz(20);
@@ -2729,9 +2735,9 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     } else if (res.status === 'fail') {
       C0.over = res.reason; C0.endT = 0;
       skFail(C0.id, res.reason);
-      if (res.reason === 'trap') { G.boom = [res.cell % COLS, (res.cell / COLS) | 0]; sfx.boom(); buzz(80); }
+      if (res.reason === 'trap') { G.boom = [res.cell % COLS, (res.cell / COLS) | 0]; sfx.boom(); buzz(80); shake(300, 0.014); }
       else {
-        sfx.over(); buzz(50);
+        sfx.over(); buzz(50); shake(140, 0.006);
         const hp = headXY(); ring(hp.x, hp.y, '#f87171'); burst(hp.x, hp.y, '#f87171', 10);
         if (res.reason === 'door') { const nx = st.body[0] % COLS + st.dir[0], ny = ((st.body[0] / COLS) | 0) + st.dir[1], ni = ny * COLS + nx; C0.over = rt.gateAt[ni] >= 0 ? 'gate' : 'door'; }
       }
@@ -3346,8 +3352,60 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     button(W / 2, y, 290, 50, 'Levels', leaveToLevels, { dark: true, size: 18 });
     if (G.adMsg) txt(W / 2, top + 146, G.adMsg, 12.5, '#ff5a5f', 0.5, false);
   }
+
+  // ---------- Game feel: camera shake (off with reduced motion) ----------
+  function shake(ms, k) { if (REDUCED || !scene) return; try { scene.cameras.main.shake(ms, k); } catch (e) { /* ignore */ } }
+  // ---------- Fruit album: every fruit eaten in the campaign fills the album; each stage pays coins ----------
+  const ALBUM_KEY = 'snakeFruitRush.album.v1', ALBUM_AT = [20, 60, 150, 300], ALBUM_PAY = [20, 40, 80, 150];
+  const FRUIT_NAME = { apple: 'Apple', orange: 'Orange', cherry: 'Cherry', grapes: 'Grapes', strawberry: 'Strawberry' };
+  const FRUIT_COL = { apple: '#e53935', orange: '#ff9a1f', cherry: '#d81b60', grapes: '#8e5bd6', strawberry: '#ff4d6d' };
+  const ALBUM = (() => {
+    let a = {};
+    try { a = JSON.parse(localStorage.getItem(ALBUM_KEY)) || {}; } catch (e) { a = {}; }
+    const o = {};
+    FRUITS.forEach((k) => { o[k] = num(a && a[k], 0, 1e7, 0); });
+    return o;
+  })();
+  function albumStage(n) { let s = 0; while (s < 4 && n >= ALBUM_AT[s]) s++; return s; }
+  function albumAdd(kind) {
+    if (ALBUM[kind] === undefined) return;
+    const before = albumStage(ALBUM[kind]);
+    ALBUM[kind]++;
+    const after = albumStage(ALBUM[kind]);
+    if (after > before) {
+      const pay = ALBUM_PAY[after - 1];
+      addCoins(pay); if (G) G.coins += pay;
+      showBanner('ALBUM: ' + FRUIT_NAME[kind] + ' stage ' + after + '!', '+' + pay + ' coins', '#fbbf24', 1800);
+      sfx.gold();
+    }
+    try { localStorage.setItem(ALBUM_KEY, JSON.stringify(ALBUM)); } catch (e) { /* blocked: counts last for this session */ }
+  }
+  function drawAlbum(top) {
+    const t = th();
+    txt(W / 2, top + 100, 'Fruit Album', 22, t.accent);
+    txt(W / 2, top + 126, 'Eat fruit in levels to fill the album and win coins', 12, t.text, 0.5, false);
+    FRUITS.forEach((k, i) => {
+      const y = top + 172 + i * 54, n = ALBUM[k], st = albumStage(n), next = ALBUM_AT[Math.min(st, 3)], prevAt = st ? ALBUM_AT[st - 1] : 0;
+      rrect(BX + 10, y - 24, BW - 20, 48, 14, t.panel, 0.9);
+      drawFruit(k, BX + 38, y + 1, 1.1);
+      txt(BX + 62, y - 9, FRUIT_NAME[k], 15, t.btnText, 0);
+      for (let s = 0; s < 4; s++) starShape(BX + 70 + s * 17, y + 11, 6.5, s < st ? '#fde047' : '#00000044');
+      const frac = st >= 4 ? 1 : (n - prevAt) / (next - prevAt);
+      rrect(BX + 168, y - 6, 160, 8, 4, t.bg);
+      if (frac > 0) rrect(BX + 168, y - 6, Math.max(8, 160 * frac), 8, 4, t.accent);
+      txt(BX + 168, y + 13, st >= 4 ? 'Complete!' : n + ' / ' + next, 11, t.text, 0, false);
+      if (st < 4) { drawCoin(BX + 368, y, 8); txt(BX + 380, y, '+' + ALBUM_PAY[st], 13, t.accent, 0); }
+    });
+  }
+  function drawConfetti() {                                           // falling confetti on the "level cleared" screen (cheap: no state)
+    const n = LITE ? 10 : 22;
+    for (let i = 0; i < n; i++) {
+      const t0 = (anim / 1000 * (0.16 + 0.2 * hh(i, 9, 2)) + hh(i, 9, 3)) % 1, x = BX + hh(i, 9, 1) * BW + Math.sin(anim / 400 + i) * 10, y = -10 + t0 * (H + 20);
+      g.fillStyle(C(CONFETTI[i % CONFETTI.length]), 0.9); g.fillRect(x, y, 6, 9);
+    }
+  }
   function drawCampWon() {
-    const t = th(), C0 = G.camp, last = C0.id >= LEVEL_COUNT, top = drawCampOverlayFrame(last ? 430 : 490);
+    const t = th(), C0 = G.camp, last = C0.id >= LEVEL_COUNT, top = drawCampOverlayFrame(last ? 430 : 512);
     txt(W / 2, top + 44, last ? 'You did it!' : 'Level cleared!', 32, t.accent);
     txt(W / 2, top + 80, last ? 'All ' + LEVEL_COUNT + ' levels complete' : 'Level ' + C0.id + '  -  ' + WORLDS[C0.L.w].name, 15, t.btnText);
     for (let s = 0; s < 3; s++) {
@@ -3358,10 +3416,17 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       if (got) starShape(x - 2, y - 3, 14 * sc, '#fffbe0', 0.6);
     }
     txt(W / 2, top + 208, C0.moves + ' moves', 20, t.btnText);
-    txt(W / 2, top + 236, C0.stars < 3 ? (C0.stars < 2 ? '2 stars: ' + C0.L.s2 + ' moves   3 stars: ' + C0.L.s3 : '3 stars: ' + C0.L.s3 + ' moves or less') : 'Perfect run!', 13, t.btnText, 0.5, false);
+    const gap3 = C0.moves - C0.L.s3, gap2 = C0.moves - C0.L.s2;
+    txt(W / 2, top + 236, C0.stars < 3 ? (C0.stars < 2 ? (gap2 <= 3 ? 'So close! ' + gap2 + ' move' + (gap2 > 1 ? 's' : '') + ' more than 2 stars' : '2 stars: ' + C0.L.s2 + ' moves   3 stars: ' + C0.L.s3) : (gap3 <= 4 ? 'So close! Just ' + gap3 + ' move' + (gap3 > 1 ? 's' : '') + ' too many for 3 stars' : '3 stars: ' + C0.L.s3 + ' moves or less')) : 'Perfect run!', 13, t.btnText, 0.5, false);
     drawCoin(W / 2 - 52, top + 262, 9);
-    txt(W / 2 - 38, top + 262, '+' + G.coins + ' coins', 15, '#fbbf24', 0);
-    let y = top + 316;
+    if (!C0.wonT) C0.wonT = anim;
+    txt(W / 2 - 38, top + 262, '+' + Math.round(G.coins * Math.min(1, (anim - C0.wonT) / 700)) + ' coins', 15, '#fbbf24', 0);   // counts up
+    if (!last) {
+      const nx = LV[C0.id], mech = [skHas(nx, 'I') && 'ice', skHas(nx, 'B') && 'bombs', skHas(nx, 'D') && 'door', skHas(nx, 'G') && 'gate', skHas(nx, 'P') && 'portal'].filter(Boolean).slice(0, 2).join(' + ');
+      txt(W / 2, top + 296, 'Next: level ' + (C0.id + 1) + '  -  ' + fruitCount(C0.id + 1) + ' fruit' + (mech ? '  -  ' + mech : ''), 13, t.btnText, 0.5, false);
+    }
+    drawConfetti();
+    let y = top + (last ? 316 : 338);
     if (!last) { button(W / 2, y, 290, 58, 'Next level', campNextLevel, { primary: true, size: 22 }); y += 68; }
     button(W / 2, y, 290, 46, 'Replay', campRetry, { dark: true, size: 17 });
     button(W / 2, y + 56, 290, 46, 'Levels', leaveToLevels, { dark: true, size: 17 });
