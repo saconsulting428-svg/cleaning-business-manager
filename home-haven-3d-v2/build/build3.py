@@ -110,5 +110,21 @@ rep("S.chapter++; S.stats.chapters = S.chapter; S.chBefore = null; save();\n","S
 rep("    if (op.t === 'multi') op.ops.forEach","    if (op.t === 'bulk') bulkUndo(op); else\n    if (op.t === 'multi') op.ops.forEach")
 rep("Open <b>Build</b> to place them. Every puzzle you win earns more.","Open <b>Build</b>, tap a room type, press ✓ Build, then tap the glowing spots. Every puzzle you win earns more.")
 rep("bindWorld(); bindWorldExt();","bindWorld(); bindWorldExt(); bindRoomWorld(); bindDesignWorld();")
+
+# ---- AdMob (real unit IDs). Banner: home + puzzle screens (portrait). Interstitial: after wins. Rewarded: existing buttons.
+rep("const CONFIG = { rewardedId: 'ca-app-pub-3940256099942544/5224354917', interstitialId: 'ca-app-pub-3940256099942544/1033173712', testing: true };",
+ "const CONFIG = { bannerId: 'ca-app-pub-4552686824557844/6125540080', rewardedId: 'ca-app-pub-4552686824557844/8118781634', interstitialId: 'ca-app-pub-4552686824557844/8568926519', testing: false, bannerH: 56 };")
+rep("    async interstitial() { const A = plugin(); if (!A || !ready) return; try { await A.prepareInterstitial({ adId: CONFIG.interstitialId, isTesting: CONFIG.testing }); await A.showInterstitial(); } catch (e) { } },\n  };",
+"""    async interstitial() { const A = plugin(); if (!A || !ready) return; if (Date.now() - lastInter < 120000) return; lastInter = Date.now(); try { await A.prepareInterstitial({ adId: CONFIG.interstitialId, isTesting: CONFIG.testing }); await A.showInterstitial(); } catch (e) { } },
+    // banner only on the home screen and in puzzles (portrait); hidden in Build, menu and landscape. Space is reserved through --safe-b / --adb.
+    sync(layer) { cur = layer || cur; const want = (cur === 'home' || cur === 'play') && innerHeight > innerWidth; setSpace(want ? CONFIG.bannerH : 0); const A = plugin(); if (!A || !ready) return; try { if (want) { if (!bannerMade) { bannerMade = true; A.showBanner({ adId: CONFIG.bannerId, adSize: 'BANNER', position: 'BOTTOM_CENTER', margin: 0, isTesting: CONFIG.testing }); } else A.resumeBanner(); } else if (bannerMade) A.hideBanner(); } catch (e) { } },
+  };
+  let lastInter = Date.now(), bannerMade = false, cur = '';
+  function setSpace(h) { const r = document.documentElement.style; r.setProperty('--adb', h + 'px'); r.setProperty('--safe-b', h ? 'calc(env(safe-area-inset-bottom,0px) + ' + h + 'px)' : 'env(safe-area-inset-bottom,0px)'); }
+  window.addEventListener('resize', () => { try { window.ADS.sync(); } catch (e) { } });
+  const initOrig = init; window.ADS.init = async () => { await initOrig(); const A = plugin(); if (A && A.addListener) { try { A.addListener('bannerAdFailedToLoad', () => setSpace(0)); } catch (e) { } } window.ADS.sync(); };""")
+rep("  function show(id) { $$('.layer').forEach(l => l.classList.toggle('on', l.id === id)); }","  function show(id) { $$('.layer').forEach(l => l.classList.toggle('on', l.id === id)); try { window.ADS && ADS.sync(id); } catch (e) { } }")
+rep("if (S.stats.wins % 6 === 0 && S.stats.wins >= 12) ADS.interstitial();","if (S.stats.wins % 4 === 0 && S.stats.wins >= 8) ADS.interstitial();")
+
 open(sys.argv[1] if len(sys.argv)>1 else '../Home_Haven_3D.html','w',encoding='utf-8').write(s)
 print('built',len(s)//1024,'KB')

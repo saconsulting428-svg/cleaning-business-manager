@@ -271,3 +271,4 @@
 .plus{position:relative}.plus:after{content:"";position:absolute;inset:-11px}
 @media (orientation:landscape) and (max-height:420px){#play .boosters{top:62px;bottom:auto;transform:scale(.76);transform-origin:top right;gap:4px;right:calc(6px + var(--safe-b))}}
 @media (orientation:landscape) and (max-height:560px){#build.dzmode .drawer #items .it{padding:2px 2px 3px;gap:0}#build.dzmode .drawer #items .it .th{width:60px;height:42px}#build.dzmode .drawer #items .it .nm{min-height:20px;font-size:10px}#build.dzmode .drawer #items .it .pr{font-size:10px}}
+.modal{padding-bottom:calc(14px + var(--adb,0px))}

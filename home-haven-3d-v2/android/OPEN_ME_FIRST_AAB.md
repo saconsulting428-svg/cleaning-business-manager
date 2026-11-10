@@ -11,7 +11,7 @@ Is zip mein poora Capacitor Android project hai (game `www/index.html` mein pehl
 
 ## 2. Pehle debug mein chala kar dekhein (zaroori)
 Phone USB debugging ke saath jodein ya emulator banayein -> **Run ▶**. Ye project is development environment mein
-kabhi build/run NAHI hua (wahan Android SDK nahi tha). Isliye pehli build mein koi Gradle/SDK error aaye to wo yahan dikhega.
+kabhi build/run NAHI hua (AdMob plugin ke saath bhi nahi) (wahan Android SDK nahi tha). Isliye pehli build mein koi Gradle/SDK error aaye to wo yahan dikhega.
 
 ## 3. Signed .aab banayein
 1. **Build > Generate Signed App Bundle / APK > Android App Bundle**.
@@ -26,11 +26,9 @@ kabhi build/run NAHI hua (wahan Android SDK nahi tha). Isliye pehli build mein k
   Agar Play Console "target API level too low" kahe to Capacitor 7+ par upgrade karna hoga:
   `npm i @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/screen-orientation@latest` phir `npx cap sync android`,
   aur Android Studio ka "AGP Upgrade Assistant" chalayein. Ye upgrade yahan test nahi hua.
-- **Icon / splash**: abhi Capacitor ka default icon/splash hai (`android/app/src/main/res/mipmap-*`, `drawable*`). Apna icon Android Studio mein
-  right-click `res` > **New > Image Asset** se lagayein. Play Store ke liye 512x512 icon aur feature graphic (1024x500) Console mein alag upload hota hai.
+- **Icon / splash**: naya house icon + splash lag chuka hai. Play Console ke liye `store/play_store_icon_512.png` aur `store/feature_graphic_1024x500.png` upload karein.
 - **Privacy policy URL** aur Data safety form Console mein bharna zaroori hai. Game apna data sirf phone ke `localStorage` mein rakhta hai.
-- **Ads**: AdMob plugin install NAHI hai — game mein 3 second ka demo ad dikhta hai. Asli ads chahiye to `@capacitor-community/admob` install karke AdMob IDs dalni hongi.
-  Agar ads nahi chahiye to Play Console mein "contains ads: No" tabhi chunein jab demo ad bhi hata dein, warna review mein masla ho sakta hai.
+- **Ads (AdMob)**: `@capacitor-community/admob` installed hai, aapke real IDs game mein lage hain (App ID manifest mein). Banner: home (portrait) + puzzle screens; interstitial: har 4th win ke baad (kam se kam 2 min gap); rewarded: existing 'Watch ad' buttons. **Apne phone par test karte waqt real ads par khud click mat karein** (AdMob account ban ho sakta hai) — test ke liye `Home_Haven_3D.html` mein `testing: false` ko `true` karke sync karein, release se pehle wapas `false`. Play Console mein 'Contains ads: Yes' chunein aur Data safety mein advertising ID declare karein. Naye AdMob unit IDs ko live hone mein kuch ghante lag sakte hain (shuru mein ad blank aa sakta hai).
 - Content rating questionnaire aur target audience (bachon ke liye na ho to "13+/all" sahi chunein) bharein.
 
 ## Game badalna ho
