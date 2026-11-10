@@ -54,10 +54,10 @@
   const dzBrief = () => { const a = dzS().active; return a && dz && a.key === dz.key ? BRIEFS.find(b => b.id === a.id) : null; };
   function dzOpen(p, key) {
     const first = !dz; dz = Object.assign(dz || { inside: false, collapsed: true }, { p, key }); $('#build').classList.add('dzmode'); $('#guide').classList.add('hidden'); WORLD.dropMode = true; WORLD.orbit = true; WORLD.setSites(null);
-    if (first) { WORLD.setInterior(true); WORLD.roomView(rcells(p), p.lvl, false, 0); if (innerHeight > innerWidth) WORLD.focus(-20, 0); else WORLD.focus(14, 0); WORLD.camBase(); const r = detectRooms(S.layout).find(x => x.key === key); curCat = ['furniture', 'decor', 'kitchen', 'bath', 'bedroom'].find(c => unlockedCats().includes(c)) || curCat; renderTabs(); renderItems0(); }
+    if (first) { WORLD.setRoomLabel(null); WORLD.setInterior(true); WORLD.roomView(rcells(p), p.lvl, false, 0); if (innerHeight > innerWidth) WORLD.focus(-20, 0); else WORLD.focus(14, 0); WORLD.camBase(); const r = detectRooms(S.layout).find(x => x.key === key); curCat = ['furniture', 'decor', 'kitchen', 'bath', 'bedroom'].find(c => unlockedCats().includes(c)) || curCat; renderTabs(); renderItems0(); }
     dzRefresh();
   }
-  function dzReframe() { if (!dz) return; WORLD.setInterior(true); WORLD.roomView(rcells(dz.p), dz.p.lvl, dz.inside, 0); WORLD.focus(dz.inside ? 0 : (innerHeight > innerWidth ? -20 : 14), 0); WORLD.camBase(); }
+  function dzReframe() { if (!dz) return; WORLD.setRoomLabel(null); WORLD.setInterior(true); WORLD.roomView(rcells(dz.p), dz.p.lvl, dz.inside, 0); WORLD.focus(dz.inside ? 0 : (innerHeight > innerWidth ? -20 : 14), 0); WORLD.camBase(); }
   function dzClose() { if (!dz) return; dz = null; WORLD.dropMode = false; WORLD.orbit = false; $('#build').classList.remove('dzmode', 'shelfopen'); $('#dz').classList.add('hidden'); $('#dzbar').classList.add('hidden'); }
   window.dzAuto = (id) => { if (!dz) return false; const P = PART[id]; return S.coins >= P.price; }; // design mode buys a piece on demand when you drop it
 

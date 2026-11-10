@@ -233,14 +233,14 @@
 @media (orientation:landscape) and (max-height:560px){
   #build.dzmode .btop{margin-left:252px!important}
   .dz{top:8px;width:238px}
-  .dzbar{bottom:8px}#build.dzmode.shelfopen .dzbar{bottom:138px}
-  #build.dzmode .drawer{left:0!important;right:0!important;top:auto!important;bottom:0!important;width:auto!important;height:128px;border-radius:20px 20px 0 0!important;flex-direction:column;padding:6px 10px 4px!important;transform:translateY(112%);transition:transform .25s;box-shadow:0 -6px 20px rgba(0,0,0,.2)!important}
+  .dzbar{bottom:8px}#build.dzmode.shelfopen .dzbar{bottom:156px}
+  #build.dzmode .drawer{left:0!important;right:0!important;top:auto!important;bottom:0!important;width:auto!important;height:146px;border-radius:20px 20px 0 0!important;flex-direction:column;padding:6px 10px 4px!important;transform:translateY(112%);transition:transform .25s;box-shadow:0 -6px 20px rgba(0,0,0,.2)!important}
   #build.dzmode.shelfopen .drawer{transform:none}
   #build.dzmode .drawer .tabs{flex:0 0 auto;display:flex!important;flex-direction:row!important;overflow-x:auto;gap:4px;margin:0 0 4px!important}
   #build.dzmode .drawer .tab{flex:0 0 auto;min-height:30px!important;padding:3px 10px!important;font-size:11px!important;flex-direction:row;gap:4px}#build.dzmode .drawer .tab .ti{display:none}
   #build.dzmode .drawer #items{display:flex!important;flex-direction:row;overflow-x:auto;overflow-y:hidden;gap:6px;flex:1;min-height:0}
   #build.dzmode .drawer #items .it{flex:0 0 78px;min-height:0;padding:2px;font-size:10px}
-  #build.dzmode .actbar{left:50%!important;bottom:12px!important}#build.dzmode.shelfopen .actbar{bottom:140px!important}
+  #build.dzmode .actbar{left:50%!important;bottom:12px!important}#build.dzmode.shelfopen .actbar{bottom:158px!important}
   .dzl{font-size:10.5px}
 }
 @media (orientation:portrait){.dz{top:calc(var(--safe-t) + 52px)}.dzbar{bottom:calc(var(--safe-b) + 236px);flex-direction:row}.dzb1{width:56px;min-height:44px}}
@@ -270,3 +270,4 @@
 .tgbub{padding:6px 9px;font-size:12.5px}.tgskip{display:inline-block;margin:4px 0 0 0;font-size:10.5px;min-height:22px;padding:2px 8px;float:right}.tgbub:after{content:"";display:block;clear:both}
 .plus{position:relative}.plus:after{content:"";position:absolute;inset:-11px}
 @media (orientation:landscape) and (max-height:420px){#play .boosters{top:62px;bottom:auto;transform:scale(.76);transform-origin:top right;gap:4px;right:calc(6px + var(--safe-b))}}
+@media (orientation:landscape) and (max-height:560px){#build.dzmode .drawer #items .it{padding:2px 2px 3px;gap:0}#build.dzmode .drawer #items .it .th{width:60px;height:42px}#build.dzmode .drawer #items .it .nm{min-height:20px;font-size:10px}#build.dzmode .drawer #items .it .pr{font-size:10px}}
