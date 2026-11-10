@@ -4191,6 +4191,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   setInterval(() => { try { tgTick(); } catch (e) { } }, 220);
   window.addEventListener('resize', () => { try { tgTick(); } catch (e) { } });
 
+  // portrait home: keep the zoom/day/settings row under the quest card even when the card grows (e.g. it shows a button)
+  (function () {
+    const place = () => { const q = $('#quest'), s = $('#home .side.right'); if (!q || !s) return; if (innerWidth > innerHeight) { s.style.top = ''; return; } const r = q.getBoundingClientRect(), a = $('#app').getBoundingClientRect(); if (r.height < 5) return; s.style.top = Math.round(r.bottom - a.top + 8) + 'px'; };
+    try { new ResizeObserver(place).observe($('#quest')); } catch (e) { }
+    window.addEventListener('resize', place); setInterval(place, 1500);
+  })();
+
   function buildInsets() { const land = innerWidth > innerHeight, dr = $('#build .drawer'); if (roomEdit) return; if (land) { WORLD.setInset(dr ? dr.offsetWidth : 0); WORLD.focus(0, (dr ? dr.offsetWidth : 0) / 2); } else { WORLD.setInset(0); WORLD.focus(60, 0); } }
   window.addEventListener('resize', () => { if ($('#build').classList.contains('on')) buildInsets(); });
 

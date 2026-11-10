@@ -80,3 +80,10 @@
   document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('#items .it')) tg.card = true; }, true);
   setInterval(() => { try { tgTick(); } catch (e) { } }, 220);
   window.addEventListener('resize', () => { try { tgTick(); } catch (e) { } });
+
+  // portrait home: keep the zoom/day/settings row under the quest card even when the card grows (e.g. it shows a button)
+  (function () {
+    const place = () => { const q = $('#quest'), s = $('#home .side.right'); if (!q || !s) return; if (innerWidth > innerHeight) { s.style.top = ''; return; } const r = q.getBoundingClientRect(), a = $('#app').getBoundingClientRect(); if (r.height < 5) return; s.style.top = Math.round(r.bottom - a.top + 8) + 'px'; };
+    try { new ResizeObserver(place).observe($('#quest')); } catch (e) { }
+    window.addEventListener('resize', place); setInterval(place, 1500);
+  })();
