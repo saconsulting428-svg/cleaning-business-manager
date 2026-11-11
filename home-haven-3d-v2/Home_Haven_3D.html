@@ -2131,9 +2131,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   window.ADS = {
     init,
     async rewarded() { const A = plugin(); if (!A || !ready) return demo(); try { await A.prepareRewardVideoAd({ adId: CONFIG.rewardedId, isTesting: CONFIG.testing }); return !!(await A.showRewardVideoAd()); } catch (e) { return false; } },
-    async interstitial() { const A = plugin(); if (!A || !ready) return; if (Date.now() - lastInter < 120000) return; lastInter = Date.now(); try { await A.prepareInterstitial({ adId: CONFIG.interstitialId, isTesting: CONFIG.testing }); await A.showInterstitial(); } catch (e) { } },
+    async interstitial() { const A = plugin(); if (!A || !ready) return; if (window.__game && __game.S && __game.S.tut && !__game.S.tut.off) return; if (Date.now() - lastInter < 120000) return; lastInter = Date.now(); try { await A.prepareInterstitial({ adId: CONFIG.interstitialId, isTesting: CONFIG.testing }); await A.showInterstitial(); } catch (e) { } },
     // banner only on the home screen and in puzzles (portrait); hidden in Build, menu and landscape. Space is reserved through --safe-b / --adb.
-    sync(layer) { cur = layer || cur; const want = (cur === 'home' || cur === 'play') && innerHeight > innerWidth; setSpace(want ? CONFIG.bannerH : 0); const A = plugin(); if (!A || !ready) return; try { if (want) { if (!bannerMade) { bannerMade = true; A.showBanner({ adId: CONFIG.bannerId, adSize: 'BANNER', position: 'BOTTOM_CENTER', margin: 0, isTesting: CONFIG.testing }); } else A.resumeBanner(); } else if (bannerMade) A.hideBanner(); } catch (e) { } },
+    sync(layer) { cur = layer || cur; const tut = window.__game && __game.S && __game.S.tut && !__game.S.tut.off; const want = !tut && (cur === 'home' || cur === 'play') && innerHeight > innerWidth; setSpace(want ? CONFIG.bannerH : 0); const A = plugin(); if (!A || !ready) return; try { if (want) { if (!bannerMade) { bannerMade = true; A.showBanner({ adId: CONFIG.bannerId, adSize: 'BANNER', position: 'BOTTOM_CENTER', margin: 0, isTesting: CONFIG.testing }); } else A.resumeBanner(); } else if (bannerMade) A.hideBanner(); } catch (e) { } },
   };
   let lastInter = Date.now(), bannerMade = false, cur = '';
   function setSpace(h) { const r = document.documentElement.style; r.setProperty('--adb', h + 'px'); r.setProperty('--safe-b', h ? 'calc(env(safe-area-inset-bottom,0px) + ' + h + 'px)' : 'env(safe-area-inset-bottom,0px)'); }
@@ -4177,7 +4177,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const svg = $('.tgsvg'); svg.setAttribute('width', W); svg.setAttribute('height', Hh); window.__puzRect = puzRect; window.__tg = { id: tg.rule, ring: { x: rect.x - 6, y: rect.y - 6, w: rect.w + 12, h: rect.h + 12 }, bubble: best, overlap: ovl(best, T), appW: W, appH: Hh };
   }
   function tgTick() {
-    const st = tgS(); if (st.off || !S || scr() === 'menu' || scr() === '') { tgHide(); return; }
+    const st = tgS(); if (tg.lastOff !== st.off) { tg.lastOff = st.off; try { window.ADS && ADS.sync(); } catch (e) { } } if (st.off || !S || scr() === 'menu' || scr() === '') { tgHide(); return; }
     let changed = false; RULES.forEach(r => { if (!st.done[r.id] && r.fin()) { st.done[r.id] = 1; changed = true; } if (r.id === 'roomDone' && st.done.roomDone && !st.countedRoom) { st.countedRoom = 1; } }); if (changed) save();
     if (tg.sawDone && !(modalOpen() && /ROOM COMPLETE/.test($('#mbox').textContent))) { tg.sawDone = false; tgS().rooms++; delete st.done.roomDone; delete st.done.pick; delete st.done.confirm; delete st.done.sites; delete st.done.design; delete st.done.designGo; tg.card = false; save(); }
     if (tg.sawWin && !(modalOpen() && /Level Complete/.test($('#mbox').textContent))) { tg.sawWin = false; delete st.done.win; }

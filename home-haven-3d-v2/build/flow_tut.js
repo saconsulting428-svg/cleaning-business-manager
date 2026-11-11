@@ -67,7 +67,7 @@
     const svg = $('.tgsvg'); svg.setAttribute('width', W); svg.setAttribute('height', Hh); window.__puzRect = puzRect; window.__tg = { id: tg.rule, ring: { x: rect.x - 6, y: rect.y - 6, w: rect.w + 12, h: rect.h + 12 }, bubble: best, overlap: ovl(best, T), appW: W, appH: Hh };
   }
   function tgTick() {
-    const st = tgS(); if (st.off || !S || scr() === 'menu' || scr() === '') { tgHide(); return; }
+    const st = tgS(); if (tg.lastOff !== st.off) { tg.lastOff = st.off; try { window.ADS && ADS.sync(); } catch (e) { } } if (st.off || !S || scr() === 'menu' || scr() === '') { tgHide(); return; }
     let changed = false; RULES.forEach(r => { if (!st.done[r.id] && r.fin()) { st.done[r.id] = 1; changed = true; } if (r.id === 'roomDone' && st.done.roomDone && !st.countedRoom) { st.countedRoom = 1; } }); if (changed) save();
     if (tg.sawDone && !(modalOpen() && /ROOM COMPLETE/.test($('#mbox').textContent))) { tg.sawDone = false; tgS().rooms++; delete st.done.roomDone; delete st.done.pick; delete st.done.confirm; delete st.done.sites; delete st.done.design; delete st.done.designGo; tg.card = false; save(); }
     if (tg.sawWin && !(modalOpen() && /Level Complete/.test($('#mbox').textContent))) { tg.sawWin = false; delete st.done.win; }
