@@ -1922,7 +1922,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       if (G.camp) drawCampGame(); else drawGame();
       useLayer(1);
       if (state === 'paused') {
-        if (G.camp) drawCampPause(); else drawPause();
+        if (G.camp) { if (G.camp.help) drawCampHelp(); else drawCampPause(); } else drawPause();
       } else if (state === 'won') {
         drawCampWon();
       } else if (state === 'over' && G.camp) {
@@ -2660,6 +2660,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     writeData();
     useWorld(L.w);
     setState('play');
+    if (!navigator.webdriver || window.__forceTips) { if (helpItems(L).some((i) => !tipsSeen.has(i.id))) { C0.help = true; togglePause(); } }   // first time a thing appears: the card opens by itself
   }
   const PORTAL_MS = 950;                            // portal-entry animation before the result screen
   const campSliding = () => !!G.camp && E.resolveDir(G.camp.rt, G.camp.st, null).forced;
@@ -3214,8 +3215,11 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       useLayer(0);
       buttons.push({ x: x - 3, y: y - 3, w: 58, h: 58, fn: () => usePower(k) });
     });
-    txt(BX + 244, 706, '3 stars: ' + C0.L.s3 + ' moves', 12.5, t.text, 0, false);
-    txt(BX + 244, 728, '2 stars: ' + C0.L.s2 + ' moves', 12.5, t.text, 0, false);
+    txt(BX + 236, 706, '3 stars: ' + C0.L.s3 + ' moves', 11.5, t.text, 0, false);
+    txt(BX + 236, 728, '2 stars: ' + C0.L.s2 + ' moves', 11.5, t.text, 0, false);
+    const qx = BX + BW - 78, qy = 718;                          // "?" = what is in this level
+    dot(qx, qy, 15, t.panel); txt(qx, qy + 1, '?', 20, t.btnText);
+    buttons.push({ x: qx - 20, y: qy - 24, w: 40, h: 48, fn: openHelp });
     const px = BX + BW - 52, py = 692;
     rrect(px, py, 52, 52, 12, t.panel);
     line(px + 19, py + 15, px + 19, py + 37, t.btnText, 6);
@@ -3337,6 +3341,60 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     rrect(W / 2 - 186, top - 6, 372, h + 12, 26, t.bg);
     rrect(W / 2 - 180, top, 360, h, 22, t.panel);
     return top;
+  }
+
+  // ---------- "How to play" card: what is in this level (opens by itself the first time a thing appears, and from the "?" button) ----------
+  const TIPS_KEY = 'snakeFruitRush.tips.v1';
+  const tipsSeen = (() => {
+    try { const a = JSON.parse(localStorage.getItem(TIPS_KEY)); return new Set(Array.isArray(a) ? a.filter((x) => typeof x === 'string').slice(0, 20) : []); } catch (e) { return new Set(); }
+  })();
+  function helpItems(L) {
+    const it = [
+      { id: 'swipe', title: 'Swipe to steer', text: 'Swipe anywhere to turn. Walls and your own tail stop you.' },
+      { id: 'fruit', title: 'Eat all the fruit', text: 'The exit only opens after every fruit is eaten.' }
+    ];
+    if (skHas(L, 'I')) it.push({ id: 'ice', title: 'Ice', text: 'You slide and cannot steer until the ice ends.' });
+    if (skHas(L, 'B')) it.push({ id: 'bomb', title: 'Bombs', text: 'Touch a bomb and the level ends. Go around!' });
+    if (skHas(L, 'D')) it.push({ id: 'door', title: 'Key and door', text: 'Take the key first. Then the door opens for you.' });
+    if (skHas(L, 'G')) it.push({ id: 'gate', title: 'Switch and gate', text: 'Step on the switch to open (or close) the gate of the same colour.' });
+    if (skHas(L, 'P')) it.push({ id: 'portal', title: 'Portals', text: 'Enter one portal and you come out of the other.' });
+    it.push({ id: 'exit', title: 'The exit', text: 'It glows when all fruit is eaten. Then go in!' });
+    return it;
+  }
+  function drawHelpIcon(id, x, y) {
+    if (id === 'swipe') { g.fillStyle(C('#ffffff'), 0.95); g.fillTriangle(x - 13, y, x - 2, y - 9, x - 2, y + 9); g.fillTriangle(x + 13, y, x + 2, y - 9, x + 2, y + 9); dot(x, y, 4, '#ffffff'); }
+    else if (id === 'fruit') drawFruit('apple', x, y, 1.1);
+    else if (id === 'ice') { rrect(x - 12, y - 12, 24, 24, 6, '#bfe6ff'); line(x - 7, y + 4, x + 3, y - 6, '#ffffff', 2.2); line(x - 2, y + 8, x + 8, y - 2, '#ffffff', 2.2); }
+    else if (id === 'bomb') drawBomb(x, y, 1.15);
+    else if (id === 'door') { drawKey(x - 12, y, 0.8); drawDoor(x + 12, y, false, false); }
+    else if (id === 'gate') { drawSwitch(x - 12, y, GATE_COLS[0], false); drawGate(x + 12, y, false, GATE_COLS[0], false); }
+    else if (id === 'portal') { drawPortal(x - 12, y, '#c084fc', true); drawPortal(x + 12, y, '#38bdf8', false); }
+    else if (id === 'exit') drawExitTile(x, y, true);
+  }
+  function drawCampHelp() {
+    const t = th(), C0 = G.camp, items = helpItems(C0.L), rowH = 66, h = 118 + items.length * rowH + 64, top = drawCampOverlayFrame(h);
+    buttons = [];                                                      // only this card reacts
+    txt(W / 2, top + 36, 'How to play', 28, t.accent);
+    txt(W / 2, top + 66, 'What is in level ' + C0.id, 13, t.btnText, 0.5, false);
+    items.forEach((it, i) => {
+      const y = top + 108 + i * rowH;
+      rrect(W / 2 - 168, y - 28, 336, rowH - 6, 14, t.bg, 0.55);
+      drawHelpIcon(it.id, W / 2 - 130, y + 4);
+      txt(W / 2 - 96, y - 14, it.title, 15, t.btnText, 0);
+      if (!tipsSeen.has(it.id)) { rrect(W / 2 + 118, y - 23, 42, 18, 9, t.accent); txt(W / 2 + 139, y - 14, 'NEW', 10, '#1b1b1b'); }
+      wrapText(it.text, 34).forEach((l, k) => txt(W / 2 - 96, y + 6 + k * 16, l, 12, t.text, 0, false));
+    });
+    button(W / 2, top + h - 40, 260, 52, 'Got it!', closeHelp, { primary: true, size: 20 });
+  }
+  function openHelp() {
+    if (!G || !G.camp || state !== 'play' || G.camp.over || G.camp.won) return;
+    G.camp.help = true; togglePause();
+  }
+  function closeHelp() {
+    const C0 = G.camp;
+    helpItems(C0.L).forEach((i) => tipsSeen.add(i.id));
+    try { localStorage.setItem(TIPS_KEY, JSON.stringify(Array.from(tipsSeen))); } catch (e) { /* blocked: shows again next time */ }
+    C0.help = false; togglePause();
   }
   function drawCampPause() {
     const t = th(), C0 = G.camp, top = drawCampOverlayFrame(420);
@@ -3611,7 +3669,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   setTimeout(startGame, 1500);
 
   // test hook (not used by the game itself)
-  window.__snake = { ads: { meta: adsMeta, claimAdCoins: claimAdCoins, adHint: adHint, maybeInter: maybeInter, playAgain: playAgain, coinsLeft: adCoinsLeft, requestRewarded: requestRewarded, get kind() { return adKind; }, get job() { return adJob; } }, camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, stepClock: stepClock, resetOwed: () => { owed = 0; }, cd: { ensure: cdEnsure, add: cdAdd, make: makeCD }, sk: { get S() { return SK; }, adapt: skAdapt, record: skRecord, fail: skFail, fruit: adaptiveFruit, profile: skProfile, reload: () => { SK = skLoad(); return SK; }, reset: () => { SK = SK_FRESH(); } }, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, pts: snakePoints, get renderer() { return scene && scene.sys.game.renderer.type === Phaser.WEBGL ? 'webgl' : 'canvas'; }, get fxCount() { return fxs.length; }, get popupCount() { return popups.length; }, get ZOOM() { return ZOOM; }, get textPool() { return layers.map((l) => l.texts.length); }, get G() { return G; }, get state() { return state; }, get buttons() { return buttons; }, step2: step, DATA: DATA, turn: turn, get acc() { return acc; }, get sheet() { return sheetOpen; }, placeBombs: placeBombs, step: step, newGame: newGame, POWER_KEYS: POWER_KEYS,
+  window.__snake = { ads: { meta: adsMeta, claimAdCoins: claimAdCoins, adHint: adHint, maybeInter: maybeInter, playAgain: playAgain, coinsLeft: adCoinsLeft, requestRewarded: requestRewarded, get kind() { return adKind; }, get job() { return adJob; } }, camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, help: { open: openHelp, close: closeHelp, items: helpItems, get seen() { return tipsSeen; } }, stepClock: stepClock, resetOwed: () => { owed = 0; }, cd: { ensure: cdEnsure, add: cdAdd, make: makeCD }, sk: { get S() { return SK; }, adapt: skAdapt, record: skRecord, fail: skFail, fruit: adaptiveFruit, profile: skProfile, reload: () => { SK = skLoad(); return SK; }, reset: () => { SK = SK_FRESH(); } }, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, pts: snakePoints, get renderer() { return scene && scene.sys.game.renderer.type === Phaser.WEBGL ? 'webgl' : 'canvas'; }, get fxCount() { return fxs.length; }, get popupCount() { return popups.length; }, get ZOOM() { return ZOOM; }, get textPool() { return layers.map((l) => l.texts.length); }, get G() { return G; }, get state() { return state; }, get buttons() { return buttons; }, step2: step, DATA: DATA, turn: turn, get acc() { return acc; }, get sheet() { return sheetOpen; }, placeBombs: placeBombs, step: step, newGame: newGame, POWER_KEYS: POWER_KEYS,
     daily: { ensure: dailyEnsure, add: dailyAdd, max: dailyMax, make: makeDaily, load: loadData, addCoins: addCoins }, buySkin: buySkin, selectSkin: selectSkin, doSpin: doSpin, openEgg: openEgg, spinReady: spinReady, closeSheet: closeSheet, openSheet: openSheet, get skinPick() { return skinPick; }, set skinPick(v) { skinPick = v; }, get gift() { return gift; }, EGG_COST: EGG_COST, sfx: sfx, shareScore: shareScore, watchAd: watchAd, adAvailable: adAvailable, SKINS: SKINS, get fxs() { return fxs; }, eat: eatAtHead, gameOver: gameOver };
 })();
 </script>
