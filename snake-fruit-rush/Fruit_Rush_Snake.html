@@ -1177,20 +1177,30 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     const t = th(), n = pts.length, sk = skin || activeSkin();
     const lineCol = sk.id === 'default' ? t.b : sk.line, headCol = sk.id === 'default' ? t.head : sk.head;
     // body line, so the snake looks like one continuous shape
-    g.lineStyle(15, C(lineCol), 1);
-    g.beginPath();
-    g.moveTo(pts[n - 1].x, pts[n - 1].y);
-    for (let i = n - 2; i >= 0; i--) {
-      const far = Math.abs(pts[i].x - pts[i + 1].x) + Math.abs(pts[i].y - pts[i + 1].y) > CELL * 1.7;
-      if (far) g.moveTo(pts[i].x, pts[i].y);     // wrapped through a wall
-      else g.lineTo(pts[i].x, pts[i].y);
-    }
-    g.strokePath();
+    const bodyPath = (w, col, al) => {
+      g.lineStyle(w, C(col), al);
+      g.beginPath();
+      g.moveTo(pts[n - 1].x, pts[n - 1].y);
+      for (let i = n - 2; i >= 0; i--) {
+        const far = Math.abs(pts[i].x - pts[i + 1].x) + Math.abs(pts[i].y - pts[i + 1].y) > CELL * 1.7;
+        if (far) g.moveTo(pts[i].x, pts[i].y);     // wrapped through a wall
+        else g.lineTo(pts[i].x, pts[i].y);
+      }
+      g.strokePath();
+    };
+    if (n <= 40) bodyPath(18, shade(lineCol, -0.62), 0.85);       // dark outline
+    bodyPath(15, lineCol, 1);
     // tail gets thinner
+    const segR = (i) => { const ft = n - 1 - i; return ft < 3 ? [6, 7.5, 9][ft] : 10.5; };
+    const gloss = !LITE && n <= 40;                  // a very long snake skips the shine: it keeps the frame rate up
+    if (gloss) for (let i = n - 1; i >= 1; i--) dot(pts[i].x, pts[i].y, segR(i) + 1.5, shade(segColor(sk, i, n), -0.6), 0.9);   // outline pass
     for (let i = n - 1; i >= 1; i--) {
-      const fromTail = n - 1 - i;
-      const r = fromTail < 3 ? [6, 7.5, 9][fromTail] : 10.5;
+      const r = segR(i);
       dot(pts[i].x, pts[i].y, r, segColor(sk, i, n));
+      if (gloss) {
+        dot(pts[i].x - r * 0.18, pts[i].y - r * 0.2, r * 0.7, shade(segColor(sk, i, n), 0.28), 0.55);
+        dot(pts[i].x - r * 0.36, pts[i].y - r * 0.42, r * 0.26, '#ffffff', 0.7);
+      }
       if (sk.pattern === 'stars' && i % 3 === 0) dot(pts[i].x + 2, pts[i].y - 2, 1.8, '#ffffff');
     }
     drawHead(sk, pts[0].x, pts[0].y, dir[0], dir[1], 1, headCol, ringColor);
@@ -3297,6 +3307,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       boardG.fillStyle(C(t.board1), 1);
       boardG.fillRect(BX, BY, BW, BH);
       drawPattern(boardG, WORLDS[w].pattern, BX, BY, COLS, ROWS, CELL);
+      for (let k = 0; k < 6; k++) { boardG.lineStyle(2, 0x000000, 0.06 * (6 - k)); boardG.strokeRect(BX + 1 + k * 2, BY + 1 + k * 2, BW - 2 - k * 4, BH - 2 - k * 4); }   // soft inner shadow: the board looks deeper
     } else if (s <= 3) {
       for (let r = (s - 1) * 9; r < Math.min(ROWS, s * 9); r++) for (let c = 0; c < COLS; c++) {
         const i = r * COLS + c;
@@ -3644,7 +3655,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   function stampBomb(x, y) {
     const a = anim / 60, flick = Math.sin(a * 1.7) > 0;
     blit('bombGlow', stamp('st_bomb_glow', (cx, cy) => dot(cx, cy + 1, 10, '#ef4444', 1)), x, y, 0.18 + 0.12 * Math.sin(a * 0.35), 4);
-    if (!itemPic('bombP', 'bomb', x, y + 0.5, 19)) blit('bomb', stamp(...bombSt(flick)), x, y, 1, 5);
+    if (!itemPic('bombP', 'bomb', x, y + 0.5, 20.5)) blit('bomb', stamp(...bombSt(flick)), x, y, 1, 5);
   }
   const fruitSt = (kind) => ['st_fr_' + kind, (cx, cy) => drawFruit(kind, cx, cy, 0.84)];
   const keySt = () => ['st_key', (cx, cy) => withStillClock(() => drawKey(cx, cy, 0.84))];
@@ -3657,8 +3668,8 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     blitImg(pool, key, x, y, h * u.w / u.h, h, alpha === undefined ? 1 : alpha, 5, angle || 0);
     return true;
   }
-  const stampFruit = (kind, x, y) => { if (!itemPic('fruitP', 'fruit_' + kind, x, y, 19)) blit('fruit', stamp(...fruitSt(kind)), x, y, 1, 5); };
-  const stampKey = (x, y) => { const yy = y + Math.sin(anim / 220) * 1.5; if (!itemPic('keyP', 'key', x, yy, 19, 1, Math.sin(anim / 500) * 6)) blit('key', stamp(...keySt()), x, yy, 1, 5); };
+  const stampFruit = (kind, x, y) => { if (!itemPic('fruitP', 'fruit_' + kind, x, y, 20.5)) blit('fruit', stamp(...fruitSt(kind)), x, y, 1, 5); };
+  const stampKey = (x, y) => { const yy = y + Math.sin(anim / 220) * 1.5; if (!itemPic('keyP', 'key', x, yy, 20.5, 1, Math.sin(anim / 500) * 6)) blit('key', stamp(...keySt()), x, yy, 1, 5); };
   const stampDoor = (x, y, open, flash) => { if (!itemPic('doorP', 'door', x, y, open ? 16 : 20, open ? 0.3 : 1)) blit('door', stamp(...doorSt(open, flash)), x, y, 1, 5); };
   const stampGate = (x, y, open, col, flash) => { if (!itemPic('gateP', 'gate', x, y, 20, open ? 0.25 : 1, 0, C(shade(col, 0.25)))) blit('gate', stamp(...gateSt(open, col, flash)), x, y, 1, 5); };
   // The stamps are made one per frame while the menu / level map is on screen, so starting a level does not have to build them.
