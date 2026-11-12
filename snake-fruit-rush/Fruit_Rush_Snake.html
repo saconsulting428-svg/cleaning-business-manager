@@ -702,7 +702,7 @@ window.SFR_IMG = {"coin": "data:image/webp;base64,UklGRpIeAABXRUJQVlA4WAoAAAAQAA
     if (d.highs.classic === undefined) d.highs.classic = d.high | 0;   // old single high score
     if (!MODES[d.mode]) d.mode = 'classic';
     d.speed = Math.min(10, Math.max(1, d.speed | 0 || 5));
-    d.tab = Math.abs(d.tab | 0) % 7;
+    d.tab = Math.abs(d.tab | 0) % 8;
     d.theme = Math.abs(d.theme | 0) % THEMES.length;
     d.bg = Math.abs(d.bg | 0) % BACKGROUNDS.length;
     // coins + skins
@@ -1465,6 +1465,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     rrect(W - BX - 118 - cw, 18, cw, 42, 21, t.panel, 0.7);
     drawCoin(W - BX - 118 - cw + 24, 39, 11);
     txt(W - BX - 118 - cw + 42, 39, coinText(DATA.coins), 16, t.accent, 0);
+    buttons.push({ x: W - BX - 118 - cw, y: 12, w: cw, h: 56, fn: () => openSheet(7) });          // tap the coins: coin store
     dot(W - BX - 76, 39, 22, t.panel, 0.7);
     drawIcon('gear', W - BX - 76, 39);
     buttons.push({ x: W - BX - 102, y: 12, w: 52, h: 56, fn: () => { settingsOpen = true; } });
@@ -1681,7 +1682,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     sheetAdBtn = false;
 
     // tabs
-    const tabs = DATA.menuMode === 'endless' ? [['Modes', 0], ['Themes', 1], ['Pattern', 2], ['Skins', 3], ['Shop', 5], ['Gifts', 4], ['Goals', 6]] : [['Skins', 3], ['Shop', 5], ['Gifts', 4], ['Goals', 6]], tw = BW / tabs.length;
+    const tabs = DATA.menuMode === 'endless' ? [['Modes', 0], ['Themes', 1], ['Pattern', 2], ['Skins', 3], ['Shop', 5], ['Gifts', 4], ['Coins', 7]] : [['Coins', 7], ['Skins', 3], ['Shop', 5], ['Gifts', 4], ['Goals', 6]], tw = BW / tabs.length;
     rrect(BX, top + 32, BW, 46, 23, t.panel);
     tabs.forEach((tb, i) => {
       const x = BX + i * tw;
@@ -1722,10 +1723,12 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       drawShop(top);
     } else if (DATA.tab === 6) {
       drawGoals(top);
+    } else if (DATA.tab === 7) {
+      drawCoinStore(top);
     } else {
       drawGifts(top);
     }
-    button(W / 2, top + (sheetAdBtn ? (DATA.tab === 3 ? 478 : DATA.tab === 4 ? 436 : 470) : (DATA.tab === 3 || DATA.tab === 0 || DATA.tab === 5 || DATA.tab === 6 ? 462 : 410)), 260, 48, 'Done', closeSheet, { primary: true, size: 20 });
+    button(W / 2, top + (sheetAdBtn ? (DATA.tab === 3 ? 478 : DATA.tab === 4 ? 436 : 470) : (DATA.tab === 3 || DATA.tab === 0 || DATA.tab === 5 || DATA.tab === 6 || DATA.tab === 7 ? 462 : 410)), 260, 48, 'Done', closeSheet, { primary: true, size: 20 });
     if (toast && anim < toast.until) { rrect(W / 2 - 160, top - 54, 320, 38, 19, toast.ok ? '#16a34a' : '#b91c1c'); txt(W / 2, top - 35, toast.s, 15, '#ffffff'); }
     buttons.push({ x: 0, y: 0, w: W, h: top, fn: closeSheet });   // tap above the sheet closes it
   }
@@ -2651,6 +2654,33 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     m[id] = F2;
     try { localStorage.setItem(FRUIT_KEY, JSON.stringify(m)); } catch (e) { /* blocked: layout lasts for this session only */ }
     return F2;
+  }
+
+
+  // ---------- Coin store: free coins from ads (the daily ladder) and coin packs (coming soon) ----------
+  function drawCoinStore(top) {
+    const t = th(), ct = coinText(DATA.coins) + ' coins';
+    drawCoin(W / 2 - ct.length * 4.4 - 12, top + 100, 10); txt(W / 2 - ct.length * 4.4 + 2, top + 100, ct, 16, t.accent, 0);
+    txt(W / 2, top + 134, 'Free coins - watch ads', 14, t.btnText);
+    const n = adCoinsToday(), pw = 78, x0 = W / 2 - (AD_COIN_LADDER.length * pw + (AD_COIN_LADDER.length - 1) * 4) / 2;
+    AD_COIN_LADDER.forEach((v, i) => {
+      const x = x0 + i * (pw + 4), done = i < n, next = i === n;
+      rrect(x, top + 150, pw, 46, 12, next ? t.accent : t.panel, done ? 0.5 : 1);
+      drawCoin(x + 16, top + 173, 8); txt(x + 28, top + 173, String(v), 13, next ? '#1b1b1b' : t.btnText, 0);
+      if (done) { line(x + pw - 18, top + 160, x + pw - 14, top + 164, '#4ade80', 2.4); line(x + pw - 14, top + 164, x + pw - 7, top + 156, '#4ade80', 2.4); }
+    });
+    if (adCoinsLeft() && adAvailable()) { sheetAdBtn = true; adBtn(W / 2, top + 224, 320, 42, 'Watch ad   +' + adCoinNext() + ' coins   (' + adCoinsLeft() + ' left today)', claimAdCoins, 15); }
+    else txt(W / 2, top + 224, adCoinsLeft() ? 'No ad ready right now - try again in a moment' : 'All free coins taken today - come back tomorrow!', 13, t.text, 0.5, false);
+    txt(W / 2, top + 268, 'Coin packs', 14, t.btnText);
+    [['Small', 500], ['Medium', 1500], ['Big', 5000]].forEach((pk, i) => {
+      const cx = W / 2 + (i - 1) * 144, cy = top + 352;
+      rrect(cx - 68, cy - 66, 136, 132, 16, t.panel);
+      drawCoin(cx, cy - 26, 20);
+      txt(cx, cy + 8, String(pk[1]), 20, t.accent);
+      txt(cx, cy + 30, pk[0] + ' pack', 12, t.btnText, 0.5, false);
+      rrect(cx - 50, cy + 42, 100, 20, 10, '#00000055'); txt(cx, cy + 52, 'Coming soon', 11, t.btnText);
+      buttons.push({ x: cx - 68, y: cy - 66, w: 136, h: 132, fn: () => sheetToast('Coin packs are coming soon!', true) });
+    });
   }
 
   // ---------- Progress store (goals, daily puzzle, expert clears): its own key, safe on missing / broken data ----------
