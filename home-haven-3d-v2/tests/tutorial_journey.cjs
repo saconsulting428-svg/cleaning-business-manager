@@ -4,6 +4,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright');
 (async()=>{ const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--no-sandbox']});
  const [W,H]=(process.argv[2]||'800x400').split('x').map(Number); const tag=process.argv[3]||'tj';
  const p=await b.newPage({viewport:{width:W,height:H}}); p.setDefaultTimeout(60000); const errs=[]; p.on('pageerror',e=>{errs.push(e.message);console.log('PAGEERR',e.message)});
+ if(process.env.MOCKADS) await p.addInitScript(()=>{ const L=()=>()=>Promise.resolve({}); window.Capacitor={Plugins:{AdMob:{initialize:L(),showBanner:L(),resumeBanner:L(),hideBanner:L(),addListener:L()}}}; });
  await p.goto('file:///home/user/cleaning-business-manager/home-haven-3d-v2/Home_Haven_3D.html'); await p.evaluate(()=>localStorage.clear()); await p.reload(); await p.waitForSelector('#menu.on',{timeout:90000});
  await p.click('#btnContinue'); await p.waitForTimeout(1200); let stuck=0, blocked=0; const seen=[]; const issues=[]; let shots=0;
  for(let i=0;i<700;i++){
@@ -13,7 +14,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright');
    if(s.off){ console.log('tutorial ended at level',s.level,'chapter',s.chapter); break; }
    if(s.level>=7 && !s.vis) { console.log('reached level 7'); break; }
    if(s.vis&&s.g){ const k=s.g.id+'|'+s.txt; if(!seen.includes(k)){ seen.push(k); console.log('STEP',s.g.id,'L'+s.level,'C'+s.chapter,'-',s.txt,'| overlap',Math.round(s.g.overlap),'hit',s.hit); if(shots<40) await p.screenshot({path:`${tag}_${String(shots++).padStart(2,'0')}_${s.g.id}.png`}); }
-     if(s.cov&&s.cov.length) issues.push('bubble covers '+s.cov.join(',')+' at '+s.g.id); if(s.g.overlap>0) issues.push('bubble overlaps target at '+s.g.id); if(s.hit==='TG') issues.push('target covered by overlay at '+s.g.id);
+     if(s.cov&&s.cov.length) issues.push('bubble covers '+s.cov.join(',')+' at '+s.g.id); if(process.env.MOCKADS&&s.g.bubble.y+s.g.bubble.h>s.g.appH-56+1) issues.push('bubble inside banner zone at '+s.g.id); if(s.g.overlap>0) issues.push('bubble overlaps target at '+s.g.id); if(s.hit==='TG') issues.push('target covered by overlay at '+s.g.id);
      if(s.g.bubble.x<0||s.g.bubble.y<0||s.g.bubble.x+s.g.bubble.w>s.g.appW+1||s.g.bubble.y+s.g.bubble.h>s.g.appH+1) issues.push('bubble clipped at '+s.g.id);
      if(s.g.id==='puz'){ // tip shown: now finish the level (win helper), after a few polls
        await p.waitForTimeout(500); await p.evaluate(()=>{ __game.S.playing && __game.levelWin(3); }); await p.waitForTimeout(1500); continue; }
