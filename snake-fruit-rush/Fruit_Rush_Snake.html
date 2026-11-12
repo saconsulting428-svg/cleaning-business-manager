@@ -516,7 +516,10 @@ window.SFR_LEVELS=[{"w":0,"d":179,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
     { id: 'emperor', name: 'Emperor', cost: 10000, a: '#fbbf24', b: '#b91c1c', head: '#fcd34d', line: '#b91c1c', animal: 'dragon', trail: 'fire' },
     { id: 'cosmic', name: 'Cosmic', cost: 12500, a: '#0ea5e9', b: '#4c1d95', head: '#e0f2fe', line: '#4c1d95', pattern: 'stars', trail: 'sparkle' },
     { id: 'diamond', name: 'Diamond', cost: 15000, a: '#bae6fd', b: '#e0f2fe', head: '#ffffff', line: '#7dd3fc', pattern: 'shimmer', trail: 'sparkle', animal: 'unicorn' },
-    { id: 'royal', name: 'Royal', cost: 20000, a: '#fde047', b: '#a21caf', head: '#fff7c2', line: '#a21caf', pattern: 'shimmer', trail: 'gold', animal: 'crown' }
+    { id: 'royal', name: 'Royal', cost: 20000, a: '#fde047', b: '#a21caf', head: '#fff7c2', line: '#a21caf', pattern: 'shimmer', trail: 'gold', animal: 'crown' },
+    { id: 'neonracer', name: 'Neon Racer', cost: 99999, special: '7-day daily streak', a: '#22d3ee', b: '#e879f9', head: '#ffffff', line: '#22d3ee', pattern: 'neon', trail: 'sparkle' },
+    { id: 'obsidian', name: 'Obsidian', cost: 99999, special: '5 Expert clears', a: '#1f2937', b: '#7c3aed', head: '#f5d0fe', line: '#111827', pattern: 'shimmer', trail: 'fire', animal: 'crown' },
+    { id: 'champion', name: 'Champion', cost: 99999, special: '3 stars on 25 levels', a: '#fde047', b: '#ffffff', head: '#fffbe0', line: '#f59e0b', pattern: 'shimmer', trail: 'gold', animal: 'crown' }
   ];
   const SKIN_BY_ID = {};
   SKINS.forEach((s) => { SKIN_BY_ID[s.id] = s; });
@@ -588,7 +591,7 @@ window.SFR_LEVELS=[{"w":0,"d":179,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
       wall: { base: '#3b3880', top: '#7a76d6', edge: '#1c1a47' } }
   ];
   const GATE_COLS = ['#f97316', '#22d3ee', '#a3e635', '#f472b6'];
-  const FAIL_TEXT = { wall: 'You hit a wall', body: 'You bit your own tail', trap: 'Boom! You hit a bomb', door: 'That way is closed', stuck: 'Stuck on the ice' };
+  const FAIL_TEXT = { wall: 'You hit a wall', body: 'You hit your own body', trap: 'Boom! You hit a bomb', door: 'That way is closed', stuck: 'Stuck on the ice', moves: 'Too many moves for Expert' };
   const hh = (a, b, s) => {                                           // tiny deterministic hash 0..1 (for tile decoration)
     let h = Math.imul(a + 1, 73856093) ^ Math.imul(b + 1, 19349663) ^ Math.imul(s + 1, 83492791);
     h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -789,7 +792,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   }
   function buySkin(id) {
     const sk = SKIN_BY_ID[id];
-    if (!sk || skinOwned(id) || DATA.coins < sk.cost) return false;
+    if (!sk || sk.special || skinOwned(id) || DATA.coins < sk.cost) return false;
     DATA.coins -= sk.cost;
     DATA.skins.push(id);
     DATA.skin = id;
@@ -1389,6 +1392,8 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     } else if (kind === 'gear') {
       for (let i = 0; i < 8; i++) { const an = i * Math.PI / 4; line(x + Math.cos(an) * 6, y + Math.sin(an) * 6, x + Math.cos(an) * 10.5, y + Math.sin(an) * 10.5, c, 3.6); }
       dot(x, y, 7.6, c); dot(x, y, 3.2, t.panel);
+    } else if (kind === 'cal') {
+      rrect(x - 13, y - 11, 26, 24, 5, c); rrect(x - 13, y - 11, 26, 8, 5, '#ef4444'); for (let q = 0; q < 6; q++) dot(x - 8 + (q % 3) * 8, y + 1 + Math.floor(q / 3) * 7, 2, t.panel);
     } else if (kind === 'star') {
       g.fillStyle(C(t.accent), 1);
       const pts = [];
@@ -1502,8 +1507,8 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     else txt(W / 2, 604, MODES[DATA.mode].name + ' mode' + (DATA.mode === 'ultimate' ? ', speed ' + DATA.speed : '') + (hasSave ? '   -   game saved' : ''), 15, t.text, 0.5, false);
 
     drawDailyCard(654);
-    const rb = DATA.menuMode === 'endless' ? [['modes', 'Modes', 0], ['themes', 'Themes', 1], ['background', 'Pattern', 2], ['skins', 'Skins', 3], ['shop', 'Shop', 5], ['gifts', 'Gifts', 4]] : [['skins', 'Skins', 3], ['shop', 'Shop', 5], ['gifts', 'Gifts', 4]];
-    rb.forEach((r, k) => roundButton(W / 2 + (k - (rb.length - 1) / 2) * (rb.length > 3 ? 76 : 110), 738, r[0], r[1], () => openSheet(r[2]), r[2] === 4 && spinReady() ? 1 : 0));
+    const rb = DATA.menuMode === 'endless' ? [['modes', 'Modes', 0], ['themes', 'Themes', 1], ['background', 'Pattern', 2], ['skins', 'Skins', 3], ['shop', 'Shop', 5], ['gifts', 'Gifts', 4]] : [['skins', 'Skins', 3], ['shop', 'Shop', 5], ['gifts', 'Gifts', 4], ['cal', 'Daily', 'daily']];
+    rb.forEach((r, k) => roundButton(W / 2 + (k - (rb.length - 1) / 2) * (rb.length > 3 ? 76 : 110), 738, r[0], r[1], () => (r[2] === 'daily' ? startDailyPuzzle() : openSheet(r[2])), (r[2] === 4 && spinReady()) || (r[2] === 'daily' && !dpDone()) ? 1 : 0));
   }
 
   // Skin picker: tap a skin to look at it, then Equip or Unlock.
@@ -1547,6 +1552,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       txt(cx, ct + 46, sk.name, 12, t.btnText);
       if (DATA.skin === sk.id) txt(cx, ct + 62, 'Equipped', 10, t.accent);
       else if (owned) txt(cx, ct + 62, 'Owned', 10, t.btnText, 0.5, false);
+      else if (sk.special) txt(cx, ct + 62, 'Special', 10, t.accent);
       else {
         drawCoin(cx - 14, ct + 62, 6);
         txt(cx - 5, ct + 62, String(sk.cost), 11, DATA.coins >= sk.cost ? t.accent : t.btnText, 0);
@@ -1556,6 +1562,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     const sk = SKIN_BY_ID[skinPick], by = top + 384;
     if (DATA.skin === sk.id) button(W / 2, by, 260, 44, 'Equipped', null, { disabled: true, dark: true, size: 17 });
     else if (skinOwned(sk.id)) button(W / 2, by, 260, 44, 'Equip ' + sk.name, () => selectSkin(sk.id), { primary: true, size: 17 });
+    else if (sk.special) button(W / 2, by, 260, 44, 'Locked: ' + sk.special, null, { disabled: true, dark: true, size: 14 });
     else if (DATA.coins >= sk.cost) button(W / 2, by, 260, 44, 'Unlock for ' + sk.cost + ' coins', () => buySkin(sk.id), { primary: true, size: 17 });
     else { button(W / 2, by, 260, 44, 'Need ' + (sk.cost - DATA.coins) + ' more coins', () => skinError('Not enough coins for ' + sk.name + '!'), { dark: true, size: 16 }); adCoinsButton(top + 432); }
   }
@@ -1669,7 +1676,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     sheetAdBtn = false;
 
     // tabs
-    const tabs = DATA.menuMode === 'endless' ? [['Modes', 0], ['Themes', 1], ['Pattern', 2], ['Skins', 3], ['Shop', 5], ['Gifts', 4]] : [['Skins', 3], ['Shop', 5], ['Gifts', 4]], tw = BW / tabs.length;
+    const tabs = DATA.menuMode === 'endless' ? [['Modes', 0], ['Themes', 1], ['Pattern', 2], ['Skins', 3], ['Shop', 5], ['Gifts', 4], ['Goals', 6]] : [['Skins', 3], ['Shop', 5], ['Gifts', 4], ['Goals', 6]], tw = BW / tabs.length;
     rrect(BX, top + 32, BW, 46, 23, t.panel);
     tabs.forEach((tb, i) => {
       const x = BX + i * tw;
@@ -1708,6 +1715,8 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       drawSkinTab(top);
     } else if (DATA.tab === 5) {
       drawShop(top);
+    } else if (DATA.tab === 6) {
+      drawGoals(top);
     } else {
       drawGifts(top);
     }
@@ -2601,14 +2610,15 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     for (let k = 4; k < R.length - 2; k++) if (!bad.has(R[k]) && !(bl && bl[R[k]])) out.push(R[k]);
     return out;
   }
-  function tightFruit(base, id) {
+  function tightFruit(base, id, rf) {
+    rf = rf || rnd;
     const want = fruitCount(id), pool = fruitPool(base), tries = 4 + Math.ceil(id * 0.4), R = base.R;
     for (let n = want; n >= 1; n--) {
       let best = null, bs = -1, found = 0;
       for (let i = 0; i < tries * 6 && found < tries; i++) {
         const p = pool.slice(), F = [];
         while (p.length && F.length < n) {
-          const c = p.splice(rnd(p.length), 1)[0], x = c % COLS, y = (c / COLS) | 0;
+          const c = p.splice(rf(p.length), 1)[0], x = c % COLS, y = (c / COLS) | 0;
           if (F.every((o) => Math.max(Math.abs(o[0] - x), Math.abs(o[1] - y)) >= 2)) F.push([x, y]);
         }
         if (F.length < n || !routeWins(base, F)) continue;
@@ -2634,13 +2644,127 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     try { localStorage.setItem(FRUIT_KEY, JSON.stringify(m)); } catch (e) { /* blocked: layout lasts for this session only */ }
     return F2;
   }
-  function startLevel(id, showRoute) {
+
+  // ---------- Progress store (goals, daily puzzle, expert clears): its own key, safe on missing / broken data ----------
+  const PROG_KEY = 'snakeFruitRush.prog.v1';
+  const PROG = (() => {
+    let a = null;
+    try { a = JSON.parse(localStorage.getItem(PROG_KEY)); } catch (e) { a = null; }
+    a = a && typeof a === 'object' ? a : {};
+    const o = { claimed: {}, nohelp: num(a.nohelp, 0, 1e5, 0), ice: num(a.ice, 0, 1e5, 0), expert: {}, dp: { date: '', done: false, moves: 0, stars: 0, streak: 0, last: '', best: 0, total: 0 } };
+    if (a.claimed && typeof a.claimed === 'object') Object.keys(a.claimed).forEach((k) => { if (a.claimed[k] === 1 && /^[a-z0-9]{1,12}$/.test(k)) o.claimed[k] = 1; });
+    if (a.expert && typeof a.expert === 'object') Object.keys(a.expert).forEach((k) => { if (/^\d{1,3}$/.test(k) && +k >= 1 && +k <= 100) o.expert[k] = 1; });
+    const d = a.dp && typeof a.dp === 'object' ? a.dp : {};
+    if (typeof d.date === 'string' && DATE_RE.test(d.date)) { o.dp.date = d.date; o.dp.done = d.done === true; o.dp.moves = num(d.moves, 0, 9999, 0); o.dp.stars = num(d.stars, 0, 3, 0); }
+    o.dp.streak = num(d.streak, 0, 9999, 0); o.dp.best = num(d.best, 0, 9999, 0); o.dp.total = num(d.total, 0, 99999, 0);
+    o.dp.last = typeof d.last === 'string' && DATE_RE.test(d.last) ? d.last : '';
+    return o;
+  })();
+  function progSave() { try { localStorage.setItem(PROG_KEY, JSON.stringify(PROG)); } catch (e) { /* blocked: lasts for this session */ } }
+
+  // ---------- Goals ----------
+  const clearedN = () => Object.keys(DATA.camp.stars).length;
+  const threeN = () => Object.keys(DATA.camp.stars).filter((k) => (DATA.camp.stars[k] | 0) >= 3).length;
+  const dpStreakNow = () => (PROG.dp.last === dateKey(new Date()) || PROG.dp.last === addDays(dateKey(new Date()), -1) ? PROG.dp.streak : 0);
+  const GOALS = [
+    { id: 'ten', name: 'Getting good', desc: 'Clear 10 levels', t: 10, v: clearedN, pay: 30 },
+    { id: 'three10', name: 'Perfectionist', desc: '3 stars on 10 levels', t: 10, v: threeN, pay: 80 },
+    { id: 'nohelp5', name: 'On my own', desc: 'Clear 5 levels with no help', t: 5, v: () => PROG.nohelp, pay: 60 },
+    { id: 'ice10', name: 'Ice breaker', desc: 'Clear 10 levels with ice', t: 10, v: () => PROG.ice, pay: 50 },
+    { id: 'daily3', name: 'Daily habit', desc: 'Daily puzzle 3 days in a row', t: 3, v: dpStreakNow, pay: 100 },
+    { id: 'daily7', name: 'Week warrior', desc: 'Daily puzzle 7 days in a row', t: 7, v: dpStreakNow, pay: 150, skin: 'neonracer' },
+    { id: 'expert5', name: 'Expert', desc: 'Clear 5 levels in Expert mode', t: 5, v: () => Object.keys(PROG.expert).length, pay: 150, skin: 'obsidian' },
+    { id: 'three25', name: 'Champion', desc: '3 stars on 25 levels', t: 25, v: threeN, pay: 200, skin: 'champion' }
+  ];
+  function goalsCheck() {
+    let any = false;
+    GOALS.forEach((gl) => {
+      if (PROG.claimed[gl.id] || gl.v() < gl.t) return;
+      PROG.claimed[gl.id] = 1; any = true;
+      addCoins(gl.pay);
+      if (gl.skin && DATA.skins.indexOf(gl.skin) < 0 && SKIN_BY_ID[gl.skin]) DATA.skins.push(gl.skin);
+      showBanner('GOAL: ' + gl.name, '+' + gl.pay + ' coins' + (gl.skin ? '  +  new skin!' : ''), '#fbbf24', 2200);
+      sfx.gold();
+    });
+    if (any) { progSave(); writeData(); }
+  }
+  function drawGoals(top) {
+    const t = th();
+    txt(W / 2, top + 100, 'Goals', 22, t.accent);
+    GOALS.forEach((gl, i) => {
+      const y = top + 140 + i * 38, done = !!PROG.claimed[gl.id], v = Math.min(gl.t, gl.v());
+      rrect(BX + 10, y - 17, BW - 20, 34, 12, t.panel, 0.9);
+      txt(BX + 22, y - 7, gl.name, 13, done ? t.accent : t.btnText, 0);
+      txt(BX + 22, y + 9, gl.desc, 10.5, t.text, 0, false);
+      if (done) { dot(BX + BW - 34, y, 11, '#22c55e'); line(BX + BW - 40, y, BX + BW - 36, y + 4, '#ffffff', 2.6); line(BX + BW - 36, y + 4, BX + BW - 29, y - 4, '#ffffff', 2.6); }
+      else {
+        rrect(BX + 250, y - 3, 90, 7, 3.5, t.bg); if (v > 0) rrect(BX + 250, y - 3, Math.max(7, 90 * v / gl.t), 7, 3.5, t.accent);
+        txt(BX + 295, y + 12, v + '/' + gl.t, 10, t.text, 0.5, false);
+        drawCoin(BX + 366, y, 7); txt(BX + 377, y, '+' + gl.pay + (gl.skin ? '+skin' : ''), 11, t.accent, 0);
+      }
+    });
+  }
+
+  // ---------- Daily puzzle: the same level and fruit for everybody on a given day ----------
+  const dpToday = () => dateKey(new Date());
+  const dpDone = () => PROG.dp.date === dpToday() && PROG.dp.done;
+  function strHash(s) { let h = 7; for (let i = 0; i < s.length; i++) h = (Math.imul(h, 33) + s.charCodeAt(i)) >>> 0; h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0; return (h ^ (h >>> 13)) >>> 0; }
+  function seededRng(seed) {
+    let a = seed >>> 0;
+    return (n) => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return Math.floor((((t ^ (t >>> 14)) >>> 0) / 4294967296) * n); };
+  }
+  const dpLevelFor = (date) => 15 + (strHash(date) % 56);            // levels 15 - 70
+  function startDailyPuzzle() {
+    const date = dpToday(), id = dpLevelFor(date), base = LV[id - 1];
+    startLevel(id, false, { daily: true, date: date, F: tightFruit(base, id, seededRng(strHash(date + '#' + id))) });
+  }
+  function dpComplete(C0) {
+    const date = C0.opts.date || dpToday(), first = !(PROG.dp.date === date && PROG.dp.done);
+    C0.dpReward = 0;
+    if (first) {
+      PROG.dp.streak = PROG.dp.last === addDays(date, -1) ? PROG.dp.streak + 1 : 1;
+      PROG.dp.last = date; PROG.dp.total++;
+      C0.dpReward = 60 + Math.min(PROG.dp.streak, 7) * 10;
+      addCoins(C0.dpReward);
+    }
+    const better = first || C0.moves < PROG.dp.moves;
+    if (better) { PROG.dp.date = date; PROG.dp.done = true; PROG.dp.moves = C0.moves; PROG.dp.stars = C0.stars; }
+    if (!PROG.dp.best || C0.moves < PROG.dp.best) PROG.dp.best = C0.moves;
+    C0.coins = C0.dpReward;
+    progSave(); writeData(); goalsCheck();
+  }
+  function shareDaily() {
+    const C0 = G.camp, date = C0.opts.date || dpToday();
+    const text = 'Snake Fruit Rush - Daily ' + date + '\n' + '*'.repeat(C0.stars) + ' ' + C0.moves + ' moves' + (C0.helped ? '' : ' (no help)') + '\nStreak: ' + PROG.dp.streak + ' days\nCan you beat me?' + (window.SHARE_URL ? ' ' + window.SHARE_URL : '');
+    const done = (msg) => { if (G) G.shareMsg = msg; };
+    try {
+      if (typeof window.shareText === 'function') { window.shareText(text); return; }
+      if (navigator.share) { navigator.share({ text: text }).catch(() => {}); return; }
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(() => done('Result copied - paste it to a friend!'), () => done('Sharing is not available here.')); return; }
+    } catch (e) { /* fall through */ }
+    done('Sharing is not available here.');
+  }
+  function drawDailyWon() {
+    const t = th(), C0 = G.camp, top = drawCampOverlayFrame(450);
+    txt(W / 2, top + 44, 'Daily puzzle done!', 28, t.accent);
+    txt(W / 2, top + 78, 'Level ' + C0.id + '  -  ' + dpToday(), 14, t.btnText, 0.5, false);
+    for (let s = 0; s < 3; s++) { const x = W / 2 + (s - 1) * 56, y = top + 126; starShape(x, y + 3, 26, '#000000', 0.25); starShape(x, y, 26, s < C0.stars ? '#fde047' : '#00000044'); }
+    txt(W / 2, top + 182, C0.moves + ' moves' + (C0.helped ? '' : '  -  no help'), 18, t.btnText);
+    txt(W / 2, top + 212, 'Streak: ' + PROG.dp.streak + (PROG.dp.streak === 1 ? ' day' : ' days') + '   Best: ' + PROG.dp.best + ' moves', 13, t.btnText, 0.5, false);
+    if (C0.dpReward) { drawCoin(W / 2 - 52, top + 244, 9); txt(W / 2 - 38, top + 244, '+' + C0.dpReward + ' coins', 16, '#fbbf24', 0); }
+    else txt(W / 2, top + 244, 'Come back tomorrow for a new puzzle!', 13, t.btnText, 0.5, false);
+    adBtn(W / 2, top + 296, 290, 50, 'Share result', shareDaily, 18);
+    if (G.shareMsg) txt(W / 2, top + 330, G.shareMsg, 12, '#4ade80', 0.5, false);
+    button(W / 2, top + 372, 290, 50, 'Home', goHome, { primary: true, size: 19 });
+    drawConfetti();
+  }
+  function startLevel(id, showRoute, opts) {
     id = Math.min(LEVEL_COUNT, Math.max(1, id | 0));
-    if (id > campUnlocked()) return;
-    const base = LV[id - 1], ad = skAdapt(base, id);
-    if (!SK.cur || SK.cur.id !== id) SK.cur = { id: id, fails: 0, ms: 0 };
-    SK.cur.ms = 0;
-    let L = Object.assign({}, base, { F: fruitSaved(id, base) });
+    const daily = !!(opts && opts.daily);
+    if (id > campUnlocked() && !daily) return;
+    const base = LV[id - 1], ad = daily ? { e: 0, bias: 0, s2: 0, s3: 0, d: 1, ready: 0, hint: false } : skAdapt(base, id);
+    if (!daily) { if (!SK.cur || SK.cur.id !== id) SK.cur = { id: id, fails: 0, ms: 0 }; SK.cur.ms = 0; }
+    let L = Object.assign({}, base, { F: daily ? opts.F : fruitSaved(id, base) });
     if (ad.e) L = Object.assign({}, L, { s3: Math.max(base.par, L.s3 + ad.s3), s2: Math.max(base.par + 1, L.s2 + ad.s2), d: Math.round(L.d * ad.d) });
     if (ad.hint) showRoute = true;
     const el = engineLevel(L), rt = E.makeRuntime(el), st = E.newState(rt);
@@ -2650,14 +2774,14 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       food: null, bombs: [], coins: 0, dailyCoins: 0, playMs: 0, adMsg: '', shareMsg: '', mode: 'classic', speed: DATA.speed
     };
     const C0 = G.camp;
+    C0.opts = opts || null; C0.daily = daily; C0.expert = !!(opts && opts.expert);
     C0.hist = []; C0.paid = new Set();                       // undo history; fruit coins are paid once per fruit
     for (let i = 0; i < COLS * ROWS; i++) if (rt.ice[i]) C0.iceList.push(i);
     if (C0.route) { C0.routeIdx = new Map(); C0.route.forEach((cell, i) => C0.routeIdx.set(cell, i)); }
     rt.fruits.forEach((f, i) => C0.fr.push({ cell: f.cell, kind: FRUITS[(i + id) % FRUITS.length] }));
     popups = []; fxs = []; banner = null; prevSnake = null; acc = 0;
     adToken++; gift = null; sheetOpen = false; sheetT = 0;
-    DATA.camp.cur = id;
-    writeData();
+    if (!daily) { DATA.camp.cur = id; writeData(); }
     useWorld(L.w);
     setState('play');
     if (!navigator.webdriver || window.__forceTips) { if (helpItems(L).some((i) => !tipsSeen.has(i.id))) { C0.help = true; togglePause(); } }   // first time a thing appears: the card opens by itself
@@ -2688,6 +2812,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     if (res.status !== 'fail') {
       G.snake = st.body.map((c) => [c % COLS, (c / COLS) | 0]);
       C0.moves = st.moves;
+      if (C0.expert && st.moves > C0.L.s3) { st.done = true; C0.over = 'moves'; C0.endT = 0; sfx.over(); buzz(50); shake(140, 0.006); return; }   // Expert: 3-star moves is the limit
       if (C0.slowT > 0) C0.slowT--;
       trailPuff();
       if (rt.ice[st.body[0]]) { const p = headXY(); if (fxs.length < MAX_FX - 6) fxs.push({ k: 0, x: p.x, y: p.y, vx: (Math.random() - 0.5) * 0.03, vy: (Math.random() - 0.5) * 0.03, r: 2.4, color: '#ffffff', life: 380, max: 380 }); }
@@ -2728,20 +2853,29 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     }
     if (res.status === 'win') {
       C0.won = true; C0.endT = 0;
-      adsMeta.levels++;                                  // counts toward the next interstitial (shown only after the result screen)
+      if (!C0.daily) adsMeta.levels++;                   // counts toward the next interstitial (shown only after the result screen)
       const moves = st.moves, L = C0.L;
       C0.stars = moves <= L.s3 ? 3 : moves <= L.s2 ? 2 : 1;
-      const prev = DATA.camp.stars[C0.id] | 0;
-      if (C0.stars > prev) DATA.camp.stars[C0.id] = C0.stars;
-      cdAdd('clevel', 1); cdAdd('cstars', C0.stars); if (C0.stars === 3) cdAdd('c3', 1); if (SK.cur && SK.cur.id === C0.id && SK.cur.fails === 0) cdAdd('cfirst', 1);
       C0.fails = SK.cur && SK.cur.id === C0.id ? SK.cur.fails : 0;
-      if (SK.cur && SK.cur.id === C0.id) skRecord(C0.id, SK.cur.fails, moves, LV[C0.id - 1].par, SK.cur.ms, C0.L.d);
-      SK.cur = null;
-      C0.coins = (5 + 5 * C0.stars) * C0.coinMul;
-      addCoins(C0.coins); G.coins += C0.coins;
-      if (C0.id < LEVEL_COUNT) { DATA.camp.cur = C0.id + 1; if (DATA.camp.unlocked < C0.id + 1) DATA.camp.unlocked = C0.id + 1; }
-      else DATA.camp.cur = C0.id;
-      writeData();
+      if (C0.daily) {
+        dpComplete(C0);
+      } else {
+        const prev = DATA.camp.stars[C0.id] | 0;
+        if (C0.stars > prev) DATA.camp.stars[C0.id] = C0.stars;
+        cdAdd('clevel', 1); cdAdd('cstars', C0.stars); if (C0.stars === 3) cdAdd('c3', 1); if (SK.cur && SK.cur.id === C0.id && SK.cur.fails === 0) cdAdd('cfirst', 1);
+        if (SK.cur && SK.cur.id === C0.id) skRecord(C0.id, SK.cur.fails, moves, LV[C0.id - 1].par, SK.cur.ms, C0.L.d);
+        SK.cur = null;
+        C0.coins = (5 + 5 * C0.stars) * C0.coinMul * (C0.expert ? 3 : 1);
+        addCoins(C0.coins);
+        if (C0.id < LEVEL_COUNT) { DATA.camp.cur = C0.id + 1; if (DATA.camp.unlocked < C0.id + 1) DATA.camp.unlocked = C0.id + 1; }
+        else DATA.camp.cur = C0.id;
+        if (!C0.helped) PROG.nohelp++;
+        if (skHas(C0.L, 'I')) PROG.ice++;
+        if (C0.expert) PROG.expert[C0.id] = 1;
+        progSave();
+        writeData();
+        goalsCheck();
+      }
       const hp = headXY(); burst(hp.x, hp.y, 'rand', 16); ring(hp.x, hp.y, '#fde047');
       sfx.win(); buzz(40);
     } else if (res.status === 'fail') {
@@ -2779,7 +2913,9 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   }
   function usePower(k) {
     if (state !== 'play' || !campPlaying() || G.camp.ready > 0) return;
+    if (G.camp.expert) { popup('No power-ups in Expert', '#ff5a5f', 34); sfx.err(); return; }
     const C0 = G.camp, rt = C0.rt, st = C0.st, p = PW[k];
+    C0.helped = true;
     if ((k === 'shield' && C0.shield) || (k === 'coin2' && C0.coinMul > 1) || (k === 'slow' && C0.slowT > 0)) return;
     const hx = st.body[0] % COLS, hy = (st.body[0] / COLS) | 0, near = [];
     if (k === 'sweep') {
@@ -2836,7 +2972,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   }
   function toggleVibe() { DATA.vibe = !DATA.vibe; writeData(); if (DATA.vibe) buzz(30); }
   function toggleTap() { DATA.tapSteer = !DATA.tapSteer; writeData(); tone(660, 0.08, 'triangle', 0.2); }
-  function campRetry() { startLevel(G.camp.id, !!G.camp.route); }          // a hint bought with an ad stays for the rest of that level
+  function campRetry() { startLevel(G.camp.id, !!G.camp.route, G.camp.opts); }          // a hint bought with an ad stays for the rest of that level
   function campNextLevel() {
     const next = G.camp.id < LEVEL_COUNT ? () => startLevel(G.camp.id + 1) : openLevels;
     maybeInter('level', next);                       // an ad only if one is due AND ready; otherwise straight on
@@ -2923,6 +3059,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       if (open) {
         txt(x + tile / 2, y + (st ? 29 : 38), String(id), 28, st ? '#1b1b1b' : t.btnText);
         if (st) for (let s = 0; s < 3; s++) starShape(x + tile / 2 + (s - 1) * 19, y + 59, 8.5, s < st ? '#b45309' : '#00000033');
+        if (PROG.expert[id]) starShape(x + tile - 12, y + 13, 7, '#7c3aed');                      // purple star = cleared in Expert mode
       } else {
         lockIcon(x + tile / 2, y + tile / 2 - 2, 1.15, shade(t.text, -0.35));
       }
@@ -3173,10 +3310,10 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   }
   function drawCampHud() {
     const C0 = G.camp, t = th(), rt = C0.rt, st = C0.st;
-    txt(BX, 22, WORLDS[C0.L.w].name.toUpperCase() + '  -  WORLD ' + (C0.L.w + 1), 11, t.text, 0, false);
+    txt(BX, 22, (C0.expert ? 'EXPERT  -  ' : C0.daily ? 'DAILY  -  ' : '') + WORLDS[C0.L.w].name.toUpperCase() + '  -  WORLD ' + (C0.L.w + 1), 11, C0.expert || C0.daily ? t.accent : t.text, 0, false);
     txt(BX, 50, 'Level ' + C0.id, 28, t.accent, 0);
     txt(BX + BW, 22, 'Moves', 12, t.text, 1, false);
-    txt(BX + BW, 50, String(C0.moves), 28, C0.moves > C0.L.s2 ? '#ff5a5f' : t.text, 1);
+    txt(BX + BW, 50, C0.expert ? C0.moves + '/' + C0.L.s3 : String(C0.moves), 28, C0.moves > C0.L.s2 || (C0.expert && C0.moves >= C0.L.s3 - 3) ? '#ff5a5f' : t.text, 1);
     // tracker: fruit, keys, exit
     const items = rt.fruits.length + rt.keys.length + 1, pit = Math.min(24, 240 / items), x0 = 284 - (items - 1) * pit / 2;   // sits between the level title and the moves counter
     let k = 0;
@@ -3391,7 +3528,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     button(W / 2, top + h - 40, 260, 52, 'Got it!', closeHelp, { primary: true, size: 20 });
   }
   const COST_UNDO = 30, COST_HINT = 40, COST_SKIP = 120;
-  function canUndo() { const C0 = G && G.camp; return !!C0 && !C0.won && C0.hist.length > 0; }
+  function canUndo() { const C0 = G && G.camp; return !!C0 && !C0.won && !C0.expert && C0.hist.length > 0; }
   function doUndo() {                                                  // back to the position before the last move (fruit, keys, gates and score come back too)
     const C0 = G.camp, snap = C0.hist.pop(), st = C0.st, s = snap.st;
     st.body = s.body.slice(); st.dir = s.dir; st.fruitMask = s.fruitMask; st.keyMask = s.keyMask; st.gateMask = s.gateMask; st.moves = s.moves; st.done = false; st.swLog = s.swLog; st.fruitLog = s.fruitLog;
@@ -3403,24 +3540,28 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   function helpMsg(s, bad) { G.camp.helpMsg = { s: s, until: anim + 2200, bad: bad !== false }; sfx.err(); }
   function useUndo() {
     const C0 = G.camp;
+    if (C0.expert) { helpMsg('Not in Expert mode'); return; }
     if (!canUndo()) { helpMsg('Nothing to undo yet'); return; }
     if (DATA.coins < COST_UNDO) { helpMsg('Need ' + (COST_UNDO - DATA.coins) + ' more coins'); return; }
-    DATA.coins -= COST_UNDO; writeData(); doUndo();
+    DATA.coins -= COST_UNDO; writeData(); C0.helped = true; doUndo();
     if (state === 'paused') { C0.help = false; togglePause(); } else if (state === 'over') setState('play');
   }
-  function giveHint() { const C0 = G.camp; C0.route = C0.L.R; C0.routeIdx = new Map(); C0.route.forEach((cell, i) => C0.routeIdx.set(cell, i)); C0.hintMax = 12; }
+  function giveHint() { const C0 = G.camp; C0.helped = true; C0.route = C0.L.R; C0.routeIdx = new Map(); C0.route.forEach((cell, i) => C0.routeIdx.set(cell, i)); C0.hintMax = 12; }
   function useHint() {
     const C0 = G.camp;
+    if (C0.expert) { helpMsg('Not in Expert mode'); return; }
     if (C0.route) { helpMsg('The hint is already showing', false); return; }
     if (DATA.coins < COST_HINT) { helpMsg('Need ' + (COST_HINT - DATA.coins) + ' more coins'); return; }
     DATA.coins -= COST_HINT; writeData(); giveHint(); sfx.coin(); C0.help = false; togglePause();
   }
   function adHintHere() {
     const C0 = G.camp;
+    if (C0.expert) { helpMsg('Not in Expert mode'); return; }
     requestRewarded('hint', { back: 'paused', ok: () => { giveHint(); C0.help = false; togglePause(); }, fail: (m) => { helpMsg(m); } });
   }
   function useSkip() {
     const C0 = G.camp;
+    if (C0.expert || C0.daily) { helpMsg('Not in this mode'); return; }
     if (DATA.coins < COST_SKIP) { helpMsg('Need ' + (COST_SKIP - DATA.coins) + ' more coins'); return; }
     if (!C0.skipArm || anim - C0.skipArm > 3000) { C0.skipArm = anim; sfx.click(); return; }     // second tap confirms
     DATA.coins -= COST_SKIP;
@@ -3429,7 +3570,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     C0.help = false; startLevel(C0.id + 1);
   }
   function drawCampHelpMenu() {
-    const t = th(), C0 = G.camp, frontier = C0.id >= DATA.camp.unlocked && C0.id < LEVEL_COUNT, adOk = !C0.route && adAvailable();
+    const t = th(), C0 = G.camp, frontier = !C0.daily && !C0.expert && C0.id >= DATA.camp.unlocked && C0.id < LEVEL_COUNT, adOk = !C0.route && !C0.expert && adAvailable();
     const top = drawCampOverlayFrame(330 + (adOk ? 50 : 0) + (frontier ? 62 : 0));
     buttons = [];
     txt(W / 2, top + 38, 'Help', 30, t.accent);
@@ -3497,7 +3638,8 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     requestRewarded('double', { back: 'won', ok: () => { C0.doubled = true; addCoins(C0.coins); sfx.coin(); }, fail: (m) => { G.adMsg = m; } });
   }
   function drawCampWon() {
-    const t = th(), C0 = G.camp, last = C0.id >= LEVEL_COUNT, canDbl = adAvailable() && !C0.doubled && C0.coins > 0, top = drawCampOverlayFrame((last ? 430 : 512) + (canDbl ? 58 : 0));
+    if (G.camp.daily) { drawDailyWon(); return; }
+    const t = th(), C0 = G.camp, last = C0.id >= LEVEL_COUNT, canDbl = adAvailable() && !C0.doubled && C0.coins > 0, canExp = C0.stars === 3 && !C0.expert, top = drawCampOverlayFrame((last ? 430 : 512) + (canDbl ? 58 : 0) + (canExp ? 56 : 0));
     txt(W / 2, top + 44, last ? 'You did it!' : 'Level cleared!', 32, t.accent);
     txt(W / 2, top + 80, last ? 'All ' + LEVEL_COUNT + ' levels complete' : 'Level ' + C0.id + '  -  ' + WORLDS[C0.L.w].name, 15, t.btnText);
     for (let s = 0; s < 3; s++) {
@@ -3521,6 +3663,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     let y = top + (last ? 316 : 338);
     if (!last) { button(W / 2, y, 290, 58, 'Next level', campNextLevel, { primary: true, size: 22 }); y += 68; }
     if (canDbl) { adBtn(W / 2, y - 6, 290, 46, 'Watch ad:  double reward  +' + C0.coins, doubleCoins, 16); y += 54; }
+    if (C0.stars === 3 && !C0.expert) { button(W / 2, y, 290, 46, 'Expert mode  (x3 coins)', () => startLevel(C0.id, false, { expert: true }), { dark: true, size: 17 }); y += 56; }
     button(W / 2, y, 290, 46, 'Replay', campRetry, { dark: true, size: 17 });
     button(W / 2, y + 56, 290, 46, 'Levels', leaveToLevels, { dark: true, size: 17 });
   }
@@ -3695,7 +3838,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   setTimeout(startGame, 1500);
 
   // test hook (not used by the game itself)
-  window.__snake = { ads: { meta: adsMeta, claimAdCoins: claimAdCoins, adHint: adHint, maybeInter: maybeInter, playAgain: playAgain, coinsLeft: adCoinsLeft, requestRewarded: requestRewarded, get kind() { return adKind; }, get job() { return adJob; } }, camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, get buttons() { return buttons; }, help: { open: openHelp, close: closeHelp, items: helpItems, undo: useUndo, canUndo: canUndo, hint: useHint, skip: useSkip, giveHint: giveHint, get seen() { return tipsSeen; } }, stepClock: stepClock, resetOwed: () => { owed = 0; }, cd: { ensure: cdEnsure, add: cdAdd, make: makeCD }, sk: { get S() { return SK; }, adapt: skAdapt, record: skRecord, fail: skFail, fruit: adaptiveFruit, profile: skProfile, reload: () => { SK = skLoad(); return SK; }, reset: () => { SK = SK_FRESH(); } }, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, pts: snakePoints, get renderer() { return scene && scene.sys.game.renderer.type === Phaser.WEBGL ? 'webgl' : 'canvas'; }, get fxCount() { return fxs.length; }, get popupCount() { return popups.length; }, get ZOOM() { return ZOOM; }, get textPool() { return layers.map((l) => l.texts.length); }, get G() { return G; }, get state() { return state; }, get buttons() { return buttons; }, step2: step, DATA: DATA, turn: turn, get acc() { return acc; }, get sheet() { return sheetOpen; }, placeBombs: placeBombs, step: step, newGame: newGame, POWER_KEYS: POWER_KEYS,
+  window.__snake = { ads: { meta: adsMeta, claimAdCoins: claimAdCoins, adHint: adHint, maybeInter: maybeInter, playAgain: playAgain, coinsLeft: adCoinsLeft, requestRewarded: requestRewarded, get kind() { return adKind; }, get job() { return adJob; } }, camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, get buttons() { return buttons; }, daily: { start: startDailyPuzzle, level: dpLevelFor, prog: PROG, goals: GOALS, check: goalsCheck, rng: seededRng, hash: strHash }, help: { open: openHelp, close: closeHelp, items: helpItems, undo: useUndo, canUndo: canUndo, hint: useHint, skip: useSkip, giveHint: giveHint, get seen() { return tipsSeen; } }, stepClock: stepClock, resetOwed: () => { owed = 0; }, cd: { ensure: cdEnsure, add: cdAdd, make: makeCD }, sk: { get S() { return SK; }, adapt: skAdapt, record: skRecord, fail: skFail, fruit: adaptiveFruit, profile: skProfile, reload: () => { SK = skLoad(); return SK; }, reset: () => { SK = SK_FRESH(); } }, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, pts: snakePoints, get renderer() { return scene && scene.sys.game.renderer.type === Phaser.WEBGL ? 'webgl' : 'canvas'; }, get fxCount() { return fxs.length; }, get popupCount() { return popups.length; }, get ZOOM() { return ZOOM; }, get textPool() { return layers.map((l) => l.texts.length); }, get G() { return G; }, get state() { return state; }, get buttons() { return buttons; }, step2: step, DATA: DATA, turn: turn, get acc() { return acc; }, get sheet() { return sheetOpen; }, placeBombs: placeBombs, step: step, newGame: newGame, POWER_KEYS: POWER_KEYS,
     daily: { ensure: dailyEnsure, add: dailyAdd, max: dailyMax, make: makeDaily, load: loadData, addCoins: addCoins }, buySkin: buySkin, selectSkin: selectSkin, doSpin: doSpin, openEgg: openEgg, spinReady: spinReady, closeSheet: closeSheet, openSheet: openSheet, get skinPick() { return skinPick; }, set skinPick(v) { skinPick = v; }, get gift() { return gift; }, EGG_COST: EGG_COST, sfx: sfx, shareScore: shareScore, watchAd: watchAd, adAvailable: adAvailable, SKINS: SKINS, get fxs() { return fxs; }, eat: eatAtHead, gameOver: gameOver };
 })();
 </script>
