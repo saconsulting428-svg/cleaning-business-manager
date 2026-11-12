@@ -1920,7 +1920,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       if (G.camp) drawCampGame(); else drawGame();
       useLayer(1);
       if (state === 'paused') {
-        if (G.camp) { if (G.camp.help) drawCampHelp(); else drawCampPause(); } else drawPause();
+        if (G.camp) { if (G.camp.help === 'menu') drawCampHelpMenu(); else if (G.camp.help) drawCampHelp(); else drawCampPause(); } else drawPause();
       } else if (state === 'won') {
         drawCampWon();
       } else if (state === 'over' && G.camp) {
@@ -2165,7 +2165,8 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   }
   // kind: 'level' | 'endless'. Calls done() right away when no ad is due - the game never waits for an ad that is not there.
   function maybeInter(kind, done) {
-    const due = kind === 'level' ? adsMeta.levels >= INTER_EVERY_LEVELS : adsMeta.endless >= INTER_EVERY_ENDLESS;
+    const early = kind === 'level' && (Object.keys(DATA.camp.stars).length < 3 || (G && G.camp && G.camp.fails >= 2));   // no ads in the first levels and none right after a struggle
+    const due = !early && (kind === 'level' ? adsMeta.levels >= INTER_EVERY_LEVELS : adsMeta.endless >= INTER_EVERY_ENDLESS);
     if (state !== 'ad' && due && Date.now() - adsMeta.last >= INTER_COOLDOWN_MS && interAvailable()) {
       if (kind === 'level') adsMeta.levels = 0; else adsMeta.endless = 0;
       runInter(done);
@@ -2649,6 +2650,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       food: null, bombs: [], coins: 0, dailyCoins: 0, playMs: 0, adMsg: '', shareMsg: '', mode: 'classic', speed: DATA.speed
     };
     const C0 = G.camp;
+    C0.hist = []; C0.paid = new Set();                       // undo history; fruit coins are paid once per fruit
     for (let i = 0; i < COLS * ROWS; i++) if (rt.ice[i]) C0.iceList.push(i);
     if (C0.route) { C0.routeIdx = new Map(); C0.route.forEach((cell, i) => C0.routeIdx.set(cell, i)); }
     rt.fruits.forEach((f, i) => C0.fr.push({ cell: f.cell, kind: FRUITS[(i + id) % FRUITS.length] }));
@@ -2671,7 +2673,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     if (C0.hold) { if (!G.queue.length) return; C0.hold = false; }          // after a shield save the snake waits for a turn
     let input = null;
     if (!campSliding() && G.queue.length) input = G.queue.shift();          // on ice the player cannot steer: the turn waits in the queue
-    const oldDir = st.dir;
+    const oldDir = st.dir, snap = { st: E.cloneState(st), eaten: G.eaten };
     const res = E.step(rt, st, input);
     if (res.status === 'fail' && C0.shield && res.reason !== 'stuck') {
       st.done = false; st.dir = oldDir; G.dir = oldDir; C0.shield = false; C0.hold = true;
@@ -2682,6 +2684,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     }
     G.dir = st.dir;
     if (res.status === 'wait') return;                                      // slid safely to a stop: wait for a turn
+    C0.hist.push(snap); if (C0.hist.length > 300) C0.hist.shift();
     if (res.status !== 'fail') {
       G.snake = st.body.map((c) => [c % COLS, (c / COLS) | 0]);
       C0.moves = st.moves;
@@ -2692,7 +2695,8 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     res.events.forEach((e) => {
       const p = cellOf(e.cell);
       if (e.t === 'fruit') {
-        G.eaten++; G.coins += COIN_FRUIT * C0.coinMul; addCoins(COIN_FRUIT * C0.coinMul); cdAdd('cfruit', 1);
+        G.eaten++;
+        if (!C0.paid.has(e.cell)) { C0.paid.add(e.cell); addCoins(COIN_FRUIT * C0.coinMul); cdAdd('cfruit', 1); }
         const fk = (C0.fr.find((f) => f.cell === e.cell) || {}).kind, fc = FRUIT_COL[fk] || th().accent;
         burst(p.x, p.y, fc, 10); burst(p.x, p.y, '#ffffff', 4); ring(p.x, p.y, fc);
         popup('+1', th().accent, 30);
@@ -2730,6 +2734,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       const prev = DATA.camp.stars[C0.id] | 0;
       if (C0.stars > prev) DATA.camp.stars[C0.id] = C0.stars;
       cdAdd('clevel', 1); cdAdd('cstars', C0.stars); if (C0.stars === 3) cdAdd('c3', 1); if (SK.cur && SK.cur.id === C0.id && SK.cur.fails === 0) cdAdd('cfirst', 1);
+      C0.fails = SK.cur && SK.cur.id === C0.id ? SK.cur.fails : 0;
       if (SK.cur && SK.cur.id === C0.id) skRecord(C0.id, SK.cur.fails, moves, LV[C0.id - 1].par, SK.cur.ms, C0.L.d);
       SK.cur = null;
       C0.coins = (5 + 5 * C0.stars) * C0.coinMul;
@@ -3292,8 +3297,10 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       line(p.x - 3 * s - 1, p.y, p.x + 3 * s + 1, p.y, '#ffffff', 1.4); line(p.x, p.y - 3 * s - 1, p.x, p.y + 3 * s + 1, '#ffffff', 1.4);
     }
     if (C0.route) {                                   // hint: a trail of dots along the way to the exit
-      const hi = C0.routeIdx.get(st.body[0]), from = hi === undefined ? 0 : hi + 1, pulse = anim / 170;
-      for (let i = from; i < C0.route.length; i += LITE ? 2 : 1) { const p = cellOf(C0.route[i]); dot(p.x, p.y, 3, '#ffffff', 0.3 + 0.3 * Math.sin(pulse - i * 0.55)); }
+      let hi = C0.routeIdx.get(st.body[0]);
+      if (hi === undefined && C0.hintMax) { let bd = 1e9; const hx = st.body[0] % COLS, hy = (st.body[0] / COLS) | 0; C0.route.forEach((rc, ri) => { const d = Math.abs(rc % COLS - hx) + Math.abs(((rc / COLS) | 0) - hy); if (d < bd) { bd = d; hi = ri; } }); }
+      const from = hi === undefined ? 0 : hi + 1, pulse = anim / 170, upto = Math.min(C0.route.length, from + (C0.hintMax || 9999));
+      for (let i = from; i < upto; i += LITE ? 2 : 1) { const p = cellOf(C0.route[i]); dot(p.x, p.y, 3, '#ffffff', 0.3 + 0.3 * Math.sin(pulse - i * 0.55)); }
     }
     drawExitTile(cellOf(rt.exit).x, cellOf(rt.exit).y, C0.exitOpen);
     rt.portalTo.forEach((to, i) => { if (to >= 0) { const p = cellOf(i), cols = ['#c084fc', '#38bdf8']; drawPortal(p.x, p.y, cols[(i < to) ? 0 : 1], i < to); } });
@@ -3383,14 +3390,70 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     });
     button(W / 2, top + h - 40, 260, 52, 'Got it!', closeHelp, { primary: true, size: 20 });
   }
+  const COST_UNDO = 30, COST_HINT = 40, COST_SKIP = 120;
+  function canUndo() { const C0 = G && G.camp; return !!C0 && !C0.won && C0.hist.length > 0; }
+  function doUndo() {                                                  // back to the position before the last move (fruit, keys, gates and score come back too)
+    const C0 = G.camp, snap = C0.hist.pop(), st = C0.st, s = snap.st;
+    st.body = s.body.slice(); st.dir = s.dir; st.fruitMask = s.fruitMask; st.keyMask = s.keyMask; st.gateMask = s.gateMask; st.moves = s.moves; st.done = false; st.swLog = s.swLog; st.fruitLog = s.fruitLog;
+    G.snake = st.body.map((c) => [c % COLS, (c / COLS) | 0]); G.dir = st.dir; G.queue = []; G.eaten = snap.eaten;
+    C0.moves = st.moves; C0.over = null; C0.endT = 0; C0.exitOpen = E.exitReady(C0.rt, st); C0.hold = true;   // waits for the next swipe
+    G.boom = null; prevSnake = null; acc = 0; fxs.length = 0; easeT = anim;
+    sfx.click(); buzz(15);
+  }
+  function helpMsg(s, bad) { G.camp.helpMsg = { s: s, until: anim + 2200, bad: bad !== false }; sfx.err(); }
+  function useUndo() {
+    const C0 = G.camp;
+    if (!canUndo()) { helpMsg('Nothing to undo yet'); return; }
+    if (DATA.coins < COST_UNDO) { helpMsg('Need ' + (COST_UNDO - DATA.coins) + ' more coins'); return; }
+    DATA.coins -= COST_UNDO; writeData(); doUndo();
+    if (state === 'paused') { C0.help = false; togglePause(); } else if (state === 'over') setState('play');
+  }
+  function giveHint() { const C0 = G.camp; C0.route = C0.L.R; C0.routeIdx = new Map(); C0.route.forEach((cell, i) => C0.routeIdx.set(cell, i)); C0.hintMax = 12; }
+  function useHint() {
+    const C0 = G.camp;
+    if (C0.route) { helpMsg('The hint is already showing', false); return; }
+    if (DATA.coins < COST_HINT) { helpMsg('Need ' + (COST_HINT - DATA.coins) + ' more coins'); return; }
+    DATA.coins -= COST_HINT; writeData(); giveHint(); sfx.coin(); C0.help = false; togglePause();
+  }
+  function adHintHere() {
+    const C0 = G.camp;
+    requestRewarded('hint', { back: 'paused', ok: () => { giveHint(); C0.help = false; togglePause(); }, fail: (m) => { helpMsg(m); } });
+  }
+  function useSkip() {
+    const C0 = G.camp;
+    if (DATA.coins < COST_SKIP) { helpMsg('Need ' + (COST_SKIP - DATA.coins) + ' more coins'); return; }
+    if (!C0.skipArm || anim - C0.skipArm > 3000) { C0.skipArm = anim; sfx.click(); return; }     // second tap confirms
+    DATA.coins -= COST_SKIP;
+    if (DATA.camp.unlocked < C0.id + 1) DATA.camp.unlocked = C0.id + 1;
+    DATA.camp.cur = C0.id + 1; SK.cur = null; writeData(); sfx.coin();
+    C0.help = false; startLevel(C0.id + 1);
+  }
+  function drawCampHelpMenu() {
+    const t = th(), C0 = G.camp, frontier = C0.id >= DATA.camp.unlocked && C0.id < LEVEL_COUNT, adOk = !C0.route && adAvailable();
+    const top = drawCampOverlayFrame(330 + (adOk ? 50 : 0) + (frontier ? 62 : 0));
+    buttons = [];
+    txt(W / 2, top + 38, 'Help', 30, t.accent);
+    const ct = coinText(DATA.coins) + ' coins';
+    drawCoin(W / 2 - ct.length * 4.2 - 12, top + 72, 9); txt(W / 2 + 2, top + 72, ct, 15, t.accent);
+    if (C0.helpMsg && anim < C0.helpMsg.until) txt(W / 2, top + 98, C0.helpMsg.s, 13, C0.helpMsg.bad ? '#ff5a5f' : '#4ade80', 0.5, false);
+    let y = top + 134;
+    const hb = (yy, label, fn, on) => { if (on) adBtn(W / 2, yy, 300, 50, label, fn, 17); else button(W / 2, yy, 300, 50, label, fn, { size: 17, dark: true }); };
+    hb(y, 'Undo last move   ' + COST_UNDO, useUndo, canUndo()); y += 60;
+    hb(y, C0.route ? 'Hint is on' : 'Show next steps   ' + COST_HINT, useHint, !C0.route); y += 60;
+    if (adOk) { adBtn(W / 2, y - 6, 300, 38, 'Watch ad - free hint', adHintHere, 15); y += 44; }
+    if (frontier) { const armed = C0.skipArm && anim - C0.skipArm < 3000; hb(y, armed ? 'Tap again to skip level' : 'Skip level   ' + COST_SKIP, useSkip, true); y += 60; }
+    button(W / 2, y, 300, 46, 'How to play', () => { C0.help = true; C0.helpFrom = 'menu'; }, { size: 16, dark: true }); y += 56;
+    button(W / 2, y, 300, 50, 'Resume', () => { C0.help = false; togglePause(); }, { primary: true, size: 19 });
+  }
   function openHelp() {
     if (!G || !G.camp || state !== 'play' || G.camp.over || G.camp.won) return;
-    G.camp.help = true; togglePause();
+    G.camp.help = 'menu'; togglePause();
   }
-  function closeHelp() {
+  function closeHelp() {                                               // "Got it!" on the how-to-play card
     const C0 = G.camp;
     helpItems(C0.L).forEach((i) => tipsSeen.add(i.id));
     try { localStorage.setItem(TIPS_KEY, JSON.stringify(Array.from(tipsSeen))); } catch (e) { /* blocked: shows again next time */ }
+    if (C0.helpFrom === 'menu') { C0.helpFrom = null; C0.help = 'menu'; return; }
     C0.help = false; togglePause();
   }
   function drawCampPause() {
@@ -3405,13 +3468,15 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     button(W / 2, top + 362, 290, 50, 'Levels', leaveToLevels, { dark: true, size: 18 });
   }
   function drawCampFail() {
-    const t = th(), C0 = G.camp, hintOk = !C0.route && adAvailable(), top = drawCampOverlayFrame(hintOk ? 366 : 300);
+    const t = th(), C0 = G.camp, hintOk = !C0.route && adAvailable(), undoOk = canUndo(), top = drawCampOverlayFrame((hintOk ? 366 : 300) + (undoOk ? 58 : 0));
     txt(W / 2, top + 44, C0.over === 'trap' ? 'Boom!' : 'Oops!', 34, '#ff5a5f');
     const why = C0.over === 'gate' ? 'The gate is closed - use the switch' : C0.over === 'door' ? 'The door is locked - get the key first' : (FAIL_TEXT[C0.over] || 'Try again');
     txt(W / 2, top + 88, why, 15, t.btnText);
     txt(W / 2, top + 114, 'Level ' + C0.id, 13, t.btnText, 0.5, false);
     button(W / 2, top + 176, 290, 58, 'Try again', campRetry, { primary: true, size: 22 });
     let y = top + 246;
+    if (undoOk) { button(W / 2, y, 290, 50, 'Undo last move   ' + COST_UNDO, useUndo, { size: 17 }); y += 58; }
+    if (C0.helpMsg && anim < C0.helpMsg.until) txt(W / 2, top + 146, C0.helpMsg.s, 12.5, '#ff5a5f', 0.5, false);
     if (hintOk) { adBtn(W / 2, y, 290, 50, 'Watch ad - get hint', adHint, 17); y += 62; }
     button(W / 2, y, 290, 50, 'Levels', leaveToLevels, { dark: true, size: 18 });
     if (G.adMsg) txt(W / 2, top + 146, G.adMsg, 12.5, '#ff5a5f', 0.5, false);
@@ -3427,8 +3492,12 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       g.fillStyle(C(CONFETTI[i % CONFETTI.length]), 0.9); g.fillRect(x, y, 6, 9);
     }
   }
+  function doubleCoins() {                                           // optional rewarded ad: the level reward is paid a second time
+    const C0 = G.camp;
+    requestRewarded('double', { back: 'won', ok: () => { C0.doubled = true; addCoins(C0.coins); sfx.coin(); }, fail: (m) => { G.adMsg = m; } });
+  }
   function drawCampWon() {
-    const t = th(), C0 = G.camp, last = C0.id >= LEVEL_COUNT, top = drawCampOverlayFrame(last ? 430 : 512);
+    const t = th(), C0 = G.camp, last = C0.id >= LEVEL_COUNT, canDbl = adAvailable() && !C0.doubled && C0.coins > 0, top = drawCampOverlayFrame((last ? 430 : 512) + (canDbl ? 58 : 0));
     txt(W / 2, top + 44, last ? 'You did it!' : 'Level cleared!', 32, t.accent);
     txt(W / 2, top + 80, last ? 'All ' + LEVEL_COUNT + ' levels complete' : 'Level ' + C0.id + '  -  ' + WORLDS[C0.L.w].name, 15, t.btnText);
     for (let s = 0; s < 3; s++) {
@@ -3451,6 +3520,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     drawConfetti();
     let y = top + (last ? 316 : 338);
     if (!last) { button(W / 2, y, 290, 58, 'Next level', campNextLevel, { primary: true, size: 22 }); y += 68; }
+    if (canDbl) { adBtn(W / 2, y - 6, 290, 46, 'Watch ad:  double reward  +' + C0.coins, doubleCoins, 16); y += 54; }
     button(W / 2, y, 290, 46, 'Replay', campRetry, { dark: true, size: 17 });
     button(W / 2, y + 56, 290, 46, 'Levels', leaveToLevels, { dark: true, size: 17 });
   }
@@ -3625,7 +3695,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   setTimeout(startGame, 1500);
 
   // test hook (not used by the game itself)
-  window.__snake = { ads: { meta: adsMeta, claimAdCoins: claimAdCoins, adHint: adHint, maybeInter: maybeInter, playAgain: playAgain, coinsLeft: adCoinsLeft, requestRewarded: requestRewarded, get kind() { return adKind; }, get job() { return adJob; } }, camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, help: { open: openHelp, close: closeHelp, items: helpItems, get seen() { return tipsSeen; } }, stepClock: stepClock, resetOwed: () => { owed = 0; }, cd: { ensure: cdEnsure, add: cdAdd, make: makeCD }, sk: { get S() { return SK; }, adapt: skAdapt, record: skRecord, fail: skFail, fruit: adaptiveFruit, profile: skProfile, reload: () => { SK = skLoad(); return SK; }, reset: () => { SK = SK_FRESH(); } }, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, pts: snakePoints, get renderer() { return scene && scene.sys.game.renderer.type === Phaser.WEBGL ? 'webgl' : 'canvas'; }, get fxCount() { return fxs.length; }, get popupCount() { return popups.length; }, get ZOOM() { return ZOOM; }, get textPool() { return layers.map((l) => l.texts.length); }, get G() { return G; }, get state() { return state; }, get buttons() { return buttons; }, step2: step, DATA: DATA, turn: turn, get acc() { return acc; }, get sheet() { return sheetOpen; }, placeBombs: placeBombs, step: step, newGame: newGame, POWER_KEYS: POWER_KEYS,
+  window.__snake = { ads: { meta: adsMeta, claimAdCoins: claimAdCoins, adHint: adHint, maybeInter: maybeInter, playAgain: playAgain, coinsLeft: adCoinsLeft, requestRewarded: requestRewarded, get kind() { return adKind; }, get job() { return adJob; } }, camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, get buttons() { return buttons; }, help: { open: openHelp, close: closeHelp, items: helpItems, undo: useUndo, canUndo: canUndo, hint: useHint, skip: useSkip, giveHint: giveHint, get seen() { return tipsSeen; } }, stepClock: stepClock, resetOwed: () => { owed = 0; }, cd: { ensure: cdEnsure, add: cdAdd, make: makeCD }, sk: { get S() { return SK; }, adapt: skAdapt, record: skRecord, fail: skFail, fruit: adaptiveFruit, profile: skProfile, reload: () => { SK = skLoad(); return SK; }, reset: () => { SK = SK_FRESH(); } }, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, pts: snakePoints, get renderer() { return scene && scene.sys.game.renderer.type === Phaser.WEBGL ? 'webgl' : 'canvas'; }, get fxCount() { return fxs.length; }, get popupCount() { return popups.length; }, get ZOOM() { return ZOOM; }, get textPool() { return layers.map((l) => l.texts.length); }, get G() { return G; }, get state() { return state; }, get buttons() { return buttons; }, step2: step, DATA: DATA, turn: turn, get acc() { return acc; }, get sheet() { return sheetOpen; }, placeBombs: placeBombs, step: step, newGame: newGame, POWER_KEYS: POWER_KEYS,
     daily: { ensure: dailyEnsure, add: dailyAdd, max: dailyMax, make: makeDaily, load: loadData, addCoins: addCoins }, buySkin: buySkin, selectSkin: selectSkin, doSpin: doSpin, openEgg: openEgg, spinReady: spinReady, closeSheet: closeSheet, openSheet: openSheet, get skinPick() { return skinPick; }, set skinPick(v) { skinPick = v; }, get gift() { return gift; }, EGG_COST: EGG_COST, sfx: sfx, shareScore: shareScore, watchAd: watchAd, adAvailable: adAvailable, SKINS: SKINS, get fxs() { return fxs; }, eat: eatAtHead, gameOver: gameOver };
 })();
 </script>
