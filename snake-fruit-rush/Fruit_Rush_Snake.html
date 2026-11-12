@@ -3263,7 +3263,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       if (rt.wall[i]) continue;
       if (rt.ice[i]) iceTile(boardG, c, r, C0.id); else floorDecor(boardG, w, c, r, C0.id);
     }
-    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (rt.wall[r * COLS + c]) { if (!bakePic('wall_' + WALL_KEYS[w], c, r)) wallTile(boardG, w, c, r, C0.id); }
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (rt.wall[r * COLS + c]) { if (bakePic('wall_' + WALL_KEYS[w], c, r)) wallGloss(c, r); else wallTile(boardG, w, c, r, C0.id); }
     if (bakeBoard()) { boardKeyBaked = bkey; boardG.clear(); } else boardKeyBaked = '';   // clear frees the ~46k recorded commands
   }
 
@@ -3293,6 +3293,18 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       return true;
     } catch (e) { return false; }
   }
+  function floorGloss(c, r) {                          // every floor tile gets a tiny bevel + soft shine, so the floor looks glossy too
+    const x = BX + c * CELL, y = BY + r * CELL;
+    boardG.fillStyle(0xffffff, 0.16); boardG.fillRect(x, y, CELL, 1.6); boardG.fillRect(x, y, 1.6, CELL);
+    boardG.fillStyle(0x000000, 0.12); boardG.fillRect(x, y + CELL - 1.6, CELL, 1.6); boardG.fillRect(x + CELL - 1.6, y, 1.6, CELL);
+    boardG.fillStyle(0xffffff, 0.09); boardG.fillRoundedRect(x + 3, y + 3, CELL * 0.55, CELL * 0.3, 3);
+  }
+  function wallGloss(c, r) {                           // glassy shine on top of the block picture
+    const x = BX + c * CELL, y = BY + r * CELL;
+    boardG.fillStyle(0xffffff, 0.34); boardG.fillRoundedRect(x + 3, y + 2.2, CELL - 9, 3.6, 1.8);
+    boardG.fillStyle(0xffffff, 0.75); boardG.fillCircle(x + 4.6, y + 4.2, 1.5);
+    boardG.fillStyle(0x000000, 0.18); boardG.fillRoundedRect(x + 2, y + CELL - 5, CELL - 4, 3, 1.5);
+  }
   function boardStep() {
     const J = boardJob;
     if (!J) return;
@@ -3312,7 +3324,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       for (let r = (s - 1) * 9; r < Math.min(ROWS, s * 9); r++) for (let c = 0; c < COLS; c++) {
         const i = r * COLS + c;
         if (rt.wall[i]) continue;
-        if (rt.ice[i]) { if (!bakePic('ice_floor', c, r)) iceTile(boardG, c, r, C0.id); } else floorDecor(boardG, w, c, r, C0.id);
+        if (rt.ice[i]) { if (!bakePic('ice_floor', c, r)) iceTile(boardG, c, r, C0.id); } else { floorDecor(boardG, w, c, r, C0.id); floorGloss(c, r); }
       }
     } else {
       for (let r = (s - 4) * 13; r < Math.min(ROWS, (s - 3) * 13); r++) for (let c = 0; c < COLS; c++) if (rt.wall[r * COLS + c]) wallTile(boardG, w, c, r, C0.id);
