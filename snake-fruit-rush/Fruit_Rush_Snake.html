@@ -414,8 +414,17 @@ window.SFR_LEVELS=[{"w":0,"d":179,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
   // ---------- Settings ----------
   const W = 480, H = 800;            // logical screen (portrait)
   const lowEndDevice = () => { try { const m = navigator.deviceMemory, n = navigator.hardwareConcurrency; return (m > 0 && m <= 2) || (n > 0 && n <= 4); } catch (e) { return false; } };   // 3 GB phones report 2 here
-  const ZOOM_KEY = 'snakeFruitRush.zoom';
-  const ZOOM = (() => { const m = /[?&]zoom=([0-9.]+)/.exec(location.search); if (m) return Math.min(3, Math.max(1, +m[1])); try { const z = parseFloat(localStorage.getItem(ZOOM_KEY)); if (z >= 1 && z <= 2) return z; } catch (e) { /* no storage */ } return lowEndDevice() ? 1.5 : 2; })();   // 2x = sharp; lower only after a slow session
+  const ZOOM_KEY = 'snakeFruitRush.zoom2';   // new key: an old "slow session" downgrade from earlier versions no longer keeps the picture soft
+  // HD: the canvas is drawn at the phone's real pixel size (rounded up to 0.25 steps), so nothing is stretched or blurry. 3 GB phones stop at 2.25.
+  const RENDERER = pickRenderer();
+  const autoZoom = () => {
+    try {
+      const dpr = window.devicePixelRatio || 1, sc = Math.min(window.innerWidth / 480, window.innerHeight / 800) || 1, ideal = Math.ceil(sc * dpr * 4 - 0.05) / 4;
+      if (RENDERER !== Phaser.WEBGL) return lowEndDevice() ? 1.75 : 2;   // CPU (Canvas) drawing: stay moderate, the picture is still smooth
+      return lowEndDevice() ? Math.min(2.25, Math.max(1.75, ideal)) : Math.min(3, Math.max(2, ideal));   // GPU: full phone resolution
+    } catch (e) { return 2; }
+  };
+  const ZOOM = (() => { const m = /[?&]zoom=([0-9.]+)/.exec(location.search); if (m) return Math.min(3, Math.max(1, +m[1])); try { const z = parseFloat(localStorage.getItem(ZOOM_KEY)); if (z >= 1.75 && z <= 3) return z; } catch (e) { /* no storage */ } return autoZoom(); })();   // 2x = sharp; lower only after a slow session
   const CELL = 22, COLS = 20, ROWS = 26;
   const BX = 20, BY = 104;           // board top-left
   const BW = COLS * CELL, BH = ROWS * CELL;
@@ -3518,7 +3527,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
         govT += realDt; govN++;
         if (govT > 4000) {
           govDone = true;
-          if (govT / govN > 27) { LITE = true; try { localStorage.setItem(ZOOM_KEY, String(Math.max(1.25, ZOOM - 0.5))); } catch (e) { /* no storage */ } }
+          if (govT / govN > 36) { LITE = true; try { localStorage.setItem(ZOOM_KEY, String(Math.max(1.75, ZOOM - 0.25))); } catch (e) { /* no storage */ } }
         }
       }
       if (!LITE && anim > 5000 && fpsAvg > 26) LITE = true;     // slow phone: switch off the decorations
@@ -3585,7 +3594,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   function startGame() {
     if (window.snakeGame) return;
     window.snakeGame = new Phaser.Game({
-    type: pickRenderer(),   // WebGL first when the device has a real GPU, Canvas as the safe fallback
+    type: RENDERER,   // WebGL first when the device has a real GPU, Canvas as the safe fallback
     parent: 'game',
     width: W * ZOOM,
     height: H * ZOOM,
