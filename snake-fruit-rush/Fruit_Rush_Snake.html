@@ -276,8 +276,13 @@ window.SFR_LEVELS=[{"w":0,"d":179,"s":[3,13,1],"F":[[9,13]],"E":[16,13],"W":"000
     const el = document.getElementById('game');
     if (!el) return;
     if (!gameBase) { const r = el.getBoundingClientRect(); gameBase = { w: r.width, h: r.height, off: 0 }; }
-    const s = Math.min(gameBase.w / 480, gameBase.h / 800), spare = Math.max(0, (gameBase.h - 800 * s) / 2);
-    const need = Math.max(0, Math.ceil(h - spare + 2));
+    // the smallest bottom gap after which the (centred) game picture ends above the banner. Shrinking the area also shrinks the spare
+    // space, so it is worked out for the shrunk area, not the original one.
+    let need = 0;
+    for (; need < h + 6; need++) {
+      const E = gameBase.h - need, s2 = Math.min(gameBase.w / 480, E / 800);
+      if ((E + 800 * s2) / 2 <= gameBase.h - h - 4) break;
+    }
     if (need === gameBase.off) return;
     gameBase.off = need;
     el.style.bottom = 'calc(env(safe-area-inset-bottom) + ' + need + 'px)';
@@ -1795,6 +1800,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
   function drawBoard() {
     const t = th();
     if (G && G.camp && state !== 'menu' && state !== 'levels') { drawCampBoard(); return; }
+    if (drawEndBoard(t)) return;
     boardG.clear();
     boardG.setScale(1);
     if (boardRT) boardRT.setVisible(false);
@@ -1873,9 +1879,9 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       dot(p.x, p.y, 14.5, th().board1);
       drawPower(G.power[2], p.x, p.y, 1.15);
     }
-    (G.bombs || []).forEach((p) => { const b = cellXY(p[0], p[1]); drawBomb(b.x, b.y, 1); });
+    (G.bombs || []).forEach((p) => { const b = cellXY(p[0], p[1]); if (UIOK.bomb) stampBomb(b.x, b.y); else drawBomb(b.x, b.y, 1); });
     const f = cellXY(G.food[0], G.food[1]);
-    drawFruit(G.food[2], f.x, f.y + 1.5 * Math.sin(a * 0.4), 1.1);
+    if (!itemPic('fruitE', 'fruit_' + G.food[2], f.x, f.y + 1.5 * Math.sin(a * 0.4), 23)) drawFruit(G.food[2], f.x, f.y + 1.5 * Math.sin(a * 0.4), 1.1);
     if (G.gold) {
       const q = cellXY(G.gold[0], G.gold[1]);
       drawGolden(q.x, q.y, 1.1, G.gold[2] / GOLD_TICKS);
@@ -1884,9 +1890,10 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       const b = cellXY(G.bonus[0], G.bonus[1]);
       dot(b.x, b.y, 27 + 3 * Math.sin(a * 0.6), th().accent);
       dot(b.x, b.y, 23, th().board1);
-      drawFruit(G.bonus[2], b.x, b.y, 2.2);
+      if (!itemPic('fruitB', 'fruit_' + G.bonus[2], b.x, b.y, 42)) drawFruit(G.bonus[2], b.x, b.y, 2.2);
     }
     const fxKeys = Object.keys(G.fx);
+    useLayer(2);                                    // snake pictures, face and effects go above the stamped items
     drawSnake(snakePoints(), easedDir(), fxKeys.length ? POWERS[fxKeys[0]].color : null);
     if (G.boom && state !== 'play') { const b = cellXY(G.boom[0], G.boom[1]); drawBoom(b.x, b.y); }
     fxs.forEach((e) => {
@@ -1904,6 +1911,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       txt(W / 2, by - (banner.sub ? 7 : 0) , banner.s, banner.sub ? 20 : 22, banner.color);
       if (banner.sub) txt(W / 2, by + 15, banner.sub, 11, '#ffffff', 0.5, false);
     }
+    useLayer(0);
   }
 
   // btns = [[label, fn, options], ...]   lines = [[text, color], ...] shown under the score
@@ -2713,8 +2721,8 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
     [['Small', 500], ['Medium', 1500], ['Big', 5000]].forEach((pk, i) => {
       const cx = W / 2 + (i - 1) * 144, cy = top + 352;
       rrect(cx - 68, cy - 66, 136, 132, 16, t.panel);
-      if (!uiPic(['pack_small', 'pack_medium', 'pack_big'][i], cx, cy - 22, 66, 58)) drawCoin(cx, cy - 26, 20);
-      txt(cx, cy + 8, String(pk[1]), 20, t.accent);
+      if (!uiPic(['pack_small', 'pack_medium', 'pack_big'][i], cx, cy - 31, 58, 50)) drawCoin(cx, cy - 28, 18);
+      txt(cx, cy + 9, String(pk[1]), 20, t.accent);
       txt(cx, cy + 30, pk[0] + ' pack', 12, t.btnText, 0.5, false);
       rrect(cx - 50, cy + 42, 100, 20, 10, '#00000055'); txt(cx, cy + 52, 'Coming soon', 11, t.btnText);
       buttons.push({ x: cx - 68, y: cy - 66, w: 136, h: 132, fn: () => sheetToast('Coin packs are coming soon!', true) });
@@ -3250,6 +3258,24 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
       boardG.setScale(1); boardG.setVisible(false);
       return true;
     } catch (e) { boardG.setScale(1); boardG.setVisible(true); if (boardRT) boardRT.setVisible(false); }
+  }
+  const END_FLOOR = { Midnight: 'night', Garden: 'garden', Ocean: 'ice', Sunset: 'volcano' };   // Candy keeps its flat light board
+  function drawEndBoard(t) {                           // endless mode: the same glossy floor, baked once per theme
+    const fl = END_FLOOR[t.name];
+    if (!fl || state === 'menu' || state === 'levels' || !UIOK['floor_' + fl + '_a'] || !scene.textures.exists('ui_floor_' + fl + '_a')) return false;
+    const openWalls = !!(G && modeOf().wall), key = 'end|' + fl + '|' + DATA.bg + '|' + openWalls + '|' + t.name;
+    if (boardRT && boardKeyBaked === key) { boardRT.setVisible(true); boardG.setVisible(false); return true; }
+    boardG.clear(); boardG.setScale(1);
+    boardG.fillStyle(C(openWalls ? POWERS.wall.color : t.panel), 1);
+    boardG.fillRoundedRect(BX - 7, BY - 7, BW + 14, BH + 14, 12);
+    boardG.fillStyle(C(t.board1), 1);
+    boardG.fillRect(BX, BY, BW, BH);
+    drawPattern(boardG, DATA.bg, BX, BY, COLS, ROWS, CELL);
+    if (!bakeBoard()) return false;
+    boardG.clear();
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) bakePic('floor_' + fl + ((c + r) % 2 ? '_b' : '_a'), c, r);
+    boardKeyBaked = key;
+    return true;
   }
   function drawCampBoardFull() {
     const C0 = G.camp, rt = C0.rt, w = C0.L.w, t = th();
@@ -4143,7 +4169,7 @@ d.camp = cleanCamp(d.camp);                                         // campaign 
 
   // test hook (not used by the game itself)
   window.__snake = { ads: { meta: adsMeta, claimAdCoins: claimAdCoins, adHint: adHint, maybeInter: maybeInter, playAgain: playAgain, coinsLeft: adCoinsLeft, requestRewarded: requestRewarded, get kind() { return adKind; }, get job() { return adJob; } }, camp: { start: startLevel, open: openLevels, home: goHome, retry: campRetry, next: campNextLevel, get C() { return G && G.camp; }, LV: LV, E: E, unlockAll: () => { DATA.camp.unlocked = LEVEL_COUNT; writeData(); }, engineLevel: engineLevel, randomFruit: randomFruit, get buttons() { return buttons; }, daily: { start: startDailyPuzzle, level: dpLevelFor, prog: PROG, goals: GOALS, check: goalsCheck, rng: seededRng, hash: strHash }, help: { open: openHelp, close: closeHelp, items: helpItems, undo: useUndo, canUndo: canUndo, hint: useHint, skip: useSkip, giveHint: giveHint, get seen() { return tipsSeen; } }, stepClock: stepClock, resetOwed: () => { owed = 0; }, cd: { ensure: cdEnsure, add: cdAdd, make: makeCD }, sk: { get S() { return SK; }, adapt: skAdapt, record: skRecord, fail: skFail, fruit: adaptiveFruit, profile: skProfile, reload: () => { SK = skLoad(); return SK; }, reset: () => { SK = SK_FRESH(); } }, WORLDS: WORLDS, sliding: () => campSliding() }, get CT() { return CT; }, usePower: usePower, buyPower: buyPower, PW: PW, get LITE() { return LITE; }, pts: snakePoints, get renderer() { return scene && scene.sys.game.renderer.type === Phaser.WEBGL ? 'webgl' : 'canvas'; }, get fxCount() { return fxs.length; }, get popupCount() { return popups.length; }, get ZOOM() { return ZOOM; }, get textPool() { return layers.map((l) => l.texts.length); }, get G() { return G; }, get state() { return state; }, get buttons() { return buttons; }, step2: step, DATA: DATA, turn: turn, get acc() { return acc; }, get sheet() { return sheetOpen; }, placeBombs: placeBombs, step: step, newGame: newGame, POWER_KEYS: POWER_KEYS,
-    daily: { ensure: dailyEnsure, add: dailyAdd, max: dailyMax, make: makeDaily, load: loadData, addCoins: addCoins }, buySkin: buySkin, selectSkin: selectSkin, doSpin: doSpin, openEgg: openEgg, spinReady: spinReady, closeSheet: closeSheet, openSheet: openSheet, get skinPick() { return skinPick; }, set skinPick(v) { skinPick = v; }, get gift() { return gift; }, EGG_COST: EGG_COST, sfx: sfx, shareScore: shareScore, watchAd: watchAd, adAvailable: adAvailable, SKINS: SKINS, get fxs() { return fxs; }, eat: eatAtHead, gameOver: gameOver };
+    daily: { ensure: dailyEnsure, add: dailyAdd, max: dailyMax, make: makeDaily, load: loadData, addCoins: addCoins }, buySkin: buySkin, selectSkin: selectSkin, doSpin: doSpin, openEgg: openEgg, spinReady: spinReady, closeSheet: closeSheet, openSheet: openSheet, get skinPick() { return skinPick; }, set skinPick(v) { skinPick = v; }, get gift() { return gift; }, EGG_COST: EGG_COST, sfx: sfx, shareScore: shareScore, watchAd: watchAd, adAvailable: adAvailable, SKINS: SKINS, get fxs() { return fxs; }, eat: eatAtHead, gameOver: gameOver, endless: { start: newGame, theme: (i) => { DATA.theme = i; DATA.menuMode = 'endless'; writeData(); }, get G() { return G; }, get scene() { return scene; }, get layers() { return layers; } } };
 })();
 </script>
 </body>
