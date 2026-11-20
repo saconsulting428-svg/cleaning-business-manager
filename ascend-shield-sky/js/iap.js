@@ -16,7 +16,7 @@
       { id: 'coins_20000', coins: 20000, price: '$24.99', icon: '🏦', tag: 'Mega' }
     ],
     native: () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()),
-    demo: () => !!C.demoPurchases && !P.native(),
+    demo: () => !!C.demoPurchases,                      // demo mode works on web AND in the test APK; turn it off for the store build
     grant(pack, how) { D.coins += pack.coins; D.purchases.push({ id: pack.id, coins: pack.coins, how, t: Date.now() }); G.Storage.save(); },
     /* Real store hookup (example with cordova-plugin-purchase, works inside Capacitor):
          store.register({ id: pack.id, type: store.CONSUMABLE, platform: store.GOOGLE_PLAY });
@@ -27,8 +27,8 @@
     nativeBuy(pack, ok, fail) { fail('Store not connected yet'); },
     buy(id, ok, fail) {
       const pack = P.PACKS.find(p => p.id === id); if (!pack) return fail('Unknown pack');
-      if (P.native()) return P.nativeBuy(pack, () => { P.grant(pack, 'store'); ok(pack); }, fail);
       if (P.demo()) { P.grant(pack, 'demo'); return ok(pack); }
+      if (P.native()) return P.nativeBuy(pack, () => { P.grant(pack, 'store'); ok(pack); }, fail);
       fail('Purchases are not available in this build');
     }
   });

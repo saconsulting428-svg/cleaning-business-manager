@@ -1,0 +1,8 @@
+{
+  "appId": "com.ascend.shieldsky",
+  "appName": "Ascend: Shield & Sky",
+  "webDir": "www",
+  "backgroundColor": "#0b1026",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false }
+}

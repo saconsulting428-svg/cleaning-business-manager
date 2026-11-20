@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Ascend: Shield &amp; Sky</string>
+    <string name="title_activity_main">Ascend: Shield &amp; Sky</string>
+    <string name="package_name">com.ascend.shieldsky</string>
+    <string name="custom_url_scheme">com.ascend.shieldsky</string>
+</resources>
