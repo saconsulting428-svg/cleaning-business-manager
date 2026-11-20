@@ -11,7 +11,7 @@ for (const d of ['css', 'js']) fs.cpSync(path.join(root, d), path.join(www, d), 
 let face = '';
 for (const w of [400, 500, 600, 700]) {
   const f = `fredoka-latin-${w}-normal.woff2`;
-  fs.copyFileSync(path.join(__dirname, 'node_modules/@fontsource/fredoka/files', f), path.join(www, 'fonts', f));
+  fs.copyFileSync(path.join(root, 'fonts', f), path.join(www, 'fonts', f));
   face += `@font-face{font-family:'Fredoka';font-style:normal;font-weight:${w};font-display:swap;src:url(../fonts/${f}) format('woff2')}\n`;
 }
 const cssPath = path.join(www, 'css/style.css'); fs.writeFileSync(cssPath, face + fs.readFileSync(cssPath, 'utf8'));
