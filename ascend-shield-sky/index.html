@@ -13,15 +13,17 @@
 <body>
 <div id="app">
   <canvas id="c"></canvas>
+  <div id="flash"></div>
+  <div id="fly"></div>
 
   <!-- ===== in-game HUD ===== -->
   <div id="hud" class="hidden">
     <div class="hud-top">
       <div id="hearts"></div>
-      <div id="distBox"><b id="dist">0</b><small>m</small></div>
+      <div id="distBox"><b id="dist">0</b><small>m</small><div id="lvlLbl"></div></div>
       <div class="hud-r"><div class="pill" id="coinHud">🪙 0</div><button class="ibtn" id="pauseBtn" aria-label="Pause">❚❚</button></div>
     </div>
-    <div id="zoneTxt"></div>
+    <div id="prog" class="hidden"><i id="progIco">🌍</i><div class="track"><div id="progFill"></div><span id="progCp">⚑</span></div><i>🏁</i></div>
     <div id="fxBar"></div>
     <div id="abil">
       <button class="ab" id="ab-invis" data-id="invis"><i class="ring"></i><span>👻</span><em>1</em></button>
@@ -33,26 +35,38 @@
   <div id="banner"><b></b><span></span></div>
   <div id="toast"></div>
 
-  <!-- ===== main menu ===== -->
+  <!-- ===== LANDING (kept deliberately clean) ===== -->
   <section id="sc-menu" class="screen active">
-    <div class="topbar"><div class="pill" id="mCoins">🪙 0</div><div class="pill" id="mBest">🏆 0 m</div></div>
-    <div class="logo"><h1 class="title">ASCEND</h1><div class="sub">SHIELD &amp; SKY</div></div>
-    <div class="spacer"></div>
-    <div class="menu-btns">
-      <button class="btn play" id="playBtn"><span>PLAY</span></button>
-      <div class="grid2">
-        <button class="btn sec" id="btnChars"><i>🎈</i>Characters</button>
-        <button class="btn sec" id="btnUps"><i>⚡</i>Upgrades</button>
-        <button class="btn sec" id="btnDaily"><i>🎁</i>Daily Reward<b class="dot" id="dailyDot"></b></button>
-        <button class="btn sec" id="btnSet"><i>⚙️</i>Settings</button>
-      </div>
-      <button class="btn ad" id="btnBoost"><span>🎬 Free Shield Boost for next run</span><em>Optional</em></button>
+    <div class="topbar">
+      <button class="prof" id="btnProf"><i id="profAv">G</i><span id="profName">Guest</span></button>
+      <div class="tb-right"><button class="coinpill" id="mCoins"><b>0</b><em>+</em></button><button class="ibtn" id="btnSet" aria-label="Settings">⚙️</button></div>
     </div>
+    <div class="logo"><h1 class="title" id="title">ASCEND</h1><div class="subtitle">SHIELD &amp; SKY</div></div>
+    <div class="spacer"></div>
+    <div class="cta">
+      <button class="btn play" id="playBtn"><small id="playSub">JOURNEY</small><span>PLAY</span></button>
+      <button class="lvlpill" id="lvlPill"><i id="lvlIco">🌍</i><span id="lvlTxt">Level 1 · Earth</span><b>›</b></button>
+      <button class="btn endless" id="endBtn"><span>∞ ENDLESS</span><small id="endBest">Best 0 m</small></button>
+    </div>
+    <nav class="nav">
+      <button data-open="heroes"><i>🎈</i><span>Heroes</span></button>
+      <button data-open="shields"><i>🛡️</i><span>Shields</span></button>
+      <button data-open="ups"><i>⚡</i><span>Upgrades</span></button>
+      <button data-open="board"><i>🏆</i><span>Ranks</span></button>
+      <button data-open="shop"><i>💎</i><span>Shop</span></button>
+    </nav>
+    <button class="gift" id="btnFree" aria-label="Free rewards"><i>🎁</i><b class="dot" id="dailyDot"></b></button>
   </section>
 
-  <!-- ===== characters ===== -->
-  <section id="sc-chars" class="screen sub">
-    <div class="head"><button class="ibtn back" data-back>←</button><h2>Characters</h2><div class="pill" id="cCoins">🪙 0</div></div>
+  <!-- ===== JOURNEY MAP (100 levels) ===== -->
+  <section id="sc-map" class="screen sub">
+    <div class="head"><button class="ibtn back" data-back>←</button><h2>Journey</h2><div class="pill" id="mapStars">⭐ 0 / 300</div></div>
+    <div class="scroll"><div id="mapList"></div></div>
+  </section>
+
+  <!-- ===== heroes ===== -->
+  <section id="sc-heroes" class="screen sub">
+    <div class="head"><button class="ibtn back" data-back>←</button><h2>Heroes</h2><div class="pill coinp">🪙 0</div></div>
     <div class="panel prev"><canvas id="prevCv" width="260" height="170"></canvas>
       <div class="prev-info"><h3 id="cName">Balloon</h3><p id="cDesc"></p>
         <div class="stat"><span>Shield speed</span><div class="bar"><i id="stSpeed"></i></div></div>
@@ -62,18 +76,62 @@
     <div class="actrow"><button class="btn green" id="charAct">Equip</button><button class="btn ad small" id="charAd">🎬 Free unlock</button></div>
   </section>
 
+  <!-- ===== shields (skins) ===== -->
+  <section id="sc-shields" class="screen sub">
+    <div class="head"><button class="ibtn back" data-back>←</button><h2>Shields</h2><div class="pill coinp">🪙 0</div></div>
+    <div class="panel prev"><canvas id="shCv" width="260" height="170"></canvas>
+      <div class="prev-info"><h3 id="shName">Aegis Hex</h3><p id="shDesc"></p><p id="shGun" class="mut small"></p></div></div>
+    <div class="scroll"><div id="shGrid" class="cgrid"></div></div>
+    <div class="actrow"><button class="btn green" id="shAct">Equip</button></div>
+  </section>
+
   <!-- ===== upgrades ===== -->
   <section id="sc-ups" class="screen sub">
-    <div class="head"><button class="ibtn back" data-back>←</button><h2>Upgrades</h2><div class="pill" id="upCoins">🪙 0</div></div>
+    <div class="head"><button class="ibtn back" data-back>←</button><h2>Upgrades</h2><div class="pill coinp">🪙 0</div></div>
     <div class="scroll"><div id="upList"></div></div>
   </section>
 
-  <!-- ===== daily reward ===== -->
-  <section id="sc-daily" class="screen sub">
-    <div class="head"><button class="ibtn back" data-back>←</button><h2>Daily Reward</h2><div class="pill" id="dCoins">🪙 0</div></div>
-    <div class="panel"><p class="mut" id="dailyMsg">Come back every day to keep your streak!</p><div id="dailyGrid" class="dgrid"></div>
-      <button class="btn green" id="dailyClaim">Claim</button>
-      <button class="btn ad" id="dailyX2"><span>🎬 Watch ad: double today's reward</span><em>Optional</em></button></div>
+  <!-- ===== coin shop (in-app purchases) ===== -->
+  <section id="sc-shop" class="screen sub">
+    <div class="head"><button class="ibtn back" data-back>←</button><h2>Coin Shop</h2><div class="pill coinp">🪙 0</div></div>
+    <p class="mut shopnote" id="shopNote"></p>
+    <div class="scroll"><div id="packList"></div></div>
+  </section>
+
+  <!-- ===== free rewards (daily + optional ads) ===== -->
+  <section id="sc-free" class="screen sub">
+    <div class="head"><button class="ibtn back" data-back>←</button><h2>Free Rewards</h2><div class="pill coinp">🪙 0</div></div>
+    <div class="scroll">
+      <div class="panel"><b>Daily reward</b><p class="mut" id="dailyMsg"></p><div id="dailyGrid" class="dgrid"></div>
+        <button class="btn green" id="dailyClaim">Claim</button>
+        <button class="btn ad" id="dailyX2"><span>🎬 Watch ad: double today's reward</span><em>Optional</em></button></div>
+      <div class="panel"><b>Optional boosts</b><p class="mut small">Ads are always your choice. Watching one never costs you anything.</p>
+        <button class="btn ad" id="adAssist"><span id="adAssistTxt">🎬 Easy Assist: calmer game for 3 runs</span><em>Optional</em></button>
+        <button class="btn ad" id="adBoost"><span>🎬 Free Shield Boost for next run</span><em>Optional</em></button>
+        <button class="btn ad" id="adCoins"><span id="adCoinsTxt">🎬 +100 coins</span><em>Optional</em></button></div>
+    </div>
+  </section>
+
+  <!-- ===== leaderboard ===== -->
+  <section id="sc-board" class="screen sub">
+    <div class="head"><button class="ibtn back" data-back>←</button><h2>Leaderboard</h2><button class="ibtn" id="boardProf" aria-label="Profile">👤</button></div>
+    <div class="tabs2"><button class="tab on" data-mode="endless">∞ Endless</button><button class="tab" data-mode="journey">🪐 Journey</button></div>
+    <p class="mut small" id="boardNote"></p>
+    <div class="scroll"><div id="boardList"></div></div>
+  </section>
+
+  <!-- ===== profile / sign-in ===== -->
+  <section id="sc-profile" class="screen sub">
+    <div class="head"><button class="ibtn back" data-back>←</button><h2>Player Profile</h2><span></span></div>
+    <div class="panel">
+      <p class="mut">Join the leaderboard with a name. Add your email to get reminders and rewards from the game.</p>
+      <label class="fld">Player name<input id="pfName" maxlength="16" placeholder="e.g. SkyRunner" autocomplete="nickname"></label>
+      <label class="fld">Email<input id="pfEmail" type="email" placeholder="you@example.com" autocomplete="email"></label>
+      <label class="chk"><input type="checkbox" id="pfConsent"><i></i><span>Yes, send me game notifications and reminders. I can opt out anytime. <a id="pfPriv" href="#" target="_blank" rel="noopener">Privacy policy</a></span></label>
+      <p class="err" id="pfErr"></p>
+      <button class="btn green" id="pfSave">Join leaderboard</button>
+      <button class="btn sec" id="pfGuest">Play as guest</button>
+    </div>
   </section>
 
   <!-- ===== settings ===== -->
@@ -89,7 +147,22 @@
     </div>
   </section>
 
-  <!-- ===== pause ===== -->
+  <!-- ===== modals ===== -->
+  <div id="lvl" class="modal"><div class="card">
+    <div class="planet" id="lvPlanet">🌍</div><h2 id="lvTitle">Level 1</h2><p class="mut" id="lvSub"></p>
+    <div class="stars" id="lvStars"></div>
+    <p id="lvInfo" class="mut small"></p>
+    <button class="btn green" id="lvPlay">▶ Start</button>
+    <button class="btn sec hidden" id="lvCont">⚑ Continue from checkpoint</button>
+    <button class="btn sec small" id="lvClose">Close</button>
+  </div></div>
+
+  <div id="epick" class="modal"><div class="card">
+    <h2>∞ Endless</h2><p class="mut">Start from a checkpoint you reached before, or from the ground.</p>
+    <button class="btn green" id="epZero">▶ Start from 0 m</button><div id="epList" class="eplist"></div>
+    <button class="btn sec small" id="epClose">Close</button>
+  </div></div>
+
   <div id="pause" class="modal"><div class="card">
     <h2>Paused</h2>
     <button class="btn green" id="pResume">▶ Resume</button>
@@ -97,7 +170,6 @@
     <div class="row"><button class="btn sec" id="pRestart">↺ Restart</button><button class="btn sec" id="pMenu">🏠 Menu</button></div>
   </div></div>
 
-  <!-- ===== revive (shown once per run when the last life is lost) ===== -->
   <div id="revive" class="modal"><div class="card">
     <h2>Revive?</h2><p class="mut">Watch a short ad to get back in the game.</p>
     <div class="ringwrap"><div id="rvRing"></div><b id="rvCount">5</b></div>
@@ -105,17 +177,31 @@
     <button class="btn sec" id="rvSkip">Skip</button>
   </div></div>
 
-  <!-- ===== game over ===== -->
   <div id="over" class="modal"><div class="card wide">
     <h2 id="ovTitle">Run Over</h2><p class="mut" id="ovZone"></p>
-    <div class="ov-big"><small>DISTANCE</small><b id="ovDist">0</b><span>m</span></div>
-    <div class="ov-row"><div><small>COINS EARNED</small><b id="ovCoins">0</b></div><div><small>BEST</small><b id="ovBest">0</b></div></div>
+    <div class="ov-big"><small id="ovLbl">DISTANCE</small><b id="ovDist">0</b><span>m</span></div>
+    <div class="ov-row"><div><small>COINS EARNED</small><b id="ovCoins">0</b></div><div><small id="ovBestLbl">BEST</small><b id="ovBest">0</b></div></div>
     <button class="btn green" id="ovAgain">↺ Play again</button>
+    <div class="row"><button class="btn sec" id="ovFresh">Restart level</button><button class="btn sec" id="ovMap">🗺️ Levels</button></div>
     <button class="btn ad" id="ovDouble"><span>🎬 Double coins</span><em>Optional</em></button>
+    <button class="btn ad" id="ovAssist"><span>🎬 Easy Assist ×3 runs</span><em>Optional</em></button>
     <button class="btn sec" id="ovMenu">🏠 Menu</button>
   </div></div>
 
-  <!-- ===== placeholder rewarded-ad overlay (see js/ads.js) ===== -->
+  <div id="win" class="modal"><div class="card wide">
+    <div class="planet sm" id="wnPlanet">🌍</div><h2>Level Complete!</h2><p class="mut" id="wnSub"></p>
+    <div class="stars big" id="wnStars"><b>★</b><b>★</b><b>★</b></div>
+    <div class="ov-row"><div><small>REWARD</small><b id="wnCoins">0</b></div><div><small>HITS TAKEN</small><b id="wnHits">0</b></div></div>
+    <button class="btn green" id="wnNext">Next level ▶</button>
+    <div class="row"><button class="btn sec" id="wnMap">🗺️ Levels</button><button class="btn sec" id="wnAgain">↺ Replay</button></div>
+    <button class="btn ad" id="wnDouble"><span>🎬 Double reward</span><em>Optional</em></button>
+  </div></div>
+
+  <div id="buy" class="modal"><div class="card">
+    <h2 id="buyTitle">Buy coins</h2><p class="mut" id="buyTxt"></p>
+    <button class="btn green" id="buyOk">Confirm</button><button class="btn sec small" id="buyNo">Cancel</button>
+  </div></div>
+
   <div id="adov" class="modal"><div class="card">
     <small class="mut">ADVERTISEMENT (placeholder)</small>
     <div class="adbox">📺<b id="adCount">3</b></div>
@@ -127,11 +213,18 @@
 
 <script src="js/util.js"></script>
 <script src="js/storage.js"></script>
+<script src="js/config.js"></script>
 <script src="js/data.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/ads.js"></script>
+<script src="js/iap.js"></script>
+<script src="js/backend.js"></script>
 <script src="js/chars.js"></script>
+<script src="js/shields.js"></script>
+<script src="js/obsart.js"></script>
 <script src="js/world.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/difficulty.js"></script>
 <script src="js/entities.js"></script>
 <script src="js/game.js"></script>
 <script src="js/ui.js"></script>

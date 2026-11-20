@@ -19,7 +19,7 @@
     return null;
   }
   E.take = take;
-  E.obs = mkPool(150, () => ({ type: 0, kind: '', x: 0, y: 0, vx: 0, vy: 0, r: 10, a: 0, va: 0, spin: 0, mass: 1, e: .7, hp: 1, fill: '#fff', stroke: '#000', glow: '', nv: 0, lx: [0, 0, 0, 0], ly: [0, 0, 0, 0], wx: [0, 0, 0, 0], wy: [0, 0, 0, 0], hw: 0, hh: 0, flash: 0, hitCd: 0, entered: false, ghost: 0, beh: '', t: 0, bx: 0, amp: 0, freq: 0, stun: 0, gen: 0, damp: .5, wallHalf: 10, shootable: true }));
+  E.obs = mkPool(170, () => ({ sk: null, seed: 0, noWall: false, wallE: .65, homeMax: 175, cx0: 0, cy0: 0, ang: 0, om: 0, R: 0, cvy: 0, nmDone: false, minD: 999, type: 0, kind: '', x: 0, y: 0, vx: 0, vy: 0, r: 10, a: 0, va: 0, spin: 0, mass: 1, e: .7, hp: 1, fill: '#fff', stroke: '#000', glow: '', nv: 0, lx: [0, 0, 0, 0], ly: [0, 0, 0, 0], wx: [0, 0, 0, 0], wy: [0, 0, 0, 0], hw: 0, hh: 0, flash: 0, hitCd: 0, entered: false, ghost: 0, beh: '', t: 0, bx: 0, amp: 0, freq: 0, stun: 0, gen: 0, damp: .5, wallHalf: 10, shootable: true }));
   E.bullets = mkPool(40, () => ({ x: 0, y: 0, vx: 0, vy: 0, life: 0 }));
   E.coins = mkPool(90, () => ({ x: 0, y: 0, val: 1, r: 10, vy: 0, ph: 0 }));
   E.picks = mkPool(10, () => ({ x: 0, y: 0, kind: '', r: 16, vy: 0 }));
@@ -117,11 +117,13 @@
   /* ---------------- obstacle construction ---------------- */
   const PAL = [['#fb7185', '#9f1239'], ['#fbbf24', '#92400e'], ['#34d399', '#065f46'], ['#60a5fa', '#1e3a8a'], ['#a78bfa', '#4c1d95'], ['#f472b6', '#831843']];
   E.theme = null;                                      // set by the game: planet theme (tint + obstacle bias) or null
+  E.zone = 'sky';                                      // zone key used to pick obstacle skins (sky/upper/space/ice/lava/...)
   const tint = () => E.theme ? pick(E.theme.tint) : pick(PAL);
   function newObs(kind, x, y, r, props) {
     const o = take(E.obs); if (!o) return null;
     o.type = 0; o.kind = kind; o.x = x; o.y = y; o.vx = 0; o.vy = 0; o.r = r; o.a = 0; o.va = 0; o.spin = 0; o.mass = r / 36; o.e = .7; o.hp = 1;
     o.glow = ''; o.nv = 0; o.flash = 0; o.hitCd = 0; o.entered = false; o.ghost = 0; o.beh = ''; o.t = 0; o.stun = 0; o.gen = 0; o.damp = .5; o.shootable = true; o.wallHalf = r;
+    o.noWall = false; o.wallE = .65; o.homeMax = 175; o.nmDone = false; o.minD = 999; o.seed = Math.random() * 100; o.sk = G.Art ? G.Art.skinFor(kind, E.zone) : null;
     const tp = tint(); o.fill = tp[0]; o.stroke = tp[1];
     if (props) for (const k in props) o[k] = props[k];
     return o;
@@ -203,14 +205,41 @@
     return rows * sp + 80 * S;
   };
 
-  // distance (m) at which each pattern unlocks, and base weight. The first ~30s only use 'sprinkle'/'blocks'.
+
+  /* ---- NEW: obstacles that attack from the SIDES and from BELOW (behind the hero) ---- */
+  P.sweep = (y0, d) => { const S = V.S, n = 1 + Math.floor(d * 2); for (let i = 0; i < n; i++) E.timers.push({ t: 1 + i * .6, kind: 'sweep', dir: Math.random() < .5 ? 1 : -1, y: rand(100, 300) * S, d }); return 150 * S; };
+  P.missile = (y0, d) => { const S = V.S, n = 1 + Math.floor(d * 1.8), hx = G.heroX ? G.heroX() : V.W / 2; for (let i = 0; i < n; i++) E.timers.push({ t: 1.1 + i * .55, kind: 'missile', x: clamp(hx + rand(-110, 110) * S, 24, V.W - 24), d }); return 150 * S; };
+  P.shower = (y0, d) => {
+    const S = V.S, n = 3 + Math.floor(d * 4), dir = Math.random() < .5 ? 1 : -1;
+    for (let i = 0; i < n; i++) { const r = rand(9, 14) * S; circ('ball', rand(30, V.W - 30), y0 - i * rand(60, 110) * S, r, { vx: dir * rand(80, 150), vy: rand(110, 190), damp: 1, mass: .4 }); }
+    return n * 85 * S;
+  };
+  P.saw = (y0, d) => { const S = V.S, n = 1 + (d > .5 ? 1 : 0); for (let i = 0; i < n; i++) circ('saw', rand(60, V.W - 60), y0 - i * 170 * S, 21 * S, { vx: (Math.random() < .5 ? -1 : 1) * rand(130, 190), vy: rand(10, 40), damp: 1, wallE: 1, va: 7, spin: 7, mass: 2, hp: 3, fill: '#94a3b8', stroke: '#1e293b' }); return n * 170 * S; };
+  P.mine = (y0, d) => { const S = V.S, n = 1 + Math.floor(d * 2); for (let i = 0; i < n; i++) circ('mine', rx(40), y0 - i * 140 * S, 18 * S, { vy: rand(10, 30), mass: 1.2, hp: 2 }); return n * 140 * S; };
+  P.orbit = (y0, d) => {
+    const S = V.S, k = 4 + (d > .5 ? 1 : 0), R = 48 * S, cx = rx(R + 26 * S), cy = y0 - R - 20 * S, om = (Math.random() < .5 ? -1 : 1) * rand(1.6, 2.3), cvy = rand(5, 20);
+    for (let i = 0; i < k; i++) { const ang = i / k * TAU, o = circ('ball', cx + Math.cos(ang) * R, cy + Math.sin(ang) * R, 11 * S, { beh: 'orbit', mass: .5, damp: 1 }); if (o) { o.cx0 = cx; o.cy0 = cy; o.ang = ang; o.om = om; o.R = R; o.cvy = cvy; } }
+    return 2 * R + 90 * S;
+  };
+  E.spawnSweeper = (dir, y, d) => {
+    const S = V.S, run = G.Game && G.Game.run, rise = run ? run.rise : 100;
+    return circ('sweeper', dir > 0 ? -40 : V.W + 40, y, 14 * S, { vx: dir * (190 + d * 150), vy: -rise * .55, damp: 1, noWall: true, mass: .5, hp: 1, entered: true });
+  };
+  E.spawnMissile = (x, d) => {
+    const S = V.S, run = G.Game && G.Game.run, rise = run ? run.rise : 100;
+    const o = newObs('missile', x, V.H + 30, 10, { vy: -(rise + 380 + d * 200), beh: 'home', homeMax: 85, damp: .6, mass: .6, hp: 1, entered: true });
+    return o && asRect(o, 15 * S, 36 * S);
+  };
+
+  // effective distance (m) at which each pattern unlocks, and base weight. The first ~30s only use 'sprinkle'/'blocks'.
   const LIST = [
-    ['sprinkle', 0, 9], ['blocks', 160, 6], ['pit', 400, 5], ['tris', 600, 6], ['zig', 800, 5], ['dart', 1000, 5], ['walls', 1400, 4],
-    ['rock', 1800, 5], ['beam', 2300, 5], ['homing', 3000, 4], ['pyramid', 3500, 3], ['boulder', 4000, 4], ['rain', 4500, 3], ['heavy', 6000, 4]
+    ['sprinkle', 0, 9], ['blocks', 160, 6], ['pit', 400, 4], ['sweep', 450, 5], ['tris', 600, 5], ['saw', 750, 4], ['zig', 800, 5], ['dart', 1000, 5],
+    ['shower', 1200, 5], ['walls', 1400, 3], ['missile', 1700, 5], ['rock', 1800, 5], ['orbit', 2000, 4], ['beam', 2400, 3], ['mine', 2600, 4],
+    ['homing', 3000, 4], ['pyramid', 3500, 3], ['boulder', 4000, 4], ['rain', 4500, 3], ['heavy', 6000, 4]
   ];
   E.P = P; E.lastPat = '';
-  E.spawnWave = (run, d) => {
-    const dist = run.dist, bias = (E.theme && E.theme.bias) || null;
+  E.spawnWave = (run, d, eff) => {
+    const dist = eff, bias = (E.theme && E.theme.bias) || null;
     const pool = []; let total = 0;
     for (const [id, minD, w0] of LIST) { if (dist < minD || id === E.lastPat) continue; const w = w0 * (bias && bias[id] ? bias[id] : 1); pool.push([id, w]); total += w; }
     if (!pool.length) { pool.push(['sprinkle', 1]); total = 1; }          // early game: only one pattern unlocked, so allow a repeat
@@ -219,7 +248,7 @@
     E.lastPat = pat;
     const y0 = -50 * V.S;
     let used = P[pat](y0, d, run.spawned === 0);
-    if (d > .35 && Math.random() < d * .4 && pat !== 'walls' && pat !== 'beam') { const o = pool[Math.floor(Math.random() * pool.length)][0]; if (o !== 'walls' && o !== 'beam') used = Math.max(used, P[o](y0 - used * .8, d, false) + used * .5); }
+    if (d > .35 && Math.random() < d * .4 && !['walls', 'beam', 'sweep', 'missile', 'dart'].includes(pat)) { const o = pool[Math.floor(Math.random() * pool.length)][0]; if (!['walls', 'beam', 'sweep', 'missile', 'dart'].includes(o)) used = Math.max(used, P[o](y0 - used * .8, d, false) + used * .5); }
     return used;
   };
   E.spawnDart = (x, d) => {
@@ -233,7 +262,10 @@
     const S = V.S;
     FX.burst(o.x, o.y, o.fill, Math.round(clamp(8 + o.r * .4, 8, 22)), clamp(.6 + o.r / 60, .7, 1.3));
     G.Audio.boom(); if (G.Game) G.Game.shake(clamp(o.r / 18, 1, 5));
-    if (o.kind === 'rock' && o.gen === 0) {
+    if (o.kind === 'mine') {                                 // mines blow up into a ring of fast shards
+      for (let i = 0; i < 6; i++) { const a = i / 6 * TAU, sh = circ('shard', o.x, o.y, 7 * S, { gen: 1, hp: 1, mass: .3, damp: 1 }); if (sh) { sh.vx = Math.cos(a) * 240; sh.vy = o.vy + Math.sin(a) * 240; sh.entered = true; sh.va = rand(-6, 6); } }
+      FX.ring(o.x, o.y, '#ef4444', 60);
+    } else if (o.kind === 'rock' && o.gen === 0) {
       const n = 2 + (Math.random() < .4 ? 1 : 0);
       for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + (i - (n - 1) / 2) * .9, sh = circ('shard', o.x, o.y, 12 * S, { vy: o.vy, mass: .45, gen: 1, hp: 1, fill: o.fill, stroke: o.stroke }); if (sh) { sh.vx = Math.cos(a) * 170 + rand(-30, 30); sh.vy = o.vy + Math.sin(a) * 120; sh.va = rand(-4, 4); sh.entered = true; } }
     } else if (Math.random() < (byBullet ? .3 : .12)) spawnCoin(o.x, o.y, 1, -40);

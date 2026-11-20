@@ -1,37 +1,56 @@
 # Ascend: Shield & Sky
 
-Mobile-first 2D arcade game (HTML5 canvas). Drag a shield to **repel** obstacles away from your hero, climb an infinite
-procedurally changing world, collect coins, unlock characters and buy upgrades.
+Mobile-first 2D arcade game (HTML5 canvas, no build step). Drag a shield to **repel** obstacles away from your hero,
+launch from 100 different planets or climb the endless sky, collect coins, unlock heroes + shield skins, buy upgrades.
 
-Run it: open `index.html` in a browser (no build step, no server needed). `legacy.html` is the previous single-file version.
+Open `index.html` in a browser. `legacy.html` is the very first single-file version.
 
-## Structure (classic scripts, load order matters — see `index.html`)
-| file | responsibility |
+## Modes
+* **Journey** — 100 levels. Each level launches from a different planet (Earth, Moon, Mars, Venus, ice, lava, gas giant,
+  crystal, neon, black hole, then seeded alien planets). Reach the goal distance. 1–3 stars (fewer hits = more stars),
+  **⚑ checkpoint at the halfway point** (retry from it), next level unlocks.
+* **Endless** — climb forever; Sky → Upper atmosphere → Space → a new seeded alien planet every 5,000 m.
+  **⚑ Checkpoint every 2,500 m**, start later runs from any checkpoint you reached.
+
+## Gameplay systems
+* Shield **repels** (bounce + spin + sparks + bonk). Hero has 3 lives (up to 5), knockback + 1.5 s i-frames.
+* Obstacles from **above, the sides and from below** (comets, jets, missiles with warning markers), saws, mines, orbiting rings,
+  homing drones, splitting rocks, wall gaps, meteor showers. Obstacle *art* changes with the zone/planet (`js/obsart.js`).
+* **Shield Gun** upgrade mounts a turret on the shield that aims at threats. 9 shield skins (`js/shields.js`), 7 heroes.
+* **Adaptive difficulty** (`js/difficulty.js`): a "flow" score follows how well you play; the first 30 s are always gentle.
+  Opt-in **Easy Assist** (rewarded ad) lowers difficulty for 3 runs. The game never gets harder because you skipped ads.
+* Near-miss bonus, combos, power-ups, abilities (Ghost, Slow-Mo, Dash), world-anchored flags (finish, checkpoint, your best).
+
+## Files (classic scripts — load order is in `index.html`)
+| file | what |
 |---|---|
-| `js/util.js` | helpers, seeded RNG, shared `G.view` (canvas size / scale) |
-| `js/storage.js` | `localStorage` save (coins, best, characters, upgrades, settings, daily) |
-| `js/data.js` | characters, upgrades (5 levels each), per-level numbers, daily rewards, milestones |
-| `js/audio.js` | Web Audio sound effects + generative music (separate toggles) |
-| `js/ads.js` | **`showRewardedAd(onReward, onFail)`** placeholder + AdMob/Capacitor instructions |
-| `js/chars.js` | drawing + idle/move animation of the 7 characters |
-| `js/world.js` | infinite background: Sky → Upper atmosphere → Space → seeded alien planets forever |
-| `js/entities.js` | object pools (obstacles, bullets, coins, pickups, particles), geometry, obstacle waves |
-| `js/game.js` | game loop, input, physics, repel, lives, abilities, gun, rendering |
-| `js/ui.js` | menu / characters / upgrades / daily / settings screens, HUD, pause / revive / game over |
+| `js/util.js` `storage.js` `config.js` `data.js` | helpers, localStorage save, **backend/store config**, characters + upgrades |
+| `js/audio.js` | Web Audio sfx + generative music |
+| `js/ads.js` | **`showRewardedAd(onReward,onFail)`** placeholder + AdMob/Capacitor instructions |
+| `js/iap.js` | **coin shop** (demo purchases on web; Google Play Billing hook for the store build) |
+| `js/backend.js` | player profile (name + optional email with consent) + online leaderboard (Supabase REST) |
+| `js/chars.js` `shields.js` `obsart.js` | art: heroes, shield skins + gun turret, obstacle skins |
+| `js/world.js` `levels.js` | infinite world + 100 planet levels |
+| `js/difficulty.js` `entities.js` `game.js` | adaptive difficulty, object pools + wave patterns, loop/physics/rendering |
+| `js/ui.js` | landing, map, shop, leaderboard, profile, HUD, modals |
 
-## Zones (distance in meters)
-0–2,000 Sky • 2,000–5,000 Upper atmosphere • 5,000–10,000 Space • 10,000+ alien planets, a new seeded theme every 5,000 m
-(ice, lava, ringed gas giant, crystal, neon nebula, black hole, then endless generated variants).
-Distance is real: 1 m = 10 px, the world speeds up gradually, the only temporary boost is the Dash ability.
+## Before you publish (important)
+1. **Leaderboard + emails:** create a free Supabase project, run `supabase/schema.sql`, put the URL + anon key in `js/config.js`.
+   Emails are stored only when the player ticks the consent box, and are unreadable with the public key.
+   You need a **privacy policy** URL (`privacyUrl`) — Google Play and GDPR require it when you collect emails.
+   To e-mail/push players use the service-role key from *your own server* (never in the app). Scores are client-sent, so validate them
+   in an Edge Function if cheating matters. Push notifications (FCM) usually work better than email for re-engagement.
+2. **In-app purchases:** the web build uses *demo purchases* (no money). For the Play Store set `demoPurchases:false`, connect Google Play
+   Billing in `js/iap.js` (`nativeBuy`, example inside) and **verify receipts on your server** before granting coins.
+3. **Ads:** replace the body of `showRewardedAd` in `js/ads.js` with AdMob rewarded ads (steps inside).
 
 ## Play Store (Capacitor)
 ```bash
 npm i @capacitor/core @capacitor/cli @capacitor/android
 npx cap init "Ascend: Shield & Sky" com.yourname.ascend --web-dir ascend-shield-sky
 npx cap add android && npx cap sync
-npm i @capacitor-community/admob && npx cap sync      # then edit js/ads.js (instructions inside)
 ```
-Lock the activity to portrait in `AndroidManifest.xml`. The Google Font is optional (falls back to a system font offline).
+Lock the activity to portrait. The Google Font is optional (system font fallback offline).
 
 ## Single-file build
 `python3 tools/bundle.py` → `dist/ascend-single.html`

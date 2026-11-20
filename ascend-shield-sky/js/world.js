@@ -100,7 +100,7 @@
 
   /* ---------- decor state ---------- */
   let stars = [], clouds = [], birds = [], tufts = [], shoots = [], ufos = [], rocks = [], sats = [], galaxy = [], amb = [];
-  let guardian = null, ufoT = 0, shootT = 3, guardCool = 0, satT = 2;
+  let guardian = null, ufoT = 0, shootT = 3, guardCool = 0, satT = 2, lvlTheme = null, gdec = [];
   function init(c) { ctx = c; build(); }
   function build() {
     const W = V.W, H = V.H, S = V.S;
@@ -110,6 +110,7 @@
     galaxy = Array.from({ length: 220 }, (_, i) => { const rr = Math.pow(Math.random(), .6) * 130, ang = (i % 3) * TAU / 3 + rr * .045 + rand(-.3, .3); return { x: Math.cos(ang) * rr, y: Math.sin(ang) * rr, s: rand(.6, 2), h: rand(200, 320) }; });
     rocks = Array.from({ length: 8 }, () => ({ x: Math.random() * W, f: Math.random(), s: rand(7, 17), rot: rand(0, TAU), vr: rand(-.8, .8), z: rand(.4, 1) }));
     tufts = []; for (let x = 10; x < W + 60; x += rand(40, 72) * S) tufts.push({ k: Math.random() < .3 ? 'house' : 'tree', x, s: rand(.8, 1.3), c: pick(['#fda4af', '#fde68a', '#bae6fd', '#fff']) });
+    gdec = Array.from({ length: 16 }, (_, i) => ({ x: (i + Math.random() * .8) / 15 * (W + 80) - 20, s: .7 + Math.random() * .8, v: Math.random() }));
     amb = Array.from({ length: 42 }, () => ({ x: Math.random() * W, y: Math.random() * H, z: .3 + Math.random() * .7, ph: Math.random() * TAU, s: 1 + Math.random() * 2 }));
   }
 
@@ -131,7 +132,7 @@
     if (A > 8300 && A < 9800 && !guardian && guardCool <= 0) { guardian = { x: W + 140, y: H * rand(.2, .4), vx: -26, ph: 0 }; guardCool = 70; if (G.state === 'PLAY' && G.UI) G.UI.banner('👽 You are not alone…', 'Something ancient is watching'); }
     if (guardian) { guardian.x += guardian.vx * dt; guardian.ph += dt; if (guardian.x < -170) guardian = null; }
     // ambient particles of the current planet theme
-    const L = layersAt(A);
+    const L = lvlTheme ? [{ th: lvlTheme, a: 1 }] : layersAt(A);
     if (L) {
       const th = L[L.length - 1].th; amb.kind = th.fx;
       for (const a of amb) {
@@ -384,5 +385,72 @@
     const L = layersAt(A); if (L) for (const l of L) drawTheme(l.th, l.a, A);
   }
 
-  G.World = { init, build, update, draw, zoneAt, themeAt, themeFor, setLowFx(v) { lowFx = v; } };
+
+  /* ---------- JOURNEY levels: launch from a planet's surface into space ---------- */
+  function hills(gBase, off, amp, fq, ph, col) {
+    const W = V.W, H = V.H, S = V.S; ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, H + 500);
+    for (let x = 0; x <= W + 10; x += 10) ctx.lineTo(x, gBase - off * S + Math.sin(x * fq + ph) * amp * S);
+    ctx.lineTo(W, H + 500); ctx.closePath(); ctx.fill();
+  }
+  function drawLevelGround(pl, A) {
+    const W = V.W, H = V.H, S = V.S, gBase = H * .9 + A * PX_M * .4; if (gBase > H * 1.3) return;
+    const [fc, nc] = pl.ground, k = pl.gk;
+    if (k === 'neon') {                                             // synthwave floor: sun + perspective grid
+      const hy = gBase - 30 * S; const sg = ctx.createLinearGradient(0, hy - 90 * S, 0, hy); sg.addColorStop(0, '#fde047'); sg.addColorStop(1, '#ec4899');
+      ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(W / 2, hy, 80 * S, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = nc; ctx.fillRect(0, hy, W, H + 500); ctx.strokeStyle = 'rgba(244,114,182,.8)'; ctx.lineWidth = 1.5;
+      for (let i = -8; i <= 8; i++) { ctx.beginPath(); ctx.moveTo(W / 2 + i * 22 * S, hy); ctx.lineTo(W / 2 + i * 120 * S, hy + 400); ctx.stroke(); }
+      for (let j = 1; j < 8; j++) { const y = hy + j * j * 7 * S; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+      return;
+    }
+    if (k === 'gas') {                                              // floating cloud sea
+      for (let layer = 0; layer < 2; layer++) { ctx.fillStyle = layer ? nc : fc; for (const d of gdec) { ctx.beginPath(); ctx.arc(d.x + layer * 20, gBase - (layer ? 4 : 26) * S + Math.sin(d.x + layer) * 8, (30 + 24 * d.s) * S, 0, TAU); ctx.fill(); } ctx.fillRect(0, gBase + (layer ? 10 : -6) * S, W, H + 500); }
+      return;
+    }
+    hills(gBase, 34, 16, .011, 1, fc); hills(gBase, 4, 8, .017, 3, nc);
+    for (const d of gdec) {
+      const y = gBase - 2 * S + Math.sin(d.x * .017 + 3) * 8 * S, s = d.s * S;
+      if (k === 'moon') { ctx.strokeStyle = 'rgba(40,44,54,.8)'; ctx.lineWidth = 2; ctx.fillStyle = 'rgba(60,64,74,.5)'; ctx.beginPath(); ctx.ellipse(d.x, y + 14 * S, 18 * s, 5 * s, 0, 0, TAU); ctx.fill(); ctx.stroke(); }
+      else if (k === 'mars') { ctx.fillStyle = '#7c2d12'; ctx.beginPath(); ctx.moveTo(d.x - 12 * s, y + 6); ctx.lineTo(d.x - 4 * s, y - 14 * s); ctx.lineTo(d.x + 10 * s, y - 8 * s); ctx.lineTo(d.x + 14 * s, y + 6); ctx.fill(); }
+      else if (k === 'venus') { if (d.v > .6) { ctx.fillStyle = '#78350f'; ctx.beginPath(); ctx.moveTo(d.x - 26 * s, y + 8); ctx.lineTo(d.x - 6 * s, y - 40 * s); ctx.lineTo(d.x + 6 * s, y - 40 * s); ctx.lineTo(d.x + 26 * s, y + 8); ctx.fill(); ctx.fillStyle = 'rgba(251,146,60,' + (.6 + .3 * Math.sin(T * 3 + d.x)) + ')'; ctx.beginPath(); ctx.ellipse(d.x, y - 40 * s, 8 * s, 4 * s, 0, 0, TAU); ctx.fill(); } }
+      else if (k === 'ice') { ctx.fillStyle = 'rgba(224,242,254,.95)'; ctx.strokeStyle = '#7dd3fc'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(d.x - 9 * s, y + 6); ctx.lineTo(d.x, y - (22 + 24 * d.v) * s); ctx.lineTo(d.x + 9 * s, y + 6); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+      else if (k === 'lava') { ctx.strokeStyle = 'rgba(251,146,60,' + (.55 + .35 * Math.sin(T * 3 + d.x)) + ')'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(d.x - 22 * s, y + 10); ctx.lineTo(d.x, y + 4); ctx.lineTo(d.x + 22 * s, y + 12); ctx.stroke(); }
+      else if (k === 'crystal') { ctx.fillStyle = 'hsl(' + (pl.hue + d.v * 60 | 0) + ',80%,66%)'; ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(d.x - 8 * s, y + 6); ctx.lineTo(d.x - 3 * s, y - (28 + 30 * d.v) * s); ctx.lineTo(d.x + 5 * s, y - (20 + 20 * d.v) * s); ctx.lineTo(d.x + 9 * s, y + 6); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+      else if (k === 'hole') { ctx.fillStyle = '#374151'; ctx.beginPath(); ctx.moveTo(d.x - 14 * s, y + 4); ctx.lineTo(d.x - 6 * s, y - (8 + 14 * d.v) * s); ctx.lineTo(d.x + 12 * s, y - 4 * s); ctx.lineTo(d.x + 16 * s, y + 6); ctx.fill(); }
+    }
+  }
+  function drawTraffic(alpha) {
+    ctx.save(); ctx.globalAlpha = alpha;
+    for (const s of shoots) { const a = clamp(s.life / s.max, 0, 1), len = Math.hypot(s.vx, s.vy), tx = s.x - s.vx / len * 90, ty = s.y - s.vy / len * 90; const lg = ctx.createLinearGradient(s.x, s.y, tx, ty); lg.addColorStop(0, 'rgba(255,255,255,' + a + ')'); lg.addColorStop(1, 'rgba(255,255,255,0)'); ctx.strokeStyle = lg; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(tx, ty); ctx.stroke(); }
+    for (const s of sats) { ctx.save(); ctx.translate(s.x, s.y); ctx.scale(V.S, V.S); ctx.fillStyle = '#cbd5e1'; ctx.fillRect(-6, -5, 12, 10); ctx.fillStyle = '#2563eb'; ctx.fillRect(-26, -3, 18, 6); ctx.fillRect(8, -3, 18, 6); ctx.restore(); }
+    for (const u of ufos) drawUfo(u);
+    ctx.restore();
+  }
+  function drawLevel(L, A, goal) {
+    const pl = L.planet, W = V.W, H = V.H, S = V.S, p = clamp(A / goal, 0, 1);
+    if (pl.type === 'earth') { draw(p * 6400); return; }                      // Earth reuses the full sky->space renderer
+    const sp = smooth(p / .65);
+    const top = pl.airless ? mix(pl.top, [1, 1, 8], sp) : mix(pl.top, [2, 3, 14], sp * .92), bot = pl.airless ? mix(pl.bot, [8, 8, 28], sp) : mix(pl.bot, mix(pl.top, [6, 4, 24], .4), sp);
+    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, rgb(top)); g.addColorStop(1, rgb(bot)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const sa = pl.airless ? .95 : smooth((p - .2) / .4);
+    if (sa > .01) for (const s of stars) { s.tw += .03; ctx.fillStyle = 'rgba(255,255,255,' + (sa * (.45 + .55 * Math.sin(s.tw))).toFixed(2) + ')'; const r = s.r * s.z + .4; ctx.fillRect(s.x, s.y, r, r); }
+    if (pl.type === 'moon') {                                                  // Earth hanging in the black sky
+      const ex = W * .72, ey = lerp(H * .26, H * .68, p), er = 62 * S, eg = ctx.createRadialGradient(ex - er * .3, ey - er * .3, 2, ex, ey, er);
+      eg.addColorStop(0, '#bae6fd'); eg.addColorStop(.55, '#2563eb'); eg.addColorStop(1, '#0c1a4a'); ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(34,197,94,.7)'; ctx.beginPath(); ctx.ellipse(ex - er * .25, ey - er * .1, er * .3, er * .22, .5, 0, TAU); ctx.ellipse(ex + er * .3, ey + er * .3, er * .2, er * .15, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(ex + er * .1, ey - er * .45, er * .4, er * .08, .2, 0, TAU); ctx.fill();
+    } else if (pl.type === 'mars') {
+      const sx = W * .7, sy = H * .24, sg = ctx.createRadialGradient(sx, sy, 2, sx, sy, 90 * S); sg.addColorStop(0, 'rgba(255,240,215,.95)'); sg.addColorStop(.2, 'rgba(255,200,150,.35)'); sg.addColorStop(1, 'rgba(255,170,120,0)'); ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#e7d3c2'; ctx.beginPath(); ctx.arc(W * .25, H * .18 + p * 40, 6 * S, 0, TAU); ctx.arc(W * .4, H * .3 + p * 60, 3.5 * S, 0, TAU); ctx.fill();
+    } else if (pl.type === 'venus') {
+      const sg = ctx.createRadialGradient(W * .5, H * .3, 10, W * .5, H * .3, 240 * S); sg.addColorStop(0, 'rgba(255,230,160,' + (.8 * (1 - sp)) + ')'); sg.addColorStop(1, 'rgba(255,170,60,0)'); ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+    }
+    if (pl.th) drawTheme(pl.th, smooth((p - .03) / .3), A);
+    const ca = pl.cloudy ? 1 - smooth(p / .5) : 0;
+    if (ca > .01) for (const c of clouds) { ctx.fillStyle = 'rgba(' + pl.cloud + ',' + (c.o * ca).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(c.x, c.y, c.w * .28, 0, TAU); ctx.arc(c.x + c.w * .24, c.y - c.w * .08, c.w * .34, 0, TAU); ctx.arc(c.x + c.w * .5, c.y, c.w * .26, 0, TAU); ctx.fill(); }
+    drawLevelGround(pl, A);
+    drawTraffic(smooth((p - .3) / .3));
+  }
+
+  G.World = { init, build, update, draw, drawLevel, zoneAt, themeAt, themeFor, setLevelTheme(t) { lvlTheme = t; }, setLowFx(v) { lowFx = v; } };
 })();
